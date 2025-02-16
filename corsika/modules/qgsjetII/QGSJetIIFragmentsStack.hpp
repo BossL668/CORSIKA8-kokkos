@@ -13,7 +13,7 @@
 #include <corsika/framework/stack/Stack.hpp>
 #include <corsika/modules/qgsjetII/ParticleConversion.hpp>
 
-#include <qgsjet-II-04.hpp>
+#include <qgsjet-II-public.hpp>
 
 namespace corsika::qgsjetII {
 
@@ -23,29 +23,35 @@ namespace corsika::qgsjetII {
     void dump() const {}
 
     void clear() {
-      qgarr13_.nsf = 0;
-      qgarr55_.nwt = 0;
+      ::QGSJetII04::qgarr13_->nsf = 0;
+      ::QGSJetII04::qgarr55_->nwt = 0;
     }
-    unsigned int getSize() const { return qgarr13_.nsf; }
+    unsigned int getSize() const { return ::QGSJetII04::qgarr13_->nsf; }
     unsigned int getCapacity() const { return iapmax; }
 
-    static unsigned int getWoundedNucleonsTarget() { return qgarr55_.nwt; }
-    static unsigned int getWoundedNucleonsProjectile() { return qgarr55_.nwp; }
+    static unsigned int getWoundedNucleonsTarget() { return ::QGSJetII04::qgarr55_->nwt; }
+    static unsigned int getWoundedNucleonsProjectile() {
+      return ::QGSJetII04::qgarr55_->nwp;
+    }
 
-    int getFragmentSize(const unsigned int i) const { return qgarr13_.iaf[i]; }
-    void setFragmentSize(const unsigned int i, const int v) { qgarr13_.iaf[i] = v; }
+    int getFragmentSize(const unsigned int i) const {
+      return ::QGSJetII04::qgarr13_->iaf[i];
+    }
+    void setFragmentSize(const unsigned int i, const int v) {
+      ::QGSJetII04::qgarr13_->iaf[i] = v;
+    }
 
     void copy(const unsigned int i1, const unsigned int i2) {
-      qgarr13_.iaf[i2] = qgarr13_.iaf[i1];
+      ::QGSJetII04::qgarr13_->iaf[i2] = ::QGSJetII04::qgarr13_->iaf[i1];
     }
 
     void swap(const unsigned int i1, const unsigned int i2) {
-      std::swap(qgarr13_.iaf[i1], qgarr13_.iaf[i2]);
+      std::swap(::QGSJetII04::qgarr13_->iaf[i1], ::QGSJetII04::qgarr13_->iaf[i2]);
     }
 
-    void incrementSize() { qgarr13_.nsf++; }
+    void incrementSize() { ::QGSJetII04::qgarr13_->nsf++; }
     void decrementSize() {
-      if (qgarr13_.nsf > 0) { qgarr13_.nsf--; }
+      if (::QGSJetII04::qgarr13_->nsf > 0) { ::QGSJetII04::qgarr13_->nsf--; }
     }
   };
 
@@ -73,4 +79,4 @@ namespace corsika::qgsjetII {
 
 } // end namespace corsika::qgsjetII
 
-//#include <corsika/detail/modules/qgsjetII/QGSJetIIFragmentsStack.inl>
+// #include <corsika/detail/modules/qgsjetII/QGSJetIIFragmentsStack.inl>

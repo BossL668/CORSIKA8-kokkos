@@ -9,6 +9,7 @@
 
 #include <corsika/framework/core/ParticleProperties.hpp>
 
+#include <cstdint>
 #include <string>
 
 namespace corsika::qgsjetII {

@@ -20,20 +20,20 @@
 #include <sstream>
 #include <tuple>
 
-#include <qgsjet-II-04.hpp>
+#include <qgsjet-II-public.hpp>
 
 namespace corsika::qgsjetII {
 
   inline InteractionModel::InteractionModel(boost::filesystem::path const dataPath) {
     // initialize QgsjetII
-    corsika::connect_random_stream(rng_, ::qgsjetII::set_rng_function);
+    corsika::connect_random_stream(rng_, ::QGSJetII04::set_rng_function);
 
     static bool initialized = false;
     if (!initialized) {
       CORSIKA_LOG_DEBUG("Reading QGSJetII data tables from {}", dataPath);
-      qgset_();
-      datadir DIR(dataPath.string() + "/");
-      qgaini_(DIR.data);
+      ::QGSJetII04::qgset_();
+      static std::string const dir = dataPath.string() + "/ ";
+      ::QGSJetII04::qgaini_(dir.c_str());
       initialized = true;
     }
   }
@@ -96,7 +96,8 @@ namespace corsika::qgsjetII {
         " iProjectile= {} iTarget= {}",
         ElabN / 1_GeV, iBeam, AfactorProjectile, AfactorTarget);
     double const ElabNGeV{ElabN * (1 / 1_GeV)};
-    double const sigProd = qgsect_(ElabNGeV, iBeam, AfactorProjectile, AfactorTarget);
+    double const sigProd =
+        ::QGSJetII04::qgsect_(ElabNGeV, iBeam, AfactorProjectile, AfactorTarget);
     CORSIKA_LOG_DEBUG("QgsjetII::getCrossSection sigProd= {} mb", sigProd);
     return sigProd * 1_mb;
   }
@@ -169,8 +170,9 @@ namespace corsika::qgsjetII {
     CORSIKA_LOG_DEBUG(
         "qgsjet_hadron_type_int={} projectileMassNumber={} targetMassNumber={}",
         qgsjet_hadron_type_int, AfactorProjectile, AfactorTarget);
-    qgini_(ElabN / 1_GeV, qgsjet_hadron_type_int, AfactorProjectile, AfactorTarget);
-    qgconf_();
+    ::QGSJetII04::qgini_(ElabN / 1_GeV, qgsjet_hadron_type_int, AfactorProjectile,
+                         AfactorTarget);
+    ::QGSJetII04::qgconf_();
 
     CoordinateSystemPtr const& rootCS = get_root_CoordinateSystem();
 
