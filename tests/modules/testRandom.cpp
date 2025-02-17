@@ -44,9 +44,9 @@ TEST_CASE("set_rng") {
   CHECK(s_rndm_(dummy) == 41 * 1.e-6);
 
   first = 60;
-  set_qgsjetII_rng_function(dummy_rng_func);
-  CHECK(qgran_(dummy) == 60 * 1.e-6);
-  CHECK(qgran_(dummy) == 61 * 1.e-6);
+  QGSJetII04::set_rng_function(dummy_rng_func);
+  CHECK(QGSJetII04::qgran_(dummy) == 60 * 1.e-6);
+  CHECK(QGSJetII04::qgran_(dummy) == 61 * 1.e-6);
 
   first = 80;
   set_urqmd_rng_function(dummy_rng_func);
