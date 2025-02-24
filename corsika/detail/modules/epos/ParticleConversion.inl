@@ -8,7 +8,7 @@
 #pragma once
 
 #include <corsika/framework/core/ParticleProperties.hpp>
-#include <epos.hpp>
+#include <epos-public.hpp>
 
 namespace corsika::epos {
 
@@ -19,7 +19,7 @@ namespace corsika::epos {
       throw std::runtime_error("getEposMass: unknown particle!");
     else {
       float mass2 = 0;
-      ::epos::idmass_(sCode, mass2);
+      ::EPOS_LHC::idmass_(sCode, mass2);
       return sqrt(mass2) * 1_GeV;
     }
   }
@@ -29,7 +29,7 @@ namespace corsika::epos {
       int eid = corsika::epos::convertToEposRaw(p);
       char nxs[4] = "nxs";
       char pdg[4] = "pdg";
-      return static_cast<PDGCode>(::epos::idtrafo_(nxs, pdg, eid));
+      return static_cast<PDGCode>(::EPOS_LHC::idtrafo_(nxs, pdg, eid));
     } else {
       throw std::runtime_error("Epos id conversion not implemented for nuclei!");
     }

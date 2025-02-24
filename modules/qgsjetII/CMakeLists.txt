@@ -16,7 +16,7 @@ set_target_properties (
 
 add_library(QGSJetII SHARED qgsjet-II-public.cpp)
 target_link_libraries(QGSJetII PRIVATE QGSJetII_static modules_common)
-target_link_options(QGSJetII PRIVATE "LINKER:--exclude-libs,ALL")
+target_link_options(QGSJetII PRIVATE "LINKER:--exclude-libs,ALL") # hide symbols from static/private lib
 
 
 set (
@@ -30,7 +30,7 @@ target_include_directories (
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include/corsika_modules/qgsjetII>
-  )
+)
 target_link_libraries (QGSJetII_static CorsikaData)
 target_link_libraries (QGSJetII_static modules_common)
 

@@ -9,14 +9,11 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
-
-#include <epos.hpp>
-
-#include <string>
 
 namespace corsika::epos {
 

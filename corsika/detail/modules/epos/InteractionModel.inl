@@ -15,7 +15,8 @@
 #include <corsika/modules/Random.hpp>
 #include <corsika/framework/utility/CorsikaData.hpp>
 
-#include <epos.hpp>
+#include <epos-public.hpp>
+#include <datadir.hpp>
 
 #include <string>
 #include <tuple>
@@ -29,7 +30,7 @@ namespace corsika::epos {
       : data_path_(dataPath)
       , epos_listing_(epos_printout_on) {
     // initialize Eposlhc
-    corsika::connect_random_stream(RNG_, ::epos::set_rng_function);
+    corsika::connect_random_stream(RNG_, ::EPOS_LHC::set_rng_function);
     if (!isInitialized_) {
       isInitialized_ = true;
       if (dataPath == "") {
@@ -55,12 +56,12 @@ namespace corsika::epos {
         // this is only a safeguard against messing up the epos internals by initializing
         // more than once.
         unsigned int const n_particles_stable_epos =
-            ::epos::nodcy_.nrnody; // avoid waring -Wsign-compare
-        if (n_particles_stable_epos < ::epos::mxnody) {
+            ::EPOS_LHC::nodcy_->nrnody; // avoid waring -Wsign-compare
+        if (n_particles_stable_epos < ::EPOS_LHC::mxnody) {
           CORSIKA_LOGGER_TRACE(logger_, "setting {} with EposId={} stable inside EPOS.",
                                p, eid);
-          ::epos::nodcy_.nrnody = ::epos::nodcy_.nrnody + 1;
-          ::epos::nodcy_.nody[::epos::nodcy_.nrnody - 1] = eid;
+          ::EPOS_LHC::nodcy_->nrnody = ::EPOS_LHC::nodcy_->nrnody + 1;
+          ::EPOS_LHC::nodcy_->nody[::EPOS_LHC::nodcy_->nrnody - 1] = eid;
         } else {
           CORSIKA_LOGGER_ERROR(logger_, "List of stable particles too long for Epos!");
           throw std::runtime_error("Epos initialization error!");
@@ -74,7 +75,7 @@ namespace corsika::epos {
       }
     }
     CORSIKA_LOGGER_DEBUG(logger_, "set {} particles stable inside Epos",
-                         ::epos::nodcy_.nrnody);
+                         ::EPOS_LHC::nodcy_->nrnody);
   }
 
   inline bool InteractionModel::isValid(Code const projectileId, Code const targetId,
@@ -98,26 +99,26 @@ namespace corsika::epos {
 
     // corsika7 ini
     int iarg = 0;
-    ::epos::aaset_(iarg);
+    ::EPOS_LHC::aaset_(iarg);
 
     // debug output settings
-    ::epos::prnt1_.ish = 0;
-    ::epos::prnt3_.iwseed = 0; // 1: printout seeds, 0: off
-    ::epos::files_.ifch = 6;   // output unit, 6: screen
+    ::EPOS_LHC::prnt1_->ish = 0;
+    ::EPOS_LHC::prnt3_->iwseed = 0; // 1: printout seeds, 0: off
+    ::EPOS_LHC::files_->ifch = 6;   // output unit, 6: screen
 
     // dummy set seeds for random number generator in epos. need to fool epos checks...
     // we will use external generator
-    ::epos::cseed_.seedi = 1;
-    ::epos::cseed_.seedj = 1;
-    ::epos::cseed_.seedc = 1;
+    ::EPOS_LHC::cseed_->seedi = 1;
+    ::EPOS_LHC::cseed_->seedj = 1;
+    ::EPOS_LHC::cseed_->seedc = 1;
 
-    ::epos::enrgy_.egymin = minEnergyCoM_ / 1_GeV; // 6.;
-    ::epos::enrgy_.egymax = maxEnergyCoM_ / 1_GeV; // 2.e6;
+    ::EPOS_LHC::enrgy_->egymin = minEnergyCoM_ / 1_GeV; // 6.;
+    ::EPOS_LHC::enrgy_->egymax = maxEnergyCoM_ / 1_GeV; // 2.e6;
 
-    ::epos::lhcparameters_();
+    ::EPOS_LHC::lhcparameters_();
 
-    ::epos::hadr6_.isigma = 0; // do not show cross section
-    ::epos::hadr6_.isetcs = 3; /*  !option to obtain pomeron parameters
+    ::EPOS_LHC::hadr6_->isigma = 0; // do not show cross section
+    ::EPOS_LHC::hadr6_->isetcs = 3; /*  !option to obtain pomeron parameters
       ! 0.....determine parameters but do not use Kfit
       ! 1.....determine parameters and use Kfit
       ! else..get from table
@@ -128,42 +129,44 @@ namespace corsika::epos {
       ! 2....tabulation
       ! 3....simulation
                                */
-    ::epos::cjinti_.ionudi =
+    ::EPOS_LHC::cjinti_->ionudi =
         1; // !include quasi elastic events but strict calculation of xs
-    ::epos::cjinti_.iorsce = 0; // !color exchange turned on(1) or off(0)
-    ::epos::cjinti_.iorsdf = 3; //  !droplet formation turned on(>0) or off(0)
-    ::epos::cjinti_.iorshh = 0; //    !other hadron-hadron int. turned on(1) or off(0)
+    ::EPOS_LHC::cjinti_->iorsce = 0; // !color exchange turned on(1) or off(0)
+    ::EPOS_LHC::cjinti_->iorsdf = 3; //  !droplet formation turned on(>0) or off(0)
+    ::EPOS_LHC::cjinti_->iorshh =
+        0; //    !other hadron-hadron int. turned on(1) or off(0)
 
-    ::epos::othe1_.istore = 0; // do not produce epos output file
-    ::epos::nucl6_.infragm =
+    ::EPOS_LHC::othe1_->istore = 0; // do not produce epos output file
+    ::EPOS_LHC::nucl6_->infragm =
         2; // 0: keep free nucleons in fragmentation,1: one fragment, 2: fragmentation
 
-    ::epos::othe2_.iframe = 11; // cms frame
+    ::EPOS_LHC::othe2_->iframe = 11; // cms frame
 
     // decay settings
     // activate decays in epos for particles defined by set_stable/set_unstable
-    // ::epos::othe2_.idecay = 0; // no decays in epos
+    // ::EPOS_LHC::othe2_->.idecay = 0; // no decays in epos
 
     // set paths to tables in corsika data
-    ::epos::datadir BASE(data_path_);
-    strcpy(::epos::fname_.fnnx, BASE.data);
-    ::epos::nfname_.nfnnx = BASE.length;
+    using EPOSDatadir = datadir<500>;
+    EPOSDatadir BASE(data_path_);
+    strcpy(::EPOS_LHC::fname_->fnnx, BASE.data());
+    ::EPOS_LHC::nfname_->nfnnx = BASE.length();
 
-    ::epos::datadir TL(data_path_ + "epos.initl");
-    strcpy(::epos::fname_.fnii, TL.data);
-    ::epos::nfname_.nfnii = TL.length;
+    EPOSDatadir TL(data_path_ + "epos.initl");
+    strcpy(::EPOS_LHC::fname_->fnii, TL.data());
+    ::EPOS_LHC::nfname_->nfnii = TL.length();
 
-    ::epos::datadir EV(data_path_ + "epos.iniev");
-    strcpy(::epos::fname_.fnie, EV.data);
-    ::epos::nfname_.nfnie = EV.length;
+    EPOSDatadir EV(data_path_ + "epos.iniev");
+    strcpy(::EPOS_LHC::fname_->fnie, EV.data());
+    ::EPOS_LHC::nfname_->nfnie = EV.length();
 
-    ::epos::datadir RJ(data_path_ + "epos.inirj"); // lhcparameters adds ".lhc"
-    strcpy(::epos::fname_.fnrj, RJ.data);
-    ::epos::nfname_.nfnrj = RJ.length;
+    EPOSDatadir RJ(data_path_ + "epos.inirj"); // lhcparameters adds ".lhc"
+    strcpy(::EPOS_LHC::fname_->fnrj, RJ.data());
+    ::EPOS_LHC::nfname_->nfnrj = RJ.length();
 
-    ::epos::datadir CS(data_path_ + "epos.inics"); // lhcparameters adds ".lhc"
-    strcpy(::epos::fname_.fncs, CS.data);
-    ::epos::nfname_.nfncs = CS.length;
+    EPOSDatadir CS(data_path_ + "epos.inics"); // lhcparameters adds ".lhc"
+    strcpy(::EPOS_LHC::fname_->fncs, CS.data());
+    ::EPOS_LHC::nfname_->nfncs = CS.length();
 
     // initializes maximum energy and mass
     initializeEventCoM(
@@ -179,19 +182,19 @@ namespace corsika::epos {
                          "initialize event in CoM frame!"
                          " Ecm={}",
                          EcmNN);
-    ::epos::lept1_.engy = -1.;
-    ::epos::enrgy_.ecms = -1.;
-    ::epos::enrgy_.elab = -1.;
-    ::epos::enrgy_.ekin = -1.;
-    ::epos::hadr1_.pnll = -1.;
+    ::EPOS_LHC::lept1_->engy = -1.;
+    ::EPOS_LHC::enrgy_->ecms = -1.;
+    ::EPOS_LHC::enrgy_->elab = -1.;
+    ::EPOS_LHC::enrgy_->ekin = -1.;
+    ::EPOS_LHC::hadr1_->pnll = -1.;
 
-    ::epos::enrgy_.ecms = EcmNN / 1_GeV; // -> c.m.s. frame
+    ::EPOS_LHC::enrgy_->ecms = EcmNN / 1_GeV; // -> c.m.s. frame
 
-    CORSIKA_LOGGER_TRACE(logger_, "inside EPOS: Ecm={}, Elab={}", ::epos::enrgy_.ecms,
-                         ::epos::enrgy_.elab);
+    CORSIKA_LOGGER_TRACE(logger_, "inside EPOS: Ecm={}, Elab={}",
+                         ::EPOS_LHC::enrgy_->ecms, ::EPOS_LHC::enrgy_->elab);
 
     configureParticles(idBeam, iBeamA, iBeamZ, idTarget, iTargetA, iTargetZ);
-    ::epos::ainit_();
+    ::EPOS_LHC::ainit_();
   }
 
   inline void InteractionModel::configureParticles(Code const idBeam, int const iBeamA,
@@ -209,27 +212,27 @@ namespace corsika::epos {
                          idBeam, iBeamA, iBeamZ, idTarget, iTargetA, iTargetZ);
 
     if (is_nucleus(idBeam)) {
-      ::epos::hadr25_.idprojin = convertToEposRaw(Code::Proton);
-      ::epos::nucl1_.laproj = iBeamZ;
-      ::epos::nucl1_.maproj = iBeamA;
+      ::EPOS_LHC::hadr25_->idprojin = convertToEposRaw(Code::Proton);
+      ::EPOS_LHC::nucl1_->laproj = iBeamZ;
+      ::EPOS_LHC::nucl1_->maproj = iBeamA;
     } else {
-      ::epos::hadr25_.idprojin = convertToEposRaw(idBeam);
-      ::epos::nucl1_.laproj = -1;
-      ::epos::nucl1_.maproj = 1;
+      ::EPOS_LHC::hadr25_->idprojin = convertToEposRaw(idBeam);
+      ::EPOS_LHC::nucl1_->laproj = -1;
+      ::EPOS_LHC::nucl1_->maproj = 1;
     }
 
     if (is_nucleus(idTarget)) {
-      ::epos::hadr25_.idtargin = convertToEposRaw(Code::Proton);
-      ::epos::nucl1_.matarg = iTargetA;
-      ::epos::nucl1_.latarg = iTargetZ;
+      ::EPOS_LHC::hadr25_->idtargin = convertToEposRaw(Code::Proton);
+      ::EPOS_LHC::nucl1_->matarg = iTargetA;
+      ::EPOS_LHC::nucl1_->latarg = iTargetZ;
     } else if (idTarget == Code::Proton || idTarget == Code::Hydrogen) {
-      ::epos::hadr25_.idtargin = convertToEposRaw(Code::Proton);
-      ::epos::nucl1_.matarg = 1;
-      ::epos::nucl1_.latarg = -1;
+      ::EPOS_LHC::hadr25_->idtargin = convertToEposRaw(Code::Proton);
+      ::EPOS_LHC::nucl1_->matarg = 1;
+      ::EPOS_LHC::nucl1_->latarg = -1;
     } else if (idTarget == Code::Neutron) {
-      ::epos::hadr25_.idtargin = convertToEposRaw(Code::Neutron);
-      ::epos::nucl1_.matarg = 1;
-      ::epos::nucl1_.latarg = -1;
+      ::EPOS_LHC::hadr25_->idtargin = convertToEposRaw(Code::Neutron);
+      ::EPOS_LHC::nucl1_->matarg = 1;
+      ::EPOS_LHC::nucl1_->latarg = -1;
     }
 
     CORSIKA_LOGGER_TRACE(logger_,
@@ -242,10 +245,10 @@ namespace corsika::epos {
                          "Z target={}, "
                          "A target={}, "
                          "XS target={} ",
-                         ::epos::hadr25_.idprojin, ::epos::nucl1_.laproj,
-                         ::epos::nucl1_.maproj, ::epos::had10_.iclpro,
-                         ::epos::hadr25_.idtargin, ::epos::nucl1_.latarg,
-                         ::epos::nucl1_.matarg, ::epos::had10_.icltar);
+                         ::EPOS_LHC::hadr25_->idprojin, ::EPOS_LHC::nucl1_->laproj,
+                         ::EPOS_LHC::nucl1_->maproj, ::EPOS_LHC::had10_->iclpro,
+                         ::EPOS_LHC::hadr25_->idtargin, ::EPOS_LHC::nucl1_->latarg,
+                         ::EPOS_LHC::nucl1_->matarg, ::EPOS_LHC::had10_->icltar);
   }
 
   inline InteractionModel::~InteractionModel() {
@@ -286,12 +289,12 @@ namespace corsika::epos {
     double sigProd, sigEla = 0;
     float sigTot1, sigProd1, sigCut1 = 0;
     if (!is_nucleus(TargetId) && !is_nucleus(BeamId)) {
-      sigProd = ::epos::hadr5_.sigine;
-      sigEla = ::epos::hadr5_.sigela;
+      sigProd = ::EPOS_LHC::hadr5_->sigine;
+      sigEla = ::EPOS_LHC::hadr5_->sigela;
     } else {
       // calculate from model, SLOW:
       float sigQEla1 = 0; // target fragmentation/excitation
-      ::epos::crseaaepos_(sigTot1, sigProd1, sigCut1, sigQEla1);
+      ::EPOS_LHC::crseaaepos_(sigTot1, sigProd1, sigCut1, sigQEla1);
       sigProd = sigProd1;
       // sigEla not properly defined here
     }
@@ -326,7 +329,7 @@ namespace corsika::epos {
       // kinetic energy per nucleon
       Ekin = (EnergyLab / Abeam - constants::nucleonMass) / 1_GeV;
     } else {
-      ::epos::hadr2_.idproj = convertToEposRaw(BeamId);
+      ::EPOS_LHC::hadr2_->idproj = convertToEposRaw(BeamId);
       int const iBeam = epos::getEposXSCode(
           BeamId); // 0 (can not interact, 1: pion-like, 2: proton-like, 3:kaon-like)
       CORSIKA_LOGGER_TRACE(logger_,
@@ -334,7 +337,7 @@ namespace corsika::epos {
                            "(0: cannot interact, 1:pion, 2:baryon, 3:kaon)",
                            iBeam);
 
-      ::epos::had10_.iclpro = iBeam;
+      ::EPOS_LHC::had10_->iclpro = iBeam;
       Abeam = 1;
       Ekin = (EnergyLab - get_mass(BeamId)) / 1_GeV;
     }
@@ -347,7 +350,7 @@ namespace corsika::epos {
     CORSIKA_LOGGER_TRACE(logger_,
                          "readCrossSectionTableLab: inside Epos "
                          "beamId={}, beamXS={}",
-                         ::epos::hadr2_.idproj, ::epos::had10_.iclpro);
+                         ::EPOS_LHC::hadr2_->idproj, ::EPOS_LHC::had10_->iclpro);
 
     CORSIKA_LOGGER_TRACE(logger_,
                          "readCrossSectionTableLab: calling Epos cross section with"
@@ -355,9 +358,9 @@ namespace corsika::epos {
                          Ekin, Abeam, Atarget, iMode);
 
     // cross section from table, FAST
-    float sigProdEpos = ::epos::eposcrse_(Ekin, Abeam, Atarget, iMode);
+    float sigProdEpos = ::EPOS_LHC::eposcrse_(Ekin, Abeam, Atarget, iMode);
     // sig-el from analytic calculation, no fast
-    float sigElaEpos = ::epos::eposelacrse_(Ekin, Abeam, Atarget, iMode);
+    float sigElaEpos = ::EPOS_LHC::eposelacrse_(Ekin, Abeam, Atarget, iMode);
 
     CORSIKA_LOGGER_TRACE(logger_,
                          "readCrossSectionTableLab: result: sigProd = {}, sigEla = {}",
@@ -462,12 +465,12 @@ namespace corsika::epos {
 
     // create event
     int iarg = 1;
-    ::epos::aepos_(iarg);
-    ::epos::afinal_();
+    ::EPOS_LHC::aepos_(iarg);
+    ::EPOS_LHC::afinal_();
 
     if (epos_listing_) { // LCOV_EXCL_START
       char nam[9] = "EPOSLHC&";
-      ::epos::alistf_(nam, 9);
+      ::EPOS_LHC::alistf_(nam, 9);
     } // LCOV_EXCL_STOP
 
     // NSTORE-part

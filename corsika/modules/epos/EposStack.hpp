@@ -7,103 +7,107 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/framework/geometry/RootCoordinateSystem.hpp>
 #include <corsika/framework/geometry/Vector.hpp>
 #include <corsika/framework/stack/Stack.hpp>
 #include <corsika/modules/epos/ParticleConversion.hpp>
 
-#include <epos.hpp>
+#include <epos-public.hpp>
 
 namespace corsika::epos {
 
   typedef corsika::Vector<hepmomentum_d> MomentumVector;
 
   class EposStackData {
+    static auto constexpr invGeV = 1 / 1_GeV;
 
   public:
     void dump() const {}
 
-    void clear() { ::epos::cptl_.nptl = 0; }
-    unsigned int getSize() const { return ::epos::cptl_.nptl; }
-    unsigned int getCapacity() const { return ::epos::mxptl; }
+    void clear() { ::EPOS_LHC::cptl_->nptl = 0; }
+    unsigned int getSize() const { return ::EPOS_LHC::cptl_->nptl; }
+    unsigned int getCapacity() const { return ::EPOS_LHC::mxptl; }
 
-    void setId(const unsigned int i, const int v) { ::epos::cptl_.idptl[i] = v; }
+    void setId(const unsigned int i, const int v) { ::EPOS_LHC::cptl_->idptl[i] = v; }
     void setEnergy(const unsigned int i, const HEPEnergyType v) {
-      ::epos::cptl_.pptl[i][3] = v / 1_GeV;
+      ::EPOS_LHC::cptl_->pptl[i][3] = v * invGeV;
     }
     void setMass(const unsigned int i, const HEPMassType v) {
-      ::epos::cptl_.pptl[i][4] = v / 1_GeV;
+      ::EPOS_LHC::cptl_->pptl[i][4] = v * invGeV;
     }
     void setMomentum(const unsigned int i, const MomentumVector& v) {
       auto tmp = v.getComponents();
-      for (int idx = 0; idx < 3; ++idx) ::epos::cptl_.pptl[i][idx] = tmp[idx] / 1_GeV;
+      for (int idx = 0; idx < 3; ++idx)
+        ::EPOS_LHC::cptl_->pptl[i][idx] = tmp[idx] * invGeV;
     }
-    void setState(const unsigned int i, const int v) { ::epos::cptl_.istptl[i] = v; }
+    void setState(const unsigned int i, const int v) { ::EPOS_LHC::cptl_->istptl[i] = v; }
 
-    int getId(const unsigned int i) const { return ::epos::cptl_.idptl[i]; }
-    int getState(const unsigned int i) const { return ::epos::cptl_.istptl[i]; }
+    int getId(const unsigned int i) const { return ::EPOS_LHC::cptl_->idptl[i]; }
+    int getState(const unsigned int i) const { return ::EPOS_LHC::cptl_->istptl[i]; }
     HEPEnergyType getEnergy(const int i) const {
-      return ::epos::cptl_.pptl[i][3] * 1_GeV;
+      return ::EPOS_LHC::cptl_->pptl[i][3] * 1_GeV;
     }
     HEPEnergyType getMass(const unsigned int i) const {
-      return ::epos::cptl_.pptl[i][4] * 1_GeV;
+      return ::EPOS_LHC::cptl_->pptl[i][4] * 1_GeV;
     }
     MomentumVector getMomentum(const unsigned int i) const {
       CoordinateSystemPtr const& rootCS = get_root_CoordinateSystem();
-      QuantityVector<hepmomentum_d> components = {::epos::cptl_.pptl[i][0] * 1_GeV,
-                                                  ::epos::cptl_.pptl[i][1] * 1_GeV,
-                                                  ::epos::cptl_.pptl[i][2] * 1_GeV};
+      QuantityVector<hepmomentum_d> components = {::EPOS_LHC::cptl_->pptl[i][0] * 1_GeV,
+                                                  ::EPOS_LHC::cptl_->pptl[i][1] * 1_GeV,
+                                                  ::EPOS_LHC::cptl_->pptl[i][2] * 1_GeV};
       return MomentumVector(rootCS, components);
     }
 
     MomentumVector getMomentum(const unsigned int i,
                                const CoordinateSystemPtr& CS) const {
-      QuantityVector<hepmomentum_d> components = {::epos::cptl_.pptl[i][0] * 1_GeV,
-                                                  ::epos::cptl_.pptl[i][1] * 1_GeV,
-                                                  ::epos::cptl_.pptl[i][2] * 1_GeV};
+      QuantityVector<hepmomentum_d> components = {::EPOS_LHC::cptl_->pptl[i][0] * 1_GeV,
+                                                  ::EPOS_LHC::cptl_->pptl[i][1] * 1_GeV,
+                                                  ::EPOS_LHC::cptl_->pptl[i][2] * 1_GeV};
       return MomentumVector(CS, components);
     }
 
     void copy(const unsigned int i1, const unsigned int i2) {
-      ::epos::cptl_.idptl[i2] = ::epos::cptl_.idptl[i1];
-      ::epos::cptl_.iorptl[i2] = ::epos::cptl_.iorptl[i1];
-      ::epos::cptl_.jorptl[i2] = ::epos::cptl_.jorptl[i1];
-      ::epos::cptl_.istptl[i2] = ::epos::cptl_.istptl[i1];
-      ::epos::cptl_.ityptl[i2] = ::epos::cptl_.ityptl[i1];
+      ::EPOS_LHC::cptl_->idptl[i2] = ::EPOS_LHC::cptl_->idptl[i1];
+      ::EPOS_LHC::cptl_->iorptl[i2] = ::EPOS_LHC::cptl_->iorptl[i1];
+      ::EPOS_LHC::cptl_->jorptl[i2] = ::EPOS_LHC::cptl_->jorptl[i1];
+      ::EPOS_LHC::cptl_->istptl[i2] = ::EPOS_LHC::cptl_->istptl[i1];
+      ::EPOS_LHC::cptl_->ityptl[i2] = ::EPOS_LHC::cptl_->ityptl[i1];
       for (unsigned int i = 0; i < 5; ++i)
-        ::epos::cptl_.pptl[i2][i] = ::epos::cptl_.pptl[i1][i];
+        ::EPOS_LHC::cptl_->pptl[i2][i] = ::EPOS_LHC::cptl_->pptl[i1][i];
       for (unsigned int i = 0; i < 2; ++i) {
-        ::epos::cptl_.tivptl[i2][i] = ::epos::cptl_.tivptl[i1][i];
-        ::epos::cptl_.ifrptl[i2][i] = ::epos::cptl_.ifrptl[i1][i];
+        ::EPOS_LHC::cptl_->tivptl[i2][i] = ::EPOS_LHC::cptl_->tivptl[i1][i];
+        ::EPOS_LHC::cptl_->ifrptl[i2][i] = ::EPOS_LHC::cptl_->ifrptl[i1][i];
       }
       for (unsigned int i = 0; i < 4; ++i) {
-        ::epos::cptl_.xorptl[i2][i] = ::epos::cptl_.xorptl[i1][i];
-        ::epos::cptl_.ibptl[i2][i] = ::epos::cptl_.ibptl[i1][i];
+        ::EPOS_LHC::cptl_->xorptl[i2][i] = ::EPOS_LHC::cptl_->xorptl[i1][i];
+        ::EPOS_LHC::cptl_->ibptl[i2][i] = ::EPOS_LHC::cptl_->ibptl[i1][i];
       }
     }
 
     void swap(const unsigned int i1, const unsigned int i2) {
-      std::swap(::epos::cptl_.idptl[i2], ::epos::cptl_.idptl[i1]);
-      std::swap(::epos::cptl_.iorptl[i2], ::epos::cptl_.iorptl[i1]);
-      std::swap(::epos::cptl_.jorptl[i2], ::epos::cptl_.jorptl[i1]);
-      std::swap(::epos::cptl_.istptl[i2], ::epos::cptl_.istptl[i1]);
-      std::swap(::epos::cptl_.ityptl[i2], ::epos::cptl_.ityptl[i1]);
+      std::swap(::EPOS_LHC::cptl_->idptl[i2], ::EPOS_LHC::cptl_->idptl[i1]);
+      std::swap(::EPOS_LHC::cptl_->iorptl[i2], ::EPOS_LHC::cptl_->iorptl[i1]);
+      std::swap(::EPOS_LHC::cptl_->jorptl[i2], ::EPOS_LHC::cptl_->jorptl[i1]);
+      std::swap(::EPOS_LHC::cptl_->istptl[i2], ::EPOS_LHC::cptl_->istptl[i1]);
+      std::swap(::EPOS_LHC::cptl_->ityptl[i2], ::EPOS_LHC::cptl_->ityptl[i1]);
       for (unsigned int i = 0; i < 5; ++i)
-        std::swap(::epos::cptl_.pptl[i2][i], ::epos::cptl_.pptl[i1][i]);
+        std::swap(::EPOS_LHC::cptl_->pptl[i2][i], ::EPOS_LHC::cptl_->pptl[i1][i]);
       for (unsigned int i = 0; i < 2; ++i) {
-        std::swap(::epos::cptl_.tivptl[i2][i], ::epos::cptl_.tivptl[i1][i]);
-        std::swap(::epos::cptl_.ifrptl[i2][i], ::epos::cptl_.ifrptl[i1][i]);
+        std::swap(::EPOS_LHC::cptl_->tivptl[i2][i], ::EPOS_LHC::cptl_->tivptl[i1][i]);
+        std::swap(::EPOS_LHC::cptl_->ifrptl[i2][i], ::EPOS_LHC::cptl_->ifrptl[i1][i]);
       }
       for (unsigned int i = 0; i < 4; ++i) {
-        std::swap(::epos::cptl_.xorptl[i2][i], ::epos::cptl_.xorptl[i1][i]);
-        std::swap(::epos::cptl_.ibptl[i2][i], ::epos::cptl_.ibptl[i1][i]);
+        std::swap(::EPOS_LHC::cptl_->xorptl[i2][i], ::EPOS_LHC::cptl_->xorptl[i1][i]);
+        std::swap(::EPOS_LHC::cptl_->ibptl[i2][i], ::EPOS_LHC::cptl_->ibptl[i1][i]);
       }
     }
 
-    void incrementSize() { ::epos::cptl_.nptl++; }
+    void incrementSize() { ::EPOS_LHC::cptl_->nptl++; }
     void decrementSize() {
-      if (::epos::cptl_.nptl > 0) { ::epos::cptl_.nptl--; }
+      ::EPOS_LHC::cptl_->nptl = std::max(0, ::EPOS_LHC::cptl_->nptl - 1);
     }
   };
 
