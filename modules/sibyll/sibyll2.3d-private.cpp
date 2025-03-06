@@ -5,14 +5,10 @@
  * See file LICENSE for a full version of the license.
  */
 
-#include <sibyll2.3d.hpp>
-#include <rng_impl.hpp> //from modules/common
+#include "sibyll2.3d-private.hpp"
+#include <rng_impl.hpp>
 
 #include <cmath>
-#include <array>
-#include <functional>
-#include <iterator>
-#include <iostream>
 
 int get_nwounded() { return s_chist_.nwd; }
 double get_sibyll_mass2(int& id) { return s_mass1_.am2[std::abs(id) - 1]; }
