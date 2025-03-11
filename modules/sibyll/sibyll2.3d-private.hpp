@@ -53,4 +53,6 @@ double get_sibyll_mass2(int&);
 
 // phojet random generator setup
 void pho_rndin_(int&, int&, int&, int&);
+
+void nuc_nuc_ini_();
 }

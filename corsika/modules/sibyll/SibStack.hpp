@@ -13,57 +13,65 @@
 #include <corsika/framework/stack/Stack.hpp>
 #include <corsika/modules/sibyll/ParticleConversion.hpp>
 
-#include <sibyll2.3d.hpp>
+#include <sibyll2.3d-public.hpp>
 
 namespace corsika::sibyll {
 
   typedef corsika::Vector<hepmomentum_d> MomentumVector;
 
   class SibStackData {
+    static auto constexpr invGeV = 1 / 1_GeV;
 
   public:
     void dump() const {}
 
-    void clear() { s_plist_.np = 0; }
-    unsigned int getSize() const { return s_plist_.np; }
+    void clear() { ::sibyll23d::s_plist_->np = 0; }
+    unsigned int getSize() const { return ::sibyll23d::s_plist_->np; }
     unsigned int getCapacity() const { return 8000; }
 
-    void setId(const unsigned int i, const int v) { s_plist_.llist[i] = v; }
+    void setId(const unsigned int i, const int v) { ::sibyll23d::s_plist_->llist[i] = v; }
     void setEnergy(const unsigned int i, const HEPEnergyType v) {
-      s_plist_.p[3][i] = v / 1_GeV;
+      ::sibyll23d::s_plist_->p[3][i] = v * invGeV;
     }
     void setMass(const unsigned int i, const HEPMassType v) {
-      s_plist_.p[4][i] = v / 1_GeV;
+      ::sibyll23d::s_plist_->p[4][i] = v * invGeV;
     }
     void setMomentum(const unsigned int i, const MomentumVector& v) {
       auto tmp = v.getComponents();
-      for (int idx = 0; idx < 3; ++idx) s_plist_.p[idx][i] = tmp[idx] / 1_GeV;
+      for (int idx = 0; idx < 3; ++idx)
+        ::sibyll23d::s_plist_->p[idx][i] = tmp[idx] * invGeV;
     }
 
-    int getId(const unsigned int i) const { return s_plist_.llist[i]; }
-    HEPEnergyType getEnergy(const int i) const { return s_plist_.p[3][i] * 1_GeV; }
-    HEPEnergyType getMass(const unsigned int i) const { return s_plist_.p[4][i] * 1_GeV; }
+    int getId(const unsigned int i) const { return ::sibyll23d::s_plist_->llist[i]; }
+    HEPEnergyType getEnergy(const int i) const {
+      return ::sibyll23d::s_plist_->p[3][i] * 1_GeV;
+    }
+    HEPEnergyType getMass(const unsigned int i) const {
+      return ::sibyll23d::s_plist_->p[4][i] * 1_GeV;
+    }
     MomentumVector getMomentum(const unsigned int i) const {
       CoordinateSystemPtr const& rootCS = get_root_CoordinateSystem();
-      QuantityVector<hepmomentum_d> components = {
-          s_plist_.p[0][i] * 1_GeV, s_plist_.p[1][i] * 1_GeV, s_plist_.p[2][i] * 1_GeV};
+      QuantityVector<hepmomentum_d> components = {::sibyll23d::s_plist_->p[0][i] * 1_GeV,
+                                                  ::sibyll23d::s_plist_->p[1][i] * 1_GeV,
+                                                  ::sibyll23d::s_plist_->p[2][i] * 1_GeV};
       return MomentumVector(rootCS, components);
     }
 
     void copy(const unsigned int i1, const unsigned int i2) {
-      s_plist_.llist[i2] = s_plist_.llist[i1];
-      for (unsigned int i = 0; i < 5; ++i) s_plist_.p[i][i2] = s_plist_.p[i][i1];
+      ::sibyll23d::s_plist_->llist[i2] = ::sibyll23d::s_plist_->llist[i1];
+      for (unsigned int i = 0; i < 5; ++i)
+        ::sibyll23d::s_plist_->p[i][i2] = ::sibyll23d::s_plist_->p[i][i1];
     }
 
     void swap(const unsigned int i1, const unsigned int i2) {
-      std::swap(s_plist_.llist[i1], s_plist_.llist[i2]);
+      std::swap(::sibyll23d::s_plist_->llist[i1], ::sibyll23d::s_plist_->llist[i2]);
       for (unsigned int i = 0; i < 5; ++i)
-        std::swap(s_plist_.p[i][i1], s_plist_.p[i][i2]);
+        std::swap(::sibyll23d::s_plist_->p[i][i1], ::sibyll23d::s_plist_->p[i][i2]);
     }
 
-    void incrementSize() { s_plist_.np++; }
+    void incrementSize() { ::sibyll23d::s_plist_->np++; }
     void decrementSize() {
-      if (s_plist_.np > 0) { s_plist_.np--; }
+      if (::sibyll23d::s_plist_->np > 0) { ::sibyll23d::s_plist_->np--; }
     }
   };
 

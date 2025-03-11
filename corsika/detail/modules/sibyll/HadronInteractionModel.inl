@@ -14,7 +14,7 @@
 #include <corsika/modules/sibyll/SibStack.hpp>
 #include <corsika/modules/Random.hpp>
 
-#include <sibyll2.3d.hpp>
+#include <sibyll2.3d-public.hpp>
 
 #include <tuple>
 
@@ -29,10 +29,10 @@ namespace corsika::sibyll {
       , internal_decays_(false)
       , stable_particles_{} {
     // initialize Sibyll
-    corsika::connect_random_stream("sibyll", ::sibyll::set_rng_function);
+    corsika::connect_random_stream("sibyll", ::sibyll23d::set_rng_function);
     static bool initialized = false;
     if (!initialized) {
-      sibyll_ini_();
+      ::sibyll23d::sibyll_ini_();
       initialized = true;
     }
   }
@@ -40,12 +40,12 @@ namespace corsika::sibyll {
   inline HadronInteractionModel::HadronInteractionModel(std::set<Code> vlist)
       : sibyll_listing_(false)
       , internal_decays_(true)
-      , stable_particles_(vlist) {
+      , stable_particles_(std::move(vlist)) {
     // initialize Sibyll
-    corsika::connect_random_stream("sibyll", ::sibyll::set_rng_function);
+    corsika::connect_random_stream("sibyll", ::sibyll23d::set_rng_function);
     static bool initialized = false;
     if (!initialized) {
-      sibyll_ini_();
+      ::sibyll23d::sibyll_ini_();
       initialized = true;
     }
   }
@@ -53,7 +53,8 @@ namespace corsika::sibyll {
   inline void HadronInteractionModel::setAllParticlesUnstable() {
     // activate all decays in SIBYLL
     CORSIKA_LOGGER_DEBUG(logger_, "setting all particles \"unstable\".");
-    for (int i = 0; i < 99; ++i) s_csydec_.idb[i] = abs(s_csydec_.idb[i]);
+    for (int i = 0; i < 99; ++i)
+      ::sibyll23d::s_csydec_->idb[i] = abs(::sibyll23d::s_csydec_->idb[i]);
   }
 
   inline void HadronInteractionModel::setParticleListStable(std::set<Code> vList) {
@@ -63,7 +64,8 @@ namespace corsika::sibyll {
       auto const sib_code = sibyll::convertToSibyll(p);
       if (sib_code != corsika::sibyll::SibyllCode::Unknown) {
         int const s_id = abs(static_cast<int>(sib_code));
-        s_csydec_.idb[s_id - 1] = (-1) * abs(s_csydec_.idb[s_id - 1]);
+        ::sibyll23d::s_csydec_->idb[s_id - 1] =
+            (-1) * abs(::sibyll23d::s_csydec_->idb[s_id - 1]);
       } else {
         CORSIKA_LOGGER_WARN(logger_,
                             "particle {} not known to SIBYLL! Cannot set stable!", p);
@@ -127,11 +129,11 @@ namespace corsika::sibyll {
     if (targetId == Code::Proton || targetId == Code::Hydrogen ||
         targetId == Code::Neutron) {
       // single nucleon target
-      sib_sigma_hp_(iBeam, dEcm, dum1, sigEla, sigProd, dumdif, dum3, dum4);
+      ::sibyll23d::sib_sigma_hp_(iBeam, dEcm, dum1, sigEla, sigProd, dumdif, dum3, dum4);
     } else {
       // nuclear target
       int const iTarget = get_nucleus_A(targetId);
-      sib_sigma_hnuc_(iBeam, iTarget, dEcm, sigProd, dummy, sigEla);
+      ::sibyll23d::sib_sigma_hnuc_(iBeam, iTarget, dEcm, sigProd, dummy, sigEla);
     }
     return {sigProd * 1_mb, sigEla * 1_mb};
   }
@@ -175,14 +177,14 @@ namespace corsika::sibyll {
       setParticleListStable(stable_particles_);
     }
     // running sibyll, filling stack
-    sibyll_(projectileSibyllCode, targetSibCode, sqs);
-    if (internal_decays_) decsib_();
+    ::sibyll23d::sibyll_(projectileSibyllCode, targetSibCode, sqs);
+    if (internal_decays_) ::sibyll23d::decsib_();
 
     if (sibyll_listing_) {
       // print final state
       int print_unit = 6;
-      sib_list_(print_unit);
-      nucCount_ += get_nwounded() - 1;
+      ::sibyll23d::sib_list_(print_unit);
+      nucCount_ += ::sibyll23d::get_nwounded() - 1;
     }
 
     // ------ output and particle readout -----
@@ -236,10 +238,11 @@ namespace corsika::sibyll {
                            "diff(%)={}, "
                            "E in nucleons={}, "
                            "Plab_final={} ",
-                           sqrtSnn / 1_GeV, Ecm_final * 2. / (get_nwounded() + 1) / 1_GeV,
+                           sqrtSnn / 1_GeV,
+                           Ecm_final * 2. / (::sibyll23d::get_nwounded() + 1) / 1_GeV,
                            Elab_initial, Elab_final / 1_GeV,
                            (Elab_final - Elab_initial) / Elab_initial * 100,
-                           constants::nucleonMass * get_nwounded() / 1_GeV,
+                           constants::nucleonMass * ::sibyll23d::get_nwounded() / 1_GeV,
                            (Plab_final / 1_GeV).getComponents());
     }
   }

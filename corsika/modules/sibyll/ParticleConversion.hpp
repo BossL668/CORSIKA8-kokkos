@@ -10,7 +10,7 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 
-#include <sibyll2.3d.hpp>
+#include <sibyll2.3d-public.hpp>
 
 #include <string>
 

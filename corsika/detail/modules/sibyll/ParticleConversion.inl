@@ -8,8 +8,7 @@
 #pragma once
 
 #include <corsika/framework/core/ParticleProperties.hpp>
-
-#include <sibyll2.3d.hpp>
+#include <sibyll2.3d-public.hpp>
 
 namespace corsika::sibyll {
 
@@ -19,6 +18,6 @@ namespace corsika::sibyll {
     if (sCode == 0)
       throw std::runtime_error("getSibyllMass: unknown particle!");
     else
-      return sqrt(get_sibyll_mass2(sCode)) * 1_GeV;
+      return sqrt(::sibyll23d::get_sibyll_mass2(sCode)) * 1_GeV;
   }
 } // namespace corsika::sibyll

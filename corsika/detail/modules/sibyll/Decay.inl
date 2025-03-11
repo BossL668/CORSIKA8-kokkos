@@ -19,7 +19,7 @@ namespace corsika::sibyll {
 
   inline Decay::Decay(const bool sibyll_printout_on)
       : sibyll_listing_(sibyll_printout_on) {
-    corsika::connect_random_stream("sibyll", ::sibyll::set_rng_function);
+    corsika::connect_random_stream("sibyll", ::sibyll23d::set_rng_function);
     // switch off decays to avoid internal decay chains
     setAllStable();
     // handle all decays by default
@@ -99,29 +99,33 @@ namespace corsika::sibyll {
     CORSIKA_LOGGER_DEBUG(logger_, "setting {} as \"unstable\". ", vCode);
 
     const int s_id = abs(sibyll::convertToSibyllRaw(vCode));
-    s_csydec_.idb[s_id - 1] = abs(s_csydec_.idb[s_id - 1]);
+    ::sibyll23d::s_csydec_->idb[s_id - 1] = abs(::sibyll23d::s_csydec_->idb[s_id - 1]);
   }
 
   inline void Decay::setStable(Code const vCode) {
     CORSIKA_LOGGER_DEBUG(logger_, "setting {} as \"stable\". ", vCode);
 
     const int s_id = abs(sibyll::convertToSibyllRaw(vCode));
-    s_csydec_.idb[s_id - 1] = (-1) * abs(s_csydec_.idb[s_id - 1]);
+    ::sibyll23d::s_csydec_->idb[s_id - 1] =
+        (-1) * abs(::sibyll23d::s_csydec_->idb[s_id - 1]);
   }
 
   inline void Decay::setAllStable() {
-    for (int i = 0; i < 99; ++i) s_csydec_.idb[i] = -1 * abs(s_csydec_.idb[i]);
+    for (int i = 0; i < 99; ++i)
+      ::sibyll23d::s_csydec_->idb[i] = -1 * abs(::sibyll23d::s_csydec_->idb[i]);
   }
 
   inline void Decay::setAllUnstable() {
-    for (int i = 0; i < 99; ++i) s_csydec_.idb[i] = abs(s_csydec_.idb[i]);
+    for (int i = 0; i < 99; ++i)
+      ::sibyll23d::s_csydec_->idb[i] = abs(::sibyll23d::s_csydec_->idb[i]);
   }
 
   inline void Decay::printDecayConfig([[maybe_unused]] const Code vCode) {
     [[maybe_unused]] const int sibCode = corsika::sibyll::convertToSibyllRaw(vCode);
     [[maybe_unused]] const int absSibCode = abs(sibCode);
-    CORSIKA_LOGGER_DEBUG(logger_, "decay configuration: {} is \"{}\"", vCode,
-                         (s_csydec_.idb[absSibCode - 1] <= 0) ? "stable" : "unstable");
+    CORSIKA_LOGGER_DEBUG(
+        logger_, "decay configuration: {} is \"{}\"", vCode,
+        (::sibyll23d::s_csydec_->idb[absSibCode - 1] <= 0) ? "stable" : "unstable");
   }
   inline void Decay::printDecayConfig() {
     CORSIKA_LOGGER_DEBUG(logger_, "decay configuration:");
@@ -141,8 +145,8 @@ namespace corsika::sibyll {
 
     const Code pid = projectile.getPID();
     if (Decay::isDecayHandled(pid)) {
-      HEPEnergyType E = projectile.getEnergy();
-      HEPMassType m = projectile.getMass();
+      HEPEnergyType const E = projectile.getEnergy();
+      HEPMassType const m = projectile.getMass();
       const double gamma = E / m;
       const TimeType t0 = get_lifetime(projectile.getPID());
       auto const lifetime = gamma * t0;
@@ -158,7 +162,8 @@ namespace corsika::sibyll {
                            mkin / 1_GeV / 1_GeV, m / 1_GeV * m / 1_GeV);
       [[maybe_unused]] auto sib_id =
           corsika::sibyll::convertToSibyllRaw(projectile.getPID());
-      CORSIKA_LOGGER_DEBUG(logger_, "sib mass: {}", get_sibyll_mass2(sib_id));
+      CORSIKA_LOGGER_DEBUG(logger_, "sib mass: {}",
+                           ::sibyll23d::get_sibyll_mass2(sib_id));
       CORSIKA_LOGGER_DEBUG(logger_, "MinStep: gamma:  {}", gamma);
       CORSIKA_LOGGER_DEBUG(logger_, "MinStep: tau {} s: ", lifetime / 1_s);
       return lifetime;
@@ -201,8 +206,8 @@ namespace corsika::sibyll {
     int outputSibPID[10];
 
     // run decay routine
-    decpar_sib_(inputSibPID, inputMomentum, nFinalParticles, outputSibPID,
-                &outputMomentum[0]);
+    ::sibyll23d::decpar_sib_(inputSibPID, inputMomentum, nFinalParticles, outputSibPID,
+                             &outputMomentum[0]);
 
     CORSIKA_LOGGER_TRACE(logger_, "number of final state particles: {}", nFinalParticles);
 

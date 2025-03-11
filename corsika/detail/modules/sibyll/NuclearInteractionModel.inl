@@ -26,8 +26,8 @@ namespace corsika::sibyll {
 
     // initialize nuclib
     // TODO: make sure this does not overlap with sibyll
-    corsika::connect_random_stream("sibyll", ::sibyll::set_rng_function);
-    nuc_nuc_ini_();
+    corsika::connect_random_stream("sibyll", ::sibyll23d::set_rng_function);
+    ::sibyll23d::nuc_nuc_ini_();
 
     // initialize cross sections
     initializeNuclearCrossSections(nuccomp);
