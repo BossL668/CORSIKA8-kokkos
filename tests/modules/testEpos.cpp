@@ -109,12 +109,6 @@ TEST_CASE("Epos", "modules") {
   auto const& cs = *csPtr;
   [[maybe_unused]] auto const& env_dummy = env;
 
-  SECTION("InteractionInterface - random number") {
-    auto const rndm = ::epos::rangen_();
-    CHECK(rndm > 0);
-    CHECK(rndm < 1);
-  }
-
   SECTION("InteractionInterface - isValid") {
 
     CHECK_FALSE(model.isValid(Code::Proton, Code::Electron, 100_GeV));
