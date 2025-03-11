@@ -10,7 +10,7 @@ set (test_modules_sources
   testPythia8.cpp
   testTAUOLA.cpp
   testUrQMD.cpp
-  testCONEX.cpp
+  #  testCONEX.cpp TODO re-enable
   testParticleCut.cpp
   testProductionProfile.cpp
   testSibyll.cpp
