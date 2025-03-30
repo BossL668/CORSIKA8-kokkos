@@ -6,6 +6,7 @@ set (test_modules_sources
   testObservationPlane.cpp
   testObservationVolume.cpp
   testQGSJetII.cpp
+  testQGSJetIII.cpp
   testProposal.cpp
   testPythia8.cpp
   testTAUOLA.cpp
