@@ -318,9 +318,6 @@ namespace corsika::pythia8 {
         auto const volatile id = static_cast<PDGCode>(p8p.id());
         auto const pyId = convert_from_PDG(id);
 
-        // skip nuclear remnants
-        if (is_nucleus(pyId)) continue;
-
         MomentumVector const pyPcom(
             rotCS, {p8p.px() * 1_GeV, p8p.py() * 1_GeV, p8p.pz() * 1_GeV});
         auto const pyP = boost.fromCoM(FourVector{p8p.e() * 1_GeV, pyPcom});
