@@ -14,6 +14,6 @@ install (
   TARGETS c8_air_shower DESTINATION bin
 )
 
-
+# for testing only!
 add_executable(inttest inttest.cpp)
 target_link_libraries(inttest PRIVATE QGSJetII fmt::fmt)
