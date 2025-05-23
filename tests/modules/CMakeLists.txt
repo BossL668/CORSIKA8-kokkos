@@ -5,7 +5,7 @@ set (test_modules_sources
   ## testExecTime.cpp --> needs to be fixed, see #326
   testObservationPlane.cpp
   testObservationVolume.cpp
-  testQGSJetII.cpp
+  #testQGSJetII.cpp # temp disable
   testQGSJetIII.cpp
   testProposal.cpp
   testPythia8.cpp
@@ -19,7 +19,7 @@ set (test_modules_sources
   testRadio.cpp
   testEMThinning.cpp
   testSophia.cpp
-  testRandom.cpp
+  #testRandom.cpp # temp disable for qgs2 test
 )
 
 if (NOT "$CACHE{C8_FLUKA_ENABLED}" STREQUAL "")

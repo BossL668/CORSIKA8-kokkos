@@ -42,7 +42,7 @@ auto sumMomentum(TStackView const& view, CoordinateSystemPtr const& vCS) {
 TEST_CASE("QgsjetIII", "[processes]") {
 
   logging::set_level(logging::level::info);
-  RNGManager<>::getInstance().registerRandomStream("qgsjet");
+  RNGManager<>::getInstance().registerRandomStream("qgsjetIII");
 
   SECTION("Corsika -> QgsjetIII") {
     CHECK(corsika::qgsjetIII::convertToQgsjetIII(PiMinus::code) ==
@@ -123,7 +123,7 @@ TEST_CASE("QgsjetIIIInterface", "interaction,processes") {
 
   logging::set_level(logging::level::info);
 
-  RNGManager<>::getInstance().registerRandomStream("qgsjet");
+  RNGManager<>::getInstance().registerRandomStream("qgsjetIII");
 
   auto [env, csPtr, nodePtr] = setup::testing::setup_environment(Code::Oxygen);
   auto const& cs = *csPtr;

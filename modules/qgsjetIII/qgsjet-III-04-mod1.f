@@ -409,7 +409,7 @@ c     *       ,fnIIIdat(1:nfnIIIdat)
             if (LEN(fnIIIdat).gt.6.and.
      *           fnIIIdat(nfnIIIdat-4:nfnIIIdat) .eq. ".lzma") then
                lzmaUse=1
-               call LzmaOpenFile(fnIIIdat(1:nfnIIIdat))
+               call CorDataOpenFile(fnIIIdat(1:nfnIIIdat))
             else
                open(ifIIIdat,file=fnIIIdat(1:nfnIIIdat),status='old')
             endif
@@ -419,26 +419,26 @@ c     *       ,fnIIIdat(1:nfnIIIdat)
 
           if(debug.ge.0)write (moniou,214) 'qgsdat-III.lzma'
 
-          call LzmaFillArray(csborn,size(csborn))
-          call LzmaFillArray(cs0,size(cs0))
-          call LzmaFillArray(cstot,size(cstot))
-          call LzmaFillArray(evk,size(evk))
-          call LzmaFillArray(qpomi,size(qpomi))
-          call LzmaFillArray(qpomis,size(qpomis))
-          call LzmaFillArray(qloopr,size(qloopr))
-          call LzmaFillArray(qlegi,size(qlegi))
-          call LzmaFillArray(qfanu,size(qfanu))
-          call LzmaFillArray(qfanc,size(qfanc))
-          call LzmaFillArray(pdfr,size(pdfr))
-          call LzmaFillArray(qpomr,size(qpomr))
-          call LzmaFillArray(dhteik,size(dhteik))
-          call LzmaFillArray(feikht,size(feikht))
-          call LzmaFillArray(ffhtm,size(ffhtm))
-          call LzmaFillArray(flhtm,size(flhtm))
-          call LzmaFillArray(gsect,size(gsect))
-          call LzmaFillArray(fsud,size(fsud))
-          call LzmaFillArray(qrt,size(qrt))
-          call LzmaCloseFile()
+          call CorDataFillArray(csborn,size(csborn))
+          call CorDataFillArray(cs0,size(cs0))
+          call CorDataFillArray(cstot,size(cstot))
+          call CorDataFillArray(evk,size(evk))
+          call CorDataFillArray(qpomi,size(qpomi))
+          call CorDataFillArray(qpomis,size(qpomis))
+          call CorDataFillArray(qloopr,size(qloopr))
+          call CorDataFillArray(qlegi,size(qlegi))
+          call CorDataFillArray(qfanu,size(qfanu))
+          call CorDataFillArray(qfanc,size(qfanc))
+          call CorDataFillArray(pdfr,size(pdfr))
+          call CorDataFillArray(qpomr,size(qpomr))
+          call CorDataFillArray(dhteik,size(dhteik))
+          call CorDataFillArray(feikht,size(feikht))
+          call CorDataFillArray(ffhtm,size(ffhtm))
+          call CorDataFillArray(flhtm,size(flhtm))
+          call CorDataFillArray(gsect,size(gsect))
+          call CorDataFillArray(fsud,size(fsud))
+          call CorDataFillArray(qrt,size(qrt))
+          call CorDataCloseFile()
         else
           if(debug.ge.0)write (moniou,214) 'qgsdat-III'
           read (1,*)csborn,cs0,cstot,evk,qpomi,qpomis,qloopr,qlegi,qfanu
