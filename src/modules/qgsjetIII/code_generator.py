@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# (c) Copyright 2020 CORSIKA Project, corsika-project@lists.kit.edu
+# (c) Copyright 2025 CORSIKA Project, corsika-project@lists.kit.edu
 #
 # This software is distributed under the terms of the 3-clause BSD license.
 # See file LICENSE for a full version of the license.
@@ -19,9 +19,9 @@ def load_particledb(filename):
     return particle_db
 
 
-def set_default_qgsjetII_definition(particle_db):
+def set_default_qgsjetIII_definition(particle_db):
     '''
-    Also particles not explicitly known by QGSJetII may in fact interact via mapping 
+    Also particles not explicitly known by QGSJetIII may in fact interact via mapping 
     to cross section types (xsType) and hadron type (hadronType)
 
     This is achieved here.
@@ -76,11 +76,11 @@ def set_default_qgsjetII_definition(particle_db):
                         hadronType = "AntiProtonType"
             # all othe not-captured cased are hopefully irrelevant
             
-        pData['qgsjetII_xsType'] = xsType
-        pData['qgsjetII_hadronType'] = hadronType
+        pData['qgsjetIII_xsType'] = xsType
+        pData['qgsjetIII_hadronType'] = hadronType
 
             
-def read_qgsjetII_codes(filename, particle_db):
+def read_qgsjetIII_codes(filename, particle_db):
     '''
     reads the qgsjet-codes data file. For particles known to QGSJetII the 'qgsjetII_code' is set in the particle_db, as
     well as the 'xsType' is updated in case it is different from its default value set above. 
@@ -91,87 +91,87 @@ def read_qgsjetII_codes(filename, particle_db):
             if len(line)==0 or line[0] == '#':
                 continue
             line = line.split('#')[0]
-            print ('QGSJetII codes: ', line)
+            print ('QGSJetIII codes: ', line)
             identifier, model_code, xsType = line.split()
             try:
-                particle_db[identifier]["qgsjetII_code"] = int(model_code)
-                particle_db[identifier]["qgsjetII_xsType"] = xsType
+                particle_db[identifier]["qgsjetIII_code"] = int(model_code)
+                particle_db[identifier]["qgsjetIII_xsType"] = xsType
             except KeyError as e:
                 raise Exception("Identifier '{:s}' not found in particle_db".format(identifier))
 
             
-def generate_qgsjetII_enum(particle_db):
+def generate_qgsjetIII_enum(particle_db):
     '''
-    generates the enum to access qgsjetII particles by readable names
+    generates the enum to access qgsjetIII particles by readable names
     '''
-    output = "enum class QgsjetIICode : int8_t {\n"
+    output = "enum class QgsjetIIICode : int8_t {\n"
     for identifier, pData in particle_db.items():
-        if 'qgsjetII_code' in pData:
-            output += "  {:s} = {:d},\n".format(identifier, pData['qgsjetII_code'])
+        if 'qgsjetIII_code' in pData:
+            output += "  {:s} = {:d},\n".format(identifier, pData['qgsjetIII_code'])
     output += "};\n"
     return output
 
 
-def generate_corsika2qgsjetII(particle_db):    
+def generate_corsika2qgsjetIII(particle_db):    
     '''
-    generates the look-up table to convert corsika codes to qgsjetII codes
+    generates the look-up table to convert corsika codes to qgsjetIII codes
     '''
-    string = "std::array<QgsjetIICode, {:d}> constexpr corsika2qgsjetII = {{\n".format(len(particle_db))
+    string = "std::array<QgsjetIIICode, {:d}> constexpr corsika2qgsjetIII = {{\n".format(len(particle_db))
     for identifier, pData in particle_db.items():
         if pData['isNucleus']: continue
-        if 'qgsjetII_code' in pData:
-            string += "  QgsjetIICode::{:s}, \n".format(identifier)
+        if 'qgsjetIII_code' in pData:
+            string += "  QgsjetIIICode::{:s}, \n".format(identifier)
         else:
-            string += "  QgsjetIICode::Unknown, // {:s}\n".format(identifier + ' not implemented in QGSJetII')
+            string += "  QgsjetIIICode::Unknown, // {:s}\n".format(identifier + ' not implemented in QGSJetIII')
     string += "};\n"
     return string
     
 
-def generate_corsika2qgsjetII_xsType(particle_db):    
+def generate_corsika2qgsjetIII_xsType(particle_db):    
     '''
-    generates the look-up table to convert corsika codes to qgsjetII codes
+    generates the look-up table to convert corsika codes to qgsjetIII codes
     '''
-    string = "std::array<QgsjetIIXSClass, {:d}> constexpr corsika2qgsjetIIXStype = {{\n".format(len(particle_db))
+    string = "std::array<QgsjetIIIXSClass, {:d}> constexpr corsika2qgsjetIIIXStype = {{\n".format(len(particle_db))
     for identifier, pData in particle_db.items():
         if pData['isNucleus']: continue
-        modelCodeXS = pData.get("qgsjetII_xsType", "CannotInteract")
-        string += "  QgsjetIIXSClass::{:s}, // {:s}\n".format(modelCodeXS, identifier if modelCodeXS else identifier + " (not implemented in QGSJETII)")
+        modelCodeXS = pData.get("qgsjetIII_xsType", "CannotInteract")
+        string += "  QgsjetIIIXSClass::{:s}, // {:s}\n".format(modelCodeXS, identifier if modelCodeXS else identifier + " (not implemented in QGSJETIII)")
     string += "};\n"
     return string
 
 
-def generate_corsika2qgsjetII_hadronType(particle_db):    
+def generate_corsika2qgsjetIII_hadronType(particle_db):    
     '''
-    generates the look-up table to convert corsika codes to qgsjetII codes
+    generates the look-up table to convert corsika codes to qgsjetIII codes
     '''
-    string = "std::array<QgsjetIIHadronType, {:d}> constexpr corsika2qgsjetIIHadronType = {{\n".format(len(particle_db))
+    string = "std::array<QgsjetIIIHadronType, {:d}> constexpr corsika2qgsjetIIIHadronType = {{\n".format(len(particle_db))
     for identifier, pData in particle_db.items():
         if pData['isNucleus']: continue
-        modelCode = pData.get("qgsjetII_hadronType", "UndefinedType")
-        string += "  QgsjetIIHadronType::{:s}, // {:s}\n".format(modelCode, identifier if modelCode else identifier + " (not implemented in QGSJETII)")
+        modelCode = pData.get("qgsjetIII_hadronType", "UndefinedType")
+        string += "  QgsjetIIIHadronType::{:s}, // {:s}\n".format(modelCode, identifier if modelCode else identifier + " (not implemented in QGSJETIII)")
     string += "};\n"
     return string
 
 
-def generate_qgsjetII2corsika(particle_db) :
+def generate_qgsjetIII2corsika(particle_db) :
     '''
-    generates the look-up table to convert qgsjetII codes to corsika codes    
+    generates the look-up table to convert qgsjetIII codes to corsika codes    
     '''
     minID = 0
     for identifier, pData in particle_db.items() :
-        if 'qgsjetII_code' in pData:
-            minID = min(minID, pData['qgsjetII_code'])
+        if 'qgsjetIII_code' in pData:
+            minID = min(minID, pData['qgsjetIII_code'])
 
-    string = "QgsjetIICodeIntType constexpr minQgsjetII = {:d};\n\n".format(minID)
+    string = "QgsjetIIICodeIntType constexpr minQgsjetIII = {:d};\n\n".format(minID)
 
     pDict = {}
     for identifier, pData in particle_db.items() :
-        if 'qgsjetII_code' in pData:
-            model_code = pData['qgsjetII_code'] - minID
+        if 'qgsjetIII_code' in pData:
+            model_code = pData['qgsjetIII_code'] - minID
             pDict[model_code] = identifier
     
     nPart = max(pDict.keys()) - min(pDict.keys()) + 1
-    string += "std::array<corsika::Code, {:d}> constexpr qgsjetII2corsika = {{\n".format(nPart)
+    string += "std::array<corsika::Code, {:d}> constexpr qgsjetIII2corsika = {{\n".format(nPart)
     
     for iPart in range(nPart) :
         identifier = pDict.get(iPart, "Unknown")
@@ -181,13 +181,13 @@ def generate_qgsjetII2corsika(particle_db) :
     string += "};\n"
     return string
 
-def generate_qgsjetII_start():
+def generate_qgsjetIII_start():
     string = "// This file is auto-generated. Do not edit!\n"
     string += "#pragma once\n"
-    string += "namespace corsika::qgsjetII {\n"
+    string += "namespace corsika::qgsjetIII {\n"
     return string
 
-def generate_qgsjetII_end():
+def generate_qgsjetIII_end():
     string = "}\n"
     return string
 
@@ -195,21 +195,21 @@ def generate_qgsjetII_end():
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("usage: {:s} <particle_db.pkl> <qgsjetII_codes.dat>".format(sys.argv[0]), file=sys.stderr)
+        print("usage: {:s} <particle_db.pkl> <qgsjetIII_codes.dat>".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
         
-    print("code_generator.py for QGSJETII")
+    print("code_generator.py for QGSJETIII")
     
     particle_db = load_particledb(sys.argv[1])
-    read_qgsjetII_codes(sys.argv[2], particle_db)
-    set_default_qgsjetII_definition(particle_db)
+    read_qgsjetIII_codes(sys.argv[2], particle_db)
+    set_default_qgsjetIII_definition(particle_db)
 
     with open("Generated.inc", "w") as f:
         print("// this file is automatically generated\n// edit at your own risk!\n", file=f)
-        print(generate_qgsjetII_start(), file=f)
-        print(generate_qgsjetII_enum(particle_db), file=f)
-        print(generate_corsika2qgsjetII(particle_db), file=f)
-        print(generate_qgsjetII2corsika(particle_db), file=f)
-        print(generate_corsika2qgsjetII_xsType(particle_db), file=f)
-        print(generate_corsika2qgsjetII_hadronType(particle_db), file=f)
-        print(generate_qgsjetII_end(), file=f)
+        print(generate_qgsjetIII_start(), file=f)
+        print(generate_qgsjetIII_enum(particle_db), file=f)
+        print(generate_corsika2qgsjetIII(particle_db), file=f)
+        print(generate_qgsjetIII2corsika(particle_db), file=f)
+        print(generate_corsika2qgsjetIII_xsType(particle_db), file=f)
+        print(generate_corsika2qgsjetIII_hadronType(particle_db), file=f)
+        print(generate_qgsjetIII_end(), file=f)

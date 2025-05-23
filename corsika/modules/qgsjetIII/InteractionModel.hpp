@@ -1,5 +1,5 @@
 /*
- * (c) Copyright 2020 CORSIKA Project, corsika-project@lists.kit.edu
+ * (c) Copyright 2025 CORSIKA Project, corsika-project@lists.kit.edu
  *
  * This software is distributed under the terms of the 3-clause BSD license.
  * See file LICENSE for a full version of the license.
@@ -82,8 +82,8 @@ namespace corsika::qgsjetIII {
 
   private:
     int count_ = 0;
-    QgsjetIIHadronType alternate_ =
-        QgsjetIIHadronType::PiPlusType; // for pi0, rho0 projectiles
+    QgsjetIIIHadronType alternate_ =
+        QgsjetIIIHadronType::PiPlusType; // for pi0, rho0 projectiles
 
     corsika::default_prng_type& rng_ =
         corsika::RNGManager<>::getInstance().getRandomStream("qgsjetIII");

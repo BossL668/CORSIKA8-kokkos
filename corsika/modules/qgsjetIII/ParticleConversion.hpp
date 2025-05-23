@@ -65,7 +65,7 @@ namespace corsika::qgsjetIII {
     auto const codeInt = static_cast<QgsjetIIICodeIntType>(code);
     auto const corsikaCode = qgsjetIII2corsika[codeInt - minQgsjetIII];
     if (corsikaCode == Code::Unknown) {
-      throw std::runtime_error(std::string("QGSJETII/CORSIKA conversion of pCodeInt=")
+      throw std::runtime_error(std::string("QGSJETIII/CORSIKA conversion of pCodeInt=")
                                    .append(std::to_string(codeInt))
                                    .append(" impossible"));
     }

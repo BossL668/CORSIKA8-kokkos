@@ -17,7 +17,7 @@
 
 namespace corsika::qgsjetIII {
 
-  class QGSJetIIFragmentsStackData {
+  class QGSJetIIIFragmentsStackData {
 
   public:
     void dump() const {}
@@ -68,9 +68,8 @@ namespace corsika::qgsjetIII {
     double getFragmentSize() const { return getStackData().getFragmentSize(getIndex()); }
   };
 
-  typedef corsika::Stack<QGSJetIIFragmentsStackData, FragmentsInterface>
-      QGSJetIIFragmentsStack;
+  typedef corsika::Stack<QGSJetIIIFragmentsStackData, FragmentsInterface>
+      QGSJetIIIFragmentsStack;
 
 } // end namespace corsika::qgsjetIII
 
-//#include <corsika/detail/modules/qgsjetIII/QGSJetIIFragmentsStack.inl>

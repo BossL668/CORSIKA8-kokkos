@@ -45,53 +45,53 @@ TEST_CASE("QgsjetIII", "[processes]") {
   RNGManager<>::getInstance().registerRandomStream("qgsjet");
 
   SECTION("Corsika -> QgsjetIII") {
-    CHECK(corsika::QgsjetIII::convertToQgsjetIII(PiMinus::code) ==
-          corsika::QgsjetIII::QgsjetIIICode::PiMinus);
-    CHECK(corsika::QgsjetIII::convertToQgsjetIIIRaw(Proton::code) == 2);
+    CHECK(corsika::qgsjetIII::convertToQgsjetIII(PiMinus::code) ==
+          corsika::qgsjetIII::QgsjetIIICode::PiMinus);
+    CHECK(corsika::qgsjetIII::convertToQgsjetIIIRaw(Proton::code) == 2);
   }
 
   SECTION("QgsjetIII -> Corsika") {
-    CHECK(Code::PiPlus == corsika::QgsjetIII::convertFromQgsjetIII(
-                              corsika::QgsjetIII::QgsjetIIICode::PiPlus));
+    CHECK(Code::PiPlus == corsika::qgsjetIII::convertFromQgsjetIII(
+                              corsika::qgsjetIII::QgsjetIIICode::PiPlus));
     CHECK_THROWS(
-        corsika::QgsjetIII::convertFromQgsjetIII(corsika::QgsjetIII::QgsjetIIICode::Unknown));
+        corsika::qgsjetIII::convertFromQgsjetIII(corsika::qgsjetIII::QgsjetIIICode::Unknown));
   }
 
   SECTION("Corsika -> QgsjetIII") {
-    CHECK(corsika::QgsjetIII::convertToQgsjetIII(Code::PiMinus) ==
-          corsika::QgsjetIII::QgsjetIIICode::PiMinus);
-    CHECK(corsika::QgsjetIII::convertToQgsjetIIIRaw(Code::Proton) == 2);
+    CHECK(corsika::qgsjetIII::convertToQgsjetIII(Code::PiMinus) ==
+          corsika::qgsjetIII::QgsjetIIICode::PiMinus);
+    CHECK(corsika::qgsjetIII::convertToQgsjetIIIRaw(Code::Proton) == 2);
   }
 
   SECTION("canInteractInQgsjetIII") {
 
-    CHECK(corsika::QgsjetIII::canInteract(Code::Proton));
-    CHECK(corsika::QgsjetIII::canInteract(Code::KPlus));
-    CHECK(corsika::QgsjetIII::canInteract(Code::Nucleus));
-    CHECK(corsika::QgsjetIII::canInteract(Code::Rho0));
-    // CHECK(corsika::QgsjetIII::canInteract(Helium::getCode()));
+    CHECK(corsika::qgsjetIII::canInteract(Code::Proton));
+    CHECK(corsika::qgsjetIII::canInteract(Code::KPlus));
+    CHECK(corsika::qgsjetIII::canInteract(Code::Nucleus));
+    CHECK(corsika::qgsjetIII::canInteract(Code::Rho0));
+    // CHECK(corsika::qgsjetIII::canInteract(Helium::getCode()));
 
-    CHECK_FALSE(corsika::QgsjetIII::canInteract(Code::EtaC));
-    CHECK_FALSE(corsika::QgsjetIII::canInteract(Code::SigmaC_2455_0));
+    CHECK_FALSE(corsika::qgsjetIII::canInteract(Code::EtaC));
+    CHECK_FALSE(corsika::qgsjetIII::canInteract(Code::SigmaC_2455_0));
   }
 
   SECTION("cross-section type") {
 
-    CHECK(corsika::QgsjetIII::getQgsjetIIIXSCode(Code::Neutron) ==
-          corsika::QgsjetIII::QgsjetIIIXSClass::Baryons);
-    CHECK(corsika::QgsjetIII::getQgsjetIIIXSCode(Code::K0Long) ==
-          corsika::QgsjetIII::QgsjetIIIXSClass::Kaons);
-    CHECK(corsika::QgsjetIII::getQgsjetIIIXSCode(Code::Proton) ==
-          corsika::QgsjetIII::QgsjetIIIXSClass::Baryons);
-    CHECK(corsika::QgsjetIII::getQgsjetIIIXSCode(Code::PiMinus) ==
-          corsika::QgsjetIII::QgsjetIIIXSClass::LightMesons);
-    CHECK(corsika::QgsjetIII::getQgsjetIIIXSCode(Code::Helium) ==
-          corsika::QgsjetIII::QgsjetIIIXSClass::Baryons);
+    CHECK(corsika::qgsjetIII::getQgsjetIIIXSCode(Code::Neutron) ==
+          corsika::qgsjetIII::QgsjetIIIXSClass::Baryons);
+    CHECK(corsika::qgsjetIII::getQgsjetIIIXSCode(Code::K0Long) ==
+          corsika::qgsjetIII::QgsjetIIIXSClass::Kaons);
+    CHECK(corsika::qgsjetIII::getQgsjetIIIXSCode(Code::Proton) ==
+          corsika::qgsjetIII::QgsjetIIIXSClass::Baryons);
+    CHECK(corsika::qgsjetIII::getQgsjetIIIXSCode(Code::PiMinus) ==
+          corsika::qgsjetIII::QgsjetIIIXSClass::LightMesons);
+    CHECK(corsika::qgsjetIII::getQgsjetIIIXSCode(Code::Helium) ==
+          corsika::qgsjetIII::QgsjetIIIXSClass::Baryons);
   }
 
   SECTION("valid") {
 
-    corsika::QgsjetIII::InteractionModel model;
+    corsika::qgsjetIII::InteractionModel model;
 
     CHECK_FALSE(model.isValid(Code::Electron, Code::Proton, 1_TeV));
     CHECK_FALSE(model.isValid(Code::Proton, Code::Electron, 1_TeV));
@@ -130,7 +130,7 @@ TEST_CASE("QgsjetIIIInterface", "interaction,processes") {
   [[maybe_unused]] auto const& env_dummy = env;
   [[maybe_unused]] auto const& node_dummy = nodePtr;
 
-  corsika::QgsjetIII::InteractionModel model;
+  corsika::qgsjetIII::InteractionModel model;
 
   SECTION("cross-sections") {
     auto projCode = GENERATE(Code::PiPlus, Code::Proton, Code::K0Long, Code::Iron,

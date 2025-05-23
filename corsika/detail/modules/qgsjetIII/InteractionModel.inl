@@ -1,15 +1,15 @@
 /*
- * (c) Copyright 2020 CORSIKA Project, corsika-project@lists.kit.edu
+ * (c) Copyright 2025 CORSIKA Project, corsika-project@lists.kit.edu
  *
  * This software is distributed under the terms of the 3-clause BSD license.
  * See file LICENSE for a full version of the license.
  */
 
 #include <corsika/modules/Random.hpp>
-#include <corsika/modules/qgsjetII/InteractionModel.hpp>
-#include <corsika/modules/qgsjetII/ParticleConversion.hpp>
-#include <corsika/modules/qgsjetII/QGSJetIIFragmentsStack.hpp>
-#include <corsika/modules/qgsjetII/QGSJetIIStack.hpp>
+#include <corsika/modules/qgsjetIII/InteractionModel.hpp>
+#include <corsika/modules/qgsjetIII/ParticleConversion.hpp>
+#include <corsika/modules/qgsjetIII/QGSJetIIIFragmentsStack.hpp>
+#include <corsika/modules/qgsjetIII/QGSJetIIIStack.hpp>
 
 #include <corsika/framework/geometry/FourVector.hpp>
 #include <corsika/framework/geometry/Point.hpp>
@@ -20,17 +20,17 @@
 #include <sstream>
 #include <tuple>
 
-#include <qgsjet-II-04.hpp>
+#include <qgsjet-III-04.hpp>
 
-namespace corsika::qgsjetII {
+namespace corsika::qgsjetIII {
 
   inline InteractionModel::InteractionModel(boost::filesystem::path const dataPath) {
-    // initialize QgsjetII
-    corsika::connect_random_stream(rng_, ::qgsjetII::set_rng_function);
+    // initialize QgsjetIII
+    corsika::connect_random_stream(rng_, ::qgsjetIII::set_rng_function);
 
     static bool initialized = false;
     if (!initialized) {
-      CORSIKA_LOG_DEBUG("Reading QGSJetII data tables from {}", dataPath);
+      CORSIKA_LOG_DEBUG("Reading QGSJetIII data tables from {}", dataPath);
       qgset_();
       datadir DIR(dataPath.string() + "/");
       qgaini_(DIR.data);
@@ -39,7 +39,7 @@ namespace corsika::qgsjetII {
   }
 
   inline InteractionModel::~InteractionModel() {
-    CORSIKA_LOG_DEBUG("QgsjetII::InteractionModel n= {}", count_);
+    CORSIKA_LOG_DEBUG("QgsjetIII::InteractionModel n= {}", count_);
   }
 
   inline bool InteractionModel::isValid(Code const projectileId, Code const targetId,
@@ -66,7 +66,7 @@ namespace corsika::qgsjetII {
       Code const projectileId, Code const targetId, FourMomentum const& projectileP4,
       FourMomentum const& targetP4) const {
 
-    if (!corsika::qgsjetII::canInteract(projectileId)) {
+    if (!corsika::qgsjetIII::canInteract(projectileId)) {
       return CrossSectionType::zero();
     }
 
@@ -88,16 +88,16 @@ namespace corsika::qgsjetII {
     HEPEnergyType const ElabN =
         calculate_lab_energy(S, projMass, targetMass) / AfactorProjectile;
 
-    int const iBeam = static_cast<QgsjetIIXSClassIntType>(
-        corsika::qgsjetII::getQgsjetIIXSCode(projectileId));
+    int const iBeam = static_cast<QgsjetIIIXSClassIntType>(
+        corsika::qgsjetIII::getQgsjetIIIXSCode(projectileId));
 
     CORSIKA_LOG_DEBUG(
-        "QgsjetII::getCrossSection Elab= {} GeV iBeam= {}"
+        "QgsjetIII::getCrossSection Elab= {} GeV iBeam= {}"
         " iProjectile= {} iTarget= {}",
         ElabN / 1_GeV, iBeam, AfactorProjectile, AfactorTarget);
     double const ElabNGeV{ElabN * (1 / 1_GeV)};
     double const sigProd = qgsect_(ElabNGeV, iBeam, AfactorProjectile, AfactorTarget);
-    CORSIKA_LOG_DEBUG("QgsjetII::getCrossSection sigProd= {} mb", sigProd);
+    CORSIKA_LOG_DEBUG("QgsjetIII::getCrossSection sigProd= {} mb", sigProd);
     return sigProd * 1_mb;
   }
 
@@ -116,9 +116,9 @@ namespace corsika::qgsjetII {
                                               FourMomentum const& targetP4) {
 
     CORSIKA_LOG_DEBUG(
-        "ProcessQgsjetII: "
+        "ProcessQgsjetIII: "
         "doInteraction: {} interaction possible? {}",
-        projectileId, corsika::qgsjetII::canInteract(projectileId));
+        projectileId, corsika::qgsjetIII::canInteract(projectileId));
 
     // define projectile, in lab frame
     auto const AfactorProjectile =
@@ -130,7 +130,7 @@ namespace corsika::qgsjetII {
         (projectileP4 / AfactorProjectile + targetP4 / AfactorTarget).getNormSqr();
     auto const sqrtSNN = sqrt(SNN);
 
-    if (!corsika::qgsjetII::canInteract(projectileId) ||
+    if (!corsika::qgsjetIII::canInteract(projectileId) ||
         !isValid(projectileId, targetId, sqrtSNN)) {
       throw std::runtime_error(fmt::format(
           "invalid target [{}]/ projectile [{}] /energy [{} GeV] combination.",
@@ -151,21 +151,21 @@ namespace corsika::qgsjetII {
     CORSIKA_LOG_DEBUG("target: {}, qgsjetII code/A: {}", targetId, targetMassNumber);
 
     // select QGSJetII internal projectile type
-    QgsjetIIHadronType qgsjet_hadron_type = qgsjetII::getQgsjetIIHadronType(projectileId);
-    if (qgsjet_hadron_type == QgsjetIIHadronType::NucleusType) {
-      qgsjet_hadron_type = bernoulli_(rng_) ? QgsjetIIHadronType::ProtonType
-                                            : QgsjetIIHadronType::NeutronType;
-    } else if (qgsjet_hadron_type == QgsjetIIHadronType::NeutralLightMesonType) {
+    QgsjetIIIHadronType qgsjet_hadron_type = qgsjetIII::getQgsjetIIIHadronType(projectileId);
+    if (qgsjet_hadron_type == QgsjetIIIHadronType::NucleusType) {
+      qgsjet_hadron_type = bernoulli_(rng_) ? QgsjetIIIHadronType::ProtonType
+                                            : QgsjetIIIHadronType::NeutronType;
+    } else if (qgsjet_hadron_type == QgsjetIIIHadronType::NeutralLightMesonType) {
       // from conex: replace pi0 or rho0 with pi+/pi- in alternating sequence
       qgsjet_hadron_type = alternate_;
       alternate_ =
-          (alternate_ == QgsjetIIHadronType::PiPlusType ? QgsjetIIHadronType::PiMinusType
-                                                        : QgsjetIIHadronType::PiPlusType);
+          (alternate_ == QgsjetIIIHadronType::PiPlusType ? QgsjetIIIHadronType::PiMinusType
+                                                        : QgsjetIIIHadronType::PiPlusType);
     }
 
     count_++;
     int const qgsjet_hadron_type_int =
-        static_cast<QgsjetIICodeIntType>(qgsjet_hadron_type);
+        static_cast<QgsjetIIICodeIntType>(qgsjet_hadron_type);
     CORSIKA_LOG_DEBUG(
         "qgsjet_hadron_type_int={} projectileMassNumber={} targetMassNumber={}",
         qgsjet_hadron_type_int, AfactorProjectile, AfactorTarget);
@@ -180,9 +180,9 @@ namespace corsika::qgsjetII {
 
     // to read the secondaries
     // define rotation to and from CoM frame
-    // CoM frame definition in QgsjetII projectile: +z
+    // CoM frame definition in QgsjetIII projectile: +z
 
-    // QGSJetII, both, in input and output only considers the lab frame with a target at
+    // QGSJetIII, both, in input and output only considers the lab frame with a target at
     // rest.
 
     // system of initial-state
@@ -195,12 +195,12 @@ namespace corsika::qgsjetII {
     HEPMomentumType const pLabMag = calculate_momentum(Elab, get_mass(projectileId));
     MomentumVector const pLab{csPrime, {0_eV, 0_eV, pLabMag}};
 
-    // internal QGSJetII system: hadron-nucleon lab. frame!
+    // internal QGSJetIII system: hadron-nucleon lab. frame!
     COMBoost const boostInternal({Elab / AfactorProjectile, pLab / AfactorProjectile},
                                  targetMass / AfactorTarget); // felix
 
     // fragments
-    QGSJetIIFragmentsStack qfs;
+    QGSJetIIIFragmentsStack qfs;
     for (auto& fragm : qfs) {
       int const A = fragm.getFragmentSize();
       if (A == 1) { // nucleon
@@ -280,7 +280,7 @@ namespace corsika::qgsjetII {
     }
 
     // secondaries
-    QGSJetIIStack qs;
+    QGSJetIIIStack qs;
     for (auto& psec : qs) {
       auto momentum = psec.getMomentum(csPrime);
       // this is not "CoM" here, but rather the system defined by projectile+target,
@@ -290,7 +290,7 @@ namespace corsika::qgsjetII {
       auto p3output = P4output.getSpaceLikeComponents();
       p3output.rebase(originalCS); // transform back into standard lab frame
 
-      Code const pid = corsika::qgsjetII::convertFromQgsjetII(psec.getPID());
+      Code const pid = corsika::qgsjetIII::convertFromQgsjetIII(psec.getPID());
       HEPEnergyType const mass = get_mass(pid);
       HEPEnergyType const Ekin = calculate_kinetic_energy(p3output.getNorm(), mass);
 
@@ -307,7 +307,7 @@ namespace corsika::qgsjetII {
         ", N_wounded,proj={}"
         ", N_fragm,proj={}",
         Elab_final / 1_GeV, (Plab_final / 1_GeV).getComponents(),
-        QGSJetIIFragmentsStackData::getWoundedNucleonsTarget(),
-        QGSJetIIFragmentsStackData::getWoundedNucleonsProjectile(), qfs.getSize());
+        QGSJetIIIFragmentsStackData::getWoundedNucleonsTarget(),
+        QGSJetIIIFragmentsStackData::getWoundedNucleonsProjectile(), qfs.getSize());
   }
-} // namespace corsika::qgsjetII
+} // namespace corsika::qgsjetIII

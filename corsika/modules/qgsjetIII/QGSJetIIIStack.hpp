@@ -1,5 +1,5 @@
 /*
- * (c) Copyright 2020 CORSIKA Project, corsika-project@lists.kit.edu
+ * (c) Copyright 2025 CORSIKA Project, corsika-project@lists.kit.edu
  *
  * This software is distributed under the terms of the 3-clause BSD license.
  * See file LICENSE for a full version of the license.
@@ -12,13 +12,13 @@
 #include <corsika/framework/geometry/Vector.hpp>
 #include <corsika/framework/geometry/PhysicalGeometry.hpp>
 #include <corsika/framework/stack/Stack.hpp>
-#include <corsika/modules/qgsjetII/ParticleConversion.hpp>
+#include <corsika/modules/qgsjetIII/ParticleConversion.hpp>
 
-#include <qgsjet-II-04.hpp>
+#include <qgsjet-III-04.hpp>
 
-namespace corsika::qgsjetII {
+namespace corsika::qgsjetIII {
 
-  class QGSJetIIStackData {
+  class QGSJetIIIStackData {
 
   public:
     void dump() const {}
@@ -60,14 +60,14 @@ namespace corsika::qgsjetII {
     HEPEnergyType getEnergy() const;
 
     void setPID(const int v);
-    corsika::qgsjetII::QgsjetIICode getPID() const;
+    corsika::qgsjetIII::QgsjetIIICode getPID() const;
 
     MomentumVector getMomentum(const CoordinateSystemPtr& CS) const;
     void setMomentum(const MomentumVector& v);
   };
 
-  typedef corsika::Stack<QGSJetIIStackData, ParticleInterface> QGSJetIIStack;
+  typedef corsika::Stack<QGSJetIIIStackData, ParticleInterface> QGSJetIIIStack;
 
-} // end namespace corsika::qgsjetII
+} // end namespace corsika::qgsjetIII
 
-#include <corsika/detail/modules/qgsjetII/QGSJetIIStack.inl>
+#include <corsika/detail/modules/qgsjetIII/QGSJetIIIStack.inl>
