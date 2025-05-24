@@ -5,7 +5,7 @@ set (test_modules_sources
   ## testExecTime.cpp --> needs to be fixed, see #326
   testObservationPlane.cpp
   testObservationVolume.cpp
-  #testQGSJetII.cpp # temp disable
+  testQGSJetII.cpp # temp disable
   testQGSJetIII.cpp
   testProposal.cpp
   testPythia8.cpp
