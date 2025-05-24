@@ -53,8 +53,8 @@ TEST_CASE("QgsjetIII", "[processes]") {
   SECTION("QgsjetIII -> Corsika") {
     CHECK(Code::PiPlus == corsika::qgsjetIII::convertFromQgsjetIII(
                               corsika::qgsjetIII::QgsjetIIICode::PiPlus));
-    CHECK_THROWS(
-        corsika::qgsjetIII::convertFromQgsjetIII(corsika::qgsjetIII::QgsjetIIICode::Unknown));
+    CHECK_THROWS(corsika::qgsjetIII::convertFromQgsjetIII(
+        corsika::qgsjetIII::QgsjetIIICode::Unknown));
   }
 
   SECTION("Corsika -> QgsjetIII") {

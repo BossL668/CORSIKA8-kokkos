@@ -96,7 +96,8 @@ namespace corsika::qgsjetIII {
         " iProjectile= {} iTarget= {}",
         ElabN / 1_GeV, iBeam, AfactorProjectile, AfactorTarget);
     double const ElabNGeV{ElabN * (1 / 1_GeV)};
-    double const sigProd = ::QGSJetIII::qgsect_(ElabNGeV, iBeam, AfactorProjectile, AfactorTarget);
+    double const sigProd =
+        ::QGSJetIII::qgsect_(ElabNGeV, iBeam, AfactorProjectile, AfactorTarget);
     CORSIKA_LOG_DEBUG("QgsjetIII::getCrossSection sigProd= {} mb", sigProd);
     return sigProd * 1_mb;
   }
@@ -151,16 +152,17 @@ namespace corsika::qgsjetIII {
     CORSIKA_LOG_DEBUG("target: {}, qgsjetII code/A: {}", targetId, targetMassNumber);
 
     // select QGSJetII internal projectile type
-    QgsjetIIIHadronType qgsjet_hadron_type = qgsjetIII::getQgsjetIIIHadronType(projectileId);
+    QgsjetIIIHadronType qgsjet_hadron_type =
+        qgsjetIII::getQgsjetIIIHadronType(projectileId);
     if (qgsjet_hadron_type == QgsjetIIIHadronType::NucleusType) {
       qgsjet_hadron_type = bernoulli_(rng_) ? QgsjetIIIHadronType::ProtonType
                                             : QgsjetIIIHadronType::NeutronType;
     } else if (qgsjet_hadron_type == QgsjetIIIHadronType::NeutralLightMesonType) {
       // from conex: replace pi0 or rho0 with pi+/pi- in alternating sequence
       qgsjet_hadron_type = alternate_;
-      alternate_ =
-          (alternate_ == QgsjetIIIHadronType::PiPlusType ? QgsjetIIIHadronType::PiMinusType
-                                                        : QgsjetIIIHadronType::PiPlusType);
+      alternate_ = (alternate_ == QgsjetIIIHadronType::PiPlusType
+                        ? QgsjetIIIHadronType::PiMinusType
+                        : QgsjetIIIHadronType::PiPlusType);
     }
 
     count_++;
@@ -169,7 +171,8 @@ namespace corsika::qgsjetIII {
     CORSIKA_LOG_DEBUG(
         "qgsjet_hadron_type_int={} projectileMassNumber={} targetMassNumber={}",
         qgsjet_hadron_type_int, AfactorProjectile, AfactorTarget);
-    ::QGSJetIII::qgini_(ElabN / 1_GeV, qgsjet_hadron_type_int, AfactorProjectile, AfactorTarget);
+    ::QGSJetIII::qgini_(ElabN / 1_GeV, qgsjet_hadron_type_int, AfactorProjectile,
+                        AfactorTarget);
     ::QGSJetIII::qgconf_();
 
     CoordinateSystemPtr const& rootCS = get_root_CoordinateSystem();

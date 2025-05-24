@@ -30,10 +30,16 @@ namespace corsika::qgsjetIII {
     unsigned int getCapacity() const { return iapmax; }
 
     static unsigned int getWoundedNucleonsTarget() { return ::QGSJetIII::qgarr55_->nwt; }
-    static unsigned int getWoundedNucleonsProjectile() { return ::QGSJetIII::qgarr55_->nwp; }
+    static unsigned int getWoundedNucleonsProjectile() {
+      return ::QGSJetIII::qgarr55_->nwp;
+    }
 
-    int getFragmentSize(const unsigned int i) const { return ::QGSJetIII::qgarr13_->iaf[i]; }
-    void setFragmentSize(const unsigned int i, const int v) { ::QGSJetIII::qgarr13_->iaf[i] = v; }
+    int getFragmentSize(const unsigned int i) const {
+      return ::QGSJetIII::qgarr13_->iaf[i];
+    }
+    void setFragmentSize(const unsigned int i, const int v) {
+      ::QGSJetIII::qgarr13_->iaf[i] = v;
+    }
 
     void copy(const unsigned int i1, const unsigned int i2) {
       ::QGSJetIII::qgarr13_->iaf[i2] = ::QGSJetIII::qgarr13_->iaf[i1];
@@ -72,4 +78,3 @@ namespace corsika::qgsjetIII {
       QGSJetIIIFragmentsStack;
 
 } // end namespace corsika::qgsjetIII
-

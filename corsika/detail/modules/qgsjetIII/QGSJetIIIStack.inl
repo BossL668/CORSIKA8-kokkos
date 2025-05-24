@@ -14,7 +14,9 @@ namespace corsika::qgsjetIII {
     ::QGSJetIII::qgarr13_->nsf = 0;
     ::QGSJetIII::qgarr55_->nwt = 0;
   }
-  inline unsigned int QGSJetIIIStackData::getSize() const { return ::QGSJetIII::qgarr12_->nsp; }
+  inline unsigned int QGSJetIIIStackData::getSize() const {
+    return ::QGSJetIII::qgarr12_->nsp;
+  }
   inline unsigned int QGSJetIIIStackData::getCapacity() const { return nptmax; }
 
   inline void QGSJetIIIStackData::setId(const unsigned int i, const int v) {
@@ -25,7 +27,7 @@ namespace corsika::qgsjetIII {
   }
 
   inline void QGSJetIIIStackData::setMomentum(const unsigned int i,
-                                             const MomentumVector& v) {
+                                              const MomentumVector& v) {
     auto tmp = v.getComponents();
     ::QGSJetIII::qgarr14_->esp[i][2] = tmp[0] / 1_GeV;
     ::QGSJetIII::qgarr14_->esp[i][3] = tmp[1] / 1_GeV;
@@ -48,7 +50,8 @@ namespace corsika::qgsjetIII {
 
   inline void QGSJetIIIStackData::copy(const unsigned int i1, const unsigned int i2) {
     ::QGSJetIII::qgarr14_->ich[i2] = ::QGSJetIII::qgarr14_->ich[i1];
-    for (unsigned int i = 0; i < 4; ++i) ::QGSJetIII::qgarr14_->esp[i2][i] = ::QGSJetIII::qgarr14_->esp[i1][i];
+    for (unsigned int i = 0; i < 4; ++i)
+      ::QGSJetIII::qgarr14_->esp[i2][i] = ::QGSJetIII::qgarr14_->esp[i1][i];
   }
 
   inline void QGSJetIIIStackData::swap(const unsigned int i1, const unsigned int i2) {
@@ -99,7 +102,8 @@ namespace corsika::qgsjetIII {
   template <typename StackIteratorInterface>
   inline corsika::qgsjetIII::QgsjetIIICode
   ParticleInterface<StackIteratorInterface>::getPID() const {
-    return static_cast<corsika::qgsjetIII::QgsjetIIICode>(getStackData().getId(getIndex()));
+    return static_cast<corsika::qgsjetIII::QgsjetIIICode>(
+        getStackData().getId(getIndex()));
   }
 
   template <typename StackIteratorInterface>
