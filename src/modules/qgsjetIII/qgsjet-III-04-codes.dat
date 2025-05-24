@@ -8,6 +8,8 @@
 # to store PID data keep the number as low as reasonable.  
 Unknown 20 CannotInteract
 
+# taken from corsika v7.8010 src
+
 # Note, we list here only the particles, which are produced by
 # QGSJetII as secondaries.  There is additional mapping of corsika
 # particles on QGSJetII "xs-class"es and "hadron-type"s, which are
@@ -18,23 +20,38 @@ Pi0          0 LightMesons
 PiPlus       1 LightMesons
 PiMinus     -1 LightMesons
 Eta         10 LightMesons
-Rho0       -10 LightMesons
+Rho0        17 LightMesons
+RhoPlus     16 LightMesons
+RhoMinus   -16 LightMesons
 
 # class 2 (-> as proton)
 Neutron      3 Baryons
 AntiNeutron -3 Baryons
 Proton       2 Baryons
-AntiProton  -2 Baryons 
+AntiProton  -2 Baryons
+SigmaPlus    20 Baryons
+SigmaMinus   21 Baryons
+SigmaPlusBar    -21 Baryons
+SigmaMinusBar   -20 Baryons
+
+
 Lambda       6 Baryons
 LambdaBar   -6 Baryons
-LambdaCPlus      9 Baryons
-LambdaCMinusBar -9 Baryons
+Delta_1232_Minus   8 Baryons
+Delta_1232_PlusBar   -8 Baryons
+Delta_1232_PlusPlus   7 Baryons
+Delta_1232_MinusMinusBar   -7 Baryons
 
 # class 3 (-> as kaon)
 K0Short      5 Kaons
 K0Long      -5 Kaons
 KPlus        4 Kaons
 KMinus      -4 Kaons
+KStarPlus   18 Kaons
+KStarMinus   -18 Kaons
+KStar0   19 Kaons
+KStar0Bar   -19 Kaons
+
 
 # class 4 (-> charmed mesons, not in qgsjetII)
 D0           8 Charmed
