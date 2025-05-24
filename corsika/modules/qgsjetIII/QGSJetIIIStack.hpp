@@ -14,8 +14,6 @@
 #include <corsika/framework/stack/Stack.hpp>
 #include <corsika/modules/qgsjetIII/ParticleConversion.hpp>
 
-#include <qgsjet-III-04.hpp>
-
 namespace corsika::qgsjetIII {
 
   class QGSJetIIIStackData {

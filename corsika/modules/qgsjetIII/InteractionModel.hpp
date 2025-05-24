@@ -8,7 +8,6 @@
 #pragma once
 
 #include <corsika/modules/qgsjetIII/ParticleConversion.hpp>
-#include <qgsjet-III-04.hpp>
 
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>

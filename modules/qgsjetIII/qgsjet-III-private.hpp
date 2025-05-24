@@ -7,7 +7,17 @@
 
 #pragma once
 
-#include <string>
+#include <rng_decl.hpp>
+
+#include "qgsjet-III-types.hpp"
+
+/**
+ * @file qgsjet-III.hpp
+ *
+ * The interface to the fortran code.
+ */
+
+DECLARE_RNG(qgsjetIII)
 
 //----------------------------------------------
 //  C++ interface for the QGSJetIII event generator
@@ -16,42 +26,13 @@
 
 extern "C" {
 
-// data memory layout
+extern QGARR12 qgarr12_;
 
-extern struct { int nsp; } qgarr12_;
+extern QGARR14 qgarr14_;
 
-const int nptmax = 95000;
-const int iapmax = 208;
+extern QGARR13 qgarr13_;
 
-extern struct {
-  double esp[nptmax][4];
-  int ich[nptmax];
-} qgarr14_;
-
-extern struct {
-  // c nsf - number of secondary fragments;
-  // c iaf(i) - mass of the i-th fragment
-  int nsf;
-  int iaf[iapmax];
-} qgarr13_;
-
-extern struct {
-  int nwt;
-  int nwp;
-} qgarr55_;
-
-/**
- * Small helper class to provide a data-directory name in the format qgsjetII expects.
- */
-class datadir {
-private:
-  datadir operator=(const std::string& dir);
-  datadir operator=(const datadir&);
-
-public:
-  datadir(const std::string& dir);
-  char data[132];
-};
+extern QGARR55 qgarr55_;
 
 // functions
 void qgset_();
@@ -79,8 +60,8 @@ void qgconf_();
  *
  * @param e0n lab. energy per projectile nucleon (hadron)
  * @param icz hadron class (1 - pion, 2 - nucleon, 3 - kaon)
- * @param iap0 projectile mass number (1=<iap<=iapmax),
- * @param iat0 target mass number     (1=<iat<=iapmax)
+ * @param iap0 projectile mass number (1=<iap0<=iapmax),
+ * @param iat0 target mass number     (1=<iat0<=iapmax)
  */
 double qgsect_(const double& e0n, const int& icz, const int& iap0, const int& iat0);
 
@@ -89,5 +70,3 @@ double qgsect_(const double& e0n, const int& icz, const int& iap0, const int& ia
  */
 double qgran_(int&);
 }
-
-#include <corsika/detail/modules/qgsjetIII/qgsjet-III-04.inl>

@@ -13,7 +13,7 @@
 #include <corsika/framework/stack/Stack.hpp>
 #include <corsika/modules/qgsjetIII/ParticleConversion.hpp>
 
-#include <qgsjet-III-04.hpp>
+#include <qgsjet-III-public.hpp>
 
 namespace corsika::qgsjetIII {
 
@@ -23,29 +23,29 @@ namespace corsika::qgsjetIII {
     void dump() const {}
 
     void clear() {
-      qgarr13_.nsf = 0;
-      qgarr55_.nwt = 0;
+      ::QGSJetIII::qgarr13_->nsf = 0;
+      ::QGSJetIII::qgarr55_->nwt = 0;
     }
-    unsigned int getSize() const { return qgarr13_.nsf; }
+    unsigned int getSize() const { return ::QGSJetIII::qgarr13_->nsf; }
     unsigned int getCapacity() const { return iapmax; }
 
-    static unsigned int getWoundedNucleonsTarget() { return qgarr55_.nwt; }
-    static unsigned int getWoundedNucleonsProjectile() { return qgarr55_.nwp; }
+    static unsigned int getWoundedNucleonsTarget() { return ::QGSJetIII::qgarr55_->nwt; }
+    static unsigned int getWoundedNucleonsProjectile() { return ::QGSJetIII::qgarr55_->nwp; }
 
-    int getFragmentSize(const unsigned int i) const { return qgarr13_.iaf[i]; }
-    void setFragmentSize(const unsigned int i, const int v) { qgarr13_.iaf[i] = v; }
+    int getFragmentSize(const unsigned int i) const { return ::QGSJetIII::qgarr13_->iaf[i]; }
+    void setFragmentSize(const unsigned int i, const int v) { ::QGSJetIII::qgarr13_->iaf[i] = v; }
 
     void copy(const unsigned int i1, const unsigned int i2) {
-      qgarr13_.iaf[i2] = qgarr13_.iaf[i1];
+      ::QGSJetIII::qgarr13_->iaf[i2] = ::QGSJetIII::qgarr13_->iaf[i1];
     }
 
     void swap(const unsigned int i1, const unsigned int i2) {
-      std::swap(qgarr13_.iaf[i1], qgarr13_.iaf[i2]);
+      std::swap(::QGSJetIII::qgarr13_->iaf[i1], ::QGSJetIII::qgarr13_->iaf[i2]);
     }
 
-    void incrementSize() { qgarr13_.nsf++; }
+    void incrementSize() { ::QGSJetIII::qgarr13_->nsf++; }
     void decrementSize() {
-      if (qgarr13_.nsf > 0) { qgarr13_.nsf--; }
+      if (::QGSJetIII::qgarr13_->nsf > 0) { ::QGSJetIII::qgarr13_->nsf--; }
     }
   };
 
