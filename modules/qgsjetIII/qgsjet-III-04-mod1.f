@@ -393,18 +393,33 @@ c-----------------------------------------------------------------------------
 c     reading cross sections from the file
 c      print *,ifIIIdat,DATDIR(1:INDEX(DATDIR,' ')-1)
 c     *       ,fnIIIdat(1:nfnIIIdat)
+      luseCompress=0
       if(ifIIIdat.ne.1)then
-       inquire(file=DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III'
+       inquire(file=DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III.bz2'
      *        ,exist=lcalc)
+       lcanRead=0
+       call CorDataCanDeCompress(lcanRead)
+       if (lcalc.and.lcanRead.ne.0) then
+        luseCompress=1
+       else
+        inquire(file=DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III'
+     *       ,exist=lcalc)
+       endif
       else
-       inquire(file=fnIIIdat(1:nfnIIIdat),exist=lcalc) !used to link with nexus
-      endif
+       luseCompress=(index(fnIIIdat(1:nfnIIIdat),".bz2").eq.nfnIIIdat-3)
+       inquire(file=fnIIIdat(1:nfnIIIdat), exist=lcalc)       !used to link with nexus
+      endif      
       lzmaUse=0
       if(lcalc)then
         if(debug.ge.2)write (moniou,205)
          if(ifIIIdat.ne.1)then
-            open(1,file=DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III'
-     *           ,status='old')
+            if (luseCompress.ne.0) then
+             call CorDataOpenFile(
+     *         DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III.bz2')
+            else
+             open(1,file=DATDIR(1:INDEX(DATDIR,' ')-1)//'qgsdat-III'
+     *            ,status='old')
+            endif
          else                   !used to link with nexus
             if (LEN(fnIIIdat).gt.6.and.
      *           fnIIIdat(nfnIIIdat-4:nfnIIIdat) .eq. ".lzma") then
@@ -414,10 +429,10 @@ c     *       ,fnIIIdat(1:nfnIIIdat)
                open(ifIIIdat,file=fnIIIdat(1:nfnIIIdat),status='old')
             endif
          endif
+         
+         if (luseCompress.ne.0) then
 
-         if (lzmaUse.ne.0) then
-
-          if(debug.ge.0)write (moniou,214) 'qgsdat-III.lzma'
+          if(debug.ge.0)write (moniou,214) 'qgsdat-III.bz2'
 
           call CorDataFillArray(csborn,size(csborn))
           call CorDataFillArray(cs0,size(cs0))

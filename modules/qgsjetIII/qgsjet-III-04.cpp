@@ -5,7 +5,7 @@
 
 datadir::datadir(std::string const& dir) {
   if (dir.length() > 130) { // LCOV_EXCL_START since we can't test this error message
-    std::cerr << "QGSJetII error, will cut datadir \"" << dir
+    std::cerr << "QGSJetIII error, will cut datadir \"" << dir
               << "\" to 130 characters: " << std::endl;
   } // LCOV_EXCL_STOP
   int i = 0;
