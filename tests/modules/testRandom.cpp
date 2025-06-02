@@ -10,7 +10,6 @@
 #include <corsika/modules/FLUKA.hpp>
 #endif
 #include <corsika/modules/Epos.hpp>
-#include <corsika/modules/CONEX.hpp>
 #include <corsika/modules/Sibyll.hpp>
 #include <corsika/framework/random/RNGManager.hpp>
 #include <corsika/modules/QGSJetII.hpp>

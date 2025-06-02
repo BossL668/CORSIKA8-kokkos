@@ -10,8 +10,8 @@ set (test_media_sources
   )
 
 CORSIKA_ADD_TEST (testMedia SOURCES ${test_media_sources})
-find_package(Boost)
-target_link_libraries (testMedia Boost::boost) # for math/quadrature/gauss_kronrod.hpp
+find_package(Boost REQUIRED)
+target_link_libraries (testMedia PRIVATE Boost::boost) # for math/quadrature/gauss_kronrod.hpp
 
 target_compile_definitions (
   testMedia
