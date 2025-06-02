@@ -28,9 +28,10 @@ else()
   message("FLUKA not found, will not make 'mars' example")
 endif()
 
-add_executable (mc_conex cascade_examples/mc_conex.cpp)
-target_link_libraries (mc_conex  PRIVATE CORSIKA8::CORSIKA8 CORSIKA8::CONEXsibyll)
-CORSIKA_REGISTER_EXAMPLE (mc_conex RUN_OPTIONS 4 2 10000.)
+# CONEX temporarily disabled
+# add_executable (mc_conex cascade_examples/mc_conex.cpp)
+# target_link_libraries (mc_conex  PRIVATE CORSIKA8::CORSIKA8 CORSIKA8::CONEXsibyll)
+# CORSIKA_REGISTER_EXAMPLE (mc_conex RUN_OPTIONS 4 2 10000.)
 
 add_executable (radio_em_shower cascade_examples/radio_em_shower.cpp)
 target_link_libraries (radio_em_shower PRIVATE CORSIKA8::CORSIKA8)

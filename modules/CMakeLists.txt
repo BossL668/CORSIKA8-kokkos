@@ -5,7 +5,7 @@ add_subdirectory(sibyll)
 add_subdirectory(sophia)
 add_subdirectory(qgsjetII)
 add_subdirectory(urqmd)
-add_subdirectory(conex)
 add_subdirectory(epos-lhc)
 add_subdirectory(tauola)
 add_subdirectory(fluka)
+# add_subdirectory(conex) # temporarily disabled
