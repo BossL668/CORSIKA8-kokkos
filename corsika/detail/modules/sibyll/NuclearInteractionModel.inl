@@ -15,7 +15,7 @@
 #include <corsika/framework/utility/COMBoost.hpp>
 #include <corsika/framework/core/Logging.hpp>
 
-#include <nuclib.hpp>
+#include <nuclib-public.hpp>
 
 namespace corsika::sibyll {
 
@@ -77,7 +77,7 @@ namespace corsika::sibyll {
       for (auto& n : pNuclei) {
         auto const j = get_nucleus_A(n);
         table << " " << std::setprecision(5) << std::setw(8)
-              << cnucsignuc_.sigma[j - 1][k][i];
+              << ::sibyll23d::nuclib::cnucsignuc_->sigma[j - 1][k][i];
       }
       table << "\n";
     }
@@ -129,11 +129,11 @@ namespace corsika::sibyll {
         for (size_t j = 1; j < gMaxNucleusAProjectile_; ++j) {
           const int jj = j + 1;
           double sig_out, dsig_out, sigqe_out, dsigqe_out;
-          sigma_mc_(jj, ib, dsig, dsigela, gNSample_, sig_out, dsig_out, sigqe_out,
-                    dsigqe_out);
+          ::sibyll23d::nuclib::sigma_mc_(jj, ib, dsig, dsigela, gNSample_, sig_out,
+                                         dsig_out, sigqe_out, dsigqe_out);
           // write to table
-          cnucsignuc_.sigma[j][k][i] = sig_out;
-          cnucsignuc_.sigqe[j][k][i] = sigqe_out;
+          ::sibyll23d::nuclib::cnucsignuc_->sigma[j][k][i] = sig_out;
+          ::sibyll23d::nuclib::cnucsignuc_->sigqe[j][k][i] = sigqe_out;
           CORSIKA_LOGGER_TRACE(logger_, "nuc A={} sig={} qe={}", j, sig_out, sigqe_out);
         }
       }
@@ -162,7 +162,7 @@ namespace corsika::sibyll {
     double const e0 = elabnuc / 1_GeV;
     double sig;
     CORSIKA_LOGGER_DEBUG(logger_, "ReadCrossSectionTable: {} {} {}", ia, ib, e0);
-    signuc2_(ia, ib, e0, sig);
+    ::sibyll23d::nuclib::signuc2_(ia, ib, e0, sig);
     CORSIKA_LOGGER_DEBUG(logger_, "ReadCrossSectionTable: sig={}", sig);
     return sig * 1_mb;
   }
@@ -264,7 +264,9 @@ namespace corsika::sibyll {
     double const sigEla = elaCrossSection / 1_mb;
     // sample number of interactions (only input variables, output in common cnucms)
     // nuclear multiple scattering according to glauber (r.i.p.)
-    int_nuc_(kATarget, projectileA, sigProd, sigEla);
+    ::sibyll23d::nuclib::int_nuc_(kATarget, projectileA, sigProd, sigEla);
+
+    auto& cnucms_ = *::sibyll23d::nuclib::cnucms_;
 
     CORSIKA_LOGGER_DEBUG(logger_,
                          "number of nucleons in target           : {}\n"
@@ -293,7 +295,8 @@ namespace corsika::sibyll {
     // input: target A, projectile A, number of int. nucleons in projectile, impact
     // parameter (fm) output: nFragments, AFragments in addition the momenta ar stored
     // in pf in common fragments, neglected
-    fragm_(kATarget, projectileA, nIntProj, impactPar, nFragments, AFragments);
+    ::sibyll23d::nuclib::fragm_(kATarget, projectileA, nIntProj, impactPar, nFragments,
+                                AFragments);
 
     // this should not occur but well :)  (LCOV_EXCL_START)
     if (nFragments > (int)getMaxNFragments()) {
@@ -304,6 +307,8 @@ namespace corsika::sibyll {
     CORSIKA_LOGGER_DEBUG(logger_, "number of fragments: {}", nFragments);
     CORSIKA_LOGGER_DEBUG(logger_, "adding nuclear fragments to particle stack..");
     // put nuclear fragments on corsika stack
+
+    auto& fragments_ = *::sibyll23d::nuclib::fragments_;
     for (int j = 0; j < nFragments; ++j) {
       CORSIKA_LOGGER_DEBUG(logger_, "fragment {}: A={} px={} py={} pz={}", j,
                            AFragments[j], fragments_.ppp[j][0], fragments_.ppp[j][1],

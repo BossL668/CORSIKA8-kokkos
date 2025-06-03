@@ -15,7 +15,7 @@ set (
 
 enable_language (Fortran)
 add_library (SIBYLL23d_static STATIC ${MODEL_SOURCES})
-add_library (SIBYLL23d SHARED "sibyll2.3d-public.cpp")
+add_library (SIBYLL23d SHARED "sibyll2.3d-public.cpp" "nuclib-public.cpp")
 
 set_target_properties (
   SIBYLL23d_static
