@@ -58,7 +58,7 @@ else ()
   # and also, it is fitted into the normal CORSIKA8 install "include/corsika_modules/Pythia8, lib/corsika"
   ExternalProject_Add (pythia8
     URL ${_C8_Pythia8_Download_Dir}/pythia${_C8_Pythia8_VERSION}.tar.bz2
-    URL_MD5 acedc2e46fca97d2e6a065f53ac794bf
+    URL_MD5 faf2730a959369e4d25e1285ab70d915
     SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pythia8/source"
     INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/pythia8/install"
     CONFIGURE_COMMAND ./configure --prefix=${CMAKE_CURRENT_BINARY_DIR}/pythia8/install
