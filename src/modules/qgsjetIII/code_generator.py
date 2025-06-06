@@ -82,7 +82,7 @@ def set_default_qgsjetIII_definition(particle_db):
             
 def read_qgsjetIII_codes(filename, particle_db):
     '''
-    reads the qgsjet-codes data file. For particles known to QGSJetII the 'qgsjetII_code' is set in the particle_db, as
+    reads the qgsjet-codes data file. For particles known to QGSJetIII the 'qgsjetIII_code' is set in the particle_db, as
     well as the 'xsType' is updated in case it is different from its default value set above. 
     '''
     with open(filename) as f:

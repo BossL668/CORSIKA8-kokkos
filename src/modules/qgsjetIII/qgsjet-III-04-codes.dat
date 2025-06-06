@@ -3,10 +3,10 @@
 
 # The 'Unknown' particle is needed to mark all particles qgsjetIII does
 # not know
-# IMPORTANT Note: the code "20" MAY NOT BE USED by qgsjetIII. Change to
+# IMPORTANT Note: the code "40" MAY NOT BE USED by qgsjetIII. Change to
 # another positive integer if a conflict arises. Since we use std::array
 # to store PID data keep the number as low as reasonable.  
-Unknown 20 CannotInteract
+Unknown 40 CannotInteract
 
 # taken from corsika v7.8010 src
 
