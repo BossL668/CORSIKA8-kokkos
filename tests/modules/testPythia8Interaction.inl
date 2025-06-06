@@ -161,7 +161,7 @@ SECTION("pythia wrong projectile") {
               Code::H0, Code::Proton,
               {calculate_total_energy(P0, H0::mass), {rootCS, {0_eV, 0_eV, P0}}},
               {Proton::mass, {rootCS, {0_eV, 0_eV, 0_eV}}}) == CrossSectionType::zero());
-              // gamma+p not possible
+  // gamma+p not possible
   REQUIRE(collision.getCrossSectionInelEla(
               Code::Photon, Code::Proton, {P0, {rootCS, {0_eV, 0_eV, P0}}},
               {Proton::mass, {rootCS, {0_eV, 0_eV, 0_eV}}}) ==
