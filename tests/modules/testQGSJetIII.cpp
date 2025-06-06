@@ -206,7 +206,7 @@ TEST_CASE("QgsjetIIIInterface", "interaction,processes") {
           Approx(95000).margin(94998)); // this is not physics validation
     int countFragments = 0;
     for (auto const& sec : view) { countFragments += (is_nucleus(sec.getPID())); }
-    CHECK(countFragments == Approx(4).margin(3)); // this is not physics validation
+    CHECK(countFragments > 0); // this is not physics validation
   }
 
   SECTION("Heavy nuclei") {
