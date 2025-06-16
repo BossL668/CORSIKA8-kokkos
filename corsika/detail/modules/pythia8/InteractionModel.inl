@@ -37,6 +37,9 @@ namespace corsika::pythia8 {
     auto rndm = std::make_shared<corsika::pythia8::Random>();
     pythia_.setRndmEnginePtr(rndm);
 
+    // set ParticleData.xml to our own from corsika-data
+    pythia_.particleData.reInit(dataPath.native() + "/ParticleData.xml", true);
+
     CORSIKA_LOG_INFO("Pythia8 reuse files: {}", dataPath.native());
 
     // projectile and target init to p Nitrogen to initialize pythia with angantyr
