@@ -73,7 +73,7 @@ namespace corsika::pythia8 {
       pythia_.readString("HadronLevel:Decay = on");
     }
     // Reduce printout and relax energy-momentum conservation.
-    pythia_.readString("Print:quiet = off");
+    pythia_.readString("Print:quiet = on");
     pythia_.readString("Check:epTolErr = 0.1");
     pythia_.readString("Check:epTolWarn = 0.0001");
     pythia_.readString("Check:mTolErr = 0.01");
