@@ -60,8 +60,10 @@ void calculate_cross_sections(TModel& model, std::string const& model_name) {
          "cross section p-Ar40 (mb), cross section pi-O16 (mb), production cross "
          "section, pi-N14 (mb), production, cross section pi-Ar40 (mb), cross section "
          "He-O16 (mb), production cross section, He-N14 (mb), production, cross section "
-         "He-Ar40 (mb)""Ox-O16 (mb), production cross section, Ox-N14 (mb), production, cross section "
-         "Ox-Ar40 (mb)""Fe-O16 (mb), production cross section, Fe-N14 (mb), production, cross section "
+         "He-Ar40 (mb)"
+         "Ox-O16 (mb), production cross section, Ox-N14 (mb), production, cross section "
+         "Ox-Ar40 (mb)"
+         "Fe-O16 (mb), production cross section, Fe-N14 (mb), production, cross section "
          "Fe-Ar40 (mb)\n";
 
   CoordinateSystemPtr const& cs = get_root_CoordinateSystem();
@@ -73,13 +75,15 @@ void calculate_cross_sections(TModel& model, std::string const& model_name) {
 
   for (int i = 0; i < nebins; ++i) {
 
-    corsika::units::si::HEPMomentumType const setP = pow(10, da * i + amin) * 1_GeV;    
-    std::unordered_map<std::pair<corsika::Code, corsika::Code>, CrossSectionType> xs_prod_hNuc;        
+    corsika::units::si::HEPMomentumType const setP = pow(10, da * i + amin) * 1_GeV;
+    std::unordered_map<std::pair<corsika::Code, corsika::Code>, CrossSectionType>
+        xs_prod_hNuc;
     std::unordered_map<corsika::Code, CrossSectionType> xs_prod_hp;
     HEPEnergyType setE, comEnn;
-    
-    for (auto projId : {Code::Proton, Code::PiPlus, Code::Helium, Code::Oxygen, Code::Iron}) {
-      
+
+    for (auto projId :
+         {Code::Proton, Code::PiPlus, Code::Helium, Code::Oxygen, Code::Iron}) {
+
       setE = calculate_total_energy(setP, get_mass(projId));
       comEnn = corsika::calculate_com_energy(setE, get_mass(projId),
                                              corsika::constants::nucleonMass);
@@ -91,13 +95,14 @@ void calculate_cross_sections(TModel& model, std::string const& model_name) {
 
       // had-p
       auto const [xs_prod, xs_ela] =
-          model->getCrossSectionInelEla(projId, Code::Proton, p4Proj, p4protonTarg);      
+          model->getCrossSectionInelEla(projId, Code::Proton, p4Proj, p4protonTarg);
       xs_prod_hp.insert(std::make_pair(projId, xs_prod));
-      
-      for (auto targNuc : {Code::Oxygen, Code::Nitrogen, Code::Argon}) {        
+
+      for (auto targNuc : {Code::Oxygen, Code::Nitrogen, Code::Argon}) {
         FourMomentum const p4nucTarg = corsika::FourMomentum(
-            get_mass(targNuc), MomentumVector(cs, {0_eV, 0_eV, 0_eV}));        
-        xs_prod_hNuc.insert({std::make_pair(projId,targNuc), model->getCrossSection(projId, targNuc, p4Proj, p4nucTarg)});        
+            get_mass(targNuc), MomentumVector(cs, {0_eV, 0_eV, 0_eV}));
+        xs_prod_hNuc.insert({std::make_pair(projId, targNuc),
+                             model->getCrossSection(projId, targNuc, p4Proj, p4nucTarg)});
       }
     }
     CORSIKA_LOG_INFO(
@@ -107,20 +112,41 @@ void calculate_cross_sections(TModel& model, std::string const& model_name) {
         "He-O={:6.2f} mb, He-N={:6.2f} mb, He-Ar={:6.2f} mb"
         "Ox-O={:6.2f} mb, Ox-N={:6.2f} mb, Ox-Ar={:6.2f} mb"
         "Fe-O={:6.2f} mb, Fe-N={:6.2f} mb, Fe-Ar={:6.2f} mb",
-        setP / 1_GeV, comEnn / 1_GeV, xs_prod_hp.at(Code::Proton) / 1_mb, xs_prod_hp.at(Code::PiPlus) / 1_mb,
-        xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Oxygen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Nitrogen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Argon)) / 1_mb,
-        xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Oxygen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Nitrogen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Argon)) / 1_mb,
-        xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Oxygen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Nitrogen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Argon)) / 1_mb,
-        xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Oxygen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Nitrogen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Argon)) / 1_mb,
-        xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Oxygen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Nitrogen)) / 1_mb, xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Argon)) / 1_mb);
+        setP / 1_GeV, comEnn / 1_GeV, xs_prod_hp.at(Code::Proton) / 1_mb,
+        xs_prod_hp.at(Code::PiPlus) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Oxygen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Nitrogen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Argon)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Oxygen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Nitrogen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Argon)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Oxygen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Nitrogen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Argon)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Oxygen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Nitrogen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Argon)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Oxygen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Nitrogen)) / 1_mb,
+        xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Argon)) / 1_mb);
 
     out << i << " " << setP / 1_GeV << " " << comEnn / 1_GeV << " "
-        << xs_prod_hp.at(Code::Proton) / 1_mb << " " << xs_prod_hp.at(Code::PiPlus) / 1_mb << " "
-        << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Oxygen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Nitrogen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Argon)) / 1_mb << " "
-        << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Oxygen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Nitrogen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Argon)) / 1_mb << " "
-        << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Oxygen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Nitrogen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Argon)) / 1_mb << " "
-        << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Oxygen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Nitrogen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Argon)) / 1_mb << " "
-        << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Oxygen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Nitrogen)) / 1_mb << " " << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Argon)) / 1_mb << "\n";
+        << xs_prod_hp.at(Code::Proton) / 1_mb << " " << xs_prod_hp.at(Code::PiPlus) / 1_mb
+        << " " << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Oxygen)) / 1_mb
+        << " " << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Nitrogen)) / 1_mb
+        << " " << xs_prod_hNuc.at(std::make_pair(Code::Proton, Code::Argon)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Oxygen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Nitrogen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::PiPlus, Code::Argon)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Oxygen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Nitrogen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Helium, Code::Argon)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Oxygen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Nitrogen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Oxygen, Code::Argon)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Oxygen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Nitrogen)) / 1_mb << " "
+        << xs_prod_hNuc.at(std::make_pair(Code::Iron, Code::Argon)) / 1_mb << "\n";
   }
   out.close();
   std::cout << "wrote cross section table for " << model_name

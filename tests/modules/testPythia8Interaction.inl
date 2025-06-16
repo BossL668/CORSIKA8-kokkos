@@ -47,7 +47,8 @@ SECTION("pythia interaction") {
   // test some combinations of valid target and projectile particles
   // so far only hadron-hadron and hadron-Nucleus is allowed
   Code const target = GENERATE(Code::Nitrogen, Code::Oxygen, Code::Argon);
-  Code const projectile = GENERATE(Code::Proton, Code::PiPlus, Code::KPlus, Code::Iron, get_nucleus_code(56, 24));
+  Code const projectile = GENERATE(Code::Proton, Code::PiPlus, Code::KPlus, Code::Iron,
+                                   get_nucleus_code(56, 24));
 
   CORSIKA_LOG_INFO("testing: {} - {}", projectile, target);
   REQUIRE(
