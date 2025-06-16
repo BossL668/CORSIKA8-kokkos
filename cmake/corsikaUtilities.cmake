@@ -57,7 +57,7 @@ function (CORSIKA_ADD_TEST)
  
   find_package(Catch2 REQUIRED)
   add_executable (${name} ${sources})
-  target_link_libraries (${name} CORSIKA8 Catch2::Catch2WithMain CorsikaTestingCommon)
+  target_link_libraries (${name} PRIVATE CORSIKA8 Catch2::Catch2WithMain CorsikaTestingCommon)
   target_compile_options (${name} PRIVATE -g) # do not skip asserts
   target_include_directories (${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   file (MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/test_outputs/)
