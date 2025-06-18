@@ -3,7 +3,6 @@
 #ifndef QGSJET_TYPES_HEADER
 #define QGSJET_TYPES_HEADER
 
-#include <string>
 #include <array>
 
 extern "C" {
