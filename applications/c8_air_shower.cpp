@@ -113,6 +113,7 @@ using Particle = StackType::particle_type;
 long registerRandomStreams(long seed) {
   RNGManager<>::getInstance().registerRandomStream("cascade");
   RNGManager<>::getInstance().registerRandomStream("qgsjet");
+  RNGManager<>::getInstance().registerRandomStream("qgsjetIII");
   RNGManager<>::getInstance().registerRandomStream("sibyll");
   RNGManager<>::getInstance().registerRandomStream("sophia");
   RNGManager<>::getInstance().registerRandomStream("epos");
