@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef QGSJET_TYPES_HEADER
+#define QGSJET_TYPES_HEADER
+
 #include <string>
 #include <array>
 
@@ -30,3 +33,5 @@ struct QGARR55 {
   int nwp;
 };
 }
+
+#endif
