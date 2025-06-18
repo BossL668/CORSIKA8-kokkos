@@ -271,7 +271,8 @@ int main(int argc, char** argv) {
       ->group("Misc.");
   app.add_option("-M,--hadronModel", "High-energy hadronic interaction model")
       ->default_val("SIBYLL-2.3d")
-      ->check(CLI::IsMember({"SIBYLL-2.3d", "QGSJet-II.04", "QGSJet-III", "EPOS-LHC", "Pythia8"}))
+      ->check(CLI::IsMember(
+          {"SIBYLL-2.3d", "QGSJet-II.04", "QGSJet-III", "EPOS-LHC", "Pythia8"}))
       ->group("Misc.");
   app.add_option("-T,--hadronModelTransitionEnergy",
                  "Transition between high-/low-energy hadronic interaction "
