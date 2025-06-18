@@ -9,7 +9,8 @@ set (
 
 set (
   MODEL_HEADERS
-  sibyll2.3d.hpp
+  sibyll2.3d-public.hpp
+  sibyll2.3d-types.hpp
   nuclib.hpp
   )
 

@@ -1,6 +1,7 @@
 set (
   MODEL_HEADERS
-  epos.hpp
+  epos-public.hpp
+  epos-types.hpp
   )
 
 enable_language (Fortran)

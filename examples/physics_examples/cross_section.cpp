@@ -8,6 +8,7 @@
 #include <corsika/modules/Epos.hpp>
 #include <corsika/modules/Sibyll.hpp>
 #include <corsika/modules/QGSJetII.hpp>
+#include <corsika/modules/QGSJetIII.hpp>
 #include <corsika/modules/Pythia8.hpp>
 
 #include <corsika/framework/core/ParticleProperties.hpp>
@@ -129,7 +130,7 @@ int main(int argc, char** argv) {
 
   if (argc != 2) {
     std::cout << "usage: check <interaction model> \n valid models are: sibyll, "
-                 "epos, qgsjet, pythia8"
+                 "epos, qgsjetII, qgsjetIII pythia8"
               << std::endl;
     return 1;
   }
@@ -151,10 +152,14 @@ int main(int argc, char** argv) {
     auto model = std::make_shared<corsika::epos::InteractionModel>(
         corsika::setup::C7trackedParticles);
     calculate_cross_sections(model, int_model_name);
-  } else if (int_model_name == "qgsjet") {
+  } else if (int_model_name == "qgsjetII") {
     RNGManager<>::getInstance().registerRandomStream("qgsjet");
     auto model = std::make_shared<corsika::qgsjetII::InteractionModel>();
     calculate_cross_sections(model, int_model_name);
+  } else if (int_model_name == "qgsjetIII") {
+    RNGManager<>::getInstance().registerRandomStream("qgsjetIII");
+    auto model = std::make_shared<corsika::qgsjetIII::InteractionModel>();
+    calculate_cross_sections(model, int_model_name);    
   } else {
     std::cout << "interaction model should be: sibyll, epos, qgsjet or pythia"
               << std::endl;
