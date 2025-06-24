@@ -103,7 +103,7 @@ namespace corsika {
     GrammageType const grammage = showerAxis_.getProjectedX(p0);
 
     size_t const bin1 = std::floor(grammage / dX_);
-    size_t const bin = std::min(bin1, profile_.size());
+    size_t const bin = std::min(bin1, profile_.size() - 1);
 
     CORSIKA_LOGGER_TRACE(TOutput::getLogger(), "grammage={} bin={}",
                          grammage / 1_g * square(1_cm), bin);
