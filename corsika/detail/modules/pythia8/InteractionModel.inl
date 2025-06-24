@@ -37,6 +37,9 @@ namespace corsika::pythia8 {
     auto rndm = std::make_shared<corsika::pythia8::Random>();
     pythia_.setRndmEnginePtr(rndm);
 
+    // set ParticleData.xml to our own from corsika-data
+    pythia_.particleData.reInit(dataPath.native() + "/ParticleData.xml", true);
+
     CORSIKA_LOG_INFO("Pythia8 reuse files: {}", dataPath.native());
 
     // projectile and target init to p Nitrogen to initialize pythia with angantyr
@@ -59,7 +62,7 @@ namespace corsika::pythia8 {
     initialization fails reuseInit = 3: same, but if the file is not found, it will be
     generated and saved after normal initialization */
     pythia_.readString("MultipartonInteractions:reuseInit = 2");
-    pythia_.readFile(dataPath.native() + "/pythia8313.cmnd");
+    pythia_.readFile(dataPath.native() + "/pythia8315.cmnd");
     // switch on decays for all hadrons except the ones defined as tracked by C8
     if (!stableParticles.empty()) {
       pythia_.readString("HadronLevel:Decay = on");
@@ -119,6 +122,41 @@ namespace corsika::pythia8 {
         }
       }
     }
+    // add nuclear projectiles
+    for (int nuclA = 2; nuclA < 57; ++nuclA) {
+      int const nuclZ = xs_nuc_map_.find(nuclA)->second;
+      Code nucProj = get_nucleus_code(nuclA, nuclZ);
+      for (Code const target : validTargets_) {
+        if (xs_map_.find(nucProj) == xs_map_.end()) {
+          // projectile not mapped, load table directly
+          auto const tablePath =
+              dataPath / "pythia8_xs_npz" /
+              fmt::format("xs_{}_{}.npz", static_cast<PDGCodeIntType>(get_PDG(nucProj)),
+                          static_cast<PDGCodeIntType>(get_PDG(target)));
+          auto const tables = cnpy::npz_load(tablePath.native());
+          // NOTE: tables are calculated for plab. In C8 we we assume elab. starting at
+          // plab=100GeV the difference is at most (1+m**2/p**2)=1.000088035
+          auto const energies = tables.at("plab").as_vec<float>();
+          auto const total_xs = tables.at("sig_tot").as_vec<float>();
+
+          if (auto const e_size = energies.size(), xs_size = total_xs.size();
+              xs_size != e_size) {
+            throw std::runtime_error{
+                fmt::format("Pythia8 table corrupt (plab size = {}; sig_tot size = {})",
+                            e_size, xs_size)};
+          }
+
+          auto xs_it = boost::make_transform_iterator(total_xs.cbegin(), millibarn_mult);
+          auto e_it_beg = boost::make_transform_iterator(energies.cbegin(), GeV_mult);
+          decltype(e_it_beg) e_it_end =
+              boost::make_transform_iterator(energies.cend(), GeV_mult);
+          crossSectionTables_.insert(
+              {std::pair{nucProj, target},
+               CrossSectionTable<InterpolationTransforms::Log>{
+                   std::move(e_it_beg), std::move(e_it_end), std::move(xs_it)}});
+        }
+      }
+    }
   }
 
   inline CrossSectionTable<InterpolationTransforms::Log> InteractionModel::loadPPTable(
@@ -151,30 +189,33 @@ namespace corsika::pythia8 {
 
     CORSIKA_LOG_DEBUG("pythia isValid: {} + {} at sqrtSNN = {} GeV", projectileId,
                       targetId, sqrtSNN / 1_GeV);
-    if (is_nucleus(targetId))
-      CORSIKA_LOG_DEBUG("nucleus = {}-{}", get_nucleus_A(targetId),
-                        get_nucleus_Z(targetId));
-    if (is_nucleus(projectileId)) // not yet possible with Pythia
-      return false;
+    if (is_nucleus(targetId)) CORSIKA_LOG_DEBUG("target: {}", get_nucleus_name(targetId));
+    if (is_nucleus(projectileId))
+      CORSIKA_LOG_DEBUG("projectile: {}", get_nucleus_name(projectileId));
+    auto const Aprojectile =
+        (is_nucleus(projectileId) ? get_nucleus_A(projectileId) : 1.);
 
     if (!canInteract(projectileId)) return false;
 
     auto const mass_target =
         get_mass(targetId) / (is_nucleus(targetId) ? get_nucleus_A(targetId) : 1.);
+    auto const mass_projectile = get_mass(projectileId) / Aprojectile;
     HEPEnergyType const labE =
-        calculate_lab_energy(static_pow<2>(sqrtSNN), get_mass(projectileId), mass_target);
-    if (labE < eKinMinLab_) return false;
+        calculate_lab_energy(static_pow<2>(sqrtSNN), mass_projectile, mass_target);
+    if (labE * Aprojectile < eKinMinLab_) return false;
 
     bool const validProjectile =
-        std::find(validProjectiles_.begin(), validProjectiles_.end(), projectileId) !=
-        validProjectiles_.end();
+        (is_nucleus(projectileId)
+             ? true
+             : std::find(validProjectiles_.begin(), validProjectiles_.end(),
+                         projectileId) != validProjectiles_.end());
     bool const validTarget = std::find(validTargets_.begin(), validTargets_.end(),
                                        targetId) != validTargets_.end();
     return validProjectile && validTarget;
   }
 
   inline bool InteractionModel::canInteract(Code const pCode) const {
-    return is_hadron(pCode) && !is_nucleus(pCode);
+    return is_hadron(pCode) || is_nucleus(pCode);
   }
 
   inline std::tuple<CrossSectionType, CrossSectionType>
@@ -229,12 +270,24 @@ namespace corsika::pythia8 {
     // Atarget) where A* is the number of nucleons in a nucleus. A* is 1 if projectile or
     // target are simple hadrons.
     auto const it = xs_map_.find(projectileId);
-    auto const mapped_projectile = (it == xs_map_.end()) ? projectileId : it->second;
-    auto const& table = crossSectionTables_.at(std::pair{mapped_projectile, targetId});
-    HEPEnergyType const Elab = calculate_lab_energy(
-        SNN, get_mass(projectileId) / Aprojectile, get_mass(targetId) / Atarget);
+    auto const mapped_projectile =
+        (it == xs_map_.end())
+            ? projectileId
+            : it->second; // map antiparticles to their particle partners
+    auto const mapped2_projectile =
+        (is_nucleus(mapped_projectile)
+             ? get_nucleus_code(
+                   get_nucleus_A(mapped_projectile),
+                   xs_nuc_map_.find(get_nucleus_A(mapped_projectile))->second)
+             : mapped_projectile); // map isotopes to defined z
+    auto const& table = crossSectionTables_.at(std::pair{mapped2_projectile, targetId});
+    HEPEnergyType const Elab =
+        calculate_lab_energy(SNN, get_mass(projectileId) / Aprojectile,
+                             get_mass(targetId) / Atarget) *
+        Aprojectile;
     CORSIKA_LOG_DEBUG("pythia getCrossSection: {}+{} at Elab= {} GeV, sqrtSNN = {} GeV",
-                      projectileId, get_name(targetId), Elab / 1_GeV, sqrtSNN / 1_GeV);
+                      projectileId, get_nucleus_name(targetId), Elab / 1_GeV,
+                      sqrtSNN / 1_GeV);
     return table.interpolate(Elab);
   }
 
@@ -275,7 +328,12 @@ namespace corsika::pythia8 {
 
     // variables to talk to Pythia
     double const eCM_pythia = sqrtSNN / 1_GeV; // CoM energy hadron-Nucleon
-    double const idA_pythia = static_cast<double>(get_PDG(projectileId));
+    auto const py_projectileId =
+        (is_nucleus(projectileId)
+             ? get_nucleus_code(get_nucleus_A(projectileId),
+                                xs_nuc_map_.find(get_nucleus_A(projectileId))->second)
+             : projectileId); // map isotopes to defined z
+    double const idA_pythia = static_cast<double>(get_PDG(py_projectileId));
     double const idB_pythia = static_cast<double>(get_PDG(targetId));
     CORSIKA_LOG_DEBUG("re-configuring pythia idA={}, idB={}, ecm={} GeV", idA_pythia,
                       idB_pythia, eCM_pythia);
@@ -303,22 +361,20 @@ namespace corsika::pythia8 {
       if (!p8p.isFinal()) continue;
       try {
         auto const volatile id = static_cast<PDGCode>(p8p.id());
-        auto const pyId = convert_from_PDG(id);
 
-        // skip nuclear remnants
-        if (is_nucleus(pyId)) continue;
+        auto particleId = convert_from_PDG(id);
 
         MomentumVector const pyPcom(
             rotCS, {p8p.px() * 1_GeV, p8p.py() * 1_GeV, p8p.pz() * 1_GeV});
         auto const pyP = boost.fromCoM(FourVector{p8p.e() * 1_GeV, pyPcom});
 
-        HEPEnergyType const mass = get_mass(pyId);
+        HEPEnergyType const mass = get_mass(particleId);
         HEPEnergyType const Ekin =
             sqrt(pyP.getSpaceLikeComponents().getSquaredNorm() + mass * mass) - mass;
 
         // add to corsika stack
         auto pnew = view.addSecondary(
-            std::make_tuple(pyId, Ekin, pyP.getSpaceLikeComponents().normalized()));
+            std::make_tuple(particleId, Ekin, pyP.getSpaceLikeComponents().normalized()));
 
         Plab_final += pnew.getMomentum();
         Elab_final += pnew.getEnergy();

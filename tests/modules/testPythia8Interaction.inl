@@ -36,17 +36,19 @@ SECTION("pythia interaction configurations") {
   REQUIRE(collision.canInteract(Code::AntiNeutron));
   REQUIRE(collision.canInteract(Code::PiMinus));
   REQUIRE(collision.canInteract(Code::PiPlus));
+  REQUIRE(collision.canInteract(Code::Iron));
   REQUIRE_FALSE(collision.canInteract(Code::Electron));
   REQUIRE_FALSE(collision.canInteract(Code::MuPlus));
 }
 
-corsika::units::si::HEPMomentumType P0 = 10_TeV;
+corsika::units::si::HEPMomentumType P0 = 10_PeV;
 
 SECTION("pythia interaction") {
   // test some combinations of valid target and projectile particles
   // so far only hadron-hadron and hadron-Nucleus is allowed
   Code const target = GENERATE(Code::Nitrogen, Code::Oxygen, Code::Argon);
-  Code const projectile = GENERATE(Code::Proton, Code::PiPlus, Code::KPlus);
+  Code const projectile = GENERATE(Code::Proton, Code::PiPlus, Code::KPlus, Code::Iron,
+                                   get_nucleus_code(8, 4));
 
   CORSIKA_LOG_INFO("testing: {} - {}", projectile, target);
   REQUIRE(
@@ -155,12 +157,12 @@ SECTION("pythia wrong projectile") {
       {sqrt(static_pow<2>(Helium::mass) + static_pow<2>(P0)), {rootCS, {0_eV, 0_eV, P0}}},
       {Nitrogen::mass, {rootCS, {0_eV, 0_eV, 0_eV}}}));
 
-  // gamma+p not possible
+  // Higgs+p not possible
   REQUIRE(collision.getCrossSection(
               Code::H0, Code::Proton,
               {calculate_total_energy(P0, H0::mass), {rootCS, {0_eV, 0_eV, P0}}},
               {Proton::mass, {rootCS, {0_eV, 0_eV, 0_eV}}}) == CrossSectionType::zero());
-
+  // gamma+p not possible
   REQUIRE(collision.getCrossSectionInelEla(
               Code::Photon, Code::Proton, {P0, {rootCS, {0_eV, 0_eV, P0}}},
               {Proton::mass, {rootCS, {0_eV, 0_eV, 0_eV}}}) ==
