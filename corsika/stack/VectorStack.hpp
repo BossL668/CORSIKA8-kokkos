@@ -158,6 +158,13 @@ namespace corsika {
     //! Get total energy
     HEPEnergyType getEnergy() const { return this->getKineticEnergy() + this->getMass(); }
 
+    //! Get energy per nucleon
+    HEPEnergyType getEnergyNN() const {
+      return (is_nucleus(this->getPID())
+                  ? this->getEnergy() / get_nucleus_A(this->getPID())
+                  : this->getEnergy());
+    }
+
     //! Get charge number
     int16_t getChargeNumber() const { return get_charge_number(this->getPID()); }
     ///@}
