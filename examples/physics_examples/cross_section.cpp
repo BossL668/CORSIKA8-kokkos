@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
   } else if (int_model_name == "qgsjetIII") {
     RNGManager<>::getInstance().registerRandomStream("qgsjetIII");
     auto model = std::make_shared<corsika::qgsjetIII::InteractionModel>();
-    calculate_cross_sections(model, int_model_name);    
+    calculate_cross_sections(model, int_model_name);
   } else {
     std::cout << "interaction model should be: sibyll, epos, qgsjet or pythia"
               << std::endl;
