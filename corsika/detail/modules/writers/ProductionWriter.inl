@@ -99,10 +99,11 @@ namespace corsika {
   template <typename TOutput>
   inline void ProductionWriter<TOutput>::write(Point const& p0, Code const projectile_pid,
                                                double const weight) {
+
     GrammageType const grammage = showerAxis_.getProjectedX(p0);
 
-    // Note: particle may go also "upward", thus, grammageEnd<grammageStart
-    size_t const bin = std::ceil(grammage / dX_);
+    size_t const bin1 = std::floor(grammage / dX_);
+    size_t const bin = std::min(bin1, profile_.size());
 
     CORSIKA_LOGGER_TRACE(TOutput::getLogger(), "grammage={} bin={}",
                          grammage / 1_g * square(1_cm), bin);
