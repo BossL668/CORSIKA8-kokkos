@@ -80,7 +80,7 @@ else()
     install (
       TARGETS fluka
       EXPORT CORSIKA8PublicTargets
-      ARCHIVE DESTINATION lib/corsika
+      LIBRARY DESTINATION lib/corsika
       INCLUDES DESTINATION include/corsika_modules/fluka
       )
     

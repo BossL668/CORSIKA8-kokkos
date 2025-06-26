@@ -8,18 +8,15 @@ target_include_directories (
   $<INSTALL_INTERFACE:include/corsika_modules/common>
   )
 
-install (
-  FILES
-  rng_decl.hpp rng_impl.hpp datadir.hpp
-  DESTINATION include/corsika_modules/common
-  )
+set_target_properties (modules_common PROPERTIES
+  PUBLIC_HEADER rng_decl.hpp rng_impl.hpp datadir.hpp
+)
 
 install (
   TARGETS modules_common
   EXPORT CORSIKA8PublicTargets
-  ARCHIVE DESTINATION lib/corsika
-  LIBRARY DESTINATION lib/corsika # just for cmake 3.10.x (ubuntu 18)
-  )
+  PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/corsika_modules/common"
+)
 
 # add sibyll to corsika8 build
 add_dependencies (CORSIKA8 modules_common)
