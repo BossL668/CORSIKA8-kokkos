@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
+extern "C" {
 extern struct {
   int mjflvr, mnflvr, mrflvr;
 } flkavr_;
@@ -8,6 +9,7 @@ extern struct {
 extern struct {
   char chflvr;
 } flkavc_;
+}
 
 int main() {
   printf("FLUKA version: %d.%d.%d", flkavr_.mjflvr, flkavr_.mnflvr, flkavr_.mrflvr);
