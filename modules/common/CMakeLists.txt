@@ -15,7 +15,7 @@ set_target_properties (modules_common PROPERTIES
 install (
   TARGETS modules_common
   EXPORT CORSIKA8PublicTargets
-  PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/corsika_modules/common"
+  PUBLIC_HEADER DESTINATION "corsika_modules/common"
 )
 
 # add sibyll to corsika8 build
