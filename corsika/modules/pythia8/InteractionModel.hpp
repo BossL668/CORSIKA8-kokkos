@@ -119,20 +119,24 @@ namespace corsika::pythia8 {
      */
 
     static std::array constexpr validProjectiles_ = {
-        Code::PiPlus,       Code::PiMinus,   Code::Pi0,           Code::Proton,
-        Code::AntiProton,   Code::Neutron,   Code::AntiNeutron,   Code::KPlus,
-        Code::KMinus,       Code::K0Long,    Code::K0Short,       Code::SigmaMinus,
-        Code::SigmaPlusBar, Code::SigmaPlus, Code::SigmaMinusBar, Code::Xi0,
-        Code::Xi0Bar};
+        Code::PiPlus,        Code::PiMinus,    Code::Pi0,          Code::Proton,
+        Code::AntiProton,    Code::Neutron,    Code::AntiNeutron,  Code::KPlus,
+        Code::KMinus,        Code::K0Long,     Code::K0Short,      Code::Lambda,
+        Code::LambdaBar,     Code::SigmaMinus, Code::SigmaPlusBar, Code::SigmaPlus,
+        Code::SigmaMinusBar, Code::Xi0,        Code::Xi0Bar,       Code::XiMinus,
+        Code::XiPlusBar,     Code::OmegaMinus, Code::OmegaPlusBar};
 
     static std::array constexpr validTargets_ = {
         Code::Proton, Code::Carbon, Code::Nitrogen, Code::Oxygen, Code::Argon};
 
     std::unordered_map<corsika::Code, corsika::Code> const xs_map_ = {
-        {Code::SigmaMinus, Code::SigmaPlus},
+        {Code::LambdaBar, Code::Lambda},
         {Code::SigmaMinusBar, Code::SigmaPlus},
-        {Code::SigmaPlusBar, Code::SigmaPlus},
-        {Code::Xi0Bar, Code::Xi0}};
+        {Code::SigmaPlusBar, Code::SigmaMinus},
+        {Code::XiPlusBar, Code::Xi0}, // Xi+: -3312 table not available, map to Xi0:3322
+        {Code::XiMinus, Code::Xi0},   // Xi-: 3312 table not available, map to Xi0:3322
+        {Code::Xi0Bar, Code::Xi0},
+        {Code::OmegaPlusBar, Code::OmegaMinus}};
 
     std::unordered_map<int, int> const xs_nuc_map_ = {
         {2, 1},   {3, 2},   {4, 2},   {5, 3},   {6, 3},   {7, 3},   {8, 4},   {9, 4},
