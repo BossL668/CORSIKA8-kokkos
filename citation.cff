@@ -1,0 +1,218 @@
+cff-version: 1.2.0
+message: >
+  If you use this software, please cite it using the metadata below,
+  and additionally cite the two supporting publications listed in the references.
+title: "CORSIKA 8"
+version: "icrc2025"
+release-date: 2025-06-24
+repository-code: https://gitlab.iap.kit.edu/AirShowerPhysics/corsika
+url: https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/-/tree/icrc2025?ref_type=heads
+doi: 10.5281/zenodo.18195386
+type: software
+abstract: >
+  CORSIKA 8 is a Monte Carlo framework for the simulation of particle showers 
+  initiated in the Earth's atmosphere or dense media by high-energy particles from the cosmos.
+
+authors:
+  - family-names: Alameddine
+    given-names: Jean-Marco
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Albrecht
+    given-names: Johannes
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Alves Jr.
+    given-names: Antonio Augusto
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany; University of Cincinnati, Cincinnati, OH, United States
+  - family-names: Ammerman-Yebra
+    given-names: Juan
+    affiliation: IMAPP, Radboud University Nijmegen, Nijmegen, The Netherlands
+  - family-names: Arrabito
+    given-names: Luisa
+    affiliation: Laboratoire Univers & Particules de Montpellier, CNRS & Université de Montpellier (UMR-5299), 34095 Montpellier, France
+  - family-names: Baack
+    given-names: Dominik
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Cesista
+    given-names: Rui
+    affiliation: Laboratoire Univers & Particules de Montpellier, CNRS & Université de Montpellier (UMR-5299), 34095 Montpellier, France
+  - family-names: Coleman
+    given-names: Alan
+    affiliation: Uppsala University, Department of Physics and Astronomy, Uppsala, Sweden
+  - family-names: Deaconu
+    given-names: Cosmin
+    affiliation: Department of Physics, Enrico Fermi Institute, Kavli Institute for Cosmological Physics, University of Chicago, Chicago, IL 60637, USA
+  - family-names: Dembinski
+    given-names: Hans
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Elsässer
+    given-names: Dominik
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Engel
+    given-names: Ralph
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Faure
+    given-names: Alice
+    affiliation: Laboratoire Univers & Particules de Montpellier, CNRS & Université de Montpellier (UMR-5299), 34095 Montpellier, France
+  - family-names: Ferrari
+    given-names: Alfredo
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Gaudu
+    given-names: Chloé
+    affiliation: Bergische Universität Wuppertal, Department of Physics, Wuppertal, Germany
+  - family-names: Glaser
+    given-names: Christian
+    affiliation: Uppsala University, Department of Physics and Astronomy, Uppsala, Sweden; Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany
+  - family-names: Gottowik
+    given-names: Marvin
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Heck
+    given-names: Dieter
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Huege
+    given-names: Tim
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany; Vrije Universiteit Brussel, Astrophysical Institute, Brussels, Belgium
+  - family-names: Kampert
+    given-names: Karl-Heinz
+    affiliation: Bergische Universität Wuppertal, Department of Physics, Wuppertal, Germany
+  - family-names: Karastathis
+    given-names: Nikolaos
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Nellen
+    given-names: Lukas
+    affiliation: Universidad Nacional Autónoma de México (UNAM), Instituto de Ciencias Nucleares, México, México
+  - family-names: Parello
+    given-names: David
+    affiliation: DALI, Univ Perpignan, Perpignan, France; LIRMM Univ Montpellier, CNRS, Montpellier, France
+  - family-names: Pierog
+    given-names: Tanguy
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Prechelt
+    given-names: Remy
+    affiliation: University of Hawai'i at Manoa, Department of Physics and Astronomy, Honolulu, USA
+  - family-names: Reininghaus
+    given-names: Maximilian
+    affiliation: Independent researcher
+  - family-names: Rhode
+    given-names: Wolfgang
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Riehn
+    given-names: Felix
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany
+  - family-names: Sackel
+    given-names: Maximilian
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Sampathkumar
+    given-names: Pranav
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Sandrock
+    given-names: Alexander
+    affiliation: Bergische Universität Wuppertal, Department of Physics, Wuppertal, Germany
+  - family-names: Soedingrekso
+    given-names: Jan
+    affiliation: Technische Universität Dortmund (TU), Department of Physics, Dortmund, Germany; Lamarr Institute for Machine Learning and Artificial Intelligence, Dortmund, Germany
+  - family-names: Ulrich
+    given-names: Ralf
+    affiliation: Karlsruhe Institute of Technology (KIT), Institute for Astroparticle Physics (IAP), Karlsruhe, Germany
+  - family-names: Windischhofer
+    given-names: Philipp
+    affiliation: Department of Physics, Enrico Fermi Institute, Kavli Institute for Cosmological Physics, University of Chicago, Chicago, IL 60637, USA
+  - family-names: Yue
+    given-names: Baobiao
+    affiliation: Bergische Universität Wuppertal, Department of Physics, Wuppertal, Germany
+
+references:
+  - type: article
+    title: "Towards a Next Generation of CORSIKA: A Framework for the Simulation of Particle Cascades in Astroparticle Physics"
+    authors:
+      - family-names: Engel
+        given-names: Ralph
+      - family-names: Heck
+        given-names: Dieter
+      - family-names: Huege
+        given-names: Tim
+      - family-names: Pierog
+        given-names: Tanguy
+      - family-names: Reininghaus
+        given-names: Maximilian
+      - family-names: Riehn
+        given-names: Felix
+      - family-names: Ulrich
+        given-names: Ralf
+      - family-names: Unger
+        given-names: Michael
+      - family-names: Veberič
+        given-names: Darko
+    journal: "Computing and Software for Big Science"
+    volume: 3
+    issue: 1
+    year: 2019
+    doi: 10.1007/s41781-018-0013-0
+
+  - type: article
+    title: "Simulating radio emission from particle cascades with CORSIKA 8"
+    authors:
+      - family-names: Alameddine
+        given-names: Jean-Marco
+      - family-names: Albrecht
+        given-names: Johannes
+      - family-names: Ammerman‑Yebra
+        given-names: Juan
+      - family-names: Arrabito
+        given-names: Luisa
+      - family-names: Alves Jr.
+        given-names: Antonio Augusto
+      - family-names: Baack
+        given-names: Dominik
+      - family-names: Coleman
+        given-names: Alan
+      - family-names: Dembinski
+        given-names: Hans
+      - family-names: Elsässer
+        given-names: Dominik
+      - family-names: Engel
+        given-names: Ralph
+      - family-names: Faure
+        given-names: Alice
+      - family-names: Ferrari
+        given-names: Alfredo
+      - family-names: Gaudu
+        given-names: Chloé
+      - family-names: Glaser
+        given-names: Christian
+      - family-names: Gottowik
+        given-names: Marvin
+      - family-names: Heck
+        given-names: Dieter
+      - family-names: Huege
+        given-names: Tim
+      - family-names: Kampert
+        given-names: Karl-Heinz
+      - family-names: Karastathis
+        given-names: Nikolaos
+      - family-names: Nellen
+        given-names: Lukas
+      - family-names: Pierog
+        given-names: Tanguy
+      - family-names: Prechelt
+        given-names: Remy
+      - family-names: Reininghaus
+        given-names: Maximilian
+      - family-names: Rhode
+        given-names: Wolfgang
+      - family-names: Riehn
+        given-names: Felix
+      - family-names: Sackel
+        given-names: Maximilian
+      - family-names: Sampathkumar
+        given-names: Pranav
+      - family-names: Sandrock
+        given-names: Alexander
+      - family-names: Soedingrekso
+        given-names: Jan
+      - family-names: Ulrich
+        given-names: Ralf
+    journal: "Astroparticle Physics"
+    volume: 166
+    year: 2025
+    doi: 10.1016/j.astropartphys.2024.103072
+
