@@ -9,13 +9,13 @@ target_include_directories (
   )
 
 set_target_properties (modules_common PROPERTIES
-  PUBLIC_HEADER rng_decl.hpp rng_impl.hpp datadir.hpp
+  PUBLIC_HEADER "rng_decl.hpp;rng_impl.hpp;datadir.hpp"
 )
 
 install (
   TARGETS modules_common
   EXPORT CORSIKA8PublicTargets
-  PUBLIC_HEADER DESTINATION "corsika_modules/common"
+  PUBLIC_HEADER DESTINATION "include/corsika_modules/common"
 )
 
 # add sibyll to corsika8 build

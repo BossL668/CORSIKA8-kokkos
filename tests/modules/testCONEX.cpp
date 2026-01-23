@@ -44,6 +44,8 @@ using MExtraEnvirnoment = MediumPropertyModel<UniformMagneticField<T>>;
 
 struct DummyStack {};
 
+extern "C" void inisibyll_();
+
 TEST_CASE("CONEX") {
 
   logging::set_level(logging::level::info);
@@ -93,11 +95,7 @@ TEST_CASE("CONEX") {
 
   ShowerAxis const showerAxis{injectionPos, (showerCore - injectionPos) * 1.02, env};
 
-  std::set<Code> const nuclearcomp = {Code::Nitrogen, Code::Oxygen};
-  // need to initialize Sibyll, done in constructor:
-  corsika::sibyll::HadronInteractionModel sibyll(corsika::setup::C7trackedParticles);
-  [[maybe_unused]] corsika::sibyll::NuclearInteractionModel sibyllNuc(sibyll,
-                                                                      nuclearcomp);
+  inisibyll_();
 
   EnergyLossWriter<WriterOff> w1(showerAxis);
   LongitudinalWriter<WriterOff> w2(showerAxis);
