@@ -20,7 +20,7 @@ namespace corsika {
 
   template <typename TStackView>
   void EMThinning::doSecondaries(TStackView& view) {
-    if (view.getSize() != 2) return;
+    if (view.getEntries() != 2) return;
 
     auto projectile = view.getProjectile();
     if (!is_em(projectile.getPID())) return;
