@@ -28,7 +28,7 @@ else()
   message("FLUKA not found, will not make 'mars' example")
 endif()
 
-# CONEX temporarily disabled
+# doesn't work currently
 # add_executable (mc_conex cascade_examples/mc_conex.cpp)
 # target_link_libraries (mc_conex  PRIVATE CORSIKA8::CORSIKA8 CORSIKA8::CONEXsibyll)
 # CORSIKA_REGISTER_EXAMPLE (mc_conex RUN_OPTIONS 4 2 10000.)

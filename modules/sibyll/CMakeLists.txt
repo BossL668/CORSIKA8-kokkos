@@ -9,10 +9,11 @@ set (
 
 set (
   MODEL_HEADERS
-  sibyll2.3d-public.hpp
   sibyll2.3d-types.hpp
-  nuclib.hpp
-  )
+  sibyll2.3d-public.hpp
+  nuclib-types.hpp
+  nuclib-public.hpp
+)
 
 enable_language (Fortran)
 add_library (SIBYLL23d_static STATIC ${MODEL_SOURCES})
@@ -27,6 +28,11 @@ set_target_properties (
   Fortran_VISIBILITY_PRESET hidden
 )
 
+set_target_properties(SIBYLL23d PROPERTIES
+  FRAMEWORK TRUE
+  PUBLIC_HEADER "${MODEL_HEADERS}"
+)
+
 target_include_directories (
   SIBYLL23d_static
   PRIVATE
@@ -37,7 +43,7 @@ target_include_directories (
   SIBYLL23d
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include/corsika_modules/sibyll>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/corsika_modules/sibyll23d>
 )
 
 target_link_libraries (
@@ -51,16 +57,10 @@ target_link_libraries(SIBYLL23d PRIVATE SIBYLL23d_static)
 target_link_options(SIBYLL23d PRIVATE "LINKER:--exclude-libs,ALL") # hide symbols from static/private lib
 
 install (
-  FILES
-  ${MODEL_HEADERS}
-  DESTINATION include/corsika_modules/sibyll
-)
-
-install (
   TARGETS SIBYLL23d
   EXPORT CORSIKA8PublicTargets
-  ARCHIVE DESTINATION lib/corsika
-  LIBRARY DESTINATION lib/corsika # just for cmake 3.10.x (ubuntu 18)
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/corsika"
+  PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/corsika_modules/sibyll23d"
 )
 
 # add sibyll to corsika8 build

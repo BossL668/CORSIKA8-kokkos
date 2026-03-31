@@ -37,7 +37,7 @@ else()
     )
 
     try_compile(fluka_have_flkavr ${CMAKE_BINARY_DIR}
-        SOURCES ${input_dir}/try_flkavr.c
+        SOURCES ${input_dir}/try_flkavr.cpp
         LINK_LIBRARIES ${C8_FLUKALIB_}
     )
 
@@ -80,7 +80,7 @@ else()
     install (
       TARGETS fluka
       EXPORT CORSIKA8PublicTargets
-      ARCHIVE DESTINATION lib/corsika
+      LIBRARY DESTINATION lib/corsika
       INCLUDES DESTINATION include/corsika_modules/fluka
       )
     

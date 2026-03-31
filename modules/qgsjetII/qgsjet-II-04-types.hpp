@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef QGSJET_TYPES_HEADER
+#ifndef QGSJET_TYPES_HEADER // shared with QGSJet-III, pragma doesn't work
 #define QGSJET_TYPES_HEADER
 
 #include <array>

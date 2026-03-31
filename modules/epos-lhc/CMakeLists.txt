@@ -2,7 +2,7 @@ set (
   MODEL_HEADERS
   epos-public.hpp
   epos-types.hpp
-  )
+)
 
 enable_language (Fortran)
 
@@ -34,21 +34,20 @@ target_include_directories (
   EPOS_LHC
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include/corsika_modules/eposlhc>
+  $<INSTALL_INTERFACE:include/corsika_modules/epos-lhc>
 )
 
-install (
-  FILES
-  ${MODEL_HEADERS}
-  DESTINATION include/corsika_modules/epos
-  )
+set_target_properties(EPOS_LHC PROPERTIES
+  FRAMEWORK TRUE
+  PUBLIC_HEADER "${MODEL_HEADERS}"
+)
 
 install (
   TARGETS EPOS_LHC
   EXPORT CORSIKA8PublicTargets
-  ARCHIVE DESTINATION lib/corsika
-  INCLUDES DESTINATION include/corsika_modules/epos
-  )
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/corsika"
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/corsika_modules/epos-lhc
+)
 
 # add EPOS to CORSIKA8 build
 add_dependencies (CORSIKA8 EPOS_LHC)

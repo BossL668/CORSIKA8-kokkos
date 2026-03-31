@@ -9,4 +9,4 @@ add_subdirectory(urqmd)
 add_subdirectory(epos-lhc)
 add_subdirectory(tauola)
 add_subdirectory(fluka)
-# add_subdirectory(conex) # temporarily disabled
+add_subdirectory(conex) # temporarily disabled
