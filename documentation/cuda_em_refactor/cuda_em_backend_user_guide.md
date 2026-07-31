@@ -116,14 +116,46 @@ Release 全树及 CTest 32/32 均通过。
 
 ## 4. 物理表
 
-生产运行不能在缺表时静默生成或切换 CPU，必须显式提供版本化 `.c8emrt`：
+先区分两类文件：
+
+| 文件 | 是否自动生成 | 用途 |
+|---|---|---|
+| PROPOSAL 插值 cache 目录 | 是，由 `gpu_em_tablegen` 按需创建 | 仅供生成器调用 PROPOSAL |
+| 版本化 `.c8emrt` 文件 | 否 | CUDA 后端运行时物理表 |
+
+生产运行不能在缺少 `.c8emrt` 时静默生成或切换 CPU。`c8_air_shower` 要求显式
+传入 `--gpu-table-cache`，文件不存在、损坏或不匹配都会立即终止。
+
+### 4.1 获取已验证的默认表
+
+私有 GitHub 仓库的协作者可以直接下载标准干空气表：
+
+```bash
+export C8_TABLE_DIR=/path/to/gpu_em_tables
+mkdir -p "$C8_TABLE_DIR"
+
+gh release download gpu-table-dry-air-v10 \
+  --repo BossL668/corsika8-gpu-hybrid \
+  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
+  --dir "$C8_TABLE_DIR"
+
+export C8_TABLE="$C8_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
+echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TABLE" |
+  sha256sum --check
+```
+
+本地开发环境中同一张表位于：
 
 ```text
 /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda/
   gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt
 ```
 
-它覆盖 0.5 MeV cut 和最高 \(10^{18}\) eV。5/50 MeV 表也位于同一目录。
+它覆盖标准干空气、0.5 MeV EM cut、300 MeV muon cut 和最高
+\(10^{18}\) eV。表中同时存在 PDG `13/-13` 时启用 CUDA μ 子输运；没有 μ 子
+列时 EM CUDA 仍可使用，而 μ 子保留在 CPU。
+
+### 4.2 自行生成标准干空气表
 
 生成新表的基本形式：
 
@@ -134,12 +166,19 @@ gpu_em_tablegen OUTPUT.c8emrt \
   --energy-max-MeV 1e12 \
   --cut-MeV 0.5 \
   --transport-cut-MeV 0.5 \
+  --muon-transport-cut-MeV 300 \
   --tolerance 1e-3 \
-  --loss-tolerance 1e-3
+  --loss-tolerance 1e-3 \
+  --include-muons
 ```
 
-正式参数还必须包含已验收的 Epair rho、LPM、自适应网格和 validation 设置；
-不要仅凭上述最小示例覆盖现有 production table。表文件记录：
+其中 `--proposal-cache` 目录不存在时会自动创建，PROPOSAL 会在其中生成自己的
+插值 cache。输出 `.c8emrt` 已存在时默认拒绝覆盖，只有显式指定 `--overwrite`
+才会替换。
+
+生成器会建立 rate、inverse-CDF、continuous range、LPM 和散射数据，自适应
+细化并验证误差。但一张新生成的表不会自动继承 production 验收身份；正式科研
+使用前仍应重新运行 CPU/CUDA shower、能量闭合和射电统计验收。表文件记录：
 
 - PROPOSAL 版本与参数化；
 - medium 组成；
@@ -150,6 +189,20 @@ gpu_em_tablegen OUTPUT.c8emrt \
 表不匹配、损坏、哈希错误或误差大于 `--gpu-table-tolerance` 都会终止当前
 shower。PROPOSAL 原生插值与 GPU 平坦表插值的区别见
 `proposal_and_cuda_interpolation.md`。
+
+### 4.3 改变介质时的边界
+
+当前 `gpu_em_tablegen` 的 `makeDryAirMedium()` 和 `c8_air_shower` 的五层环境
+都固定为 CORSIKA `AirDry1Atm`，没有 `--medium` 或材料配置文件接口。
+
+- 改变同一干空气的密度—高度 profile、磁场、观测面或 GPU：复用现有表；
+- 改变元素组成、组分比例、电离/材料常数或 PROPOSAL 版本：生成新表；
+- 岩石、土壤、月壤和冰：当前不是“换一个参数即可制表”，需要同时扩展环境
+  快照、介质工厂、GPU medium ID 和运行时环境—表格身份校验。
+
+在通用介质功能完成前，只修改应用介质并继续使用干空气表是不安全的。更完整的
+下载、生成和校验说明见
+[`gpu_em_tables/README.md`](../../gpu_em_tables/README.md)。
 
 ## 5. 基本运行
 

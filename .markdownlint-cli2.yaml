@@ -22,6 +22,7 @@ globs:
   - documentation/cuda_em_refactor/final_acceptance_report.md
   - documentation/cuda_em_refactor/original_plan_requirement_audit.md
   - documentation/cuda_em_refactor/proposal_and_cuda_interpolation.md
+  - gpu_em_tables/README.md
   - validation/gpu_em/README.md
 ignores:
   - modules/**

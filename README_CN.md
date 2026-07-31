@@ -124,6 +124,19 @@ g/cm² 和 Tesla。
 表查询不在能区外静默 clamp。缺列、超范围、无逆 CDF 或哈希/误差不匹配都会
 成为明确 fallback 或 hard failure。
 
+这里有两个容易混淆的“表”：
+
+- PROPOSAL 自身的插值 cache：运行 `gpu_em_tablegen` 时会在
+  `--proposal-cache` 指定目录中自动创建；
+- CUDA 运行时使用的 `.c8emrt`：`c8_air_shower` 不会自动生成，必须下载一个
+  已验证表，或预先显式运行 `gpu_em_tablegen`。
+
+当前 `c8_air_shower` 和 `gpu_em_tablegen` 都固定使用 `AirDry1Atm` 标准干空气。
+仅改变五层大气的密度随高度分布、观测高度或磁场时，可以复用同一干空气表；
+改变元素组成、组分比例、介质电离参数，或者改为岩石、土壤、月壤、冰时不可以
+复用。当前版本也没有通用介质配置参数：这种改动需要同时扩展环境快照、介质
+工厂和 table generator，重新生成并重新验收。
+
 ### 2.4 GPU 粒子过程
 
 当前 GPU 末态覆盖：
@@ -549,10 +562,52 @@ python -m unittest discover \
   -p 'test_*.py'
 ```
 
-物理表不是 GPU 架构文件。应复制已经验证的 `.c8emrt` 并核验 SHA-256；只有
-介质、cut、能区、PROPOSAL 参数化或 schema 变化时才重新生成表。
+### 7.8 准备默认干空气物理表
 
-### 7.8 典型全加速运行
+物理表不是 GPU 架构文件。换显卡或 CUDA 架构不需要重新生成。最简单的方式是
+从本项目的私有 GitHub Release 下载已经验收的默认表：
+
+```bash
+export C8_TABLE_DIR="$C8_BUILD/gpu_em_tables"
+mkdir -p "$C8_TABLE_DIR"
+
+gh release download gpu-table-dry-air-v10 \
+  --repo BossL668/corsika8-gpu-hybrid \
+  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
+  --dir "$C8_TABLE_DIR"
+
+export C8_TABLE="$C8_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
+echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TABLE" |
+  sha256sum --check
+```
+
+私有仓库的协作者需要先运行 `gh auth login`。也可以从 Release 网页手工下载，
+但仍应执行同一个 SHA-256 检查。该表适用于：
+
+- CORSIKA `AirDry1Atm` 标准干空气；
+- `--emcut 0.0005` GeV；
+- `--mucut 0.3` GeV；
+- 初级总能量不高于 \(10^{18}\) eV；
+- CUDA 电磁和可选 CUDA \(\mu^\pm\) 输运。
+
+如果不需要 CUDA μ 子输运，也可以使用只含 \(\gamma/e^\pm\) 的已验证表；
+表中没有成对的 PDG `13/-13` 时，μ 子保留在 CPU 路径。
+
+`c8_air_shower` 不会在缺表时自动执行生成器。这样设计是为了避免生产任务在
+计算节点上意外花费很长时间制表，也避免多个任务并发写同一缓存。若只改变 GPU
+型号、GPU 数量、磁场、天线、观测高度或同一干空气的密度 profile，直接复用表。
+以下变化必须生成并重新验收表：
+
+- PROPOSAL 版本或物理参数化；
+- 介质组成、组分比例或材料常数；
+- `--emcut`、`--mucut`；
+- 所需最大能量或表格式版本。
+
+当前生成器只支持标准干空气。对默认干空气自行制表的完整参数见
+[`gpu_em_tables/README.md`](gpu_em_tables/README.md)，全部开关见
+[`cli_reference.md`](documentation/cuda_em_refactor/cli_reference.md)。
+
+### 7.9 典型全加速运行
 
 典型全加速运行参数：
 
@@ -567,7 +622,7 @@ c8_air_shower \
   --gpu-device 0 \
   --gpu-min-batch 4096 \
   --gpu-memory-fraction 0.70 \
-  --gpu-table-cache /path/to/production_v10_muons_1e-3_1EeV.c8emrt \
+  --gpu-table-cache "$C8_TABLE" \
   --gpu-table-tolerance 1e-3 \
   --gpu-deterministic true \
   --gpu-resident-cross-species true \

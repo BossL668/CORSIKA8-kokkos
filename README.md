@@ -527,20 +527,47 @@ floating-point bit.
 ### Physics tables on the new server
 
 The `.c8emrt` table is a versioned physics artifact, not a GPU-specific
-compile artifact. Copy the validated table and its recorded SHA-256 to the new
-machine:
+compile artifact. `c8_air_shower` deliberately does not generate this table at
+startup: a missing `--gpu-table-cache` is a hard error. The cache created
+automatically by PROPOSAL while `gpu_em_tablegen` runs is a separate internal
+cache and cannot be passed to `c8_air_shower`.
+
+For the standard dry-air configuration, download the validated table from the
+private repository release:
 
 ```bash
-export C8_TABLE=/path/to/production_v10_muons_1e-3_1EeV.c8emrt
-test -f "$C8_TABLE"
-sha256sum "$C8_TABLE"
+export C8_TABLE_DIR="$C8_BUILD/gpu_em_tables"
+mkdir -p "$C8_TABLE_DIR"
+
+gh release download gpu-table-dry-air-v10 \
+  --repo BossL668/corsika8-gpu-hybrid \
+  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
+  --dir "$C8_TABLE_DIR"
+
+export C8_TABLE="$C8_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
+echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TABLE" |
+  sha256sum --check
 ```
 
+Private-repository collaborators must authenticate with `gh auth login`
+first. The table covers `AirDry1Atm`, a 0.5 MeV EM cut, a 300 MeV muon cut,
+and total energies through \(10^{18}\) eV. A table without both PDG 13 and
+-13 remains valid for EM transport, but muons then stay on the CPU path.
+
 Do not regenerate it merely because the GPU model changed. Generate a new table
-only when the PROPOSAL configuration, media, cut, supported energy range or
-table schema changes, and then repeat table and shower validation. A basic
-generator invocation is documented in
-[the production guide](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md#4-物理表).
+only when the PROPOSAL configuration, medium composition/material constants,
+EM or muon cut, supported energy range or table schema changes, and then
+repeat table and shower validation. Changing the dry-air density profile,
+magnetic field, observation surface or GPU does not by itself require a new
+table.
+
+The current application and generator both explicitly use CORSIKA
+`AirDry1Atm`. There is no generic `--medium` input yet. Rock, soil, lunar
+regolith, ice or a changed elemental composition require coordinated source
+changes to the environment snapshot and medium factory before generating and
+validating a new table. Do not modify only the application medium and reuse
+the dry-air table. Exact download and generation commands are documented in
+[`gpu_em_tables/README.md`](gpu_em_tables/README.md).
 
 The first CUDA run may create a checked Molière interpolation sidecar beside
 the table. Treat that as cold-cache initialization. Production benchmarks

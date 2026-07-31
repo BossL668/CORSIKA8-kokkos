@@ -130,6 +130,17 @@ CPU/CUDA 质量比较应显式使用同一个 `--max-weight`，或者明确记�
 该程序从与 CORSIKA 相同的 PROPOSAL 配置生成版本化 rate、inverse-CDF、
 continuous-range、LPM 和散射表。
 
+当前生命周期不是运行时自动制表：
+
+1. `gpu_em_tablegen` 显式生成 `.c8emrt`；
+2. 生成过程中，PROPOSAL 自身 cache 在 `--proposal-cache` 中按需自动建立；
+3. `c8_air_shower --em-backend cuda` 通过 `--gpu-table-cache` 只读加载
+   `.c8emrt`，缺失或不匹配时终止。
+
+当前介质固定为 `AirDry1Atm` 标准干空气，没有通用 `--medium` 参数。密度
+profile、磁场和观测面变化不要求重新制表；介质组成、材料常数、cut、PROPOSAL
+版本、能区或 schema 变化要求扩展相应介质支持并重新生成、验收。
+
 ### 3.1 文件和组合参数
 
 | 参数 | 默认值 | 功能 |
