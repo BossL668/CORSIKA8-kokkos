@@ -1,0 +1,27 @@
+config:
+  default: true
+  MD004: false
+  MD007: false
+  MD012: false
+  MD013: false
+  MD022: false
+  MD024:
+    siblings_only: true
+  MD031: false
+  MD032: false
+  MD034: false
+  MD050: false
+  MD060: false
+globs:
+  - README.md
+  - README_CN.md
+  - documentation/cuda_em_refactor/README.md
+  - documentation/cuda_em_refactor/cli_reference.md
+  - documentation/cuda_em_refactor/coreas_zhs_online_accumulation.md
+  - documentation/cuda_em_refactor/cuda_em_backend_user_guide.md
+  - documentation/cuda_em_refactor/final_acceptance_report.md
+  - documentation/cuda_em_refactor/original_plan_requirement_audit.md
+  - documentation/cuda_em_refactor/proposal_and_cuda_interpolation.md
+  - validation/gpu_em/README.md
+ignores:
+  - modules/**

@@ -23,7 +23,39 @@ namespace corsika {
     size_t const massNumber = is_nucleus(targetId) ? get_nucleus_A(targetId) : 1;
     auto const massTarget = massNumber * constants::nucleonMass;
     histogram_.fill(projectileId, projectileP4.getTimeLikeComponent(), massTarget);
+    if constexpr (
+        has_hadronic_worker_model_v<TCountedProcess>) {
+      if (auto* context =
+              HadronicInteractionDeferralContext::current();
+          context != nullptr &&
+          context->tryPrepare(
+              TCountedProcess::hadronic_worker_model,
+              projectileId, targetId, projectileP4,
+              targetP4)) {
+        timing_samples_.push_back(
+            InteractionTimingSample{
+                count_, projectileId, targetId,
+                projectileP4.getTimeLikeComponent() -
+                    get_mass(projectileId),
+                0., true});
+        ++count_;
+        return;
+      }
+    }
+    auto const start = std::chrono::steady_clock::now();
     process_.doInteraction(view, projectileId, targetId, projectileP4, targetP4);
+    auto const elapsed_ms =
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - start)
+            .count();
+    total_final_state_time_ms_ += elapsed_ms;
+    timing_samples_.push_back(
+        InteractionTimingSample{
+            count_, projectileId, targetId,
+            projectileP4.getTimeLikeComponent() -
+                get_mass(projectileId),
+            elapsed_ms, false});
+    ++count_;
   }
 
   template <class TCountedProcess>
@@ -37,6 +69,23 @@ namespace corsika {
   inline InteractionHistogram const& InteractionCounter<TCountedProcess>::getHistogram()
       const {
     return histogram_;
+  }
+
+  template <class TCountedProcess>
+  inline std::uint64_t InteractionCounter<TCountedProcess>::getCount() const {
+    return count_;
+  }
+
+  template <class TCountedProcess>
+  inline std::vector<InteractionTimingSample> const&
+  InteractionCounter<TCountedProcess>::getTimingSamples() const {
+    return timing_samples_;
+  }
+
+  template <class TCountedProcess>
+  inline double
+  InteractionCounter<TCountedProcess>::getTotalFinalStateTimeMs() const {
+    return total_final_state_time_ms_;
   }
 
 } // namespace corsika

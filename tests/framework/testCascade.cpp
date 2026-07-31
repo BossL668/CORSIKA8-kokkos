@@ -8,9 +8,12 @@
 #include <testCascade.hpp>
 
 #include <corsika/framework/core/Cascade.hpp>
+#include <corsika/framework/core/HybridCascade.hpp>
+#include <corsika/framework/core/ScalarCascadeStepper.hpp>
 
 #include <corsika/framework/process/ProcessSequence.hpp>
 #include <corsika/framework/process/NullModel.hpp>
+#include <corsika/setup/SetupStack.hpp>
 #include <corsika/modules/StackInspector.hpp>
 
 #include <corsika/framework/core/ParticleProperties.hpp>
@@ -334,4 +337,319 @@ TEST_CASE("Cascade Zero Interaction", "[Cascade]") {
   // expect 100 calls. if it would be less, this means that the particle has been erased
   // early by the Cascade.inl algorithm
   CHECK(counter.getCalls() == 100);
+}
+
+TEST_CASE("ScalarCascadeStepper advances one particle", "[ScalarCascadeStepper]") {
+  logging::set_level(logging::level::info);
+
+  auto& rmng = RNGManager<>::getInstance();
+  rmng.registerRandomStream("cascade");
+
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+
+  ProcessZero zero;
+  ContinuousCounter counter{1};
+  auto sequence = make_sequence(zero, counter);
+
+  TestCascadeStack stack;
+  stack.addParticle(std::make_tuple(
+      Code::Electron, 100_GeV - get_mass(Code::Electron),
+      DirectionVector(rootCS, {0, 0, -1}), Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+  DummyTracking tracking;
+  ScalarCascadeStepper<DummyTracking, decltype(sequence), TestCascadeStack> stepper(
+      env, tracking, sequence, stack);
+
+  stepper.setNodes();
+  auto particle = stack.getNextParticle();
+  stepper.advance(particle);
+
+  CHECK(tracking.getCalls() == 1);
+  CHECK(counter.getCalls() == 1);
+  CHECK(stack.getEntries() == 0);
+}
+
+TEST_CASE("Transport identity follows particle lineage", "[TransportIdentity]") {
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+  auto const direction = DirectionVector(rootCS, {0, 0, -1});
+  auto const position = Point(rootCS, {0_m, 0_m, 10_km});
+
+  TestCascadeIdentityStack stack;
+  auto primary = stack.addParticle(std::make_tuple(
+      Code::Electron, 100_GeV - get_mass(Code::Electron), direction, position, 0_ns));
+
+  CHECK(primary.getHistoryId() == 1);
+  CHECK(primary.getParentHistoryId() == transport::NoParentHistoryId);
+  CHECK(primary.getGeneration() == 0);
+  CHECK(primary.getStepId() == 0);
+
+  TestCascadeIdentityStack::stack_view_type secondaries{primary};
+  auto child = secondaries.addSecondary(
+      std::make_tuple(Code::Electron, 50_GeV, direction));
+
+  CHECK(child.getHistoryId() == 2);
+  CHECK(child.getParentHistoryId() == primary.getHistoryId());
+  CHECK(child.getGeneration() == 1);
+  CHECK(child.getStepId() == 0);
+
+  auto childOnMainStack = stack.last();
+  auto grandchild = childOnMainStack.addSecondary(
+      std::make_tuple(Code::Photon, 25_GeV, direction));
+
+  CHECK(grandchild.getHistoryId() == 3);
+  CHECK(grandchild.getParentHistoryId() == childOnMainStack.getHistoryId());
+  CHECK(grandchild.getGeneration() == 2);
+
+  CHECK(primary.beginTransportStep() == 0);
+  CHECK(primary.beginTransportStep() == 1);
+  CHECK(primary.getStepId() == 2);
+
+  childOnMainStack.erase();
+  stack.purge();
+  REQUIRE(stack.getSize() == 2);
+  CHECK(stack.at(0).getHistoryId() == 1);
+  CHECK(stack.at(1).getHistoryId() == 3);
+
+  stack.clear();
+  auto nextPrimary = stack.addParticle(std::make_tuple(
+      Code::Photon, 10_GeV, direction, position, 0_ns));
+  CHECK(nextPrimary.getHistoryId() == 1);
+
+  nextPrimary.setTransportIdentity(
+      transport::TransportIdentity{42, 7, 3, 9});
+  CHECK(nextPrimary.getHistoryId() == 42);
+  CHECK(nextPrimary.getParentHistoryId() == 7);
+  CHECK(nextPrimary.getGeneration() == 3);
+  CHECK(nextPrimary.getStepId() == 9);
+
+  auto importedChild = nextPrimary.addSecondary(
+      std::make_tuple(Code::Electron, 5_GeV, direction));
+  CHECK(importedChild.getHistoryId() == 43);
+  CHECK(importedChild.getParentHistoryId() == 42);
+  CHECK(importedChild.getGeneration() == 4);
+  CHECK_THROWS(nextPrimary.setTransportIdentity(
+      transport::TransportIdentity{44, 0, 2, 0}));
+}
+
+TEST_CASE("CPU-only scheduler exposes a deterministic scalar wavefront",
+          "[CpuOnlyWavefrontScheduler]") {
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+
+  TestCascadeIdentityStack stack;
+  stack.addParticle(std::make_tuple(
+      Code::Electron, 10_GeV - get_mass(Code::Electron),
+      DirectionVector(rootCS, {0, 0, -1}), Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+  CpuOnlyWavefrontScheduler<TestCascadeIdentityStack> scheduler{stack};
+  auto scheduled = scheduler.acquireNext();
+
+  CHECK(scheduled.history_id == 1);
+  CHECK(scheduled.generation == 0);
+  CHECK(scheduled.step_id == 0);
+  CHECK(scheduled.particle.getStepId() == 1);
+  CHECK(scheduler.statistics().acquired_particle_steps == 1);
+  CHECK(scheduler.statistics().completed_particle_steps == 0);
+  CHECK(scheduler.statistics().max_wavefront_size == 1);
+  CHECK_THROWS(scheduler.acquireNext());
+
+  scheduler.completeParticleStep();
+  CHECK(scheduler.statistics().completed_particle_steps == 1);
+  CHECK_THROWS(scheduler.completeParticleStep());
+
+  scheduled.particle.erase();
+  CHECK(scheduler.empty());
+  CHECK_THROWS(scheduler.acquireNext());
+}
+
+TEST_CASE("CPU wavefront scheduler parks deferred histories",
+          "[CpuOnlyWavefrontScheduler]") {
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+  auto const direction =
+      DirectionVector(rootCS, {0, 0, -1});
+  auto const position =
+      Point(rootCS, {0_m, 0_m, 10_km});
+
+  TestCascadeIdentityStack stack;
+  auto lower = stack.addParticle(std::make_tuple(
+      Code::Proton, 10_GeV - get_mass(Code::Proton),
+      direction, position, 0_ns));
+  auto upper = stack.addParticle(std::make_tuple(
+      Code::PiPlus, 5_GeV - get_mass(Code::PiPlus),
+      direction, position, 0_ns));
+
+  CpuOnlyWavefrontScheduler<TestCascadeIdentityStack>
+      scheduler{stack};
+  auto first = scheduler.acquireNext();
+  CHECK(first.history_id == upper.getHistoryId());
+  scheduler.completeParticleStep(true);
+  CHECK(scheduler.hasSuspendedParticles());
+  CHECK(scheduler.suspendedParticleCount() == 1);
+
+  auto second = scheduler.acquireNext();
+  CHECK(second.history_id == lower.getHistoryId());
+  scheduler.completeParticleStep();
+  CHECK_FALSE(scheduler.empty());
+
+  scheduler.resumeParticle(first.history_id);
+  CHECK_FALSE(scheduler.hasSuspendedParticles());
+  auto resumed = scheduler.acquireNext();
+  CHECK(resumed.history_id == first.history_id);
+  scheduler.completeParticleStep();
+  CHECK(scheduler.statistics().suspended_particles == 1);
+  CHECK(scheduler.statistics().resumed_particles == 1);
+  CHECK(
+      scheduler.statistics().maximum_suspended_particles ==
+      1);
+  CHECK_THROWS(
+      scheduler.resumeParticle(first.history_id));
+}
+
+TEST_CASE("Production hybrid stack composes identity and scalar transport",
+          "[HybridStack]") {
+  auto& rmng = RNGManager<>::getInstance();
+  rmng.registerRandomStream("cascade");
+
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+
+  ProcessZero zero;
+  ContinuousCounter counter{1};
+  auto sequence = make_sequence(zero, counter);
+
+  setup::HybridStack<TestEnvironmentType> stack;
+  auto primary = stack.addParticle(std::make_tuple(
+      Code::Electron, 10_GeV - get_mass(Code::Electron),
+      DirectionVector(rootCS, {0, 0, -1}), Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+  CHECK(primary.getHistoryId() == 1);
+
+  DummyTracking tracking;
+  DummyOutputManager output;
+  HybridCascade<DummyTracking, decltype(sequence), DummyOutputManager,
+                setup::HybridStack<TestEnvironmentType>>
+      cascade(env, tracking, sequence, output, stack);
+  cascade.run();
+
+  CHECK(counter.getCalls() == 1);
+  CHECK(tracking.getCalls() == 1);
+  CHECK(cascade.schedulerStatistics().acquired_particle_steps == 1);
+  CHECK(cascade.schedulerStatistics().completed_particle_steps == 1);
+
+  using HybridHistoryStack = setup::detail::StackGenerator<
+      TestEnvironmentType>::StackWithTransportIdentityAndHistory;
+  HybridHistoryStack historyStack;
+  auto historyPrimary = historyStack.addParticle(std::make_tuple(
+      Code::Photon, 10_GeV, DirectionVector(rootCS, {0, 0, -1}),
+      Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+  HybridHistoryStack::stack_view_type historySecondaries{historyPrimary};
+  auto historyChild = historySecondaries.addSecondary(
+      std::make_tuple(Code::Electron, 5_GeV,
+                      DirectionVector(rootCS, {0, 0, -1})));
+
+  CHECK(historyPrimary.getHistoryId() == 1);
+  CHECK(historyChild.getHistoryId() == 2);
+  CHECK(historyChild.getParentHistoryId() == 1);
+  CHECK(historyChild.getEvent() != nullptr);
+}
+
+TEST_CASE("HybridCascade scalar compatibility is RNG-equivalent", "[HybridCascade]") {
+  struct RunResult {
+    int tracking_calls;
+    int split_calls;
+    int cut_count;
+    int cut_calls;
+    std::string rng_state;
+    CpuOnlyWavefrontStatistics scheduler;
+  };
+
+  auto& rmng = RNGManager<>::getInstance();
+  rmng.registerRandomStream("cascade");
+  constexpr RNGManager<>::seed_type seed = 0x5eed1234;
+
+  auto resetRng = [&]() {
+    rmng.setSeed(seed);
+    rmng.getRandomStream("cascade").reset();
+  };
+
+  auto runScalar = [&]() {
+    resetRng();
+    auto env = make_dummy_env();
+    auto const& rootCS = env.getCoordinateSystem();
+    auto const direction = DirectionVector(rootCS, {0, 0, -1});
+    HEPEnergyType const primaryEnergy = 100_GeV;
+    HEPEnergyType const primaryKineticEnergy =
+        primaryEnergy - get_mass(Code::Electron);
+
+    NullModel nullModel;
+    DummyDecay decay(Code::Electron, primaryKineticEnergy, direction);
+    ProcessSplit split;
+    ProcessCut cut(85_MeV);
+    auto sequence = make_sequence(nullModel, decay, split, cut);
+
+    TestCascadeStack stack;
+    stack.addParticle(std::make_tuple(
+        Code::Electron, primaryKineticEnergy, direction,
+        Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+    DummyTracking tracking;
+    DummyOutputManager output;
+    Cascade<DummyTracking, decltype(sequence), DummyOutputManager, TestCascadeStack>
+        cascade(env, tracking, sequence, output, stack);
+    cascade.run();
+
+    return RunResult{tracking.getCalls(), split.getCalls(), cut.getCount(),
+                     cut.getCalls(), rmng.dumpState().str(), {}};
+  };
+
+  auto runHybrid = [&]() {
+    resetRng();
+    auto env = make_dummy_env();
+    auto const& rootCS = env.getCoordinateSystem();
+    auto const direction = DirectionVector(rootCS, {0, 0, -1});
+    HEPEnergyType const primaryEnergy = 100_GeV;
+    HEPEnergyType const primaryKineticEnergy =
+        primaryEnergy - get_mass(Code::Electron);
+
+    NullModel nullModel;
+    DummyDecay decay(Code::Electron, primaryKineticEnergy, direction);
+    ProcessSplit split;
+    ProcessCut cut(85_MeV);
+    auto sequence = make_sequence(nullModel, decay, split, cut);
+
+    TestCascadeIdentityStack stack;
+    stack.addParticle(std::make_tuple(
+        Code::Electron, primaryKineticEnergy, direction,
+        Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+    DummyTracking tracking;
+    DummyOutputManager output;
+    HybridCascade<DummyTracking, decltype(sequence), DummyOutputManager,
+                  TestCascadeIdentityStack>
+        cascade(env, tracking, sequence, output, stack);
+    cascade.run();
+
+    return RunResult{tracking.getCalls(), split.getCalls(), cut.getCount(),
+                     cut.getCalls(), rmng.dumpState().str(),
+                     cascade.schedulerStatistics()};
+  };
+
+  auto const scalar = runScalar();
+  auto const hybrid = runHybrid();
+
+  CHECK(hybrid.tracking_calls == scalar.tracking_calls);
+  CHECK(hybrid.split_calls == scalar.split_calls);
+  CHECK(hybrid.cut_count == scalar.cut_count);
+  CHECK(hybrid.cut_calls == scalar.cut_calls);
+  CHECK(hybrid.rng_state == scalar.rng_state);
+
+  CHECK(hybrid.tracking_calls == 2047);
+  CHECK(hybrid.split_calls == 2047);
+  CHECK(hybrid.cut_count == 2048);
+  CHECK(hybrid.cut_calls == 2047);
+  CHECK(hybrid.scheduler.acquired_particle_steps == 2047);
+  CHECK(hybrid.scheduler.completed_particle_steps == 2047);
+  CHECK(hybrid.scheduler.max_wavefront_size == 1);
 }

@@ -1,4 +1,5 @@
 add_subdirectory (common)
+add_subdirectory (gpu)
 add_subdirectory (framework)
 add_subdirectory (media)
 add_subdirectory (stack)

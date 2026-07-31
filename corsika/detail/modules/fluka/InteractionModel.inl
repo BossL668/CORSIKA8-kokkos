@@ -113,7 +113,17 @@ namespace corsika::fluka {
                                               Code const targetId,
                                               FourMomentum const& projectileP4,
                                               FourMomentum const& targetP4) {
+    auto finalState =
+        generateFinalState(projectileId, targetId, projectileP4, targetP4);
+    for (auto& secondary : finalState) {
+      view.addSecondary(std::move(secondary));
+    }
+  }
 
+  inline InteractionModel::FinalState InteractionModel::generateFinalState(
+      Code const projectileId, Code const targetId,
+      FourMomentum const& projectileP4,
+      FourMomentum const& targetP4) {
     auto const flukaCodeProj =
         static_cast<FLUKACodeIntType>(convertToFluka(projectileId));
     auto const flukaMaterial = getMaterialIndex(targetId);
@@ -144,6 +154,8 @@ namespace corsika::fluka {
                      cumsgx_.get() + materials_.size(),
                      cumsgx_.get() + materials_.size() * 2);
 
+    FinalState finalState;
+    finalState.reserve(static_cast<std::size_t>(::fluka::hepevt_.nhep));
     for (int i = 0; i < ::fluka::hepevt_.nhep; ++i) {
       int const status = ::fluka::hepevt_.isthep[i];
       if (status != 1) // skip non-final-state particles
@@ -163,9 +175,11 @@ namespace corsika::fluka {
       auto const momOrigFrame = fourMomOrigFrame.getSpaceLikeComponents();
       auto const p = momOrigFrame.getNorm();
 
-      view.addSecondary(std::tuple{c8code, corsika::calculate_kinetic_energy(p, c8mass),
-                                   momOrigFrame / p});
+      finalState.emplace_back(
+          c8code, corsika::calculate_kinetic_energy(p, c8mass),
+          momOrigFrame / p);
     }
+    return finalState;
   }
 
   inline std::vector<std::pair<Code, int>> InteractionModel::genFlukaMaterials(

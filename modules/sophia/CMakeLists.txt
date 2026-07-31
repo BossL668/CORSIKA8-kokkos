@@ -22,6 +22,14 @@ set_target_properties (
   PROPERTIES
   POSITION_INDEPENDENT_CODE 1
   )
+set_target_properties (
+  Sophia
+  PROPERTIES
+  # Keep the mixed shared-library link inside the active Fortran toolchain.
+  # This is required when conda's Fortran runtime uses its own sysroot but
+  # the host C++ compiler is the default linker driver.
+  LINKER_LANGUAGE Fortran
+  )
 
 target_include_directories (
   Sophia_static

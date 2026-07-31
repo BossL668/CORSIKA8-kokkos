@@ -114,38 +114,40 @@ TEST_CASE("SophiaInterface", "modules") {
 
   SECTION("InteractionInterface - sqrtSNN inconsistency") {
     corsika::sophia::InteractionModel model;
-    // the pion-production threshold is given by the CoM energy of the neutron-pi+ system.
-    // sth = m_n**2 + 2 m_n * m_pi+ + m_pi+**2 = 1.1646 GeV**2
-    HEPEnergyType const eGamma =
-        0.15145_GeV; // energy of photon at pion-production threshold w proton target
-    FourMomentum const photonP4(eGamma, {cs, eGamma, 0_GeV, 0_GeV});
+    // eventgen.f applies s >= 1.1646 GeV^2 after replacing the CORSIKA
+    // target mass by SOPHIA's internal AM table. The C++ capability check
+    // must use that same calculation, not only CORSIKA's four-vector norm.
+    for (auto const target :
+         {Code::Proton, Code::Neutron}) {
+      auto const threshold =
+          minimumCorsikaComEnergy(target);
+      CHECK_FALSE(model.isValid(
+          Code::Photon, target, threshold - 1_eV));
+      CHECK(model.isValid(
+          Code::Photon, target, threshold + 1_eV));
+      CHECK(
+          internalComEnergy(target, threshold) / 1_GeV ==
+          Approx(
+              std::sqrt(
+                  InternalPhotopionThresholdSGeV2))
+              .epsilon(2.e-13));
 
-    // nucleon case (this was implemented in the HadronicPhotonModel)
-    // it passes isValid and then rejects event generation when the proton is selected as
-    // target nucleon
-    FourMomentum const nucleonP4(constants::nucleonMass, {cs, 0_GeV, 0_GeV, 0_GeV});
-    auto const sqrtSNN_nuc = (photonP4 + nucleonP4).getNorm();
-    CHECK(model.isValid(Code::Photon, Code::Neutron, sqrtSNN_nuc));
-    view.clear();
-    // this will not throw but SOPHIA will abort inernally. catch by checking stack size
-    model.doInteraction(view, Code::Photon, Code::Proton, photonP4, nucleonP4);
-    CHECK_FALSE(view.getSize() > 0);
-
-    // proton case (will throw in interface)
-    FourMomentum const protonP4(Proton::mass, {cs, 0_GeV, 0_GeV, 0_GeV});
-    auto const sqrtSNN_p = (photonP4 + protonP4).getNorm();
-    CHECK_FALSE(model.isValid(Code::Photon, Code::Proton, sqrtSNN_p));
-    view.clear();
-    CHECK_THROWS(
-        model.doInteraction(view, Code::Photon, Code::Proton, photonP4, protonP4));
-
-    // neutron case
-    FourMomentum const neutronP4(Neutron::mass, {cs, 0_GeV, 0_GeV, 0_GeV});
-    auto const sqrtSNN_n = (photonP4 + neutronP4).getNorm();
-    CHECK(model.isValid(Code::Photon, Code::Neutron, sqrtSNN_n));
-    view.clear();
-    model.doInteraction(view, Code::Photon, Code::Neutron, photonP4, neutronP4);
-    CHECK(view.getSize() > 0);
+      auto const targetMass = get_mass(target);
+      auto const acceptedSqrtS = threshold + 1_keV;
+      auto const eGamma =
+          (acceptedSqrtS * acceptedSqrtS -
+           targetMass * targetMass) /
+          (2. * targetMass);
+      FourMomentum const photonP4(
+          eGamma, {cs, eGamma, 0_GeV, 0_GeV});
+      FourMomentum const targetP4(
+          targetMass, {cs, 0_GeV, 0_GeV, 0_GeV});
+      view.clear();
+      model.doInteraction(
+          view, Code::Photon, target,
+          photonP4, targetP4);
+      CHECK(view.getSize() > 0);
+    }
   }
 
   SECTION("InteractionInterface - interaction") {

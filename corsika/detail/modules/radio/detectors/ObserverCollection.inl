@@ -38,6 +38,12 @@ namespace corsika {
   }
 
   template <typename TObserverImpl>
+  inline std::vector<TObserverImpl> const&
+  ObserverCollection<TObserverImpl>::getObservers() const {
+    return observers_;
+  }
+
+  template <typename TObserverImpl>
   inline void ObserverCollection<TObserverImpl>::reset() {
     std::for_each(observers_.begin(), observers_.end(),
                   std::mem_fn(&TObserverImpl::reset));

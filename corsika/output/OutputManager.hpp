@@ -103,6 +103,13 @@ namespace corsika {
      */
     int getEventId() const;
 
+    /**
+     * True while startOfShower() has not yet been paired with
+     * endOfShower(). This is primarily used by strict accelerator failure
+     * handling to close an explicitly incomplete event safely.
+     */
+    bool showerInProgress() const noexcept;
+
   private:
     boost::filesystem::path root_;           ///< The unique output directory.
     OutputState state_{OutputState::NoInit}; ///< The current state of this manager.

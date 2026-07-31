@@ -8,10 +8,24 @@
 #pragma once
 
 #include <corsika/framework/process/InteractionHistogram.hpp>
+#include <corsika/framework/core/HadronicInteractionDeferral.hpp>
 #include <corsika/framework/process/InteractionProcess.hpp>
 #include <corsika/framework/geometry/FourVector.hpp>
 
+#include <chrono>
+#include <cstdint>
+#include <vector>
+
 namespace corsika {
+
+  struct InteractionTimingSample {
+    std::uint64_t sequence_id{};
+    Code projectile{Code::Unknown};
+    Code target{Code::Unknown};
+    HEPEnergyType kinetic_energy{};
+    double final_state_time_ms{};
+    bool deferred{};
+  };
 
   /**
    * @ingroup Processes
@@ -55,9 +69,31 @@ namespace corsika {
      */
     InteractionHistogram const& getHistogram() const;
 
+    /**
+     * Return the exact number of calls forwarded to doInteraction().
+     *
+     * This is deliberately independent of histogram serialization, so run
+     * metadata can prove which low-/high-energy model generated final states.
+     */
+    std::uint64_t getCount() const;
+
+    /**
+     * Per-interaction final-state generation timings in execution order.
+     *
+     * Tracking, continuous transport, target selection, doSecondaries(), and
+     * output are deliberately excluded. These samples estimate only the work
+     * that a process-isolated event-generator worker can accelerate.
+     */
+    std::vector<InteractionTimingSample> const& getTimingSamples() const;
+
+    double getTotalFinalStateTimeMs() const;
+
   private:
     TCountedProcess& process_;
     InteractionHistogram histogram_;
+    std::uint64_t count_{};
+    double total_final_state_time_ms_{};
+    std::vector<InteractionTimingSample> timing_samples_;
   };
 
   //! @}

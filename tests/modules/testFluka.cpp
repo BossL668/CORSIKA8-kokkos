@@ -35,6 +35,19 @@ auto sumMomentum(TStackView const& view, CoordinateSystemPtr const& vCS) {
   return sum;
 }
 
+auto sumMomentum(
+    corsika::fluka::InteractionModel::FinalState const& finalState,
+    CoordinateSystemPtr const& vCS) {
+  MomentumVector sum{vCS, 0_eV, 0_eV, 0_eV};
+  for (auto const& [pid, kineticEnergy, direction] : finalState) {
+    auto const mass = get_mass(pid);
+    auto const momentum =
+        calculate_momentum(kineticEnergy + mass, mass);
+    sum += direction * momentum;
+  }
+  return sum;
+}
+
 TEST_CASE("FLUKACodeConversion") {
   REQUIRE(corsika::fluka::convertToFluka(Code::PiPlus) ==
           corsika::fluka::FLUKACode::PiPlus);
@@ -150,6 +163,27 @@ TEST_CASE("FLUKA") {
           Approx(0).margin(1e-4));
     CHECK((pSum.getNorm() - p) / p == Approx(0).margin(1e-4));
     CHECK(secViewPtr->getSize() > 1);
+  }
+
+  SECTION("generateFinalState without a SecondaryView") {
+    auto const projectileCode = Code::PiPlus;
+    auto const targetCode = Code::Oxygen;
+    auto const p = 20_GeV;
+    auto const projectile4mom =
+        FourVector{calculate_total_energy(p, get_mass(projectileCode)),
+                   MomentumVector{cs, 0_eV, 0_eV, p}};
+    auto const target4mom =
+        FourVector{get_mass(targetCode),
+                   MomentumVector{cs, 0_eV, 0_eV, 0_eV}};
+
+    auto const finalState = flukaModel.generateFinalState(
+        projectileCode, targetCode, projectile4mom, target4mom);
+    auto const pSum = sumMomentum(finalState, cs);
+
+    CHECK(finalState.size() > 1);
+    CHECK((pSum - projectile4mom.getSpaceLikeComponents()).getNorm() / p ==
+          Approx(0).margin(1e-4));
+    CHECK((pSum.getNorm() - p) / p == Approx(0).margin(1e-4));
   }
 
   SECTION("doInteraction-invalid-projectile") {

@@ -128,6 +128,7 @@ TEST_CASE("EnergyLossWriter") {
 
   auto const summary = test.getSummary();
   CHECK(summary["shower_0"]["sum_dEdX"].as<double>() == 600);
+  CHECK(summary["shower_0"]["sum_dEdX_em"].as<double>() == 100);
 
   // clean up
   if (boost::filesystem::exists(outputDir)) { boost::filesystem::remove_all(outputDir); }

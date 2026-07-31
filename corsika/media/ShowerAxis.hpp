@@ -48,6 +48,8 @@ namespace corsika {
 
     LengthType getSteplength() const;
 
+    LengthType getMaximumLength() const;
+
     GrammageType getMaximumX() const;
 
     GrammageType getMinimumX() const;
@@ -76,6 +78,14 @@ namespace corsika {
     DirectionVector const& getDirection() const;
 
     Point const& getStart() const;
+
+    /**
+     * Exact interpolation support used by accelerator output backends.
+     *
+     * Consumers must preserve the linear interpolation and endpoint clamping
+     * implemented by getX().
+     */
+    std::vector<GrammageType> const& getGrammageSupport() const;
 
   private:
     Point const pointStart_;

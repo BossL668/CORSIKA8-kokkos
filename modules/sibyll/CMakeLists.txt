@@ -22,6 +22,17 @@ set_target_properties (
   PROPERTIES
   POSITION_INDEPENDENT_CODE 1
   )
+set_target_properties (
+  Sibyll
+  PROPERTIES
+  # A mixed C++/Fortran shared library otherwise selects the system C++
+  # driver.  In a conda compiler environment that driver does not forward
+  # the Fortran compiler's sysroot, so conda's libm linker script resolves
+  # /lib64 against the host and the complete `all` target fails.  The
+  # Fortran driver supplies the matching sysroot while CMake still appends
+  # the C++ runtime required by sibyll2.3d.cpp.
+  LINKER_LANGUAGE Fortran
+  )
 
 target_include_directories (
   Sibyll_static

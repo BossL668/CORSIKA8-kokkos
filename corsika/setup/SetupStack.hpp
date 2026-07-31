@@ -26,6 +26,10 @@ namespace corsika::setup {
   template <typename TEnvironment>
   using Stack = typename detail::StackGenerator<TEnvironment>::StackWithHistory;
 
+  template <typename TEnvironment>
+  using HybridStack =
+      typename detail::StackGenerator<TEnvironment>::StackWithTransportIdentityAndHistory;
+
 #else // WITH_HISTORY
 
   /*
@@ -34,10 +38,17 @@ namespace corsika::setup {
   template <typename TEnvironment>
   using Stack = typename detail::StackGenerator<TEnvironment>::StackWithWeight;
 
+  template <typename TEnvironment>
+  using HybridStack =
+      typename detail::StackGenerator<TEnvironment>::StackWithTransportIdentity;
+
 #endif
 
   // the correct secondary stack view
   template <typename TEnvironment>
   using StackView = typename Stack<TEnvironment>::stack_view_type;
+
+  template <typename TEnvironment>
+  using HybridStackView = typename HybridStack<TEnvironment>::stack_view_type;
 
 } // namespace corsika::setup

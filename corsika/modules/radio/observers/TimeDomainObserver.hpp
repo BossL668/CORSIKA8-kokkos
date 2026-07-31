@@ -125,6 +125,22 @@ namespace corsika {
     TimeType const& getStartTime() const;
 
     /**
+     * Returns the duration covered by the waveform.
+     */
+    TimeType const& getDuration() const;
+
+    /**
+     * Add an externally accumulated waveform to this observer.
+     *
+     * The CUDA radio backend uses this once per shower to merge device
+     * CoREAS electric fields or ZHS vector potentials before the normal
+     * RadioProcess::endOfShower output path runs.
+     */
+    void addWaveform(std::vector<double> const& x,
+                     std::vector<double> const& y,
+                     std::vector<double> const& z);
+
+    /**
      * Reset the observer before starting a new simulation.
      */
     void reset();

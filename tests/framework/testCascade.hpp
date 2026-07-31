@@ -14,6 +14,7 @@
 #include <corsika/framework/stack/CombinedStack.hpp>
 #include <corsika/framework/stack/SecondaryView.hpp>
 #include <corsika/stack/GeometryNodeStackExtension.hpp>
+#include <corsika/stack/TransportIdentityStackExtension.hpp>
 #include <corsika/stack/VectorStack.hpp>
 
 using TestEnvironmentInterface = corsika::HomogeneousMedium<corsika::IMediumModel>;
@@ -33,6 +34,20 @@ using TestCascadeStack =
     corsika::CombinedStack<typename corsika::VectorStack::stack_data_type,
                            corsika::node::GeometryData<TestEnvironmentType>,
                            StackWithGeometryInterface>;
+
+template <typename T>
+using TestTransportIdentityDataInterface =
+    corsika::transport::TransportIdentityDataInterface<T>;
+
+template <typename StackIter>
+using StackWithTransportIdentityInterface =
+    corsika::CombinedParticleInterface<TestCascadeStack::pi_type,
+                                       TestTransportIdentityDataInterface, StackIter>;
+
+using TestCascadeIdentityStack =
+    corsika::CombinedStack<typename TestCascadeStack::stack_data_type,
+                           corsika::transport::TransportIdentityData,
+                           StackWithTransportIdentityInterface>;
 
 /*
   See also Issue 161

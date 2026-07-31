@@ -1,0 +1,426 @@
+# CORSIKA 8 CUDA/FLUKA 命令行参数参考
+
+本文记录本研究分支新增的生产参数、辅助程序参数和主要验收驱动参数。参数名称、
+默认值和约束以当前源码及当前构建的 `--help` 输出为准。
+
+相关文档：
+
+- [项目中文说明](../../README_CN.md)
+- [CUDA 后端生产使用指南](cuda_em_backend_user_guide.md)
+- [验证工具说明](../../validation/gpu_em/README.md)
+- [重构阶段索引](README.md)
+
+## 1. 使用约定
+
+- 未指定 `--em-backend` 时，`c8_air_shower` 使用原标量
+  `Cascade + PROPOSAL` 路径。
+- `--em-backend cuda` 只在 `CORSIKA_ENABLE_CUDA=ON` 的构建中可用，并且
+  必须显式提供兼容的 `.c8emrt` 表。
+- 布尔 option 使用 `true` 或 `false`，例如
+  `--gpu-deterministic true`。不带值的 flag 只需写参数名。
+- 表格、设备、介质、输出或进程池检查失败时，程序终止当前 shower；不会静默
+  切换到另一套物理。
+- `--gpu-detailed-stage-timing`、`--gpu-full-step-records` 和
+  `--gpu-radio-track-diagnostics` 会增加诊断开销，不应在正式性能计时中开启。
+- 天线文件默认值带有本地环境路径。迁移服务器时应始终显式传入
+  `--antenna-file /absolute/path/to/antennas.txt`。
+
+查看实际构建支持的参数：
+
+```bash
+c8_air_shower --help
+gpu_em_tablegen --help
+cuda_decision_replay --help
+fluka_batch_worker --help
+```
+
+## 2. `c8_air_shower` 新增参数
+
+### 2.1 CUDA 电磁输运
+
+| 参数 | 默认值 | 功能与使用边界 |
+|---|---:|---|
+| `--em-backend proposal\|cuda` | `proposal` | 选择原标量 PROPOSAL 或 HybridCascade CUDA 电磁输运。 |
+| `--gpu-device INT` | `0` | CUDA device index。多 GPU 节点上每个进程应指定自己的 device。 |
+| `--gpu-min-batch UINT` | `4096` | CUDA 执行的最小前沿规模。更小前沿先做有界标量展开；该值需要按新 GPU 实测。 |
+| `--gpu-memory-fraction FLOAT` | `0.70` | 后端最多使用初始化时空闲显存的比例，范围为 0.01–1.0。 |
+| `--gpu-table-cache PATH` | 空 | 版本化 `.c8emrt` 表。CUDA 后端必需；不是 PROPOSAL 自身 cache 目录。 |
+| `--gpu-table-tolerance FLOAT` | `1e-3` | 可接受的最大表格相对误差。表 metadata 超过此值会拒绝启动。 |
+| `--gpu-deterministic BOOL` | `true` | 启用按 history/step/process 寻址的 Philox 随机数。 |
+| `--gpu-detailed-stage-timing` | 关闭 | 记录融合 lepton pipeline 的逐 CUDA stage event 计时，仅用于 profiler。 |
+| `--gpu-full-step-records` | 关闭 | 返回完整 GPU transport records，而不是紧凑 profile 投影，仅用于验证和调试。 |
+| `--gpu-resident-cross-species BOOL` | `true` | 让 photon→lepton 和 lepton→photon 次级粒子保留在常驻 device 队列。 |
+| `--cuda-replay-trace PATH` | 空 | 写出过程级 CSV trace，用于标量/CUDA 过程序列诊断。 |
+| `--cuda-replay-tape-out PATH` | 空 | 记录标量 transport segments 和 radio observer snapshot，供离线严格 replay。 |
+
+`--gpu-min-batch` 不是越小越快。过小会增加 kernel launch、同步和小批次尾部
+开销；过大则会让更多前沿留在 CPU。推荐在目标 GPU 上扫描
+`64, 256, 1024, 4096, 8192`，以相同物理表和热缓存的五次中位数选择。
+
+### 2.2 射电计算
+
+| 参数 | 默认值 | 功能与使用边界 |
+|---|---:|---|
+| `--radio-backend cpu\|cuda` | `cpu` | CUDA EM 轨迹使用 CPU 或 resident CUDA CoREAS/ZHS 投影。 |
+| `--gpu-radio-field-limit FLOAT` | `1.0` V/m | 确定性 fixed-point 波形累加器的检查范围；溢出会终止，不会环绕。 |
+| `--gpu-radio-track-diagnostics` | 关闭 | 收集与标量端一致的 \(e^\pm\) 轨迹统计，增加 GPU reduction 开销。 |
+| `--radio-sampling-rate-ghz FLOAT` | `1.0` | 时域采样率。50–350 MHz 精确波形比较建议至少 10 GHz。 |
+| `--radio-window-duration-ns FLOAT` | `400` ns | 每个 observer 的时间窗长度。 |
+| `--radio-pretrigger-ns FLOAT` | `10` ns | 时间窗相对几何直达时间提前开始的长度。 |
+| `--antenna-file PATH` | 本地 21CMA 路径 | NWU 坐标文件，三列依次为 North、West、Up，单位 m。 |
+| `--ring INT` | `0` | 原应用的星形同心环 observer 数；0 表示只使用天线文件。 |
+
+CPU 和 CUDA radio 都随 \(e^\pm\) 轨迹段在线累计，不是在 shower 完成后重新读取
+整棵粒子树。`--radio-backend cuda` 不改变强子或电磁相互作用模型，只改变射电
+投影和波形累加所在设备。
+
+### 2.3 强子调度和 FLUKA 进程池
+
+| 参数 | 默认值 | 功能与使用边界 |
+|---|---:|---|
+| `--hadronic-plan-workers INT` | `4` | 回顾性 batch oracle 的假定 worker 数；只写计划，不启用并行。 |
+| `--hadronic-plan-target-ms FLOAT` | `5` ms | 回顾性 homogeneous batch 的目标实测末态耗时。 |
+| `--hadronic-plan-max-batch UINT` | `256` | 回顾性 batch 的最大 interaction 数。 |
+| `--hadronic-backend scalar\|fluka-process` | `scalar` | 选择进程内标量 FLUKA 或隔离的持久 FLUKA worker pool。 |
+| `--hadronic-workers INT` | `4` | 持久 FLUKA worker 进程数，范围 1–256。 |
+| `--hadronic-min-batch UINT` | `64` | 执行预计代价 flush 检查前至少停放的 FLUKA vertices。 |
+| `--hadronic-target-batch-ms FLOAT` | `5` ms | 每个 homogeneous worker batch 的在线预计计算时间。 |
+| `--hadronic-max-batch UINT` | `256` | 单次 binary IPC batch 的最大请求数。 |
+| `--hadronic-initial-cost-ms FLOAT` | `0.1` ms | 某个工作类别尚无计时样本时的单 interaction 初始代价。 |
+| `--hadronic-worker-executable PATH` | 空 | 指定 `fluka_batch_worker`；空值时使用 `c8_air_shower` 同目录程序。 |
+| `--cpu-detailed-step-timing` | 关闭 | 记录 CPU cross-section、tracking、continuous 和 discrete 阶段耗时。 |
+
+`fluka-process` 仍使用相同 FLUKA 物理，并不是强子 CUDA kernel。加速来自持久
+进程、工作类别分组和批量 IPC。启用条件：
+
+1. 构建时 `WITH_FLUKA=ON`；
+2. `FLUPRO` 指向含 `libflukahp.a` 的合法安装；
+3. worker executable 与主程序版本一致；
+4. 正式性能测试期间没有另一套 CPU shower 与 worker 抢占核心。
+
+### 2.4 与原参数的关键组合
+
+CUDA/CPU 验收时还必须保持以下原参数一致：
+
+| 原参数 | 作用 |
+|---|---|
+| `-p/--pdg` 或 `-Z/-A` | 初级粒子或核素。两种写法互斥。 |
+| `-E/--energy` | 初级总能量，单位 GeV。 |
+| `--emcut` | photon、electron、positron 的 kinetic-energy cut，单位 GeV。 |
+| `--hadcut`, `--mucut`, `--taucut` | 非 EM 粒子 cut，单位 GeV。 |
+| `--emthin` | EM thinning 的初级能量比例。 |
+| `--max-weight` | thinning 最大权重；0 使用应用的自动值。 |
+| `--seed` | 初始随机种子。相同 seed 保证各自后端可复现，不保证两种调度逐事例相同。 |
+| `--zenith`, `--azimuth` | 初级方向，单位 degree。 |
+| `--observation-level`, `--injection-height` | 球形环境的观测面和注入高度，单位 m。 |
+| `--shower-core-x`, `--shower-core-y` | NWU 平面中的 shower core，单位 m。 |
+
+当 `--max-weight` 省略或为 0 时：
+
+```text
+maxWeight = 0.5 * emthin * E_primary[GeV]
+```
+
+如果自动值小于初始 history weight 1，thinning 不会从未加权 history 开始。
+CPU/CUDA 质量比较应显式使用同一个 `--max-weight`，或者明确记录两端都使用自动
+值。
+
+## 3. `gpu_em_tablegen`
+
+该程序从与 CORSIKA 相同的 PROPOSAL 配置生成版本化 rate、inverse-CDF、
+continuous-range、LPM 和散射表。
+
+### 3.1 文件和组合参数
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `output` | 必填 | 输出 `.c8emrt` 文件。 |
+| `--proposal-cache PATH` | 空 | PROPOSAL 自身插值 cache；不同于运行时 `.c8emrt`。 |
+| `--epair-rho-source PATH` | 空 | 复用 v9/v10 rate table，只追加 dense Epair rho 表。 |
+| `--merge-em-source PATH` | 空 | 复用已验证 EM production table。 |
+| `--merge-muon-source PATH` | 空 | 将已验证 muon-only table 追加到 `--merge-em-source`。 |
+| `--overwrite` | 关闭 | 允许替换已存在的输出文件；默认拒绝覆盖。 |
+
+### 3.2 能区、cut 和精度
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--energy-min-MeV FLOAT` | `0.5` | 最小总能量；不得高于 stochastic cut。 |
+| `--energy-max-MeV FLOAT` | `1e12` | 最大总能量，即 \(10^{18}\) eV。 |
+| `--cut-MeV FLOAT` | `0.5` | PROPOSAL absolute stochastic energy cut。 |
+| `--transport-cut-MeV FLOAT` | `0.5` | \(e^\pm\) kinetic transport cut 和 zero-range anchor。 |
+| `--muon-transport-cut-MeV FLOAT` | `300` | \(\mu^\pm\) kinetic transport cut 和 zero-range anchor。 |
+| `--photon-pair-final-state-min-MeV FLOAT` | `1e4` | normalized GPU photon-pair final-state 表的最低 photon 能量。 |
+| `--tolerance FLOAT` | `1e-3` | 最大 \(dN/dX\) 相对插值误差。 |
+| `--loss-tolerance FLOAT` | `1e-3` | 最大 inverse-CDF \(v(E,u)\) 相对插值误差。 |
+
+### 3.3 自适应网格
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--initial-intervals UINT` | `16` | rate table 初始对数能量区间数。 |
+| `--max-points UINT` | `20000` | 每个粒子的最大 energy-grid 点数。 |
+| `--loss-initial-energy-intervals UINT` | `8` | 每个 inverse-CDF column 的初始对数能量区间。 |
+| `--loss-initial-quantile-intervals UINT` | `8` | 每个 inverse-CDF column 的初始 quantile 区间。 |
+| `--loss-max-energy-points UINT` | `4096` | 单个 inverse-CDF column 的最大能量点数。 |
+| `--loss-max-quantile-points UINT` | `2048` | 单个 inverse-CDF column 的最大 quantile 点数。 |
+| `--loss-validation-samples UINT` | `64` | 每个 column 的独立直接 PROPOSAL 验证样本数。 |
+
+### 3.4 Epair rho 和 μ 子
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--epair-rho-min-energy-MeV FLOAT` | `20` | Epair rho inverse-CDF 的最低 parent energy。 |
+| `--epair-rho-energy-points UINT` | `65` | dense rho 表的对数能量点数。 |
+| `--epair-rho-v-points UINT` | `65` | threshold-excess \(v\) 点数。 |
+| `--epair-rho-quantile-points UINT` | `129` | logit rho-quantile 点数。 |
+| `--epair-rho-validation-samples UINT` | `4096` | 每个 target component 的独立 PROPOSAL 样本。 |
+| `--epair-rho-tolerance FLOAT` | `1e-3` | \(\lvert\rho\rvert/\rho_{\max}\) 的最大绝对插值误差。 |
+| `--enable-epair-rho-table` | 关闭 | 生成 dense Epair rho inverse-CDF；仍属于显式实验选项。 |
+| `--include-muons` | 关闭 | 同时生成 \(\mu^\pm\) rate、inverse-CDF 和 continuous-range 表。 |
+| `--muons-only` | 关闭 | 只生成 \(\mu^\pm\) 表，用于快速开发验证。 |
+
+最小示例：
+
+```bash
+gpu_em_tablegen production.c8emrt \
+  --proposal-cache /path/to/proposal-cache \
+  --energy-min-MeV 0.5 \
+  --energy-max-MeV 1e12 \
+  --cut-MeV 0.5 \
+  --transport-cut-MeV 0.5 \
+  --tolerance 1e-3 \
+  --loss-tolerance 1e-3 \
+  --include-muons
+```
+
+该示例不自动等价于当前 production table。正式表还需要保存完整 metadata、
+内容哈希、实测误差和对应构建身份，并通过 shower 验收。
+
+## 4. `cuda_decision_replay`
+
+该程序不重新抽样 shower。它读取 scalar decision tape，在 GPU 上逐条验证记录，
+并对 tape 中完全相同的 \(e^\pm\) 轨迹执行 CUDA CoREAS/ZHS 投影。
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--tape PATH` | 必填 | `c8_air_shower --cuda-replay-tape-out` 生成的 tape。 |
+| `--output PATH` | 必填 | replay 输出目录；已存在时拒绝覆盖。 |
+| `--device INT` | `0` | CUDA device index。 |
+| `--memory-fraction FLOAT` | `0.70` | radio buffer 可使用的当前空闲显存比例。 |
+| `--fixed-point-field-limit FLOAT` | `1.0` V/m | checked deterministic waveform 的场强范围。 |
+| `--deterministic BOOL` | `true` | 使用确定性 fixed-point 累加。 |
+
+示例：
+
+```bash
+c8_air_shower \
+  -p 11 -E 1000 -N 1 -f scalar-output \
+  --seed 10001 \
+  --cuda-replay-tape-out event.c8rpt
+
+cuda_decision_replay \
+  --tape event.c8rpt \
+  --output cuda-replay-output \
+  --device 0 \
+  --deterministic true
+```
+
+严格 replay 证明“相同 transport tape 可在 CUDA 上逐条复核并产生一致射电
+投影”，不等同于 production CUDA Monte Carlo 与标量全局随机流逐事例相同。
+
+## 5. `fluka_batch_worker`
+
+该程序通常由 `c8_air_shower --hadronic-backend fluka-process` 自动启动。手工
+参数主要用于协议测试、生成测试输入和持久 server 调试。
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--input PATH` | 空 | binary `HadronicBatchProtocol` 请求文件。 |
+| `--output PATH` | 空 | binary 响应文件或生成的测试输入。 |
+| `--self-test UINT` | `0` | 在单进程中执行指定数量的 deterministic 请求。 |
+| `--pool-self-test UINT` | `0` | 通过持久 worker pool 将指定数量请求运行两遍。 |
+| `--pool-workers UINT` | `4` | `--pool-self-test` 使用的 worker 数。 |
+| `--server-fd INT` | `-1` | 在给定 socket descriptor 上运行持久 binary protocol server。 |
+| `--worker-id UINT` | `0` | 持久 server 的诊断 worker ID。 |
+| `--generate-test-input UINT` | `0` | 向 `--output` 写出指定数量的 deterministic 测试请求。 |
+
+常用自检：
+
+```bash
+export FLUPRO=/path/to/fluka
+
+fluka_batch_worker --self-test 100
+fluka_batch_worker --pool-self-test 1000 --pool-workers 4
+```
+
+生产运行不要手工设置 `--server-fd`；主进程负责创建、继承和关闭协议 socket。
+
+## 6. `run_physics_acceptance.py`
+
+该驱动创建独立 CPU/CUDA ensembles，核对 provenance，然后比较 profile、
+energy deposit、ground particles、radio 和稳定性统计。
+
+### 6.1 输入、样本和恢复
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--executable PATH` | 必填 | CUDA 分支 `c8_air_shower`。 |
+| `--proposal-executable PATH` | 同 `--executable` | 可指定独立原版 scalar executable。 |
+| `--table PATH` | 必填 | CUDA `.c8emrt` 表。 |
+| `--output-root PATH` | 必填 | 新验收根目录。 |
+| `--additional-proposal PATH` | 空，可重复 | 合并已有独立 scalar shards；严格核对配置。 |
+| `--additional-cuda PATH` | 空，可重复 | 合并已有独立 CUDA shards；严格核对配置。 |
+| `--label TEXT` | `custom` | 写入 manifest 和报告的实验标签。 |
+| `--energy-gev FLOAT` | `1000` | 初级总能量。 |
+| `--events INT` | `1000` | 每个新建 backend ensemble 的事件数。 |
+| `--proposal-seed INT` | `41001` | scalar ensemble 起始 seed。 |
+| `--cuda-seed INT` | `51001` | CUDA ensemble 起始 seed。 |
+| `--paired-seed-control` | 关闭 | 使用相同 seed 做诊断对照；不要求逐事例相同。 |
+| `--proposal-shards INT` | `1` | scalar ensemble 拆分进程数。 |
+| `--proposal-parallelism INT` | `1` | 同时运行的 scalar shard 上限。 |
+| `--resume-completed-proposal` | 关闭 | 严格验证 seed、事件数和命令后复用已完成 scalar shards。 |
+| `--overlap-backends` | 关闭 | 同时运行 CPU/CUDA；只用于物理统计，禁止用于性能比较。 |
+
+### 6.2 物理配置
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--primary-pdg INT` | `11` | 非核初级 PDG。 |
+| `--primary-z INT` | 空 | 核初级 Z；设置后要求 `--primary-a`。 |
+| `--primary-a INT` | 空 | 核初级 A；与 `--primary-z` 配套。 |
+| `--zenith-deg FLOAT` | `0` | 天顶角。 |
+| `--azimuth-deg FLOAT` | `0` | 方位角。 |
+| `--em-cut-gev FLOAT` | `5e-4` | EM cut。 |
+| `--em-thinning FLOAT` | `1e-4` | EM thinning fraction。 |
+| `--maximum-weight FLOAT` | `100` | 显式最大权重；0 表示不向应用传 `--max-weight`。 |
+| `--non-em-cut-gev FLOAT` | 空 | 同时设置 hadron/muon/tau cut 的旧简写。 |
+| `--had-cut-gev FLOAT` | `0.3` | hadron cut。 |
+| `--mu-cut-gev FLOAT` | `0.3` | muon cut。 |
+| `--tau-cut-gev FLOAT` | `0.3` | tau cut。 |
+| `--shower-core-x-m FLOAT` | `0` | shower core North/x。 |
+| `--shower-core-y-m FLOAT` | `0` | shower core West/y。 |
+| `--ring INT` | `0` | ring observer 配置。 |
+| `--antenna-file PATH` | `/dev/null` | 验收天线文件；ring=0 时 `/dev/null` 关闭 radio。 |
+
+### 6.3 CUDA arm 和统计门禁
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--cuda-hadronic-backend scalar\|fluka-process` | `scalar` | 只控制 CUDA arm 的低能强子执行后端。 |
+| `--cuda-hadronic-workers INT` | `4` | CUDA arm 的 FLUKA workers。 |
+| `--cuda-hadronic-min-batch INT` | `64` | FLUKA 最小 parked vertices。 |
+| `--cuda-hadronic-target-batch-ms FLOAT` | `5` | 目标 batch 代价。 |
+| `--cuda-hadronic-max-batch INT` | `256` | 最大 batch。 |
+| `--gpu-device INT` | `0` | CUDA device。 |
+| `--gpu-min-batch INT` | `4096` | CUDA 最小 batch。 |
+| `--gpu-memory-fraction FLOAT` | `0.70` | 可使用空闲显存比例。 |
+| `--gpu-table-tolerance FLOAT` | `1e-3` | 表格误差上限。 |
+| `--cuda-detailed-stage-timing` | 关闭 | 开启 CUDA event stage profiling。 |
+| `--cuda-radio-backend cpu\|cuda` | `cpu` | CUDA arm 的射电投影后端。 |
+| `--gpu-radio-field-limit FLOAT` | `1.0` V/m | checked fixed-point radio 范围。 |
+| `--gpu-radio-track-diagnostics` | 关闭 | 收集 GPU 轨迹诊断。 |
+| `--radio-sampling-rate-ghz FLOAT` | `1.0` | 两个 ensemble 的射电采样率。 |
+| `--radio-window-duration-ns FLOAT` | `400` | 两个 ensemble 的射电窗口。 |
+| `--radio-pretrigger-ns FLOAT` | `10` | 两个 ensemble 的 pretrigger。 |
+| `--relative-tolerance FLOAT` | `0.01` | 关键均值相对偏差门限。 |
+| `--sigma-limit FLOAT` | `3` | 统计 z-score 门限。 |
+| `--active-fraction FLOAT` | `1e-4` | 纵向曲线 active-bin 判定比例。 |
+| `--minimum-bin-pass-fraction FLOAT` | `0.95` | active bins 最低通过比例。 |
+| `--stability-bootstrap-repetitions INT` | `20000` | scalar 稳定性 bootstrap 次数；0 关闭。 |
+| `--stability-seed INT` | `8052026` | bootstrap 随机种子。 |
+| `--key-scalar NAME` | 内置核心列表，可重复 | 替换同时接受 1% 和统计门禁的关键标量列表。 |
+| `--require-pass` | 关闭 | 门禁失败时返回 exit code 2。 |
+
+## 7. `run_remote_cpu_ensemble.py`
+
+该脚本在固定 CPU 集合上运行独立 scalar showers。当前调度器使用全局动态队列：
+每个 worker 完成一个事例后立即领取下一个事例；只要剩余任务不少于 worker
+数，就保持全部指定核心忙碌。单个事例失败会被记录，但不会停止其他核心领取
+后续任务。
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--executable PATH` | 必填 | scalar `c8_air_shower`。 |
+| `--output-root PATH` | 必填 | ensemble 输出根目录。 |
+| `--antenna-file PATH` | 必填 | NWU observer 文件。 |
+| `--events INT` | `500` | 总独立 shower 数。 |
+| `--jobs INT` | `130` | 同时工作的固定核心数。 |
+| `--cpu-list SPEC` | `120-249` | 允许的逻辑 CPU，例如 `0-31,64-95`。 |
+| `--seed-start INT` | `10100051` | 第 0 个事例 seed；第 \(i\) 个使用 `seed-start+i`。 |
+| `--primary-pdg INT` | `2212` | 初级 PDG。 |
+| `--energy-gev FLOAT` | `1e5` | 初级总能量。 |
+| `--zenith-deg FLOAT` | `0` | 天顶角。 |
+| `--azimuth-deg FLOAT` | `0` | 方位角。 |
+| `--shower-core-x-m FLOAT` | `0` | shower core x。 |
+| `--shower-core-y-m FLOAT` | `0` | shower core y。 |
+| `--ring INT` | `0` | ring observers。 |
+| `--em-cut-gev FLOAT` | `5e-4` | EM cut。 |
+| `--em-thinning FLOAT` | `1e-6` | EM thinning fraction。 |
+| `--had-cut-gev FLOAT` | `0.3` | hadron cut。 |
+| `--mu-cut-gev FLOAT` | `0.3` | muon cut。 |
+| `--tau-cut-gev FLOAT` | `0.3` | tau cut。 |
+| `--maximum-weight FLOAT` | `0` | 0 表示省略应用的 `--max-weight`，保留自动值。 |
+| `--flupro PATH` | `/home/yuhanglu/fluka` | 含 `libflukahp.a` 的 FLUKA 安装。 |
+| `--resume` | 关闭 | 只复用 command、seed、artifact hash 和 provenance 完全一致的 shards。 |
+| `--dry-run` | 关闭 | 只验证输入并输出 immutable configuration。 |
+
+推荐先检查：
+
+```bash
+python validation/gpu_em/run_remote_cpu_ensemble.py \
+  --executable /path/to/c8_air_shower \
+  --output-root /path/to/new-output \
+  --antenna-file /path/to/antennas_nwu.txt \
+  --flupro /path/to/fluka \
+  --events 500 \
+  --jobs 130 \
+  --cpu-list 120-249 \
+  --dry-run
+```
+
+再移除 `--dry-run`。不要让两套 runner 使用相同输出目录或重叠 CPU 集合。
+
+## 8. 生产示例
+
+```bash
+export C8_BUILD=/path/to/corsika8-gpu-build
+export C8_TABLE=/path/to/production.c8emrt
+export C8_ANTENNAS=/path/to/antennas_nwu_coordinates_test.txt
+export FLUPRO=/path/to/fluka
+
+"$C8_BUILD/applications/c8_air_shower" \
+  -p 2212 \
+  -E 100000 \
+  -N 1 \
+  -f /path/to/output \
+  --seed 10400001 \
+  --zenith 0 \
+  --azimuth 0 \
+  --emcut 0.0005 \
+  --emthin 1e-6 \
+  --antenna-file "$C8_ANTENNAS" \
+  --em-backend cuda \
+  --gpu-device 0 \
+  --gpu-min-batch 4096 \
+  --gpu-memory-fraction 0.70 \
+  --gpu-table-cache "$C8_TABLE" \
+  --gpu-table-tolerance 1e-3 \
+  --gpu-deterministic true \
+  --gpu-resident-cross-species true \
+  --radio-backend cuda \
+  --gpu-radio-field-limit 1 \
+  --hadronic-backend fluka-process \
+  --hadronic-workers 4 \
+  --hadronic-min-batch 64 \
+  --hadronic-target-batch-ms 5 \
+  --hadronic-max-batch 256
+```
+
+运行后至少核对：
+
+1. 顶层 `summary.yaml` 和 `simulation_timing/summary.yaml`；
+2. `gpu_em/config.yaml` 中的 executable、table、GPU、IGRF13 和参数 identity；
+3. `gpu_em/summary.yaml` 中的完整状态、fallback、overflow、显存和阶段计时；
+4. `CoREAS`/`ZHS` 的 config、summary 和 observers；
+5. 没有 NaN、负能量、未知 PID、表 hash 不匹配或未注册过程。

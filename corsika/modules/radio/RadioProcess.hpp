@@ -13,6 +13,13 @@
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/setup/SetupTrajectory.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <iterator>
+#include <limits>
+
 namespace corsika {
 
   /**
@@ -47,6 +54,30 @@ namespace corsika {
     TPropagator propagator_;         ///< The propagator implementation.
     unsigned int showerId_{0};       ///< The current event ID.
     ParquetStreamer output_;         //!< The parquet streamer for this process.
+    std::uint64_t diagnosticSegmentCount_{0};
+    double diagnosticWeightedSegmentCount_{0.};
+    double diagnosticTrackLengthM_{0.};
+    double diagnosticWeightedTrackLengthM_{0.};
+    double diagnosticElectronWeightedTrackLengthM_{0.};
+    double diagnosticPositronWeightedTrackLengthM_{0.};
+    double diagnosticSignedChargeTrackLengthM_{0.};
+    double diagnosticEnergyWeightedTrackLengthGeVM_{0.};
+    double diagnosticMaximumSegmentLengthM_{0.};
+    double diagnosticWeightedDirectionChangeRad_{0.};
+    double diagnosticWeightedDirectionChangeSquaredRad2_{0.};
+    double diagnosticWeightedBetaDeficitTrackLengthM_{0.};
+    double diagnosticWeightedTimeResidualS_{0.};
+    double diagnosticMaximumDirectionChangeRad_{0.};
+    std::array<double, 3>
+        diagnosticSignedChargeWeightedDirectionChange_{};
+    std::array<double, 15> diagnosticEnergyBinnedTrackLengthM_{};
+    YAML::Node diagnosticSummary_;
+
+    inline static constexpr std::array<double, 15>
+        diagnosticEnergyUpperEdgesGeV_{
+            1.e-3, 2.e-3, 5.e-3, 1.e-2, 2.e-2,
+            5.e-2, 1.e-1, 2.e-1, 5.e-1, 1.,
+            2., 5., 10., 100., std::numeric_limits<double>::infinity()};
 
   public:
     using axistype = std::vector<long double>;
@@ -94,12 +125,26 @@ namespace corsika {
      * Called at the end of each library.
      *
      */
-    void endOfLibrary() final override {}
+    void endOfLibrary() final override;
+
+    TObserverCollection& observerCollection() noexcept {
+      return observers_;
+    }
+
+    TObserverCollection const& observerCollection() const noexcept {
+      return observers_;
+    }
 
     /**
      * Get the configuration of this output.
      */
     YAML::Node getConfig() const final;
+
+    /**
+     * Per-shower track diagnostics used to separate transport differences from
+     * CoREAS/ZHS projection differences.
+     */
+    YAML::Node getSummary() const final;
 
   }; // END: class RadioProcess
 

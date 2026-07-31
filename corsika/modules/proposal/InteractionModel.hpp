@@ -17,6 +17,11 @@
 #include <corsika/framework/random/UniformRealDistribution.hpp>
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
 #include <corsika/modules/proposal/HadronicPhotonModel.hpp>
+#include <corsika/modules/proposal/ProposalFinalStateGenerator.hpp>
+#include <corsika/modules/proposal/ProposalRateProvider.hpp>
+
+#include <map>
+#include <tuple>
 
 namespace corsika::proposal {
 
@@ -37,19 +42,31 @@ namespace corsika::proposal {
       : public ProposalProcessBase,
         public HadronicPhotonModel<THadronicLEModel, THadronicHEModel> {
 
-    enum { eSECONDARIES, eINTERACTION, eLPM_SUPPRESSION };
+    enum { eSECONDARIES, eINTERACTION, eLPM_SUPPRESSION, eINTERACTION_TYPES };
     struct LPM_calculator;
     using calculator_t = std::tuple<std::unique_ptr<PROPOSAL::SecondariesCalculator>,
                                     std::unique_ptr<PROPOSAL::Interaction>,
-                                    std::unique_ptr<LPM_calculator>>;
+                                    std::unique_ptr<LPM_calculator>,
+                                    std::vector<PROPOSAL::InteractionType>>;
 
     std::unordered_map<calc_key_t, calculator_t, hash>
         calc_; //!< Stores the secondaries and interaction calculators.
+
+    using specified_calc_key_t =
+        std::tuple<size_t, Code, size_t>;
+    std::map<specified_calc_key_t, calculator_t>
+        specified_calc_;
+
+    ProposalRateProvider rate_provider_;
+    ProposalFinalStateGenerator final_state_generator_;
 
     //!
     //! Build the secondaries and interaction calculators and add it to calc.
     //!
     void buildCalculator(Code, size_t const&) final;
+
+    calculator_t makeCalculator(
+        Code, size_t const&, HEPEnergyType);
 
     inline static auto logger_{get_logger("corsika_proposal_InteractionModel")};
 
@@ -92,6 +109,12 @@ namespace corsika::proposal {
                      const std::vector<PROPOSAL::ParticleState>&, const MassDensityType,
                      const PROPOSAL::Component&, const double v);
 
+    calculator_t& getCalculatorForRecord(ProposalInteractionRecord const&);
+
+    template <typename TParticle>
+    ProposalInteractionContext makeInteractionContext(
+        TParticle const&, Code) const;
+
   public:
     //!
     //! Produces the stoachastic loss calculator for leptons based on nuclear
@@ -128,6 +151,60 @@ namespace corsika::proposal {
     template <typename TSecondaryView>
     ProcessReturn doInteraction(TSecondaryView&, Code const projectileId,
                                 FourMomentum const& projectileP4);
+
+    /**
+     * Evaluate all stochastic process/component rates for one projectile state.
+     */
+    template <typename TParticle>
+    ProposalRateTable getRateTable(TParticle&, Code const projectileId);
+
+    /**
+     * Select type, component and fractional loss, without generating secondaries.
+     */
+    template <typename TParticle>
+    ProposalInteractionRecord sampleInteraction(
+        TParticle&, Code const projectileId, ProposalRateTable const&,
+        double selection_uniform,
+        std::optional<ProposalRandomKey> random_key = std::nullopt);
+
+    std::size_t requiredFinalStateRandomNumbers(
+        ProposalInteractionRecord const&);
+
+    ProposalFinalState generateFinalState(
+        ProposalInteractionRecord const&, std::vector<double> random_numbers);
+
+    /**
+     * Resolve v for a GPU-selected process/component whose inverse-CDF query
+     * was outside the device table capability. The process and target are
+     * never resampled.
+     */
+    void completeSelectedLoss(
+        ProposalInteractionRecord&, double loss_quantile);
+
+    /**
+     * Prepare a calculator whose absolute stochastic cut is exactly the one
+     * used to build a GPU table.
+     *
+     * The ordinary scalar path deliberately chooses the nearest cached cut
+     * below the requested production threshold. A GPU-selected record must
+     * instead be decoded by the calculator that produced its interaction
+     * hash. This cache is separate from calc_, so preparing a fallback never
+     * changes scalar CPU rates or random-number behaviour.
+     */
+    void prepareSpecifiedInteractionCalculator(
+        ProposalInteractionRecord const&, HEPEnergyType);
+
+    /**
+     * Deploy an already selected interaction onto a CORSIKA SecondaryView.
+     *
+     * This path never evaluates rates or calls Interaction::SampleLoss(). It
+     * exists for GPU-selected CPU fallbacks and is also used internally by the
+     * legacy doInteraction() path after its selection stage.
+     */
+    template <typename TSecondaryView>
+    ProcessReturn doSpecifiedInteraction(
+        TSecondaryView&, ProposalInteractionRecord const&,
+        std::vector<double> random_numbers);
 
     //!
     //! Calculates and returns the cross section.

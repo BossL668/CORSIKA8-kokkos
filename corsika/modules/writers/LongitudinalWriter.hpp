@@ -113,10 +113,25 @@ namespace corsika {
     void write(Point const& p0, Point const& p1, Code const pid, double const weight);
 
     /**
+     * Add a track whose endpoints have already been projected onto the
+     * configured ShowerAxis.
+     */
+    void writeProjected(GrammageType const Xstart, GrammageType const Xend,
+                        Code const pid, double const weight);
+
+    /**
      * Add binned profile.
      */
     void write(GrammageType const Xstart, GrammageType const Xend, Code const pid,
                double const weight);
+
+    /**
+     * Merge an already accumulated contribution into one output bin.
+     * This is used by the resident CUDA profile accumulator at end of shower.
+     */
+    void addBin(size_t bin, Code pid, double weight);
+
+    size_t getNBins() const noexcept { return nBins_; }
 
     /**
      * Return a summary.

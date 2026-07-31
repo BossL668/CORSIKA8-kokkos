@@ -19,6 +19,9 @@ namespace corsika::sophia {
     if (sCode == 0)
       throw std::runtime_error("getSophiaMass: unknown particle!");
     else
-      return sqrt(get_sophia_mass2(sCode)) * 1_GeV;
+      // eventgen.f propagates with AM, not sqrt(AM2).  The two legacy
+      // Fortran tables differ at the last stored digits, which matters for
+      // an exact threshold capability check.
+      return get_sophia_mass(sCode) * 1_GeV;
   }
 } // namespace corsika::sophia

@@ -10,7 +10,13 @@
 
 #include <cmath>
 
-double get_sophia_mass2(int& id) { return so_mass1_.am2[std::abs(id) - 1]; }
+double get_sophia_mass(int& id) {
+  return so_mass1_.am[std::abs(id) - 1];
+}
+
+double get_sophia_mass2(int& id) {
+  return so_mass1_.am2[std::abs(id) - 1];
+}
 
 IMPLEMENT_RNG(sophia)
 

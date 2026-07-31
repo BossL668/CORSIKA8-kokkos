@@ -44,8 +44,8 @@ namespace corsika::sophia {
      * SOPHIA only accepts nucleons as targets, that is protons (Hydrogen) or
      * neutrons.
      */
-    bool constexpr isValid(Code const projectileId, Code const targetId,
-                           HEPEnergyType const sqrtSnn) const;
+    bool isValid(Code const projectileId, Code const targetId,
+                 HEPEnergyType const sqrtSnn) const;
 
     /**
      * Returns inelastic (production) cross section.

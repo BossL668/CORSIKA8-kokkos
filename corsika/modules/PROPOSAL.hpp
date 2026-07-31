@@ -9,6 +9,10 @@
 
 #include <corsika/modules/proposal/InteractionModel.hpp>
 #include <corsika/modules/proposal/ContinuousProcess.hpp>
+#include <corsika/modules/proposal/HadronicInteractionModelFallback.hpp>
+#include <corsika/modules/proposal/ProposalFinalStateGenerator.hpp>
+#include <corsika/modules/proposal/ProposalInteractionRecord.hpp>
+#include <corsika/modules/proposal/ProposalRateProvider.hpp>
 #include <fmt/format.h>
 
 namespace corsika::proposal {
