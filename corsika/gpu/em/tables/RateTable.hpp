@@ -19,6 +19,11 @@
 namespace corsika::gpu::em::tables {
 
   inline constexpr std::uint32_t RateTableFormatVersion = 10;
+  // PROPOSAL/LPM validation in gpu_em_tablegen is contracted through 1e14 MeV
+  // (1e20 eV). Preparation requests above this bound are rejected rather than
+  // extrapolating validation metadata.
+  inline constexpr double MaximumGeneratedTableEnergyMeV = 1.e14;
+  inline constexpr double ProposalRelativeVCut = 0.01;
   inline constexpr char RateUnit[] = "cm2/g";
   inline constexpr char EnergyUnit[] = "MeV";
   inline constexpr std::uint64_t LossQuantileCount =

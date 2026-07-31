@@ -18,6 +18,7 @@
 | `applications/c8_air_shower.cpp` | Scalar/CUDA production application |
 | `corsika/gpu` and `src/gpu` | CUDA EM transport, tables, radio, and runtime |
 | `corsika/framework/core/HybridCascade.hpp` | CPU/GPU cascade scheduler |
+| `applications/gpu_em_table_prepare.cpp` | Material-YAML, content-addressed table resolver/generator |
 | `applications/gpu_em_tablegen.cpp` | Versioned PROPOSAL table generator |
 | `applications/cuda_decision_replay.cpp` | Exact scalar-tape CUDA replay |
 | `applications/fluka_batch_worker.cpp` | Isolated FLUKA final-state worker |
@@ -468,6 +469,7 @@ The expected production executables are:
 
 ```bash
 test -x "$C8_BUILD/applications/c8_air_shower"
+test -x "$C8_BUILD/applications/gpu_em_table_prepare"
 test -x "$C8_BUILD/applications/gpu_em_tablegen"
 test -x "$C8_BUILD/applications/cuda_decision_replay"
 test -x "$C8_BUILD/applications/fluka_batch_worker"
@@ -528,9 +530,11 @@ floating-point bit.
 
 The `.c8emrt` table is a versioned physics artifact, not a GPU-specific
 compile artifact. `c8_air_shower` deliberately does not generate this table at
-startup: a missing `--gpu-table-cache` is a hard error. The cache created
-automatically by PROPOSAL while `gpu_em_tablegen` runs is a separate internal
-cache and cannot be passed to `c8_air_shower`.
+startup: a missing `--gpu-table-cache` is a hard error. Use the independent
+`gpu_em_table_prepare` step before a shower to normalize a material YAML,
+resolve a compatible content-addressed table, or atomically generate and
+validate one on a cache miss. PROPOSAL's own interpolation cache is a separate
+internal cache and cannot be passed to `c8_air_shower`.
 
 For the standard dry-air configuration, download the validated table from the
 private repository release:
@@ -561,12 +565,31 @@ repeat table and shower validation. Changing the dry-air density profile,
 magnetic field, observation surface or GPU does not by itself require a new
 table.
 
-The current application and generator both explicitly use CORSIKA
-`AirDry1Atm`. There is no generic `--medium` input yet. Rock, soil, lunar
-regolith, ice or a changed elemental composition require coordinated source
-changes to the environment snapshot and medium factory before generating and
-validating a new table. Do not modify only the application medium and reuse
-the dry-air table. Exact download and generation commands are documented in
+For example, the release table stops at \(10^{18}\) eV. Prepare a
+\(10^{19}\) eV dry-air table with a default 1.05 upper-energy margin:
+
+```bash
+export C8_TABLE_CACHE=/path/to/c8_gpu_table_cache
+export C8_TABLE="$(
+  "$C8_BUILD/applications/gpu_em_table_prepare" \
+    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e19 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --print-path-only
+)"
+```
+
+The generator and preparation tool accept schema-1 custom materials through
+`--medium-yaml`. The current five-layer `c8_air_shower` GPU environment is
+still dry air. Rock, soil, lunar regolith, and ice tables can now be prepared
+reproducibly, but end-to-end transport additionally requires the corresponding
+environment nodes, geometry/grammage implementation, medium-ID mapping, and
+physics validation. Exact schema and generation commands are documented in
 [`gpu_em_tables/README.md`](gpu_em_tables/README.md).
 
 The first CUDA run may create a checked Molière interpolation sidecar beside

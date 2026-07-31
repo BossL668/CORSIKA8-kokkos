@@ -120,11 +120,12 @@ Release 全树及 CTest 32/32 均通过。
 
 | 文件 | 是否自动生成 | 用途 |
 |---|---|---|
-| PROPOSAL 插值 cache 目录 | 是，由 `gpu_em_tablegen` 按需创建 | 仅供生成器调用 PROPOSAL |
-| 版本化 `.c8emrt` 文件 | 否 | CUDA 后端运行时物理表 |
+| PROPOSAL 插值 cache 目录 | 是，由准备/生成工具按需创建 | 仅供生成器调用 PROPOSAL |
+| 版本化 `.c8emrt` 文件 | 可由独立 `gpu_em_table_prepare` 生成 | CUDA 后端运行时物理表 |
 
-生产运行不能在缺少 `.c8emrt` 时静默生成或切换 CPU。`c8_air_shower` 要求显式
-传入 `--gpu-table-cache`，文件不存在、损坏或不匹配都会立即终止。
+这里的“自动”是显式运行独立准备步骤，不是 shower 启动时的隐式动作。生产
+运行不能在缺少 `.c8emrt` 时生成或切换 CPU。`c8_air_shower` 要求显式传入
+`--gpu-table-cache`，文件不存在、损坏或不匹配都会立即终止。
 
 ### 4.1 获取已验证的默认表
 
@@ -155,26 +156,30 @@ echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TA
 \(10^{18}\) eV。表中同时存在 PDG `13/-13` 时启用 CUDA μ 子输运；没有 μ 子
 列时 EM CUDA 仍可使用，而 μ 子保留在 CPU。
 
-### 4.2 自行生成标准干空气表
+### 4.2 自动查找或生成标准干空气表
 
-生成新表的基本形式：
+推荐用介质 YAML 和初级能量准备内容寻址表：
 
 ```bash
-gpu_em_tablegen OUTPUT.c8emrt \
-  --proposal-cache PROPOSAL_CACHE_DIRECTORY \
-  --energy-min-MeV 0.5 \
-  --energy-max-MeV 1e12 \
-  --cut-MeV 0.5 \
-  --transport-cut-MeV 0.5 \
+export C8_TABLE="$(
+  gpu_em_table_prepare \
+  --medium-yaml configs/media/air_dry_1_atm.yaml \
+  --cache-dir /path/to/c8_gpu_table_cache \
+  --primary-energy-eV 1e18 \
+  --em-cut-MeV 0.5 \
+  --electron-transport-cut-MeV 0.5 \
   --muon-transport-cut-MeV 300 \
   --tolerance 1e-3 \
   --loss-tolerance 1e-3 \
-  --include-muons
+  --print-path-only
+)"
 ```
 
-其中 `--proposal-cache` 目录不存在时会自动创建，PROPOSAL 会在其中生成自己的
-插值 cache。输出 `.c8emrt` 已存在时默认拒绝覆盖，只有显式指定 `--overwrite`
-才会替换。
+工具对 YAML 规范化并计算 SHA-256，扫描兼容的现有表；未命中时通过跨进程锁
+调用 `gpu_em_tablegen`，随后回读校验并写 manifest。`--dry-run` 只显示请求，
+`--lookup-only` 禁止生成。已有 \(10^{18}\) eV 表不能外推到 \(10^{19}\) eV；
+后者应将 `--primary-energy-eV` 改为 `1e19`，默认表上限会解析为
+\(1.05\times10^{13}\) MeV。
 
 生成器会建立 rate、inverse-CDF、continuous range、LPM 和散射数据，自适应
 细化并验证误差。但一张新生成的表不会自动继承 production 验收身份；正式科研
@@ -192,16 +197,16 @@ shower。PROPOSAL 原生插值与 GPU 平坦表插值的区别见
 
 ### 4.3 改变介质时的边界
 
-当前 `gpu_em_tablegen` 的 `makeDryAirMedium()` 和 `c8_air_shower` 的五层环境
-都固定为 CORSIKA `AirDry1Atm`，没有 `--medium` 或材料配置文件接口。
+`gpu_em_tablegen --medium-yaml` 和 `gpu_em_table_prepare` 已支持 schema 1
+材料配置；`c8_air_shower` 的五层环境仍固定为 CORSIKA `AirDry1Atm`。
 
 - 改变同一干空气的密度—高度 profile、磁场、观测面或 GPU：复用现有表；
-- 改变元素组成、组分比例、电离/材料常数或 PROPOSAL 版本：生成新表；
-- 岩石、土壤、月壤和冰：当前不是“换一个参数即可制表”，需要同时扩展环境
-  快照、介质工厂、GPU medium ID 和运行时环境—表格身份校验。
+- 改变元素组成、组分比例、电离/材料常数或 PROPOSAL 版本：用新 YAML 生成表；
+- 岩石、土壤、月壤和冰：现在可以规范化制表，但端到端模拟仍需扩展环境快照、
+  device geometry、GPU medium ID 和运行时环境—表格身份校验。
 
-在通用介质功能完成前，只修改应用介质并继续使用干空气表是不安全的。更完整的
-下载、生成和校验说明见
+不要把自定义介质表直接交给仍使用标准干空气 snapshot 的应用。完整 schema、
+自动查找、并发和 \(10^{19}\) eV 示例见
 [`gpu_em_tables/README.md`](../../gpu_em_tables/README.md)。
 
 ## 5. 基本运行

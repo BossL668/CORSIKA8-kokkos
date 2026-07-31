@@ -29,6 +29,7 @@
 
 ```bash
 c8_air_shower --help
+gpu_em_table_prepare --help
 gpu_em_tablegen --help
 cuda_decision_replay --help
 fluka_batch_worker --help
@@ -125,34 +126,85 @@ maxWeight = 0.5 * emthin * E_primary[GeV]
 CPU/CUDA 质量比较应显式使用同一个 `--max-weight`，或者明确记录两端都使用自动
 值。
 
-## 3. `gpu_em_tablegen`
+## 3. `gpu_em_table_prepare`
 
-该程序从与 CORSIKA 相同的 PROPOSAL 配置生成版本化 rate、inverse-CDF、
-continuous-range、LPM 和散射表。
+这是日常使用的独立物理表准备入口。它执行“介质 YAML → 规范化哈希 → 兼容表
+查找 → 缓存未命中时加锁生成 → 回读校验 → manifest”，最后返回 `.c8emrt`
+路径。它不在 shower 运行期间调用。
 
-当前生命周期不是运行时自动制表：
+### 3.1 输入、能区和物理合同
 
-1. `gpu_em_tablegen` 显式生成 `.c8emrt`；
-2. 生成过程中，PROPOSAL 自身 cache 在 `--proposal-cache` 中按需自动建立；
-3. `c8_air_shower --em-backend cuda` 通过 `--gpu-table-cache` 只读加载
-   `.c8emrt`，缺失或不匹配时终止。
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--medium-yaml PATH` | 必填 | schema 1 材料文件；未知键和非法物理值会被拒绝。 |
+| `--cache-dir PATH` | `$XDG_CACHE_HOME/corsika8/gpu_em_tables` 或 `$HOME/.cache/corsika8/gpu_em_tables` | 内容寻址缓存根目录。 |
+| `--tablegen PATH` | 同目录的 `gpu_em_tablegen`，否则从 `PATH` 查找 | 指定底层生成器。 |
+| `--primary-energy-eV FLOAT` | 与下项二选一 | 初级总能量；表上限为该值乘安全系数。 |
+| `--energy-max-MeV FLOAT` | 与上项二选一 | 直接指定表的总能量上限。 |
+| `--energy-margin FLOAT` | `1.05` | `--primary-energy-eV` 的上限安全系数，范围 1–10。 |
+| `--energy-min-MeV FLOAT` | `0` | 0 表示使用 EM cut。 |
+| `--em-cut-MeV FLOAT` | `0.5` | PROPOSAL absolute stochastic cut。 |
+| `--electron-transport-cut-MeV FLOAT` | `0` | 0 表示使用 EM cut。 |
+| `--muon-transport-cut-MeV FLOAT` | `300` | \(\mu^\pm\) kinetic transport cut。 |
+| `--tolerance FLOAT` | `1e-3` | 最大 rate 插值误差。 |
+| `--loss-tolerance FLOAT` | `1e-3` | 最大 inverse-CDF 插值误差。 |
+| `--no-muons` | 关闭 | 只生成/接受 \(\gamma,e^-,e^+\) 表；默认要求成对 \(\mu^\pm\) 列。 |
+| `--enable-epair-rho-table` | 关闭 | 要求实验性 dense Epair rho 表。 |
 
-当前介质固定为 `AirDry1Atm` 标准干空气，没有通用 `--medium` 参数。密度
-profile、磁场和观测面变化不要求重新制表；介质组成、材料常数、cut、PROPOSAL
-版本、能区或 schema 变化要求扩展相应介质支持并重新生成、验收。
+必须且只能指定 `--primary-energy-eV` 或 `--energy-max-MeV`。当前生成器验证合同的
+硬上限是 \(10^{14}\) MeV，即 \(10^{20}\) eV；更高请求直接失败。
 
-### 3.1 文件和组合参数
+### 3.2 缓存、并发和自动化
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--lookup-only` | 关闭 | 只查找；未命中返回退出码 2，不生成。 |
+| `--dry-run` | 关闭 | 解析并打印计划路径，不加锁、不写文件、不生成。 |
+| `--force` | 关闭 | 重建当前精确请求；不能与前两项同用。 |
+| `--print-path-only` | 关闭 | 标准输出只写最终表路径，适合 shell 命令替换。 |
+| `--lock-timeout-seconds INT` | `7200` | 等待另一个相同请求制表的最长时间。 |
+
+`--initial-intervals`、`--max-points`、全部 `--loss-*` 网格参数与下节生成器同义，
+默认值也相同，并全部进入请求哈希。
+
+\(10^{19}\) eV 示例：
+
+```bash
+export C8_TABLE="$(
+  gpu_em_table_prepare \
+    --medium-yaml configs/media/air_dry_1_atm.yaml \
+    --cache-dir /path/to/table-cache \
+    --primary-energy-eV 1e19 \
+    --em-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --print-path-only
+)"
+```
+
+默认安全系数使表上限成为 \(1.05\times10^{13}\) MeV。生成成功只证明表自身
+数值门禁通过；新能区仍需 shower 和射电物理验收。
+
+## 4. `gpu_em_tablegen`
+
+底层生成器从 YAML 建立 PROPOSAL medium，并生成版本化 rate、inverse-CDF、
+continuous-range、LPM 和散射表。省略 `--medium-yaml` 时保留历史
+`AirDry1Atm` 合同。通常应通过上一节准备工具调用它。
+
+### 4.1 文件和组合参数
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
 | `output` | 必填 | 输出 `.c8emrt` 文件。 |
+| `--medium-yaml PATH` | 空 | schema 1 材料定义；空值使用历史标准干空气。 |
 | `--proposal-cache PATH` | 空 | PROPOSAL 自身插值 cache；不同于运行时 `.c8emrt`。 |
 | `--epair-rho-source PATH` | 空 | 复用 v9/v10 rate table，只追加 dense Epair rho 表。 |
 | `--merge-em-source PATH` | 空 | 复用已验证 EM production table。 |
 | `--merge-muon-source PATH` | 空 | 将已验证 muon-only table 追加到 `--merge-em-source`。 |
 | `--overwrite` | 关闭 | 允许替换已存在的输出文件；默认拒绝覆盖。 |
 
-### 3.2 能区、cut 和精度
+### 4.2 能区、cut 和精度
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -165,7 +217,7 @@ profile、磁场和观测面变化不要求重新制表；介质组成、材料�
 | `--tolerance FLOAT` | `1e-3` | 最大 \(dN/dX\) 相对插值误差。 |
 | `--loss-tolerance FLOAT` | `1e-3` | 最大 inverse-CDF \(v(E,u)\) 相对插值误差。 |
 
-### 3.3 自适应网格
+### 4.3 自适应网格
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -177,7 +229,7 @@ profile、磁场和观测面变化不要求重新制表；介质组成、材料�
 | `--loss-max-quantile-points UINT` | `2048` | 单个 inverse-CDF column 的最大 quantile 点数。 |
 | `--loss-validation-samples UINT` | `64` | 每个 column 的独立直接 PROPOSAL 验证样本数。 |
 
-### 3.4 Epair rho 和 μ 子
+### 4.4 Epair rho 和 μ 子
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -195,6 +247,7 @@ profile、磁场和观测面变化不要求重新制表；介质组成、材料�
 
 ```bash
 gpu_em_tablegen production.c8emrt \
+  --medium-yaml configs/media/air_dry_1_atm.yaml \
   --proposal-cache /path/to/proposal-cache \
   --energy-min-MeV 0.5 \
   --energy-max-MeV 1e12 \
@@ -208,7 +261,7 @@ gpu_em_tablegen production.c8emrt \
 该示例不自动等价于当前 production table。正式表还需要保存完整 metadata、
 内容哈希、实测误差和对应构建身份，并通过 shower 验收。
 
-## 4. `cuda_decision_replay`
+## 5. `cuda_decision_replay`
 
 该程序不重新抽样 shower。它读取 scalar decision tape，在 GPU 上逐条验证记录，
 并对 tape 中完全相同的 \(e^\pm\) 轨迹执行 CUDA CoREAS/ZHS 投影。
@@ -240,7 +293,7 @@ cuda_decision_replay \
 严格 replay 证明“相同 transport tape 可在 CUDA 上逐条复核并产生一致射电
 投影”，不等同于 production CUDA Monte Carlo 与标量全局随机流逐事例相同。
 
-## 5. `fluka_batch_worker`
+## 6. `fluka_batch_worker`
 
 该程序通常由 `c8_air_shower --hadronic-backend fluka-process` 自动启动。手工
 参数主要用于协议测试、生成测试输入和持久 server 调试。
@@ -267,12 +320,12 @@ fluka_batch_worker --pool-self-test 1000 --pool-workers 4
 
 生产运行不要手工设置 `--server-fd`；主进程负责创建、继承和关闭协议 socket。
 
-## 6. `run_physics_acceptance.py`
+## 7. `run_physics_acceptance.py`
 
 该驱动创建独立 CPU/CUDA ensembles，核对 provenance，然后比较 profile、
 energy deposit、ground particles、radio 和稳定性统计。
 
-### 6.1 输入、样本和恢复
+### 7.1 输入、样本和恢复
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -293,7 +346,7 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--resume-completed-proposal` | 关闭 | 严格验证 seed、事件数和命令后复用已完成 scalar shards。 |
 | `--overlap-backends` | 关闭 | 同时运行 CPU/CUDA；只用于物理统计，禁止用于性能比较。 |
 
-### 6.2 物理配置
+### 7.2 物理配置
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -314,7 +367,7 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--ring INT` | `0` | ring observer 配置。 |
 | `--antenna-file PATH` | `/dev/null` | 验收天线文件；ring=0 时 `/dev/null` 关闭 radio。 |
 
-### 6.3 CUDA arm 和统计门禁
+### 7.3 CUDA arm 和统计门禁
 
 | 参数 | 默认值 | 功能 |
 |---|---:|---|
@@ -343,7 +396,7 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--key-scalar NAME` | 内置核心列表，可重复 | 替换同时接受 1% 和统计门禁的关键标量列表。 |
 | `--require-pass` | 关闭 | 门禁失败时返回 exit code 2。 |
 
-## 7. `run_remote_cpu_ensemble.py`
+## 8. `run_remote_cpu_ensemble.py`
 
 该脚本在固定 CPU 集合上运行独立 scalar showers。当前调度器使用全局动态队列：
 每个 worker 完成一个事例后立即领取下一个事例；只要剩余任务不少于 worker
@@ -392,7 +445,7 @@ python validation/gpu_em/run_remote_cpu_ensemble.py \
 
 再移除 `--dry-run`。不要让两套 runner 使用相同输出目录或重叠 CPU 集合。
 
-## 8. 生产示例
+## 9. 生产示例
 
 ```bash
 export C8_BUILD=/path/to/corsika8-gpu-build

@@ -14,6 +14,7 @@
 | [原始计划逐条审计](original_plan_requirement_audit.md) | 实施计划要求与当前实现的映射 |
 | [CoREAS/ZHS 在线累计](coreas_zhs_online_accumulation.md) | 射电计算与粒子输运的执行时序 |
 | [PROPOSAL 与 CUDA 插值](proposal_and_cuda_interpolation.md) | 两类插值的来源、误差和物理含义 |
+| [介质 YAML 与自动制表](phase_92_medium_yaml_content_addressed_table_preparation.md) | 介质 schema、规范化哈希、缓存查找、自动生成和 10¹⁹ eV 示例 |
 | [验证工具](../../validation/gpu_em/README.md) | 性能、系综、radio、replay 和 scaling-law 脚本 |
 
 ## 文档约定
@@ -134,3 +135,7 @@
 - [阶段 89：cost-triggered batches 和 bulk IPC](phase_89_cost_triggered_hadronic_batches_and_bulk_ipc.md)
 - [阶段 90：配置驱动 1 PeV 验收](phase_90_config_driven_1pev_cpu_cuda_acceptance.md)
 - [阶段 91：1 PeV thinning 边界、radio 和能量账本](phase_91_1pev_emthin_boundary_full_radio_and_energy_ledger.md)
+
+### 阶段 92：介质配置和内容寻址制表
+
+- [阶段 92：介质 YAML、规范化哈希与自动物理表准备](phase_92_medium_yaml_content_addressed_table_preparation.md)

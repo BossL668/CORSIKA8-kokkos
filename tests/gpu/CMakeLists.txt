@@ -28,6 +28,41 @@ target_compile_options (testGpuEmRateTable PRIVATE -g)
 add_test (NAME testGpuEmRateTable COMMAND testGpuEmRateTable)
 
 add_executable (
+  testGpuMediumConfig
+  testGpuMediumConfig.cpp
+  )
+target_link_libraries (
+  testGpuMediumConfig
+  PRIVATE
+  CORSIKA8GpuEmTables
+  )
+target_compile_features (testGpuMediumConfig PRIVATE cxx_std_17)
+target_compile_options (testGpuMediumConfig PRIVATE -g)
+target_compile_definitions (
+  testGpuMediumConfig
+  PRIVATE
+  C8_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+  )
+add_test (NAME testGpuMediumConfig COMMAND testGpuMediumConfig)
+add_test (
+  NAME testGpuEmTablePrepareDryRun
+  COMMAND
+  $<TARGET_FILE:gpu_em_table_prepare>
+  --medium-yaml
+  ${CMAKE_SOURCE_DIR}/configs/media/air_dry_1_atm.yaml
+  --cache-dir
+  ${CMAKE_CURRENT_BINARY_DIR}/table_prepare_dry_run_cache
+  --primary-energy-eV
+  1e19
+  --dry-run
+  )
+set_tests_properties (
+  testGpuEmTablePrepareDryRun
+  PROPERTIES
+  PASS_REGULAR_EXPRESSION "energy_max_MeV=10500000000000"
+  )
+
+add_executable (
   testGpuEmFlatRateTable
   testGpuEmFlatRateTable.cpp
   )

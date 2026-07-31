@@ -28,9 +28,9 @@
 #include <corsika/gpu/em/PhotonPairLpm.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
 #include <corsika/gpu/em/tables/FlatRateTable.hpp>
+#include <corsika/gpu/em/tables/MediumConfig.hpp>
+#include <corsika/gpu/em/tables/ProposalMedium.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
-#include <corsika/media/CORSIKA7Atmospheres.hpp>
-#include <corsika/media/MediumProperties.hpp>
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
 #include <corsika/modules/proposal/ProposalRateProvider.hpp>
 
@@ -61,11 +61,10 @@ namespace {
   using namespace corsika::gpu::em::tables;
   using namespace corsika::units::si;
 
-  constexpr char GeneratorVersion[] = "c8-gpu-em-tablegen-0.14";
-
   struct Options {
     std::filesystem::path output;
     std::filesystem::path proposal_cache;
+    std::filesystem::path medium_yaml;
     std::filesystem::path epair_rho_source;
     std::filesystem::path merge_em_source;
     std::filesystem::path merge_muon_source;
@@ -134,19 +133,21 @@ namespace {
     return found->second;
   }
 
-  PROPOSAL::Medium makeDryAirMedium() {
-    auto const& medium_data = mediumData(Medium::AirDry1Atm);
-    std::vector<PROPOSAL::Component> components;
-    auto fraction = standardAirComposition.getFractions().begin();
-    for (auto const code : standardAirComposition.getComponents()) {
-      components.emplace_back(std::string(get_name(code)), get_nucleus_Z(code),
-                              get_nucleus_A(code), *fraction++);
+  bool sameMediumComponents(
+      std::vector<MediumComponent> const& left,
+      std::vector<MediumComponent> const& right) {
+    if (left.size() != right.size()) {
+      return false;
     }
-    return PROPOSAL::Medium(
-        medium_data.getName(), medium_data.getIeff(), -medium_data.getCbar(),
-        medium_data.getAA(), medium_data.getSK(), medium_data.getX0(),
-        medium_data.getX1(), medium_data.getDlt0(),
-        medium_data.getCorrectedDensity(), std::move(components));
+    for (std::size_t index = 0; index < left.size(); ++index) {
+      if (left[index].corsika_pid != right[index].corsika_pid ||
+          left[index].proposal_hash != right[index].proposal_hash ||
+          left[index].name != right[index].name ||
+          left[index].number_fraction != right[index].number_fraction) {
+        return false;
+      }
+    }
+    return true;
   }
 
   class ProposalReferenceEvaluator {
@@ -2106,24 +2107,6 @@ namespace {
     return table;
   }
 
-  std::vector<MediumComponent> mediumComponents(PROPOSAL::Medium const& medium) {
-    auto const proposal_components = medium.GetComponents();
-    auto const corsika_components = standardAirComposition.getComponents();
-    auto const fractions = standardAirComposition.getFractions();
-    if (proposal_components.size() != corsika_components.size() ||
-        proposal_components.size() != fractions.size()) {
-      throw std::runtime_error("dry-air component list sizes differ");
-    }
-    std::vector<MediumComponent> result;
-    for (std::size_t i = 0; i < proposal_components.size(); ++i) {
-      result.push_back(
-          {static_cast<std::int32_t>(corsika_components[i]),
-           static_cast<std::uint64_t>(proposal_components[i].GetHash()),
-           fractions[i], proposal_components[i].GetName()});
-    }
-    return result;
-  }
-
   PhotonPairLpmMetadata photonPairLpmMetadata(
       PROPOSAL::Medium const& medium) {
     // This is the exact construction performed by PROPOSAL 7.6.2
@@ -2478,6 +2461,9 @@ namespace {
         "PROPOSAL process configuration used by CORSIKA 8."};
     app.add_option("output", options.output, "Output .c8emrt table file")
         ->required();
+    app.add_option(
+        "--medium-yaml", options.medium_yaml,
+        "Schema-v1 material definition; omitted for the legacy AirDry1Atm contract");
     app.add_option("--proposal-cache", options.proposal_cache,
                    "Directory used for PROPOSAL's own interpolation cache");
     app.add_option(
@@ -2577,7 +2563,8 @@ namespace {
     if (!std::isfinite(options.energy_min_MeV) ||
         !std::isfinite(options.energy_max_MeV) ||
         !(options.energy_min_MeV > 0.) ||
-        !(options.energy_max_MeV > options.energy_min_MeV)) {
+        !(options.energy_max_MeV > options.energy_min_MeV) ||
+        options.energy_max_MeV > MaximumGeneratedTableEnergyMeV) {
       throw std::invalid_argument("invalid energy range");
     }
     if (!std::isfinite(options.energy_cut_MeV) ||
@@ -2708,7 +2695,14 @@ int main(int argc, char** argv) {
         options.proposal_cache.string();
     PROPOSAL::Logging::SetGlobalLoglevel(spdlog::level::critical);
 
-    auto const medium = makeDryAirMedium();
+    auto const medium_config =
+        options.medium_yaml.empty()
+            ? standardDryAirMediumConfig()
+            : loadMediumConfig(options.medium_yaml);
+    auto const medium_hash = mediumConfigHashHex(medium_config);
+    auto const medium = makeProposalMedium(medium_config);
+    auto const expected_components =
+        makeRateTableMediumComponents(medium_config, medium);
     if (!options.merge_em_source.empty()) {
       auto output =
           readRateTable(options.merge_em_source);
@@ -2721,28 +2715,16 @@ int main(int argc, char** argv) {
                32. * std::numeric_limits<double>::epsilon() *
                    scale;
       };
-      auto const compatible_components =
-          [](std::vector<MediumComponent> const& left,
-             std::vector<MediumComponent> const& right) {
-            if (left.size() != right.size()) {
-              return false;
-            }
-            for (std::size_t index = 0;
-                 index < left.size(); ++index) {
-              if (left[index].corsika_pid !=
-                      right[index].corsika_pid ||
-                  left[index].proposal_hash !=
-                      right[index].proposal_hash ||
-                  left[index].name != right[index].name ||
-                  left[index].number_fraction !=
-                      right[index].number_fraction) {
-                return false;
-              }
-            }
-            return true;
-          };
       auto const& em_metadata = output.metadata;
       auto const& muon_metadata = muons.metadata;
+      if (em_metadata.medium_name != medium.GetName() ||
+          em_metadata.proposal_medium_hash !=
+              static_cast<std::uint64_t>(medium.GetHash()) ||
+          !sameMediumComponents(
+              em_metadata.components, expected_components)) {
+        throw std::runtime_error(
+            "EM merge source does not match --medium-yaml");
+      }
       if (em_metadata.proposal_version !=
               muon_metadata.proposal_version ||
           em_metadata.medium_name !=
@@ -2761,7 +2743,7 @@ int main(int argc, char** argv) {
           !compatible_scalar(
               em_metadata.energy_max_MeV,
               muon_metadata.energy_max_MeV) ||
-          !compatible_components(
+          !sameMediumComponents(
               em_metadata.components,
               muon_metadata.components)) {
         throw std::runtime_error(
@@ -2804,7 +2786,7 @@ int main(int argc, char** argv) {
           std::make_move_iterator(
               muons.continuous_energy_tables.end()));
       output.metadata.generator_version =
-          GeneratorVersion;
+          TableGeneratorContractVersion;
       output.metadata.measured_max_relative_error =
           std::max(
               output.metadata.measured_max_relative_error,
@@ -2850,7 +2832,9 @@ int main(int argc, char** argv) {
           output.metadata.proposal_medium_hash !=
               static_cast<std::uint64_t>(
                   medium.GetHash()) ||
-          output.metadata.medium_name != medium.GetName()) {
+          output.metadata.medium_name != medium.GetName() ||
+          !sameMediumComponents(
+              output.metadata.components, expected_components)) {
         throw std::runtime_error(
             "Epair rho source table is physically incompatible");
       }
@@ -2872,7 +2856,7 @@ int main(int argc, char** argv) {
           makeBremsLpmSnapshot(
               output.metadata.brems_lpm),
           output.metadata.components, source_options);
-      output.metadata.generator_version = GeneratorVersion;
+      output.metadata.generator_version = TableGeneratorContractVersion;
       output.metadata.measured_max_loss_relative_error =
           std::max(
               output.metadata
@@ -2897,18 +2881,21 @@ int main(int argc, char** argv) {
 
     RateTableSet output;
     output.metadata.proposal_version = getPROPOSALVersion();
-    output.metadata.generator_version = GeneratorVersion;
+    output.metadata.generator_version = TableGeneratorContractVersion;
     output.metadata.medium_name = medium.GetName();
     output.metadata.proposal_medium_hash =
         static_cast<std::uint64_t>(medium.GetHash());
     output.metadata.energy_cut_MeV = options.energy_cut_MeV;
-    output.metadata.relative_v_cut = proposal::v_cut;
+    static_assert(
+        proposal::v_cut == ProposalRelativeVCut,
+        "GPU table contract and CPU PROPOSAL v_cut must remain identical");
+    output.metadata.relative_v_cut = ProposalRelativeVCut;
     output.metadata.energy_min_MeV = options.energy_min_MeV;
     output.metadata.energy_max_MeV = options.energy_max_MeV;
     output.metadata.requested_relative_tolerance = options.tolerance;
     output.metadata.requested_loss_relative_tolerance =
         options.loss_tolerance;
-    output.metadata.components = mediumComponents(medium);
+    output.metadata.components = expected_components;
     output.metadata.photon_pair_lpm =
         photonPairLpmMetadata(medium);
     output.metadata.brems_lpm = bremsLpmMetadata(medium);
@@ -2955,7 +2942,9 @@ int main(int argc, char** argv) {
     double maximum_error = 0.;
     double maximum_loss_error = 0.;
     std::cout << "Generating PROPOSAL " << output.metadata.proposal_version
-              << " dry-air rate table\n"
+              << " rate table\n"
+              << "  medium: " << medium.GetName()
+              << ", canonical SHA-256: " << medium_hash << "\n"
               << "  energy: [" << std::scientific << options.energy_min_MeV
               << ", " << options.energy_max_MeV << "] MeV\n"
               << "  cut: " << options.energy_cut_MeV
@@ -3054,7 +3043,7 @@ int main(int argc, char** argv) {
             options.energy_cut_MeV,
             proposal::v_cut, options.energy_min_MeV, options.energy_max_MeV,
             options.tolerance, options.loss_tolerance,
-            mediumComponents(medium)});
+            expected_components});
     std::cout << "Wrote " << options.output << "\n"
               << "  SHA-256: " << toHex(digest) << "\n"
               << "  measured max rate error: " << maximum_error << "\n"

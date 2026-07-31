@@ -2,6 +2,8 @@ add_library (
   CORSIKA8GpuEmTables
   STATIC
   FlatRateTable.cpp
+  MediumConfig.cpp
+  ProposalMedium.cpp
   RateTable.cpp
   Sha256.cpp
   )
@@ -17,6 +19,12 @@ target_include_directories (
   )
 
 target_compile_features (CORSIKA8GpuEmTables PUBLIC cxx_std_17)
+target_link_libraries (
+  CORSIKA8GpuEmTables
+  PUBLIC
+  PROPOSAL::PROPOSAL
+  yaml-cpp::yaml-cpp
+  )
 set_target_properties (
   CORSIKA8GpuEmTables
   PROPERTIES

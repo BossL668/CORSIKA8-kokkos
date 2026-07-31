@@ -65,6 +65,16 @@ target_link_libraries (
   )
 add_dependencies (gpu_em_tablegen GenParticlesHeaders GenMediaProperties)
 
+add_executable (gpu_em_table_prepare gpu_em_table_prepare.cpp)
+target_link_libraries (
+  gpu_em_table_prepare
+  PRIVATE
+  CORSIKA8GpuEmTables
+  CLI11::CLI11
+  PROPOSAL::PROPOSAL
+  yaml-cpp::yaml-cpp
+  )
+
 if(WITH_FLUKA)
   message("compiling c8_air_shower.cpp with FLUKA")
   target_compile_definitions(c8_air_shower PRIVATE WITH_FLUKA)
@@ -75,7 +85,11 @@ else()
 endif()
 
 install (
-  TARGETS c8_air_shower gpu_em_tablegen DESTINATION bin
+  TARGETS c8_air_shower gpu_em_tablegen gpu_em_table_prepare DESTINATION bin
+)
+install (
+  DIRECTORY "${CMAKE_SOURCE_DIR}/configs/media"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/corsika"
 )
 
 if (TARGET cuda_decision_replay)

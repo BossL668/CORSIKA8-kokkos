@@ -1,0 +1,34 @@
+# Canonical source material for the existing five-layer CORSIKA atmosphere.
+# All units are part of the key names; density_correction_C is the signed
+# value passed directly to PROPOSAL (the negative of CORSIKA's Cbar).
+schema_version: 1
+name: air_dry_1_atm
+
+proposal:
+  mean_excitation_energy_eV: 85.7
+  density_correction_C: -10.5961
+  density_correction_a: 0.10914
+  density_correction_m: 3.3994
+  density_correction_x0: 1.7418
+  density_correction_x1: 4.2759
+  density_correction_delta0: 0.0
+  reference_mass_density_g_per_cm3: 0.0012048
+
+# number_fraction is the target-nucleus number fraction, not mass fraction.
+# corsika_pid uses the CORSIKA/PDG nuclear code stored in table metadata.
+components:
+  - name: nucleus
+    corsika_pid: 1000070140
+    nuclear_charge: 7
+    atomic_mass_g_per_mol: 14
+    number_fraction: 0.78479
+  - name: nucleus
+    corsika_pid: 1000080160
+    nuclear_charge: 8
+    atomic_mass_g_per_mol: 16
+    number_fraction: 0.21052
+  - name: nucleus
+    corsika_pid: 1000180400
+    nuclear_charge: 18
+    atomic_mass_g_per_mol: 40
+    number_fraction: 0.00469

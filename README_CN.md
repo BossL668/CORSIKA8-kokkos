@@ -107,7 +107,9 @@ g/cm² 和 Tesla。
 
 ### 2.3 PROPOSAL 物理表
 
-新增 `gpu_em_tablegen` 和版本化 `.c8emrt` 文件。表格保存：
+新增 `gpu_em_table_prepare`、`gpu_em_tablegen` 和版本化 `.c8emrt` 文件。
+前者负责“介质 YAML → 规范化哈希 → 查找/生成/校验”，后者负责底层
+PROPOSAL 数值制表。表格保存：
 
 - 每个粒子、介质组分和过程的相互作用率；
 - 过程与目标组分概率；
@@ -126,16 +128,16 @@ g/cm² 和 Tesla。
 
 这里有两个容易混淆的“表”：
 
-- PROPOSAL 自身的插值 cache：运行 `gpu_em_tablegen` 时会在
-  `--proposal-cache` 指定目录中自动创建；
-- CUDA 运行时使用的 `.c8emrt`：`c8_air_shower` 不会自动生成，必须下载一个
-  已验证表，或预先显式运行 `gpu_em_tablegen`。
+- PROPOSAL 自身的插值 cache：准备/生成工具会在介质哈希目录中按需创建；
+- CUDA 运行时使用的 `.c8emrt`：可以先由独立 `gpu_em_table_prepare` 自动查找
+  或生成；`c8_air_shower` 本身仍只读显式路径，不会在事件中临时制表。
 
-当前 `c8_air_shower` 和 `gpu_em_tablegen` 都固定使用 `AirDry1Atm` 标准干空气。
-仅改变五层大气的密度随高度分布、观测高度或磁场时，可以复用同一干空气表；
-改变元素组成、组分比例、介质电离参数，或者改为岩石、土壤、月壤、冰时不可以
-复用。当前版本也没有通用介质配置参数：这种改动需要同时扩展环境快照、介质
-工厂和 table generator，重新生成并重新验收。
+`gpu_em_tablegen --medium-yaml` 已支持 schema 1 的自定义材料，准备工具会对
+组成和全部 PROPOSAL 材料参数规范化并计算 SHA-256。当前 `c8_air_shower`
+的五层 GPU 环境仍固定使用 `AirDry1Atm` 标准干空气。仅改变密度随高度分布、
+观测高度或磁场时，可以复用同一表；改变元素组成、组分比例或材料参数时必须用
+新 YAML 制表并重新验收。岩石、土壤、月壤和冰还需要同步扩展运行时环境快照、
+几何和 medium ID，不能只换表。
 
 ### 2.4 GPU 粒子过程
 
@@ -543,6 +545,7 @@ CUDA 编译会消耗较多主机内存，`--parallel` 应同时考虑核心数�
 
 ```bash
 test -x "$C8_BUILD/applications/c8_air_shower"
+test -x "$C8_BUILD/applications/gpu_em_table_prepare"
 test -x "$C8_BUILD/applications/gpu_em_tablegen"
 test -x "$C8_BUILD/applications/cuda_decision_replay"
 test -x "$C8_BUILD/applications/fluka_batch_worker"
@@ -593,9 +596,11 @@ echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TA
 如果不需要 CUDA μ 子输运，也可以使用只含 \(\gamma/e^\pm\) 的已验证表；
 表中没有成对的 PDG `13/-13` 时，μ 子保留在 CPU 路径。
 
-`c8_air_shower` 不会在缺表时自动执行生成器。这样设计是为了避免生产任务在
-计算节点上意外花费很长时间制表，也避免多个任务并发写同一缓存。若只改变 GPU
-型号、GPU 数量、磁场、天线、观测高度或同一干空气的密度 profile，直接复用表。
+`c8_air_shower` 不会在缺表时自动执行生成器。应在运行 shower 前显式调用
+`gpu_em_table_prepare`；它会自动查找兼容表，并在未命中时通过跨进程锁生成、
+回读校验和写 manifest。这样避免生产事件隐式制表，同时允许多任务共享缓存。
+若只改变 GPU 型号、GPU 数量、磁场、天线、观测高度或同一干空气的密度
+profile，直接复用表。
 以下变化必须生成并重新验收表：
 
 - PROPOSAL 版本或物理参数化；
@@ -603,7 +608,28 @@ echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TA
 - `--emcut`、`--mucut`；
 - 所需最大能量或表格式版本。
 
-当前生成器只支持标准干空气。对默认干空气自行制表的完整参数见
+例如已有 Release 表只到 \(10^{18}\) eV。为 \(10^{19}\) eV 质子准备新表：
+
+```bash
+export C8_TABLE_CACHE=/path/to/c8_gpu_table_cache
+export C8_TABLE="$(
+  "$C8_BUILD/applications/gpu_em_table_prepare" \
+    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e19 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --print-path-only
+)"
+```
+
+默认 1.05 安全系数使上限为 \(1.05\times10^{13}\) MeV。首次严格制表可能耗时
+很长；同一请求随后直接命中缓存。生成成功不替代新能区的 shower 和射电验收。
+
+介质 YAML、自动准备、完整参数以及 \(10^{19}\) eV 质子新表命令见
 [`gpu_em_tables/README.md`](gpu_em_tables/README.md)，全部开关见
 [`cli_reference.md`](documentation/cuda_em_refactor/cli_reference.md)。
 
