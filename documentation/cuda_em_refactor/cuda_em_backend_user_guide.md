@@ -287,10 +287,20 @@ CUDA HybridCascade 可把低能强子末态交给进程隔离的持久 FLUKA wor
 分组和批量 IPC。新多核服务器必须独立扫描 worker 数量，性能计时时不得同时
 运行另一组 CPU shower。
 
+`fluka-process` 还有一个仅影响 CUDA 主进程的安全处理：FLUKA 在构造进程内
+相互作用对象时注册的周期性 `SIGALRM` quota timer 会被主进程关闭。此时 worker
+已经通过 `fork/exec` 独立启动，仍保留标准 FLUKA 行为。不要在应用层重新打开
+这个主进程 timer；其 signal handler 会执行非 async-signal-safe 的 stdio，在
+CUDA helper thread 存在时可能等待同一线程已经持有的 libc 锁。
+
 ### 5.5 21CMA 地磁场
 
-当前应用读取项目数据中的 `GeoMag/IGRF13.COF`，并固定使用 2025 年、
-纬度 42.5527 度、经度 86.4153816422 度、海拔 2680.444195 m。CPU 与 CUDA
+当前应用默认读取项目数据中的 `GeoMag/IGRF14.COF` 并使用 2027 年，也可通过
+`--geomagnetic-model IGRF13|IGRF14` 和 `--geomagnetic-year` 显式选择；
+仓库中的 `resources/GeoMag/IGRF14.COF` 是 IGRF14 的可复现后备文件，并会随
+安装复制到共享数据目录；
+21CMA 位置固定为纬度 42.5527 度、经度 86.4153816422 度、海拔
+2680.444195 m。CPU 与 CUDA
 共享同一个计算后场矢量，具体值写入 `gpu_em/config.yaml`，因此服务器迁移不能
 遗漏 CORSIKA data 安装。
 
@@ -424,6 +434,16 @@ python validation/gpu_em/run_physics_acceptance.py \
 物理命令，只忽略 seed、事件数、输出路径和 backend 实现参数；能量、初级、
 方向、cut、thinning、环境/跟踪或相互作用选项有任何差异都会在计算均值前
 拒绝合并。
+
+若 CPU 样本已经在本机或服务器上完成，可用 `--skip-proposal-run` 只生成
+新的 CUDA supplement；此时至少要给出一个 `--additional-proposal`。不同
+机器分别编译的原版 scalar binary 默认仍会被拒绝，只有显式加入
+`--allow-mixed-proposal-builds` 才允许分层池化。该模式保留每个来源的
+provenance，并继续严格核对物理参数和 CoREAS/ZHS 实际写出的天线位置与
+采样网格。CUDA executable 默认也不允许混用；只有显式加入
+`--allow-mixed-cuda-builds`、rate-table SHA-256 与规范化物理配置完全一致，
+并额外通过 `compare_cuda_build_strata.py` 的独立构建分层检验后，才能把
+两个 CUDA 构建的样本作为同一统计集合使用。rate-table 哈希始终不允许混用。
 
 同轨迹射电比较：
 

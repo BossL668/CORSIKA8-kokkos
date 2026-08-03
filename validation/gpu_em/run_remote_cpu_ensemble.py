@@ -48,6 +48,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=130)
     parser.add_argument("--cpu-list", default="120-249")
     parser.add_argument("--seed-start", type=int, default=10100051)
+    parser.add_argument(
+        "--seed-list-file",
+        type=Path,
+        help=(
+            "Optional UTF-8 file containing one non-negative seed per line. "
+            "Blank lines and lines beginning with # are ignored. When set, "
+            "the explicit list replaces --events and --seed-start; this is "
+            "intended for exact reruns of failed production seeds."
+        ),
+    )
     parser.add_argument("--primary-pdg", type=int, default=2212)
     parser.add_argument("--energy-gev", type=float, default=1.0e5)
     parser.add_argument("--zenith-deg", type=float, default=0.0)
@@ -127,6 +137,44 @@ def parse_cpu_list(specification: str) -> list[int]:
     if len(result) != len(set(result)):
         raise ValueError("--cpu-list contains duplicate CPU IDs")
     return result
+
+
+def resolve_seed_schedule(args: argparse.Namespace) -> tuple[int, ...]:
+    if args.seed_list_file is None:
+        if args.events <= 0:
+            raise ValueError("--events must be positive")
+        if args.seed_start < 0:
+            raise ValueError("--seed-start must be non-negative")
+        return tuple(args.seed_start + index for index in range(args.events))
+
+    path = args.seed_list_file.resolve()
+    if not path.is_file():
+        raise ValueError(f"seed list file is missing: {path}")
+    seeds: list[int] = []
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        field = line.strip()
+        if not field or field.startswith("#"):
+            continue
+        try:
+            seed = int(field)
+        except ValueError as error:
+            raise ValueError(
+                f"invalid seed at {path}:{line_number}: {field}"
+            ) from error
+        if seed < 0:
+            raise ValueError(
+                f"negative seed at {path}:{line_number}: {seed}"
+            )
+        seeds.append(seed)
+    if not seeds:
+        raise ValueError(f"seed list is empty: {path}")
+    if len(seeds) != len(set(seeds)):
+        raise ValueError(f"seed list contains duplicates: {path}")
+    args.seed_list_file = path
+    return tuple(seeds)
 
 
 def json_bytes(value: Any) -> bytes:
@@ -220,7 +268,15 @@ def immutable_configuration(
         "events": args.events,
         "jobs": args.jobs,
         "cpus": cpus[: args.jobs],
-        "seed_start": args.seed_start,
+        "seed_start": (
+            args.seed_start if args.seed_list_file is None else None
+        ),
+        "seed_schedule": list(args.seed_schedule),
+        "seed_list_file": (
+            artifact_identity(args.seed_list_file)
+            if args.seed_list_file is not None
+            else None
+        ),
         "physics": {
             "primary_pdg": args.primary_pdg,
             "energy_GeV": args.energy_gev,
@@ -351,8 +407,8 @@ def validate_args(args: argparse.Namespace, cpus: list[int]) -> None:
         raise ValueError("--events and --jobs must be positive")
     if args.jobs > args.events or args.jobs > len(cpus):
         raise ValueError("--jobs cannot exceed the event or CPU count")
-    if args.seed_start < 0:
-        raise ValueError("--seed-start must be non-negative")
+    if len(args.seed_schedule) != args.events:
+        raise ValueError("resolved seed schedule length differs from --events")
     if args.energy_gev <= 0.0:
         raise ValueError("--energy-gev must be positive")
     if any(
@@ -440,7 +496,7 @@ class EnsembleRunner:
 
     def run_one(self, index: int, cpu: int) -> None:
         output = self.args.output_root / f"proposal_shard_{index:03d}"
-        seed = self.args.seed_start + index
+        seed = self.args.seed_schedule[index]
         command = c8_command(self.args, output, seed)
         provenance = expected_provenance(
             self.configuration,
@@ -606,6 +662,8 @@ def acquire_lock(output_root: Path) -> Path:
 
 def main() -> int:
     args = parse_args()
+    args.seed_schedule = resolve_seed_schedule(args)
+    args.events = len(args.seed_schedule)
     cpus = parse_cpu_list(args.cpu_list)
     validate_args(args, cpus)
     configuration = immutable_configuration(args, cpus)
@@ -661,7 +719,8 @@ def main() -> int:
     try:
         for index in range(args.events):
             output = args.output_root / f"proposal_shard_{index:03d}"
-            command = c8_command(args, output, args.seed_start + index)
+            seed = args.seed_schedule[index]
+            command = c8_command(args, output, seed)
             provenance_path = output / PROVENANCE_FILENAME
             try:
                 observed_provenance = json.loads(
@@ -675,7 +734,7 @@ def main() -> int:
             provenance = expected_provenance(
                 configuration,
                 command,
-                args.seed_start + index,
+                seed,
                 cpu,
             )
             if output.exists():

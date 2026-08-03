@@ -36,6 +36,7 @@ namespace corsika::gpu::em {
     std::uint64_t radio_tracks{};
     std::uint64_t observations{};
     double weighted_deposited_energy_GeV{};
+    double weighted_muon_parent_productions{};
   };
 
   namespace output_detail {
@@ -107,17 +108,20 @@ namespace corsika::gpu::em {
    * ParticleCut on the scalar path.
    */
   template <typename TEnergyLossWriter, typename TLongitudinalWriter,
-            typename TObservationPlane, typename TCoreas, typename TZhs>
+            typename TProductionWriter, typename TObservationPlane,
+            typename TCoreas, typename TZhs>
   class CorsikaOutputSink {
   public:
     CorsikaOutputSink(CoordinateSystemPtr coordinate_system,
                       TEnergyLossWriter& energy_loss,
                       TLongitudinalWriter& longitudinal,
+                      TProductionWriter& production,
                       TObservationPlane& observation, TCoreas& coreas, TZhs& zhs,
                       bool radio_enabled, bool gpu_radio_enabled = false)
         : coordinate_system_(std::move(coordinate_system))
         , energy_loss_(energy_loss)
         , longitudinal_(longitudinal)
+        , production_(production)
         , observation_(observation)
         , coreas_(coreas)
         , zhs_(zhs)
@@ -175,9 +179,11 @@ namespace corsika::gpu::em {
           result.positrons.size() != bins ||
           result.muons_minus.size() != bins ||
           result.muons_plus.size() != bins ||
+          result.muon_parent_productions.size() != bins ||
           result.energy_loss_GeV.size() != bins ||
           result.muon_energy_loss_GeV.size() != bins ||
           bins != longitudinal_.getNBins() ||
+          bins != production_.getNBins() ||
           bins != energy_loss_.GetNBins()) {
         throw std::runtime_error(
             "CUDA resident profile binning does not match CORSIKA writers");
@@ -208,6 +214,8 @@ namespace corsika::gpu::em {
         auto const positron = result.positrons[bin];
         auto const muon_minus = result.muons_minus[bin];
         auto const muon_plus = result.muons_plus[bin];
+        auto const muon_parent_productions =
+            result.muon_parent_productions[bin];
         auto const deposited = result.energy_loss_GeV[bin];
         auto const muon_deposited =
             result.muon_energy_loss_GeV[bin];
@@ -216,6 +224,8 @@ namespace corsika::gpu::em {
             !std::isfinite(positron) || positron < 0. ||
             !std::isfinite(muon_minus) || muon_minus < 0. ||
             !std::isfinite(muon_plus) || muon_plus < 0. ||
+            !std::isfinite(muon_parent_productions) ||
+            muon_parent_productions < 0. ||
             !std::isfinite(deposited) || deposited < 0. ||
             !std::isfinite(muon_deposited) ||
             muon_deposited < 0. ||
@@ -242,6 +252,15 @@ namespace corsika::gpu::em {
         if (muon_plus != 0.) {
           longitudinal_.addBin(
               bin, Code::MuPlus, muon_plus);
+        }
+        if (muon_parent_productions != 0.) {
+          // ProductionWriter classifies both muon signs into the same parent
+          // column and always mirrors the contribution into "all".
+          production_.addBin(
+              bin, Code::MuMinus,
+              muon_parent_productions);
+          statistics_.weighted_muon_parent_productions +=
+              muon_parent_productions;
         }
         if (deposited != 0.) {
           auto const electromagnetic_deposited =
@@ -422,6 +441,7 @@ namespace corsika::gpu::em {
     CoordinateSystemPtr coordinate_system_;
     TEnergyLossWriter& energy_loss_;
     TLongitudinalWriter& longitudinal_;
+    TProductionWriter& production_;
     TObservationPlane& observation_;
     TCoreas& coreas_;
     TZhs& zhs_;

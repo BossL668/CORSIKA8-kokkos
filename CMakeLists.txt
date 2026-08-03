@@ -329,6 +329,23 @@ add_subdirectory (modules/sophia)
 add_subdirectory (modules/qgsjetII)
 add_subdirectory (modules/urqmd)
 add_subdirectory (modules/conex)
+
+# Conda's Fortran compiler can inject an old-sysroot libm linker script into
+# the mixed C++/Fortran CONEX target.  Keep libm consistent with the host C++
+# objects.  This compatibility adjustment lives here so the upstream cxroot
+# submodule can remain unmodified and reproducible.
+if (CMAKE_Fortran_COMPILER_SYSROOT)
+  set (_c8_host_multiarch_libdir
+       "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
+  if (TARGET CONEXsibyll AND
+      EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+    target_link_options (
+      CONEXsibyll PRIVATE
+      "-L${_c8_host_multiarch_libdir}"
+      )
+  endif ()
+endif ()
+
 add_subdirectory (modules/epos)
 add_subdirectory (modules/tauola)
 add_subdirectory (modules/fluka)

@@ -51,6 +51,7 @@ namespace corsika::gpu::em::detail {
     long long* positrons{};
     long long* muons_minus{};
     long long* muons_plus{};
+    long long* muon_parent_productions{};
     long long* energy_loss{};
     long long* muon_energy_loss{};
     DeviceProfileCounters* counters{};

@@ -110,6 +110,49 @@ namespace corsika {
               start, std::chrono::steady_clock::now());
     };
 
+    auto routerReadyForScalarInterleave = [this]() {
+      if constexpr (
+          std::is_same_v<TEmRouter, DisabledHybridEmRouter> ||
+          !hybrid_detail::
+              HasReadyForScalarInterleave<TEmRouter>::value) {
+        return false;
+      } else {
+        return em_router_ != nullptr &&
+               em_router_->readyForScalarInterleave();
+      }
+    };
+
+    auto advanceInterleavedRouter =
+        [this, &elapsedMilliseconds,
+         &routerReadyForScalarInterleave]() {
+          if constexpr (
+              !std::is_same_v<TEmRouter,
+                              DisabledHybridEmRouter> &&
+              hybrid_detail::
+                  HasReadyForScalarInterleave<TEmRouter>::value) {
+            while (routerReadyForScalarInterleave()) {
+              auto const start =
+                  std::chrono::steady_clock::now();
+              auto const returned =
+                  em_router_->advanceOneWavefrontAndReturn(
+                      stack_);
+              timing_statistics_.router_advance_time_ms +=
+                  elapsedMilliseconds(
+                      start,
+                      std::chrono::steady_clock::now());
+              if (returned != 0) {
+                auto const node_start =
+                    std::chrono::steady_clock::now();
+                setNodes();
+                timing_statistics_.set_nodes_time_ms +=
+                    elapsedMilliseconds(
+                        node_start,
+                        std::chrono::steady_clock::now());
+              }
+            }
+          }
+        };
+
     while (!scheduler_.empty() || routerPending() ||
            hadronicPending()) {
       phase_start = Clock::now();
@@ -145,6 +188,7 @@ namespace corsika {
               scheduled.particle.erase();
               scheduler_.completeParticleStep();
               doStackIfSafe();
+              advanceInterleavedRouter();
               continue;
             }
             timing_statistics_.route_stage_time_ms +=

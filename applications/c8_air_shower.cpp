@@ -109,6 +109,7 @@
 #include <CLI/Config.hpp>
 #include <CLI/Formatter.hpp>
 
+#include <csignal>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -120,6 +121,8 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+#include <unistd.h>
 
 using namespace corsika;
 using namespace std;
@@ -269,6 +272,16 @@ int main(int argc, char** argv) {
                  "maximal deflection angle in tracking in radians")
       ->default_val(0.2)
       ->check(CLI::Range(1.e-8, 1.))
+      ->group("Config");
+  std::string geomagnetic_model{"IGRF14"};
+  double geomagnetic_year{2027.};
+  app.add_option("--geomagnetic-model", geomagnetic_model,
+                 "IGRF coefficient model used for the 21CMA magnetic field")
+      ->check(CLI::IsMember({"IGRF13", "IGRF14"}))
+      ->group("Config");
+  app.add_option("--geomagnetic-year", geomagnetic_year,
+                 "Decimal year used to evaluate the selected IGRF model")
+      ->check(CLI::Range(1900., 2030.))
       ->group("Config");
   bool track_neutrinos = false;
   app.add_flag("--track-neutrinos", track_neutrinos, "switch on tracking of neutrinos")
@@ -678,8 +691,25 @@ int main(int argc, char** argv) {
   double constexpr cma21_latitude_deg = 42.5527;
   double constexpr cma21_longitude_deg = 86.4153816422;
   double constexpr cma21_altitude_m = 2680.444195;
-  double constexpr geomagnetic_year = 2025.;
-  GeomagneticModel igrf(center, corsika_data("GeoMag/IGRF13.COF"));
+  auto const geomagnetic_data =
+      std::string{"GeoMag/"} + geomagnetic_model + ".COF";
+  auto geomagnetic_path = corsika_data(geomagnetic_data);
+#ifdef CORSIKA8_BUNDLED_IGRF14_FILE
+  if (geomagnetic_model == "IGRF14" &&
+      !boost::filesystem::exists(geomagnetic_path)) {
+    geomagnetic_path = CORSIKA8_BUNDLED_IGRF14_FILE;
+    CORSIKA_LOG_INFO(
+        "Using the bundled IGRF14 coefficient file: {}",
+        geomagnetic_path.string());
+  }
+#endif
+  if (!boost::filesystem::exists(geomagnetic_path)) {
+    CORSIKA_LOG_CRITICAL(
+        "Geomagnetic coefficient file does not exist: {}",
+        geomagnetic_path.string());
+    return EXIT_FAILURE;
+  }
+  GeomagneticModel igrf(center, geomagnetic_path);
   MagneticFieldVector const cma21_field = igrf.getField(
       geomagnetic_year, cma21_altitude_m * 1_m, cma21_latitude_deg,
       cma21_longitude_deg);
@@ -847,7 +877,7 @@ int main(int argc, char** argv) {
     configuration["accepted_table_tolerance"] =
         gpu_table_tolerance;
     configuration["environment"]["geomagnetic_model"] =
-        "IGRF13";
+        geomagnetic_model;
     configuration["environment"]["geomagnetic_year"] =
         geomagnetic_year;
     configuration["environment"]["latitude_deg"] =
@@ -1035,6 +1065,25 @@ int main(int argc, char** argv) {
 // for ICRC2023
 #ifdef WITH_FLUKA
   corsika::fluka::Interaction leIntModel{all_elements};
+#ifdef CORSIKA8_WITH_CUDA_EM
+  if (hadronic_process_pool) {
+    // FLUKA's fpenab_ installs a SIGALRM handler that performs fopen/fwrite
+    // every 60 seconds.  Those operations are not async-signal-safe: when the
+    // CUDA parent has helper threads, the handler can interrupt a libc stdio
+    // critical section and wait forever on the lock held by that same thread.
+    // The process-isolated FLUKA workers were exec'ed above and retain their
+    // own native timer.  The parent only supplies rate/classification state,
+    // so cancel its redundant timer before CUDA creates more helper threads.
+    if (::signal(SIGALRM, SIG_IGN) == SIG_ERR) {
+      throw std::runtime_error(
+          "could not disable the parent FLUKA SIGALRM timer");
+    }
+    ::alarm(0);
+    CORSIKA_LOG_INFO(
+        "Disabled the parent FLUKA SIGALRM timer; process-isolated FLUKA "
+        "workers retain their native timers");
+  }
+#endif
 #else
   corsika::urqmd::UrQMD leIntModel{};
 #endif
@@ -1551,8 +1600,9 @@ int main(int argc, char** argv) {
           emCascade, sequence, env, rootCS, static_cast<std::uint64_t>(seed),
           static_cast<std::uint64_t>(i_shower), emcut};
 
-      CorsikaOutputSink output_sink{rootCS, dEdX, profile, observationLevel, coreas, zhs,
-                                    detectorCoREAS.size() != 0, gpu_radio_enabled};
+      CorsikaOutputSink output_sink{
+          rootCS, dEdX, profile, prod_profile, observationLevel, coreas, zhs,
+          detectorCoREAS.size() != 0, gpu_radio_enabled};
       using OutputSink = decltype(output_sink);
       using Router = PhysicalCudaEmRouter<StackType, FallbackHandler, OutputSink>;
       Router router{backend, rootCS, environment_snapshot, fallback_handler, output_sink};
@@ -2377,6 +2427,8 @@ int main(int argc, char** argv) {
           router_stats.particles_cut;
       shower_metadata["weighted_deposit_GeV"] =
           sink_stats.weighted_deposited_energy_GeV;
+      shower_metadata["weighted_muon_parent_productions"] =
+          sink_stats.weighted_muon_parent_productions;
       shower_metadata["radio_tracks"] =
           sink_stats.radio_tracks;
       shower_metadata["radio"]["backend"] =

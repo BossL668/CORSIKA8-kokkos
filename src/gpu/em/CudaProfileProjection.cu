@@ -193,6 +193,48 @@ namespace corsika::gpu::em::detail {
       }
     }
 
+    /**
+     * Reproduce ProductionWriter's point-vertex binning for the subset of
+     * muon production vertices handled entirely on the device.
+     *
+     * ProductionProfile runs before EM thinning on the scalar path.  The
+     * contribution is consequently the incoming parent weight even when the
+     * outgoing muon is subsequently discarded or reweighted by thinning.
+     */
+    __device__ void accumulateMuonParentProduction(
+        DeviceProfileAccumulator const& accumulator,
+        double grammage, double parent_weight) {
+      if (accumulator.bins == 0 ||
+          accumulator.muon_parent_productions == nullptr) {
+        return;
+      }
+      auto const bin_value =
+          ceil(grammage /
+               accumulator.bin_width_g_per_cm2);
+      if (!isfinite(bin_value)) {
+        atomicAdd(
+            &accumulator.counters->invalid_records, 1ULL);
+        return;
+      }
+      // Match ProductionWriter::addBin(): finite vertices outside the
+      // configured profile are valid transport records but do not belong to
+      // an output bin.  In particular, ceil(X/dX) can equal bins at the
+      // observation boundary.  Treating that case as corrupt used to abort
+      // an otherwise valid high-energy shower during resident-profile
+      // counter refresh.
+      if (bin_value < 0. ||
+          bin_value >=
+              static_cast<double>(accumulator.bins)) {
+        return;
+      }
+      auto const bin =
+          static_cast<std::size_t>(bin_value);
+      addFixedPoint(
+          accumulator.muon_parent_productions + bin,
+          parent_weight, accumulator.weight_scale,
+          accumulator.counters);
+    }
+
     __device__ void accumulateEnergyProfile(
         DeviceProfileAccumulator const& accumulator,
         long long* energy_loss,
@@ -610,6 +652,7 @@ namespace corsika::gpu::em::detail {
     }
 
     __global__ void accumulateLeptonFinalStatesKernel(
+        DeviceProfileProjection projection,
         DeviceProfileAccumulator accumulator,
         LeptonTransportRecord const* transport_records,
         std::size_t transport_count,
@@ -636,6 +679,14 @@ namespace corsika::gpu::em::detail {
           atomicAdd(
               &accumulator.counters->invalid_records, 1ULL);
           return;
+        }
+        if (record.process_id == IonizationProcessId &&
+            isMuonPid(transport->start.pid)) {
+          auto const vertex_grammage = projectGrammage(
+              projection, transport->end.position_m);
+          accumulateMuonParentProduction(
+              accumulator, vertex_grammage,
+              transport->start.weight);
         }
         addFixedPoint(
             &accumulator.counters
@@ -736,7 +787,7 @@ namespace corsika::gpu::em::detail {
           ThreadsPerBlock);
       accumulateLeptonFinalStatesKernel
           <<<blocks, ThreadsPerBlock, 0, stream>>>(
-              accumulator, records, count, final_states,
+              projection, accumulator, records, count, final_states,
               final_state_count);
       checkCuda(
           cudaGetLastError(),

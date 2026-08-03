@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Compare CPU/CUDA geomagnetic pulse amplitude and width versus radius.
+"""Compare CPU/CUDA radio pulses versus distance from the shower axis.
 
-Each point first aggregates antennas at the same radius within one shower.
-The plotted bands are the 16th--84th percentiles across independent showers.
-CUDA/CPU ratios use an independent two-sample, pointwise bootstrap whose
-resampling unit is a complete shower, never an individual antenna.
+The horizontal coordinate is the same shower-axis distance used by
+``pulse_analysis_modular``::
+
+    r_perp = ||d - (d . n) n||,
+
+where ``d`` is the antenna displacement from the shower core in local NWU
+coordinates and ``n`` is the unit shower direction.  Antennas with the same
+``r_perp`` are first aggregated within one shower.  The plotted bands are the
+16th--84th percentiles across independent showers.  CUDA/CPU ratios use an
+independent two-sample, pointwise bootstrap whose resampling unit is a
+complete shower, never an individual antenna.
 """
 
 from __future__ import annotations
@@ -66,14 +73,48 @@ def load_records(
     *,
     output_directories: list[Path],
     algorithm: str,
+    shower_axis_nwu: np.ndarray,
+    core_xy_m: tuple[float, float],
     read_radio_records: Callable[
         ..., tuple[list[dict[str, Any]], np.ndarray]
     ],
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     shower_offset = 0
+    reference_ground_radius: np.ndarray | None = None
+    reference_r_perp: np.ndarray | None = None
     for output_directory in output_directories:
-        shard_records, _ = read_radio_records(output_directory, algorithm)
+        shard_records, locations = read_radio_records(
+            output_directory, algorithm
+        )
+        ground_radius, r_perp = observer_axis_coordinates(
+            locations,
+            shower_axis_nwu,
+            core_xy_m=core_xy_m,
+        )
+        if reference_ground_radius is None:
+            reference_ground_radius = ground_radius
+            reference_r_perp = r_perp
+        elif not (
+            ground_radius.shape == reference_ground_radius.shape
+            and r_perp.shape == reference_r_perp.shape
+            and np.allclose(
+                ground_radius,
+                reference_ground_radius,
+                rtol=0.0,
+                atol=1.0e-6,
+            )
+            and np.allclose(
+                r_perp,
+                reference_r_perp,
+                rtol=0.0,
+                atol=1.0e-6,
+            )
+        ):
+            raise ValueError(
+                "radio observer shower-axis coordinates differ between "
+                f"shards: {output_directory}"
+            )
         local_showers = sorted(
             {int(record["shower"]) for record in shard_records}
         )
@@ -86,7 +127,19 @@ def load_records(
             )
         for record in shard_records:
             item = dict(record)
+            observer = int(record["observer"])
+            if observer < 0 or observer >= r_perp.size:
+                raise ValueError(
+                    f"observer index {observer} is outside the radio layout"
+                )
             item["shower"] = int(record["shower"]) + shower_offset
+            # ``extract_antenna_rows`` historically consumes ``radius_m``.
+            # Keep that internal compatibility alias, but make it represent
+            # the physically requested shower-axis distance and retain the
+            # old horizontal ground radius explicitly for provenance.
+            item["ground_radius_m"] = float(ground_radius[observer])
+            item["r_perp_m"] = float(r_perp[observer])
+            item["radius_m"] = float(r_perp[observer])
             records.append(item)
         if local_showers:
             shower_offset += local_showers[-1] + 1
@@ -95,6 +148,79 @@ def load_records(
             f"no {algorithm} records in {output_directories}"
         )
     return records
+
+
+def observer_axis_coordinates(
+    locations_m: np.ndarray,
+    shower_axis_nwu: np.ndarray,
+    *,
+    core_xy_m: tuple[float, float] = (0.0, 0.0),
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return horizontal core distance and true shower-axis distance.
+
+    CORSIKA radio observer locations contain an absolute local vertical
+    coordinate.  ``pulse_analysis_modular`` defines its antenna vector on the
+    observation plane, so this implementation uses ``(x-core_x, y-core_y, 0)``
+    exactly as its ``calculate_core_distance_to_axis`` helper does.
+    """
+
+    locations = np.asarray(locations_m, dtype=np.float64)
+    axis = np.asarray(shower_axis_nwu, dtype=np.float64)
+    core = np.asarray(core_xy_m, dtype=np.float64)
+    if locations.ndim != 2 or locations.shape[1] != 3 or locations.shape[0] < 1:
+        raise ValueError("radio observer locations must have shape (N, 3)")
+    if axis.shape != (3,) or not np.isfinite(axis).all():
+        raise ValueError("shower axis must contain three finite NWU components")
+    if core.shape != (2,) or not np.isfinite(core).all():
+        raise ValueError("shower core must contain two finite coordinates")
+    if not np.isfinite(locations).all():
+        raise ValueError("radio observer locations contain non-finite values")
+    norm = float(np.linalg.norm(axis))
+    if norm <= np.finfo(np.float64).eps:
+        raise ValueError("shower axis has zero norm")
+    axis = axis / norm
+    displacement = np.column_stack(
+        (
+            locations[:, 0] - core[0],
+            locations[:, 1] - core[1],
+            np.zeros(locations.shape[0], dtype=np.float64),
+        )
+    )
+    ground_radius = np.linalg.norm(displacement[:, :2], axis=1)
+    parallel = displacement @ axis
+    perpendicular = displacement - parallel[:, np.newaxis] * axis
+    r_perp = np.linalg.norm(perpendicular, axis=1)
+    ground_radius[ground_radius < 1.0e-12] = 0.0
+    r_perp[r_perp < 1.0e-12] = 0.0
+    return ground_radius, r_perp
+
+
+def add_extracted_coordinate_columns(
+    rows: list[dict[str, Any]],
+    records: list[dict[str, Any]],
+) -> None:
+    """Attach explicit ``r_perp`` and ground-radius provenance in place."""
+
+    ground_by_observer: dict[int, float] = {}
+    for record in records:
+        observer = int(record["observer"])
+        ground = float(record["ground_radius_m"])
+        previous = ground_by_observer.setdefault(observer, ground)
+        if not np.isclose(previous, ground, rtol=0.0, atol=1.0e-6):
+            raise ValueError("observer ground radius differs between showers")
+    for row in rows:
+        observer = int(row["observer"])
+        if observer not in ground_by_observer:
+            raise ValueError(f"extracted observer {observer} has no layout record")
+        row["r_perp_m"] = float(row["radius_m"])
+        row["ground_radius_m"] = ground_by_observer[observer]
+
+
+def add_aggregate_r_perp_column(rows: list[dict[str, Any]]) -> None:
+    """Expose the legacy internal distance alias under its physical name."""
+
+    for row in rows:
+        row["r_perp_m"] = float(row["radius_m"])
 
 
 def common_radii(
@@ -264,6 +390,7 @@ def summarize_curves(
                     "algorithm": algorithm,
                     "metric": metric,
                     "radius_m": radius_m,
+                    "r_perp_m": radius_m,
                     "cuda_over_cpu": ratio,
                     "ratio_ci95_low": ratio_low,
                     "ratio_ci95_high": ratio_high,
@@ -351,7 +478,7 @@ def plot_curves(
             axis = axes[row_index, column_index]
             selected = metric_rows(summaries, algorithm, metric)
             radii = np.asarray(
-                [row["radius_m"] for row in selected], dtype=np.float64
+                [row["r_perp_m"] for row in selected], dtype=np.float64
             )
             for backend in BACKENDS:
                 prefix = (
@@ -402,13 +529,13 @@ def plot_curves(
             axis.set_xscale("log")
             if logarithmic:
                 axis.set_yscale("log")
-            axis.set_xlabel("Core distance $r$ [m]")
+            axis.set_xlabel(r"Shower-axis distance $r_\perp$ [m]")
             axis.set_ylabel(ylabel)
             axis.set_title(f"{algorithm}: {metric}")
             axis.grid(alpha=0.24, which="both")
             axis.legend(frameon=False)
     figure.suptitle(
-        "Original CPU vs CUDA geomagnetic pulse radial curves\n"
+        "Original CPU vs CUDA geomagnetic pulses vs shower-axis distance\n"
         + title_suffix,
         fontsize=14,
     )
@@ -428,7 +555,7 @@ def plot_ratios(
         for column_index, (metric, _, _, _) in enumerate(METRICS):
             axis = axes[row_index, column_index]
             selected = metric_rows(summaries, algorithm, metric)
-            radii = np.asarray([row["radius_m"] for row in selected])
+            radii = np.asarray([row["r_perp_m"] for row in selected])
             ratio = np.asarray([row["cuda_over_cpu"] for row in selected])
             low = np.asarray([row["ratio_ci95_low"] for row in selected])
             high = np.asarray([row["ratio_ci95_high"] for row in selected])
@@ -466,12 +593,12 @@ def plot_ratios(
                 )
                 axis.legend(frameon=False, fontsize=8.5)
             axis.set_xscale("log")
-            axis.set_xlabel("Core distance $r$ [m]")
+            axis.set_xlabel(r"Shower-axis distance $r_\perp$ [m]")
             axis.set_ylabel("CUDA / original CPU")
             axis.set_title(f"{algorithm}: {metric}")
             axis.grid(alpha=0.24, which="both")
     figure.suptitle(
-        "Pointwise CPU/CUDA radial ratios (95% shower bootstrap)\n"
+        "Pointwise CPU/CUDA $r_\perp$ ratios (95% shower bootstrap)\n"
         + title_suffix,
         fontsize=14,
     )
@@ -492,14 +619,21 @@ def write_summary_markdown(
     repetitions: int,
 ) -> None:
     lines = [
-        "# CPU/CUDA 地磁脉冲随核心距变化",
+        "# CPU/CUDA 地磁脉冲随 shower-axis 距离变化",
         "",
         f"- 数据集：`{dataset}`。",
         f"- 配置：{title_suffix}。",
         (
-            "- 半径："
+            "- Shower-axis 距离 $r_\\perp$："
             + ", ".join(f"{radius:g}" for radius in radii)
-            + " m；不在天线文件中的半径没有插值。"
+            + " m；没有对天线间距进行插值。"
+        ),
+        (
+            "- 坐标定义：$r_\\perp=|\\mathbf d-(\\mathbf d\\cdot"
+            "\\hat{\\mathbf n})\\hat{\\mathbf n}|$，其中 $\\mathbf d$ 是"
+            "天线相对 shower core 的 NWU 位移，$\\hat{\\mathbf n}$ 是"
+            "由天顶角和方位角确定的 shower 方向；与 "
+            "`pulse_analysis_modular` 的 `ro` 定义一致。"
         ),
         (
             "- 地磁投影、主峰和宽度定义复用 `pulse_analysis_modular`；"
@@ -524,7 +658,7 @@ def write_summary_markdown(
     ]
     if diagnostic:
         labels = ", ".join(
-            f"{row['algorithm']} {row['metric']}@{row['radius_m']:g} m"
+            f"{row['algorithm']} {row['metric']}@{row['r_perp_m']:g} m"
             for row in diagnostic
         )
         lines.append(
@@ -541,7 +675,7 @@ def write_summary_markdown(
             "## 数值表",
             "",
             (
-                "| 算法 | 指标 | r [m] | CPU | CUDA | "
+                "| 算法 | 指标 | r_perp [m] | CPU | CUDA | "
                 "CUDA/CPU [95% CI] | N CPU/CUDA | 状态 |"
             ),
             "|---|---|---:|---:|---:|---:|---:|---|",
@@ -550,7 +684,7 @@ def write_summary_markdown(
     for row in summaries:
         lines.append(
             f"| {row['algorithm']} | {row['metric']} | "
-            f"{row['radius_m']:g} | {row['cpu_central']:.6g} | "
+            f"{row['r_perp_m']:g} | {row['cpu_central']:.6g} | "
             f"{row['cuda_central']:.6g} | "
             f"{row['cuda_over_cpu']:.4f} "
             f"[{row['ratio_ci95_low']:.4f}, "
@@ -563,8 +697,10 @@ def write_summary_markdown(
             "",
             "## 可复现文件",
             "",
-            "- `per_antenna_radial_features.csv`：逐天线脉冲参数。",
-            "- `per_shower_radius_features.csv`：实际统计单位。",
+            "- `per_antenna_radial_features.csv`：逐天线脉冲参数，同时保留 "
+            "`r_perp_m` 与 `ground_radius_m`。",
+            "- `per_shower_radius_features.csv`：逐 shower、逐 $r_\\perp$ "
+            "的实际统计单位。",
             "- `radial_summary.csv/json`：曲线点、分位数和比值区间。",
             "",
         ]
@@ -575,12 +711,34 @@ def write_summary_markdown(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help=(
+            "Optional external run manifest containing pooled CPU/CUDA "
+            "source lists."
+        ),
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--pulse-analysis-root", type=Path, default=DEFAULT_PULSE_ROOT
     )
-    parser.add_argument("--minimum-radius-m", type=float, default=1.0)
-    parser.add_argument("--maximum-radius-m", type=float, default=600.0)
+    parser.add_argument(
+        "--minimum-r-perp-m",
+        "--minimum-radius-m",
+        dest="minimum_radius_m",
+        type=float,
+        default=1.0,
+        help="Minimum shower-axis distance; --minimum-radius-m is an alias.",
+    )
+    parser.add_argument(
+        "--maximum-r-perp-m",
+        "--maximum-radius-m",
+        dest="maximum_radius_m",
+        type=float,
+        default=600.0,
+        help="Maximum shower-axis distance; --maximum-radius-m is an alias.",
+    )
     parser.add_argument("--bootstrap-repetitions", type=int, default=20_000)
     parser.add_argument("--bootstrap-seed", type=int, default=20260731)
     parser.add_argument(
@@ -614,31 +772,48 @@ def main() -> int:
         robust_pulse_width_mask,
         PulseWidthFilterConfig,
     ) = load_reference_apis(args.pulse_analysis_root.resolve())
-    run_config = load_run_configuration(dataset)
+    manifest_path = (
+        args.manifest.resolve() if args.manifest is not None else None
+    )
+    run_config = load_run_configuration(dataset, manifest_path)
     basis = build_polarization_basis(
         run_config["theta_deg"],
         run_config["phi_deg"],
         run_config["magnetic_field_T"],
     )
     sources = {
-        backend: backend_output_directories(dataset, backend)
+        backend: backend_output_directories(
+            dataset, backend, manifest_path
+        )
         for backend in BACKENDS
     }
     antenna_path = output / "per_antenna_radial_features.csv"
     shower_path = output / "per_shower_radius_features.csv"
     if args.reuse_extracted:
-        if not antenna_path.is_file() or not shower_path.is_file():
+        if not antenna_path.is_file():
             raise FileNotFoundError(
-                "--reuse-extracted requires existing antenna and shower CSVs"
+                "--reuse-extracted requires existing antenna feature CSV"
             )
         antenna_rows = read_feature_csv(antenna_path)
-        shower_rows = read_feature_csv(shower_path)
+        if not antenna_rows or "r_perp_m" not in antenna_rows[0]:
+            raise ValueError(
+                "--reuse-extracted cannot reuse a legacy ground-radius CSV; "
+                "rerun extraction to compute r_perp"
+            )
         radii = sorted(
-            {float(row["radius_m"]) for row in shower_rows}
+            {float(row["r_perp_m"]) for row in antenna_rows}
         )
+        width_filter_config = PulseWidthFilterConfig()
+        apply_reference_width_filter(
+            antenna_rows,
+            robust_pulse_width_mask=robust_pulse_width_mask,
+            filter_config=width_filter_config,
+        )
+        shower_rows = aggregate_by_shower(antenna_rows)
+        add_aggregate_r_perp_column(shower_rows)
         print(
             f"Reused {len(antenna_rows)} antenna and "
-            f"{len(shower_rows)} shower-radius rows",
+            f"recomputed {len(shower_rows)} shower-radius rows",
             flush=True,
         )
     else:
@@ -651,6 +826,21 @@ def main() -> int:
                 records = load_records(
                     output_directories=sources[backend],
                     algorithm=algorithm,
+                    shower_axis_nwu=np.asarray(
+                        basis["n"], dtype=np.float64
+                    ),
+                    core_xy_m=(
+                        float(
+                            run_config["manifest"]["configuration"].get(
+                                "shower_core_x_m", 0.0
+                            )
+                        ),
+                        float(
+                            run_config["manifest"]["configuration"].get(
+                                "shower_core_y_m", 0.0
+                            )
+                        ),
+                    ),
                     read_radio_records=read_radio_records,
                 )
                 stream_radii = clustered_available_radii(
@@ -671,26 +861,26 @@ def main() -> int:
                         "available"
                     )
                 for radius_m in radii:
-                    antenna_rows.extend(
-                        extract_antenna_rows(
-                            records=records,
-                            backend=backend,
-                            algorithm=algorithm,
-                            radius_m=radius_m,
-                            yprime=np.asarray(
-                                basis["yprime"], dtype=np.float64
-                            ),
-                            analyze_pulse_parameters=(
-                                analyze_pulse_parameters
-                            ),
-                            band_limited_waveform=band_limited_waveform,
-                            band_MHz=None,
-                            analysis_sampling_rate_GHz=None,
-                        )
+                    extracted = extract_antenna_rows(
+                        records=records,
+                        backend=backend,
+                        algorithm=algorithm,
+                        radius_m=radius_m,
+                        yprime=np.asarray(
+                            basis["yprime"], dtype=np.float64
+                        ),
+                        analyze_pulse_parameters=(
+                            analyze_pulse_parameters
+                        ),
+                        band_limited_waveform=band_limited_waveform,
+                        band_MHz=None,
+                        analysis_sampling_rate_GHz=None,
                     )
+                    add_extracted_coordinate_columns(extracted, records)
+                    antenna_rows.extend(extracted)
                 print(
                     f"{backend}/{algorithm}: {len(records)} waveforms, "
-                    f"{len(radii)} radii",
+                    f"{len(radii)} r_perp values",
                     flush=True,
                 )
                 del records
@@ -703,6 +893,7 @@ def main() -> int:
             filter_config=width_filter_config,
         )
         shower_rows = aggregate_by_shower(antenna_rows)
+        add_aggregate_r_perp_column(shower_rows)
     summaries = summarize_curves(
         shower_rows,
         radii=radii,
@@ -734,8 +925,23 @@ def main() -> int:
     report = {
         "dataset": str(dataset),
         "configuration": manifest_config,
-        "statistical_unit": "one shower after azimuth aggregation",
-        "radii_m": radii,
+        "statistical_unit": (
+            "one shower after aggregation of antennas sharing r_perp"
+        ),
+        "coordinate": {
+            "name": "r_perp_m",
+            "definition": "norm(d - dot(d, n) * n)",
+            "frame": "local NWU relative to shower core",
+            "shower_axis_nwu": np.asarray(
+                basis["n"], dtype=np.float64
+            ).tolist(),
+            "core_xy_m": [
+                float(manifest_config.get("shower_core_x_m", 0.0)),
+                float(manifest_config.get("shower_core_y_m", 0.0)),
+            ],
+        },
+        "r_perp_m": radii,
+        "radii_m_legacy_alias": radii,
         "bootstrap_repetitions": args.bootstrap_repetitions,
         "bootstrap_scope": "pointwise independent two-sample shower bootstrap",
         "geomagnetic_unit_vector_NWU": np.asarray(

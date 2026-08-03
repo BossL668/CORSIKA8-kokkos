@@ -661,12 +661,12 @@ namespace corsika::gpu::em {
           if (projection.accumulate_on_device) {
             if (projection.output_bin_count >
                 std::numeric_limits<std::size_t>::max() /
-                    7 / sizeof(long long)) {
+                    8 / sizeof(long long)) {
               throw std::overflow_error(
                   "GPU profile histogram allocation size overflow");
             }
             auto const histogram_bytes =
-                projection.output_bin_count * 7 *
+                projection.output_bin_count * 8 *
                 sizeof(long long);
             profile_accumulator_device_bytes_ =
                 checkedAdd(
@@ -705,6 +705,9 @@ namespace corsika::gpu::em {
             device_profile_accumulator_.muons_minus = histogram;
             histogram += projection.output_bin_count;
             device_profile_accumulator_.muons_plus = histogram;
+            histogram += projection.output_bin_count;
+            device_profile_accumulator_
+                .muon_parent_productions = histogram;
             histogram += projection.output_bin_count;
             device_profile_accumulator_.energy_loss = histogram;
             histogram += projection.output_bin_count;
@@ -1287,7 +1290,7 @@ namespace corsika::gpu::em {
       refreshProfileCounters();
       auto const counters = profile_counter_snapshot_;
       auto const bins = device_profile_accumulator_.bins;
-      std::vector<long long> fixed(7 * bins);
+      std::vector<long long> fixed(8 * bins);
       auto const bytes = fixed.size() * sizeof(long long);
       auto const transfer_start =
           std::chrono::steady_clock::now();
@@ -1313,6 +1316,7 @@ namespace corsika::gpu::em {
       result.positrons.resize(bins);
       result.muons_minus.resize(bins);
       result.muons_plus.resize(bins);
+      result.muon_parent_productions.resize(bins);
       result.energy_loss_GeV.resize(bins);
       result.muon_energy_loss_GeV.resize(bins);
       for (std::size_t bin = 0; bin < bins; ++bin) {
@@ -1336,12 +1340,16 @@ namespace corsika::gpu::em {
             static_cast<double>(fixed[4 * bins + bin]) *
             device_profile_accumulator_
                 .inverse_weight_scale;
-        auto const electromagnetic_loss =
+        result.muon_parent_productions[bin] =
             static_cast<double>(fixed[5 * bins + bin]) *
+            device_profile_accumulator_
+                .inverse_weight_scale;
+        auto const electromagnetic_loss =
+            static_cast<double>(fixed[6 * bins + bin]) *
             device_profile_accumulator_
                 .inverse_energy_scale;
         result.muon_energy_loss_GeV[bin] =
-            static_cast<double>(fixed[6 * bins + bin]) *
+            static_cast<double>(fixed[7 * bins + bin]) *
             device_profile_accumulator_
                 .inverse_energy_scale;
         result.energy_loss_GeV[bin] =

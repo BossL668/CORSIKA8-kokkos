@@ -108,6 +108,43 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--resume-completed-cuda",
+        action="store_true",
+        help=(
+            "Reuse an already closed CUDA directory after exact seed, event "
+            "count and command verification. This requires "
+            "--resume-completed-proposal and is intended to recover an "
+            "interrupted post-processing stage without rerunning showers."
+        ),
+    )
+    parser.add_argument(
+        "--skip-proposal-run",
+        action="store_true",
+        help=(
+            "Do not launch a new scalar ensemble. At least one "
+            "--additional-proposal source is required; this is intended for "
+            "pooling completed CPU shards while producing a CUDA supplement."
+        ),
+    )
+    parser.add_argument(
+        "--allow-mixed-proposal-builds",
+        action="store_true",
+        help=(
+            "Permit additional scalar shards from separately built original "
+            "CORSIKA executables. Provenance is retained per source and the "
+            "canonical physics configuration must still match exactly."
+        ),
+    )
+    parser.add_argument(
+        "--allow-mixed-cuda-builds",
+        action="store_true",
+        help=(
+            "Permit CUDA shards from separately built executables while "
+            "requiring the same rate-table SHA-256 and exact canonical "
+            "physics configuration. All executable fingerprints are retained."
+        ),
+    )
+    parser.add_argument(
         "--overlap-backends",
         action="store_true",
         help=(
@@ -290,8 +327,10 @@ def validate_arguments(args: argparse.Namespace) -> None:
     if not args.antenna_file.exists():
         raise ValueError(f"antenna file does not exist: {args.antenna_file}")
     resume_proposal = getattr(args, "resume_completed_proposal", False)
+    resume_cuda = getattr(args, "resume_completed_cuda", False)
+    skip_proposal = getattr(args, "skip_proposal_run", False)
     if args.output_root.exists():
-        if not resume_proposal:
+        if not (resume_proposal or resume_cuda):
             raise ValueError(
                 "output root already exists; refusing to overwrite: "
                 f"{args.output_root}"
@@ -303,16 +342,21 @@ def validate_arguments(args: argparse.Namespace) -> None:
         forbidden = [
             path
             for path in (
-                args.output_root / "cuda",
                 args.output_root / "run_manifest.json",
                 args.output_root / "comparison.json",
             )
             if path.exists()
         ]
+        if not resume_cuda and (args.output_root / "cuda").exists():
+            forbidden.append(args.output_root / "cuda")
         if forbidden:
             raise ValueError(
                 "resume requires an unfinished CPU-only output root; found: "
                 + ", ".join(str(path) for path in forbidden)
+            )
+        if resume_cuda and not (args.output_root / "cuda").is_dir():
+            raise ValueError(
+                "--resume-completed-cuda requires an existing cuda directory"
             )
     for label, roots in (
         ("additional PROPOSAL output", args.additional_proposal),
@@ -321,6 +365,25 @@ def validate_arguments(args: argparse.Namespace) -> None:
         for root in roots:
             if not root.is_dir():
                 raise ValueError(f"{label} is not a directory: {root}")
+    if skip_proposal and not args.additional_proposal:
+        raise ValueError(
+            "--skip-proposal-run requires at least one "
+            "--additional-proposal source"
+        )
+    if skip_proposal and resume_proposal:
+        raise ValueError(
+            "--skip-proposal-run cannot be combined with "
+            "--resume-completed-proposal"
+        )
+    if resume_cuda and not resume_proposal:
+        raise ValueError(
+            "--resume-completed-cuda requires --resume-completed-proposal"
+        )
+    if resume_cuda and skip_proposal:
+        raise ValueError(
+            "--resume-completed-cuda cannot be combined with "
+            "--skip-proposal-run"
+        )
     if args.energy_gev <= 0.0 or args.events < 2:
         raise ValueError("energy must be positive and at least two events are required")
     primary_z = getattr(args, "primary_z", None)
@@ -345,9 +408,11 @@ def validate_arguments(args: argparse.Namespace) -> None:
         raise ValueError(
             "proposal shards must be in [1, events] and parallelism in [1, shards]"
         )
-    if resume_proposal and getattr(args, "overlap_backends", False):
+    if (resume_proposal or resume_cuda or skip_proposal) and getattr(
+        args, "overlap_backends", False
+    ):
         raise ValueError(
-            "--resume-completed-proposal cannot overlap CPU and CUDA backends"
+            "a skipped or resumed proposal run cannot overlap CPU and CUDA backends"
         )
     paired_seed_control = getattr(args, "paired_seed_control", False)
     overlapping_seed = (
@@ -582,12 +647,26 @@ def validate_additional_provenance(
             output_provenance(identity, backend, [])
         )
         for root in roots:
-            observed = provenance_fingerprint(
-                read_validation_provenance(
-                    root,
-                    backend,
-                )
+            provenance = read_validation_provenance(
+                root,
+                backend,
             )
+            observed = provenance_fingerprint(provenance)
+            if (
+                backend == "proposal"
+                and getattr(args, "allow_mixed_proposal_builds", False)
+            ):
+                continue
+            if (
+                backend == "cuda"
+                and getattr(args, "allow_mixed_cuda_builds", False)
+            ):
+                if observed[:2] != expected[:2] or observed[3] != expected[3]:
+                    raise ValueError(
+                        "additional CUDA output schema/backend/table "
+                        f"provenance differs from the requested run: {root}"
+                    )
+                continue
             if observed != expected:
                 raise ValueError(
                     f"additional {backend} output build/table provenance "
@@ -1059,6 +1138,8 @@ def main() -> int:
     cache = ensure_hot_cache(args, args.output_root, environment)
     cuda_output = args.output_root / "cuda"
     cuda = cuda_command(args, cuda_output)
+    skip_proposal = getattr(args, "skip_proposal_run", False)
+    resume_cuda = getattr(args, "resume_completed_cuda", False)
     if args.overlap_backends:
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=2
@@ -1082,6 +1163,24 @@ def main() -> int:
                 proposal_group_wall,
             ) = proposal_future.result()
             cuda_wall = cuda_future.result()
+    elif skip_proposal:
+        proposal_outputs = []
+        proposal_commands = []
+        proposal_walls = []
+        proposal_group_wall = 0.0
+        args._proposal_resume_metadata = {
+            "enabled": False,
+            "skipped": True,
+            "reused_shards": [],
+            "executed_shards": [],
+            "reused_elapsed_source": None,
+            "group_wall_source": "skipped; additional sources only",
+        }
+        cuda_wall = run_command(
+            cuda,
+            args.output_root / "cuda.log",
+            environment,
+        )
     else:
         (
             proposal_outputs,
@@ -1093,11 +1192,30 @@ def main() -> int:
             args.output_root,
             environment,
         )
-        cuda_wall = run_command(
-            cuda,
-            args.output_root / "cuda.log",
-            environment,
-        )
+        if resume_cuda:
+            cuda_metadata = completed_proposal_shard(
+                cuda_output,
+                cuda,
+                args.cuda_seed,
+                args.events,
+            )
+            if cuda_metadata is None:
+                raise ValueError(
+                    "existing CUDA output is incomplete and cannot be resumed"
+                )
+            cuda_wall = float(cuda_metadata["elapsed_seconds"])
+            args._cuda_resume_metadata = {
+                "enabled": True,
+                "elapsed_source": "summary.yaml runtime_raw",
+                "start": cuda_metadata["start"].isoformat(),
+                "end": cuda_metadata["end"].isoformat(),
+            }
+        else:
+            cuda_wall = run_command(
+                cuda,
+                args.output_root / "cuda.log",
+                environment,
+            )
 
     verify_artifact_identity(
         proposal_identity["executable"],
@@ -1145,6 +1263,9 @@ def main() -> int:
             )
             for output in args.additional_proposal
         ],
+        allow_mixed_provenance=getattr(
+            args, "allow_mixed_proposal_builds", False
+        ),
     )
     cuda_ensemble = concatenate_ensembles(
         "cuda",
@@ -1162,6 +1283,9 @@ def main() -> int:
             )
             for output in args.additional_cuda
         ],
+        allow_mixed_provenance=getattr(
+            args, "allow_mixed_cuda_builds", False
+        ),
     )
     report, curve_rows = compare_ensembles(
         proposal_ensemble,
@@ -1198,6 +1322,14 @@ def main() -> int:
                 args.proposal_parallelism,
             "overlap_backends":
                 args.overlap_backends,
+            "skip_proposal_run": skip_proposal,
+            "allow_mixed_proposal_builds": getattr(
+                args, "allow_mixed_proposal_builds", False
+            ),
+            "allow_mixed_cuda_builds": getattr(
+                args, "allow_mixed_cuda_builds", False
+            ),
+            "resume_completed_cuda": resume_cuda,
             "primary_pdg": (
                 args.primary_pdg
                 if getattr(args, "primary_z", None) is None
@@ -1295,6 +1427,14 @@ def main() -> int:
                 ),
                 "reused_elapsed_source": None,
                 "group_wall_source": "current invocation wall clock",
+            },
+        ),
+        "cuda_resume": getattr(
+            args,
+            "_cuda_resume_metadata",
+            {
+                "enabled": False,
+                "elapsed_source": "current invocation wall clock",
             },
         ),
         "physics_status": report["status"],

@@ -219,6 +219,12 @@ CPU 指定末态包括：
 
 新服务器应单独扫描 worker 数量；GPU 性能计时时不能并行运行另一套 CPU shower。
 
+FLUKA 初始化进程内相互作用对象时会安装周期性的 quota 定时器。在
+`fluka-process` 模式中，隔离 worker 启动完成后，CUDA 主进程会关闭自身冗余的
+定时器；worker 仍保留原生 FLUKA 初始化和物理。这样可以避免多线程 CUDA 主进程
+在 `SIGALRM` handler 中调用 C stdio，并因 libc 流锁重入而永久死锁。默认标量
+后端不受影响。
+
 ### 2.7 确定性、回放和审计
 
 设备随机数使用 Random123 Philox4x32-10。随机地址为：
@@ -393,16 +399,21 @@ $10^6$ GeV、`emthin=1e-6` 对应的 `maxWeight=0.5`，同样如此。若确实�
 - 均匀磁场 leapfrog；
 - 球形观测面。
 
-当前 `c8_air_shower` 从 `GeoMag/IGRF13.COF` 读取模型，固定为：
+当前 `c8_air_shower` 默认从 `GeoMag/IGRF14.COF` 读取模型，默认配置为：
 
 ```text
-year       2025
+year       2027
 latitude   42.5527 deg
 longitude  86.4153816422 deg
 altitude   2680.444195 m
 ```
 
-CPU 与 CUDA 使用同一个计算后磁场矢量，值写入 `gpu_em/config.yaml`。
+可用 `--geomagnetic-model IGRF13|IGRF14` 选择系数文件，并用
+`--geomagnetic-year` 选择 1900--2030 年间的计算年份。CPU 与 CUDA 使用同一个
+计算后磁场矢量，模型、年份和值都会写入 `gpu_em/config.yaml`。默认场矢量
+（NWU/CORSIKA 坐标）为约 `[25.180518, -1.141517, -50.996641]` μT。项目已在
+`resources/GeoMag` 中附带 IGRF14，并会在安装时自动复制；若
+`CORSIKA_DATA/GeoMag/IGRF14.COF` 已存在，则优先使用该文件。
 
 山体、月壤、冰和一般三维介质尚未进入当前 GPU snapshot。官方 CORSIKA 8 的
 通用环境框架能够表达跨介质问题，不等于本地 CUDA kernel 已支持这些几何。
@@ -642,6 +653,8 @@ c8_air_shower \
   -p 2212 -E 100000 -N 50 \
   -f /path/to/output \
   --seed 10200001 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
   --emcut 0.0005 \
   --emthin 1e-6 \
   --em-backend cuda \

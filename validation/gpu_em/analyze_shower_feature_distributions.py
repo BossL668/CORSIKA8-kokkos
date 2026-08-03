@@ -85,6 +85,14 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="run_physics_acceptance output containing CSV and JSON results",
     )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help=(
+            "Optional external run manifest for a pooled ensemble. If "
+            "omitted, run_manifest.json is searched beside the comparison."
+        ),
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -533,8 +541,12 @@ def main() -> int:
     per_shower_path = root / "per_shower_observables.csv"
     comparison_path = root / "comparison.json"
     curves_path = root / "curve_comparison.csv"
-    manifest_path = root / "run_manifest.json"
-    if not manifest_path.is_file():
+    manifest_path = (
+        args.manifest.resolve()
+        if args.manifest is not None
+        else root / "run_manifest.json"
+    )
+    if args.manifest is None and not manifest_path.is_file():
         manifest_path = root.parent / "run_manifest.json"
     for path in (
         per_shower_path,

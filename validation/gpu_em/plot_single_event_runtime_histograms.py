@@ -20,7 +20,6 @@ import yaml
 
 
 SHOWER_PATTERN = re.compile(r"^shower_(\d+)$")
-CPU_SHARD_PATTERN = re.compile(r"^proposal_shard_(\d+)$")
 CPU_COLOR = "#4472C4"
 GPU_COLOR = "#ED7D31"
 
@@ -30,6 +29,14 @@ def parse_args() -> argparse.Namespace:
         description="Plot scalar-CPU and CUDA per-shower runtime histograms."
     )
     parser.add_argument("dataset", type=Path)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help=(
+            "Optional external run manifest containing pooled source lists "
+            "and expected event counts."
+        ),
+    )
     parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
@@ -62,61 +69,170 @@ def extract_closed_showers(path: Path) -> list[tuple[int, float]]:
     return sorted(records)
 
 
-def load_cpu(dataset: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    shard_paths: list[tuple[int, Path]] = []
-    for path in dataset.glob("proposal_shard_*"):
-        match = CPU_SHARD_PATTERN.fullmatch(path.name)
-        if match is not None and path.is_dir():
-            shard_paths.append((int(match.group(1)), path))
-    for shard_index, shard in sorted(shard_paths):
-        timing_path = shard / "simulation_timing" / "summary.yaml"
-        records = extract_closed_showers(timing_path)
-        if len(records) != 1 or records[0][0] != 0:
-            raise ValueError(
-                f"expected exactly shower_0 in CPU shard {shard}"
-            )
-        rows.append(
-            {
-                "backend": "CPU scalar PROPOSAL",
-                "event_index": shard_index,
-                "runtime_seconds": records[0][1],
-                "source": str(timing_path),
-            }
+def pooled_sources(
+    dataset: Path,
+    backend: str,
+    manifest_path: Path | None = None,
+) -> list[Path]:
+    if backend not in {"proposal", "cuda"}:
+        raise ValueError(backend)
+    roots: list[Path] = []
+    if backend == "proposal":
+        direct = dataset / "proposal"
+        if direct.is_dir():
+            roots.append(direct)
+        roots.extend(
+            path
+            for path in sorted(dataset.glob("proposal_shard_*"))
+            if path.is_dir()
         )
+    else:
+        direct = dataset / "cuda"
+        if direct.is_dir():
+            roots.append(direct)
+    manifest_path = (
+        manifest_path.resolve()
+        if manifest_path is not None
+        else dataset / "run_manifest.json"
+    )
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        requested = manifest.get("additional_sources", {}).get(backend, [])
+        if not isinstance(requested, list):
+            raise ValueError(
+                f"additional_sources.{backend} must be a list in {manifest_path}"
+            )
+        roots.extend(Path(str(path)).resolve() for path in requested)
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        resolved = root.resolve()
+        if resolved in seen:
+            continue
+        if not resolved.is_dir():
+            raise FileNotFoundError(resolved)
+        seen.add(resolved)
+        unique.append(resolved)
+    if not unique:
+        raise ValueError(f"no {backend} timing sources below {dataset}")
+    return unique
+
+
+def provenance_stratum(root: Path) -> str:
+    provenance_path = root / "validation_provenance.json"
+    if not provenance_path.is_file():
+        raise FileNotFoundError(provenance_path)
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    backend = str(provenance.get("backend", "unknown"))
+    executable_sha256 = str(
+        provenance.get("executable", {}).get("sha256", "missing")
+    )
+    table = provenance.get("table")
+    table_sha256 = (
+        str(table.get("sha256", "missing"))
+        if isinstance(table, dict)
+        else "none"
+    )
+    return f"{backend}:exe={executable_sha256}:table={table_sha256}"
+
+
+def load_cpu(
+    dataset: Path, manifest_path: Path | None = None
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    event_offset = 0
+    for shard in pooled_sources(dataset, "proposal", manifest_path):
+        timing_path = shard / "simulation_timing" / "summary.yaml"
+        source_stratum = provenance_stratum(shard)
+        records = extract_closed_showers(timing_path)
+        local_indices = [index for index, _ in records]
+        if local_indices != list(range(len(records))):
+            raise ValueError(
+                f"non-contiguous shower timing records in CPU source {shard}"
+            )
+        for local_index, seconds in records:
+            rows.append(
+                {
+                    "backend": "CPU scalar PROPOSAL",
+                    "event_index": event_offset + local_index,
+                    "runtime_seconds": seconds,
+                    "source": str(timing_path),
+                    "source_stratum": source_stratum,
+                }
+            )
+        event_offset += len(records)
     if not rows:
         raise ValueError(f"no proposal_shard_* outputs below {dataset}")
     return rows
 
 
-def load_gpu(dataset: Path) -> list[dict[str, Any]]:
-    timing_path = dataset / "cuda" / "simulation_timing" / "summary.yaml"
-    return [
-        {
-            "backend": "CUDA",
-            "event_index": event_index,
-            "runtime_seconds": seconds,
-            "source": str(timing_path),
-        }
-        for event_index, seconds in extract_closed_showers(timing_path)
-    ]
+def load_gpu(
+    dataset: Path, manifest_path: Path | None = None
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    event_offset = 0
+    for root in pooled_sources(dataset, "cuda", manifest_path):
+        timing_path = root / "simulation_timing" / "summary.yaml"
+        source_stratum = provenance_stratum(root)
+        records = extract_closed_showers(timing_path)
+        local_indices = [index for index, _ in records]
+        if local_indices != list(range(len(records))):
+            raise ValueError(
+                f"non-contiguous shower timing records in CUDA source {root}"
+            )
+        for local_index, seconds in records:
+            rows.append(
+                {
+                    "backend": "CUDA",
+                    "event_index": event_offset + local_index,
+                    "runtime_seconds": seconds,
+                    "source": str(timing_path),
+                    "source_stratum": source_stratum,
+                }
+            )
+        event_offset += len(records)
+    return rows
 
 
-def describe(values: np.ndarray) -> dict[str, float | int]:
+def describe(values: np.ndarray) -> dict[str, float | int | None]:
+    sample_std = (
+        float(np.std(values, ddof=1)) if values.size > 1 else None
+    )
     return {
         "count": int(values.size),
         "mean_seconds": float(np.mean(values)),
         "median_seconds": float(np.median(values)),
-        "std_seconds": float(np.std(values, ddof=1)),
+        "std_seconds": sample_std,
         "minimum_seconds": float(np.min(values)),
         "maximum_seconds": float(np.max(values)),
         "p16_seconds": float(np.percentile(values, 16)),
         "p84_seconds": float(np.percentile(values, 84)),
         "total_seconds": float(np.sum(values)),
-        "coefficient_of_variation": float(
-            np.std(values, ddof=1) / np.mean(values)
+        "coefficient_of_variation": (
+            sample_std / float(np.mean(values))
+            if sample_std is not None
+            else None
         ),
     }
+
+
+def describe_sources(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Retain timing strata so pooled cross-machine data cannot look homogeneous."""
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = str(row.get("source_stratum", row["source"]))
+        group = grouped.setdefault(key, {"values": [], "sources": set()})
+        group["values"].append(float(row["runtime_seconds"]))
+        group["sources"].add(str(row["source"]))
+    return [
+        {
+            "stratum": stratum,
+            "source_count": len(group["sources"]),
+            "sources": sorted(group["sources"]),
+            **describe(np.asarray(group["values"], dtype=np.float64)),
+        }
+        for stratum, group in sorted(grouped.items())
+    ]
 
 
 def histogram_edges(values: np.ndarray) -> np.ndarray:
@@ -203,6 +319,8 @@ def draw_two_panel(
     cpu_statistics: dict[str, float | int],
     gpu_statistics: dict[str, float | int],
     output: Path,
+    *,
+    title: str,
 ) -> None:
     figure, axes = plt.subplots(1, 2, figsize=(13.6, 5.3), constrained_layout=True)
     panels = [
@@ -225,7 +343,7 @@ def draw_two_panel(
             "CUDA",
         ),
     ]
-    for axis, values, statistics, color, scale, unit, title in panels:
+    for axis, values, statistics, color, scale, unit, panel_title in panels:
         axis.hist(
             values,
             bins=histogram_edges(values),
@@ -247,7 +365,7 @@ def draw_two_panel(
             linestyle="--",
             label="Median",
         )
-        axis.set_title(title)
+        axis.set_title(panel_title)
         axis.set_xlabel(f"Per-shower wall time ({unit})")
         axis.set_ylabel("Number of showers")
         axis.grid(axis="y", alpha=0.25)
@@ -267,11 +385,7 @@ def draw_two_panel(
                 "alpha": 0.92,
             },
         )
-    figure.suptitle(
-        "Single-shower runtime distributions: 100 TeV vertical proton, "
-        "EM thinning = 1e-6",
-        fontsize=13,
-    )
+    figure.suptitle(title, fontsize=13)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 
@@ -281,21 +395,37 @@ def main() -> int:
     dataset = args.dataset.resolve()
     if not dataset.is_dir():
         raise ValueError(f"dataset is not a directory: {dataset}")
+    manifest_path = (
+        args.manifest.resolve()
+        if args.manifest is not None
+        else dataset / "run_manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_cpu = int(
+        manifest["configuration"].get(
+            "combined_proposal_events",
+            manifest["configuration"]["events_per_backend"],
+        )
+    )
+    expected_gpu = int(
+        manifest["configuration"].get(
+            "combined_cuda_events",
+            manifest["configuration"]["events_per_backend"],
+        )
+    )
     output = (
         args.output.resolve()
         if args.output is not None
-        else dataset / "runtime_distribution_analysis_50"
+        else dataset /
+            f"runtime_distribution_analysis_{expected_cpu}_{expected_gpu}"
     )
     output.mkdir(parents=True, exist_ok=False)
 
-    cpu_rows = load_cpu(dataset)
-    gpu_rows = load_gpu(dataset)
-    manifest_path = dataset / "run_manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    expected = int(manifest["configuration"]["events_per_backend"])
-    if len(cpu_rows) != expected or len(gpu_rows) != expected:
+    cpu_rows = load_cpu(dataset, manifest_path)
+    gpu_rows = load_gpu(dataset, manifest_path)
+    if len(cpu_rows) != expected_cpu or len(gpu_rows) != expected_gpu:
         raise ValueError(
-            f"expected {expected}+{expected} events, observed "
+            f"expected {expected_cpu}+{expected_gpu} events, observed "
             f"{len(cpu_rows)}+{len(gpu_rows)}"
         )
 
@@ -320,6 +450,7 @@ def main() -> int:
                 "runtime_minutes",
                 "runtime_hours",
                 "source",
+                "source_stratum",
             ],
         )
         writer.writeheader()
@@ -341,6 +472,13 @@ def main() -> int:
         ),
         "cpu": cpu_statistics,
         "gpu": gpu_statistics,
+        "cpu_source_strata": describe_sources(cpu_rows),
+        "gpu_source_strata": describe_sources(gpu_rows),
+        "pooled_speedup_interpretation": (
+            "Descriptive only when sources span different machines, CPUs, "
+            "concurrency levels, or executable builds; use an isolated "
+            "same-machine benchmark for a hardware speedup claim."
+        ),
         "speedup_from_means": (
             cpu_statistics["mean_seconds"] / gpu_statistics["mean_seconds"]
         ),
@@ -378,6 +516,10 @@ def main() -> int:
         cpu_statistics,
         gpu_statistics,
         output / "cpu_gpu_single_event_runtime_histograms.png",
+        title=(
+            "Single-shower runtime distributions: "
+            f"{manifest.get('label', dataset.name)}"
+        ),
     )
     print(json.dumps(summary, indent=2, allow_nan=False))
     return 0

@@ -102,11 +102,33 @@ namespace corsika {
                                                double const weight) {
     GrammageType const grammage = showerAxis_.getProjectedX(p0);
 
+    writeProjected(grammage, projectile_pid, weight);
+  }
+
+  template <typename TOutput>
+  inline void ProductionWriter<TOutput>::writeProjected(
+      GrammageType const grammage, Code const projectile_pid,
+      double const weight) {
+
     // Note: particle may go also "upward", thus, grammageEnd<grammageStart
     size_t const bin = std::ceil(grammage / dX_);
 
     CORSIKA_LOGGER_TRACE(TOutput::getLogger(), "grammage={} bin={}",
                          grammage / 1_g * square(1_cm), bin);
+    addBin(bin, projectile_pid, weight);
+  }
+
+  template <typename TOutput>
+  inline void ProductionWriter<TOutput>::addBin(
+      size_t const bin, Code const projectile_pid,
+      double const weight) {
+    if (bin >= profile_.size()) {
+      CORSIKA_LOGGER_WARN(
+          TOutput::getLogger(),
+          "Production grammage bin {} outside of profile {}. skipping.",
+          bin, profile_.size());
+      return;
+    }
     if (projectile_pid == Code::Photon) {
       profile_.at(bin)[static_cast<int>(production_profile::ProjectileIndex::Photon)] +=
           weight;

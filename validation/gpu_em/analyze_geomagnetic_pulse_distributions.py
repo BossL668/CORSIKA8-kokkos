@@ -119,14 +119,31 @@ def load_reference_apis(
     )
 
 
-def load_run_configuration(dataset: Path) -> dict[str, Any]:
-    manifest_path = dataset / "run_manifest.json"
+def load_run_configuration(
+    dataset: Path, manifest_path: Path | None = None
+) -> dict[str, Any]:
+    manifest_path = (
+        manifest_path.resolve()
+        if manifest_path is not None
+        else dataset / "run_manifest.json"
+    )
     gpu_config_path = dataset / "cuda" / "gpu_em" / "config.yaml"
     if not manifest_path.is_file():
         raise FileNotFoundError(manifest_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not gpu_config_path.is_file():
+        cuda_sources = manifest.get("additional_sources", {}).get("cuda", [])
+        if not isinstance(cuda_sources, list):
+            raise ValueError(
+                f"additional_sources.cuda must be a list in {manifest_path}"
+            )
+        for source in cuda_sources:
+            candidate = Path(str(source)).resolve() / "gpu_em" / "config.yaml"
+            if candidate.is_file():
+                gpu_config_path = candidate
+                break
     if not gpu_config_path.is_file():
         raise FileNotFoundError(gpu_config_path)
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     gpu_config = yaml.safe_load(gpu_config_path.read_text(encoding="utf-8"))
     configuration = manifest["configuration"]
     environment = gpu_config["environment"]
@@ -168,22 +185,27 @@ def backend_output_directory(dataset: Path, backend: str) -> Path:
 
 
 def backend_output_directories(
-    dataset: Path, backend: str
+    dataset: Path,
+    backend: str,
+    manifest_path: Path | None = None,
 ) -> list[Path]:
     directories: list[Path] = []
     try:
         directories.append(backend_output_directory(dataset, backend))
     except FileNotFoundError:
-        if backend != "legacy_proposal":
-            raise
-        directories.extend(
-            sorted(
-                path
-                for path in dataset.glob("proposal_shard_*")
-                if path.is_dir()
+        if backend == "legacy_proposal":
+            directories.extend(
+                sorted(
+                    path
+                    for path in dataset.glob("proposal_shard_*")
+                    if path.is_dir()
+                )
             )
-        )
-    manifest_path = dataset / "run_manifest.json"
+    manifest_path = (
+        manifest_path.resolve()
+        if manifest_path is not None
+        else dataset / "run_manifest.json"
+    )
     if manifest_path.is_file():
         manifest = json.loads(
             manifest_path.read_text(encoding="utf-8")
@@ -1037,6 +1059,14 @@ def write_markdown(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help=(
+            "Optional external run manifest. This keeps pooled source lists "
+            "separate from immutable simulation outputs."
+        ),
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--pulse-analysis-root", type=Path, default=DEFAULT_PULSE_ROOT)
     parser.add_argument("--radius-m", type=float, default=100.0)
@@ -1164,7 +1194,12 @@ def main() -> int:
         robust_pulse_width_mask,
         PulseWidthFilterConfig,
     ) = load_reference_apis(args.pulse_analysis_root.resolve())
-    run_configuration = load_run_configuration(args.dataset.resolve())
+    manifest_path = (
+        args.manifest.resolve() if args.manifest is not None else None
+    )
+    run_configuration = load_run_configuration(
+        args.dataset.resolve(), manifest_path
+    )
     basis = build_polarization_basis(
         run_configuration["theta_deg"],
         run_configuration["phi_deg"],
@@ -1173,7 +1208,9 @@ def main() -> int:
     antenna_rows: list[dict[str, Any]] = []
     selected_radius = math.nan
     source_directories = {
-        backend: backend_output_directories(args.dataset, backend)
+        backend: backend_output_directories(
+            args.dataset, backend, manifest_path
+        )
         for backend in BACKENDS
     }
     for backend in BACKENDS:

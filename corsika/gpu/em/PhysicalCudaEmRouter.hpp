@@ -254,6 +254,24 @@ namespace corsika::gpu::em {
              backend_.pendingLeptonCount() != 0;
     }
 
+    /**
+     * Report whether the resident EM front should be advanced before the
+     * scalar stack is exhausted.
+     *
+     * HybridCascade historically drained every runnable scalar history before
+     * calling the router. At ultra-high energy this allowed routed gamma/e+/e-
+     * states to accumulate without bound in staged_ while the CPU continued a
+     * long hadronic front. Interleave only at the configured production batch
+     * boundary (or when a device-resident continuation is waiting), preserving
+     * the existing small-batch scalar-expansion policy.
+     */
+    bool readyForScalarInterleave() const noexcept {
+      return force_small_batch_to_gpu_ ||
+             backend_.pendingPhotonCount() != 0 ||
+             backend_.pendingLeptonCount() != 0 ||
+             staged_.size() >= backend_.minimumBatchSize();
+    }
+
     void endOfShower() {
       if (radio_finalized_) {
         throw std::logic_error(

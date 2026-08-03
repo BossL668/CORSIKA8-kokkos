@@ -50,6 +50,14 @@ LABELS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ensemble-root", required=True, type=Path)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help=(
+            "Optional pooled-analysis manifest. Defaults to "
+            "<ensemble-root>/run_manifest.json."
+        ),
+    )
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument(
         "--large-sample-reference-root",
@@ -61,6 +69,22 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--resamples", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=20_260_731)
+    parser.add_argument(
+        "--proposal-implicit-geomagnetic-model",
+        choices=("IGRF13", "IGRF14"),
+        help=(
+            "Geomagnetic model hard-coded by a legacy proposal executable; "
+            "must be supplied with --proposal-implicit-geomagnetic-year."
+        ),
+    )
+    parser.add_argument(
+        "--proposal-implicit-geomagnetic-year",
+        type=float,
+        help=(
+            "Geomagnetic epoch hard-coded by a legacy proposal executable; "
+            "must be supplied with --proposal-implicit-geomagnetic-model."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -749,7 +773,8 @@ def write_markdown(
         "## 配置与 thinning 核查",
         "",
         (
-            f"- CPU/CUDA 命令行物理参数清单匹配："
+            f"- CPU/CUDA 纵向输运物理参数清单匹配（射电 observer layout "
+            f"不参与 profile 输运，故在此忽略）："
             f"{report['physics_configuration_match']}。"
         ),
         (
@@ -844,10 +869,38 @@ def main() -> int:
     args = parse_args()
     if args.resamples < 100:
         raise ValueError("--resamples must be at least 100")
+    implicit_model_set = (
+        args.proposal_implicit_geomagnetic_model is not None
+    )
+    implicit_year_set = (
+        args.proposal_implicit_geomagnetic_year is not None
+    )
+    if implicit_model_set != implicit_year_set:
+        raise ValueError(
+            "proposal implicit geomagnetic model and year must be provided "
+            "together"
+        )
+    proposal_implicit_physics_options: dict[str, str] = {}
+    if implicit_model_set:
+        if not math.isfinite(args.proposal_implicit_geomagnetic_year):
+            raise ValueError(
+                "proposal implicit geomagnetic year must be finite"
+            )
+        proposal_implicit_physics_options = {
+            "--geomagnetic-model":
+                args.proposal_implicit_geomagnetic_model,
+            "--geomagnetic-year":
+                f"{args.proposal_implicit_geomagnetic_year:.17g}",
+        }
     root = args.ensemble_root.resolve()
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    manifest = json.loads((root / "run_manifest.json").read_text())
+    manifest_path = (
+        args.manifest.resolve()
+        if args.manifest is not None
+        else root / "run_manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text())
     proposal_roots = profile_roots(root, manifest, "proposal")
     cuda_roots = profile_roots(root, manifest, "cuda")
     coordinate, proposal = read_ensemble(proposal_roots)
@@ -863,13 +916,44 @@ def main() -> int:
     try:
         from compare_ensembles import canonical_physics_configuration
 
-        reference_configuration = canonical_physics_configuration(
-            proposal_roots[0]
+        def profile_transport_configuration(
+            path: Path,
+            *,
+            implicit_physics_options: dict[str, str] | None = None,
+        ) -> tuple[str, ...]:
+            configuration = canonical_physics_configuration(
+                path,
+                implicit_physics_options=implicit_physics_options,
+            )
+            filtered: list[str] = []
+            for index in range(0, len(configuration), 2):
+                key = configuration[index]
+                value = configuration[index + 1]
+                if key != "--observer-layout-sha256":
+                    filtered.extend((key, value))
+            return tuple(filtered)
+
+        reference_configuration = profile_transport_configuration(
+            proposal_roots[0],
+            implicit_physics_options=proposal_implicit_physics_options,
         )
-        physics_configuration_match = all(
-            canonical_physics_configuration(path)
+        proposal_configuration_match = all(
+            profile_transport_configuration(
+                path,
+                implicit_physics_options=
+                    proposal_implicit_physics_options,
+            )
             == reference_configuration
-            for path in proposal_roots[1:] + cuda_roots
+            for path in proposal_roots[1:]
+        )
+        cuda_configuration_match = all(
+            profile_transport_configuration(path)
+            == reference_configuration
+            for path in cuda_roots
+        )
+        physics_configuration_match = (
+            proposal_configuration_match
+            and cuda_configuration_match
         )
     except (ImportError, ValueError):
         physics_configuration_match = False
@@ -929,11 +1013,13 @@ def main() -> int:
     )
     report = {
         "source": str(root),
+        "manifest": str(manifest_path),
         "events": {
             "proposal": int(electron_positron_proposal.shape[0]),
             "cuda": int(electron_positron_cuda.shape[0]),
         },
         "physics_configuration_match": physics_configuration_match,
+        "observer_layout_ignored_for_profile_configuration": True,
         "thinning": {
             "em_fraction": em_fraction,
             "threshold_GeV": em_fraction * primary_energy,

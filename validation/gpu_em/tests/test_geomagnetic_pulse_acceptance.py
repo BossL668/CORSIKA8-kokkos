@@ -141,6 +141,37 @@ class GeomagneticPulseAcceptanceTest(unittest.TestCase):
                 [cuda.resolve(), old_cuda.resolve()],
             )
 
+    def test_external_manifest_can_supply_cuda_without_direct_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dataset = root / "dataset"
+            proposal = dataset / "proposal_shard_000"
+            cuda = root / "cuda_source"
+            manifest = root / "analysis_manifest.json"
+            proposal.mkdir(parents=True)
+            cuda.mkdir()
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "additional_sources": {
+                            "proposal": [],
+                            "cuda": [str(cuda)],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                backend_output_directories(
+                    dataset, "legacy_proposal", manifest
+                ),
+                [proposal.resolve()],
+            )
+            self.assertEqual(
+                backend_output_directories(dataset, "cuda", manifest),
+                [cuda.resolve()],
+            )
+
     def test_raw_pulse_requires_contained_intervals_and_coverage(self):
         comparisons = {
             algorithm: {

@@ -127,6 +127,49 @@ int main() {
         queries.push_back(query);
       }
     }
+    // Production regression from proton seed 10200251, shower 22.  The
+    // electron starts 0.91 m below the USStdBK 11.4 km layer boundary. Its
+    // first root lies about 43 micrometres beyond the 0.2 rad magnetic step,
+    // so the endpoint is still inside the old layer but falls within the
+    // direction-aware ownership guard. This primitive must keep reporting
+    // no bounded root; the transport layer handles the guarded transition.
+    auto const production_boundary_index = queries.size();
+    Query production_boundary{};
+    production_boundary.particle.pid =
+        static_cast<std::int32_t>(EmPid::Electron);
+    production_boundary.particle.energy_GeV =
+        0.0011808222196131866;
+    production_boundary.particle.position_m[0] =
+        -32.82159051860207;
+    production_boundary.particle.position_m[1] =
+        9.385832804803458;
+    production_boundary.particle.position_m[2] =
+        6382399.0942817135;
+    production_boundary.particle.direction[0] =
+        -0.4188050119591029;
+    production_boundary.particle.direction[1] =
+        0.05284253648793534;
+    production_boundary.particle.direction[2] =
+        0.9065373838377857;
+    production_boundary.mass_GeV = 0.0005109989461;
+    production_boundary.charge_number = -1.;
+    production_boundary.field_T[0] =
+        2.5067327193094893e-05;
+    production_boundary.field_T[1] =
+        -1.10186120465756e-06;
+    production_boundary.field_T[2] =
+        -5.1031311292104371e-05;
+    production_boundary.sphere_radius_m = 6382400.;
+    production_boundary.maximum_intersection_distance_m =
+        maximumUniformMagneticStep(
+            production_boundary.particle,
+            production_boundary.mass_GeV,
+            production_boundary.charge_number,
+            production_boundary.field_T, 0.2)
+            .distance_m;
+    production_boundary.distance_m =
+        production_boundary.maximum_intersection_distance_m;
+    queries.push_back(production_boundary);
     auto parallel = queries.front();
     parallel.particle.direction[0] = 0.;
     parallel.particle.direction[1] = 1.;
@@ -190,6 +233,8 @@ int main() {
 
       for (std::size_t index = 0; index < queries.size();
            ++index) {
+        auto const host_device_tolerance =
+            index == production_boundary_index ? 2.e-13 : 2.e-15;
         auto const host_limit =
             maximumUniformMagneticStep(
                 queries[index].particle,
@@ -224,11 +269,11 @@ int main() {
             "host/device sphere-intersection status differs");
         requireNear(
             results[index].limit.distance_m,
-            host_limit.distance_m, 2.e-15,
+            host_limit.distance_m, host_device_tolerance,
             "host/device magnetic step limit differs");
         requireNear(
             results[index].advance.chord_length_m,
-            host_advance.chord_length_m, 2.e-15,
+            host_advance.chord_length_m, host_device_tolerance,
             "host/device magnetic chord differs");
         if (host_intersection.status ==
             MagneticIntersectionStatus::Success) {
@@ -256,11 +301,13 @@ int main() {
         for (int axis = 0; axis < 3; ++axis) {
           requireNear(
               results[index].advance.particle.position_m[axis],
-              host_advance.particle.position_m[axis], 2.e-15,
+              host_advance.particle.position_m[axis],
+              host_device_tolerance,
               "host/device magnetic position differs");
           requireNear(
               results[index].advance.particle.direction[axis],
-              host_advance.particle.direction[axis], 2.e-15,
+              host_advance.particle.direction[axis],
+              host_device_tolerance,
               "host/device magnetic direction differs");
         }
         auto const direction_norm =
@@ -274,6 +321,25 @@ int main() {
         requireNear(direction_norm, 1., 2.e-15,
                     "magnetic direction is not normalized");
       }
+      auto const& production_endpoint =
+          results[production_boundary_index].advance.particle;
+      auto const production_endpoint_radius = std::sqrt(
+          production_endpoint.position_m[0] *
+                  production_endpoint.position_m[0] +
+              production_endpoint.position_m[1] *
+                  production_endpoint.position_m[1] +
+              production_endpoint.position_m[2] *
+                  production_endpoint.position_m[2]);
+      require(
+          results[production_boundary_index]
+                  .intersection.status ==
+              MagneticIntersectionStatus::NoForwardIntersection &&
+              production_boundary.sphere_radius_m >=
+                  production_endpoint_radius &&
+              production_boundary.sphere_radius_m -
+                      production_endpoint_radius <=
+                  1.e-4,
+          "production regression no longer ends inside the boundary guard");
       require(
           results[queries.size() - 4].limit.status ==
                   MagneticStepStatus::Linear &&

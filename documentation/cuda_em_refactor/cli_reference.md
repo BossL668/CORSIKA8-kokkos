@@ -113,6 +113,8 @@ CUDA/CPU 验收时还必须保持以下原参数一致：
 | `--max-weight` | thinning 最大权重；0 使用应用的自动值。 |
 | `--seed` | 初始随机种子。相同 seed 保证各自后端可复现，不保证两种调度逐事例相同。 |
 | `--zenith`, `--azimuth` | 初级方向，单位 degree。 |
+| `--geomagnetic-model IGRF13\|IGRF14` | 地磁系数文件版本；本分支默认 `IGRF14`。文件从已安装的 `GeoMag/` 数据目录读取。 |
+| `--geomagnetic-year` | IGRF 计算年份；默认 `2027`，必须位于 1900–2030。模型和年份都会写入 GPU 输出 metadata。 |
 | `--observation-level`, `--injection-height` | 球形环境的观测面和注入高度，单位 m。 |
 | `--shower-core-x`, `--shower-core-y` | NWU 平面中的 shower core，单位 m。 |
 
@@ -344,6 +346,10 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--proposal-shards INT` | `1` | scalar ensemble 拆分进程数。 |
 | `--proposal-parallelism INT` | `1` | 同时运行的 scalar shard 上限。 |
 | `--resume-completed-proposal` | 关闭 | 严格验证 seed、事件数和命令后复用已完成 scalar shards。 |
+| `--resume-completed-cuda` | 关闭 | 在 post-processing 中断后严格核对并复用已闭合 CUDA 输出；要求同时启用 `--resume-completed-proposal`。 |
+| `--skip-proposal-run` | 关闭 | 不新建 scalar 事例，只池化至少一个 `--additional-proposal`，并运行新的 CUDA supplement。 |
+| `--allow-mixed-proposal-builds` | 关闭 | 显式允许不同机器分别构建的原版 scalar executable；每个来源仍必须有 provenance，且规范化物理配置和实际写出的天线布局必须完全一致。CUDA provenance 不放宽。 |
+| `--allow-mixed-cuda-builds` | 关闭 | 显式允许不同 CUDA executable 构建分层池化；rate-table SHA-256 与规范化物理配置仍必须完全一致，并保留全部 executable fingerprints。 |
 | `--overlap-backends` | 关闭 | 同时运行 CPU/CUDA；只用于物理统计，禁止用于性能比较。 |
 
 ### 7.2 物理配置
@@ -396,6 +402,27 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--key-scalar NAME` | 内置核心列表，可重复 | 替换同时接受 1% 和统计门禁的关键标量列表。 |
 | `--require-pass` | 关闭 | 门禁失败时返回 exit code 2。 |
 
+### 7.4 旧版硬编码地磁配置的比较
+
+直接调用 `compare_ensembles.py` 比较不具备地磁 CLI 的旧版 scalar 输出时，
+必须显式记录旧二进制中硬编码的系数文件与年份：
+
+```bash
+python validation/gpu_em/compare_ensembles.py \
+  --proposal ORIGINAL_CPU_OUTPUT \
+  --cuda CUDA_OUTPUT \
+  --output COMPARISON_OUTPUT \
+  --proposal-implicit-geomagnetic-model IGRF13 \
+  --proposal-implicit-geomagnetic-year 2025 \
+  --allow-cross-build-reference
+```
+
+两个 `--proposal-implicit-*` 参数必须成对给出。它们不会忽略地磁配置，也不会
+覆盖输出中已有的显式参数；若声明值与 CUDA 输出中的
+`--geomagnetic-model/--geomagnetic-year` 不一致，比较会在计算统计量前失败。
+`diagnose_longitudinal_mean_difference.py` 提供同名参数，使固定深度与 Xmax
+对齐诊断遵循相同的配置门禁。
+
 ## 8. `run_remote_cpu_ensemble.py`
 
 该脚本在固定 CPU 集合上运行独立 scalar showers。当前调度器使用全局动态队列：
@@ -412,6 +439,7 @@ energy deposit、ground particles、radio 和稳定性统计。
 | `--jobs INT` | `130` | 同时工作的固定核心数。 |
 | `--cpu-list SPEC` | `120-249` | 允许的逻辑 CPU，例如 `0-31,64-95`。 |
 | `--seed-start INT` | `10100051` | 第 0 个事例 seed；第 \(i\) 个使用 `seed-start+i`。 |
+| `--seed-list-file PATH` | 空 | 每行一个显式 seed；忽略空行和 `#` 注释，并取代 `--events/--seed-start`。用于修复后原 seed 精确重跑，重复、负值或非法 seed 会被拒绝。 |
 | `--primary-pdg INT` | `2212` | 初级 PDG。 |
 | `--energy-gev FLOAT` | `1e5` | 初级总能量。 |
 | `--zenith-deg FLOAT` | `0` | 天顶角。 |
@@ -445,7 +473,37 @@ python validation/gpu_em/run_remote_cpu_ensemble.py \
 
 再移除 `--dry-run`。不要让两套 runner 使用相同输出目录或重叠 CPU 集合。
 
-## 9. 生产示例
+## 9. `run_local_cuda_ensemble.py`
+
+该脚本把大型 CUDA 样本拆为可验证、可恢复的批次，并在每个批次后检查输出
+闭合、executable/table/天线/FLUKA 哈希以及 CUDA 完整状态。关键参数包括：
+
+| 参数 | 默认值 | 功能 |
+|---|---:|---|
+| `--target-events INT` | `500` | 最终需要的 CUDA shower 数。 |
+| `--batch-events INT` | `25` | 每个 `c8_air_shower` 进程内的事件数。 |
+| `--cuda-seed-start INT` | 必填 | 第一个 CUDA seed；后续连续递增。 |
+| `--geomagnetic-model IGRF13\|IGRF14` | `IGRF14` | 显式传给每个 CUDA 批次并写入 immutable manifest。 |
+| `--geomagnetic-year FLOAT` | `2027` | 与模型成对构成地磁物理配置。 |
+| `--defer-reference-comparison` | 关闭 | 只完成 CUDA 样本；等远端 CPU 数据同步后再统一比较。 |
+| `--existing-cuda PATH` | 空，可重复 | 将严格验证过的既有 CUDA shards 计入目标事件数。 |
+
+正式运行应始终显式传入 `--geomagnetic-model` 和 `--geomagnetic-year`，即使采用
+默认值。跨机器比较时，旧版 CPU 二进制的硬编码值需要按 7.4 节登记。
+
+当一个高能 shower 的 CPU 强子阶段较长、GPU wavefront 呈间歇 burst 时，可以
+用两个独立 runner 提高整批吞吐量，但必须同时满足：
+
+1. 两个 `--cuda-seed-start` 区间完全不重叠；
+2. 两个 `--output-root` 和进程工作目录各自独立；FLUKA 会在当前工作目录创建
+   `fort.11` 与 `.timer.out`，不能让独立主进程共享这些 scratch 文件；
+3. 各进程的 `--gpu-memory-fraction` 总和保留足够的 CUDA runtime/table 余量，
+   例如两个进程各用 `0.35`；
+4. 每个输出仍分别通过 queue overflow、CPU spill、radio fixed-point overflow、
+   表哈希和完整性检查，最后才按 provenance 池化；
+5. 并发总吞吐量不能冒充单 shower 隔离性能。
+
+## 10. 生产示例
 
 ```bash
 export C8_BUILD=/path/to/corsika8-gpu-build
@@ -461,6 +519,8 @@ export FLUPRO=/path/to/fluka
   --seed 10400001 \
   --zenith 0 \
   --azimuth 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
   --emcut 0.0005 \
   --emthin 1e-6 \
   --antenna-file "$C8_ANTENNAS" \
@@ -484,7 +544,7 @@ export FLUPRO=/path/to/fluka
 运行后至少核对：
 
 1. 顶层 `summary.yaml` 和 `simulation_timing/summary.yaml`；
-2. `gpu_em/config.yaml` 中的 executable、table、GPU、IGRF13 和参数 identity；
+2. `gpu_em/config.yaml` 中的 executable、table、GPU、IGRF14/2027 和参数 identity；
 3. `gpu_em/summary.yaml` 中的完整状态、fallback、overflow、显存和阶段计时；
 4. `CoREAS`/`ZHS` 的 config、summary 和 observers；
 5. 没有 NaN、负能量、未知 PID、表 hash 不匹配或未注册过程。

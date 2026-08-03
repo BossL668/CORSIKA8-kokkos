@@ -244,6 +244,115 @@ class EnsembleComparisonTest(unittest.TestCase):
                 minimum_bin_pass_fraction=0.95,
             )
 
+    def test_legacy_implicit_geomagnetic_configuration_is_explicitly_matched(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            proposal = root / "proposal"
+            cuda = root / "cuda"
+            proposal.mkdir()
+            cuda.mkdir()
+            common = "/c8 -p 2212 -E 1e8 --zenith 47 --azimuth 180"
+            with (proposal / "config.yaml").open(
+                "w", encoding="utf-8"
+            ) as destination:
+                yaml.safe_dump({"args": common}, destination)
+            with (cuda / "config.yaml").open(
+                "w", encoding="utf-8"
+            ) as destination:
+                yaml.safe_dump(
+                    {
+                        "args": (
+                            f"{common} --geomagnetic-model IGRF13 "
+                            "--geomagnetic-year 2025"
+                        )
+                    },
+                    destination,
+                )
+
+            implicit = {
+                "--geomagnetic-model": "IGRF13",
+                "--geomagnetic-year": "2025",
+            }
+            self.assertEqual(
+                canonical_physics_configuration(
+                    proposal,
+                    implicit_physics_options=implicit,
+                ),
+                canonical_physics_configuration(cuda),
+            )
+            self.assertNotEqual(
+                canonical_physics_configuration(proposal),
+                canonical_physics_configuration(cuda),
+            )
+            with self.assertRaisesRegex(ValueError, "conflicts"):
+                canonical_physics_configuration(
+                    cuda,
+                    implicit_physics_options={
+                        "--geomagnetic-model": "IGRF14",
+                        "--geomagnetic-year": "2027",
+                    },
+                )
+
+    def test_machine_specific_antenna_paths_use_written_observer_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first = root / "first"
+            second = root / "second"
+            for dataset, antenna in (
+                (first, "/host-a/antennas.txt"),
+                (second, "/host-b/antennas_nwu.txt"),
+            ):
+                dataset.mkdir()
+                with (dataset / "config.yaml").open(
+                    "w", encoding="utf-8"
+                ) as destination:
+                    yaml.safe_dump(
+                        {
+                            "args": (
+                                "/c8 -p 2212 -E 100000 "
+                                f"--antenna-file {antenna}"
+                            )
+                        },
+                        destination,
+                    )
+                for algorithm in ("CoREAS", "ZHS"):
+                    output = dataset / algorithm
+                    output.mkdir()
+                    with (output / "config.yaml").open(
+                        "w", encoding="utf-8"
+                    ) as destination:
+                        yaml.safe_dump(
+                            {
+                                "observers": {
+                                    f"{algorithm}_Antenna_0": {
+                                        "location": [0.0, 0.0, 6373680.0],
+                                        "duration": 400.0,
+                                        "number of bins": 400,
+                                        "sampling frequency": 1.0,
+                                    }
+                                }
+                            },
+                            destination,
+                        )
+            self.assertEqual(
+                canonical_physics_configuration(first),
+                canonical_physics_configuration(second),
+            )
+            zhs = yaml.safe_load(
+                (second / "ZHS" / "config.yaml").read_text()
+            )
+            zhs["observers"]["ZHS_Antenna_0"]["location"][0] = 1.0
+            with (second / "ZHS" / "config.yaml").open(
+                "w", encoding="utf-8"
+            ) as destination:
+                yaml.safe_dump(zhs, destination)
+            self.assertNotEqual(
+                canonical_physics_configuration(first),
+                canonical_physics_configuration(second),
+            )
+
     def test_mismatched_shard_configuration_is_rejected(self) -> None:
         first = make_ensemble("first")
         second = make_ensemble("second")
@@ -341,6 +450,58 @@ class EnsembleComparisonTest(unittest.TestCase):
                 "cuda",
                 [first, second],
             )
+
+    def test_explicit_mixed_proposal_provenance_is_recorded(self) -> None:
+        first = make_ensemble("proposal_0")
+        second = make_ensemble("proposal_1")
+        first.metadata["provenance_fingerprint"] = (
+            1,
+            "proposal",
+            "a" * 64,
+            None,
+        )
+        second.metadata["provenance_fingerprint"] = (
+            1,
+            "proposal",
+            "b" * 64,
+            None,
+        )
+        combined = concatenate_ensembles(
+            "proposal",
+            [first, second],
+            allow_mixed_provenance=True,
+        )
+        self.assertTrue(combined.metadata["mixed_provenance_allowed"])
+        self.assertEqual(
+            len(combined.metadata["provenance_fingerprints"]),
+            2,
+        )
+
+    def test_explicit_mixed_cuda_provenance_is_recorded(self) -> None:
+        first = make_ensemble("cuda_0")
+        second = make_ensemble("cuda_1")
+        first.metadata["provenance_fingerprint"] = (
+            1,
+            "cuda",
+            "a" * 64,
+            "c" * 64,
+        )
+        second.metadata["provenance_fingerprint"] = (
+            1,
+            "cuda",
+            "b" * 64,
+            "c" * 64,
+        )
+        combined = concatenate_ensembles(
+            "cuda",
+            [first, second],
+            allow_mixed_provenance=True,
+        )
+        self.assertTrue(combined.metadata["mixed_provenance_allowed"])
+        self.assertEqual(
+            len(combined.metadata["provenance_fingerprints"]),
+            2,
+        )
 
     def test_default_gate_covers_original_nine_key_scalars(self) -> None:
         self.assertEqual(len(DEFAULT_KEY_SCALAR_METRICS), 9)

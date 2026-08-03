@@ -37,6 +37,10 @@ def make_arguments(root: Path) -> argparse.Namespace:
         proposal_shards=3,
         proposal_parallelism=2,
         resume_completed_proposal=False,
+        resume_completed_cuda=False,
+        skip_proposal_run=False,
+        allow_mixed_proposal_builds=False,
+        allow_mixed_cuda_builds=False,
         overlap_backends=False,
         antenna_file=Path("/dev/null"),
         em_cut_gev=0.0005,
@@ -132,6 +136,89 @@ class PhysicsAcceptanceRunnerTest(unittest.TestCase):
             (args.output_root / "cuda").mkdir()
             with self.assertRaisesRegex(ValueError, "CPU-only"):
                 runner.validate_arguments(args)
+
+    def test_skip_proposal_requires_an_existing_scalar_source(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            args = make_arguments(Path(temporary))
+            args.skip_proposal_run = True
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires at least one --additional-proposal",
+            ):
+                runner.validate_arguments(args)
+
+    def test_cuda_resume_requires_scalar_resume_and_existing_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = make_arguments(root)
+            args.output_root.mkdir()
+            args.resume_completed_cuda = True
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires an existing cuda directory",
+            ):
+                runner.validate_arguments(args)
+            (args.output_root / "cuda").mkdir()
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires --resume-completed-proposal",
+            ):
+                runner.validate_arguments(args)
+            args.resume_completed_proposal = True
+            runner.validate_arguments(args)
+
+    def test_explicit_mixed_proposal_builds_retain_strict_cuda_check(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = make_arguments(root)
+            args.executable.write_bytes(b"current executable")
+            args.table.write_bytes(b"current table")
+            identity = runner.validation_identity(args)
+            additional = root / "additional"
+            additional.mkdir()
+            provenance = runner.output_provenance(
+                identity,
+                "proposal",
+                ["c8_air_shower"],
+            )
+            provenance["executable"]["sha256"] = "f" * 64
+            with (
+                additional / runner.VALIDATION_PROVENANCE_FILENAME
+            ).open("w", encoding="utf-8") as destination:
+                json.dump(provenance, destination)
+            args.additional_proposal = [additional]
+            args.allow_mixed_proposal_builds = True
+            runner.validate_additional_provenance(args, identity)
+
+    def test_mixed_cuda_builds_still_require_the_same_table(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = make_arguments(root)
+            args.executable.write_bytes(b"current executable")
+            args.table.write_bytes(b"current table")
+            identity = runner.validation_identity(args)
+            additional = root / "additional_cuda"
+            additional.mkdir()
+            provenance = runner.output_provenance(
+                identity,
+                "cuda",
+                ["c8_air_shower"],
+            )
+            provenance["executable"]["sha256"] = "f" * 64
+            with (
+                additional / runner.VALIDATION_PROVENANCE_FILENAME
+            ).open("w", encoding="utf-8") as destination:
+                json.dump(provenance, destination)
+            args.additional_cuda = [additional]
+            args.allow_mixed_cuda_builds = True
+            runner.validate_additional_provenance(args, identity, identity)
+            provenance["table"]["sha256"] = "e" * 64
+            with (
+                additional / runner.VALIDATION_PROVENANCE_FILENAME
+            ).open("w", encoding="utf-8") as destination:
+                json.dump(provenance, destination)
+            with self.assertRaisesRegex(ValueError, "schema/backend/table"):
+                runner.validate_additional_provenance(args, identity, identity)
 
     def test_stability_bootstrap_can_be_disabled(self):
         with tempfile.TemporaryDirectory() as temporary:

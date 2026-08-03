@@ -29,6 +29,7 @@
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
 #include <corsika/gpu/em/detail/DeviceWavefrontBucketing.hpp>
+#include <corsika/gpu/em/detail/ProfileProjection.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 
 namespace {
@@ -325,6 +326,148 @@ int main() {
     config.table_cache = temporary;
     auto const particles = makePhotons(4096, earth_radius_m);
     std::uint64_t constexpr FirstSecondary = 1000000;
+
+    {
+      // A synthetic accepted ionization vertex isolates the production
+      // profile kernel from transport sampling.  Only the muon parent may be
+      // added; an otherwise identical electron vertex is a negative control.
+      constexpr std::size_t Bins = 8;
+      // The last support value deliberately maps to bin == Bins.  Scalar
+      // ProductionWriter::addBin() skips that observation-boundary vertex;
+      // the resident GPU accumulator must do the same without poisoning the
+      // shower-wide invalid-record counter.
+      double const axis_grammage[]{0., 10., 20., 30., 80.};
+      double* device_axis = nullptr;
+      long long* device_histograms = nullptr;
+      corsika::gpu::em::detail::DeviceProfileCounters*
+          device_counters = nullptr;
+      LeptonTransportRecord* device_transports = nullptr;
+      BremsFinalStateRecord* device_final_states = nullptr;
+      require(
+          cudaMalloc(reinterpret_cast<void**>(&device_axis),
+                     sizeof(axis_grammage)) == cudaSuccess &&
+              cudaMalloc(
+                  reinterpret_cast<void**>(&device_histograms),
+                  8 * Bins * sizeof(long long)) == cudaSuccess &&
+              cudaMalloc(
+                  reinterpret_cast<void**>(&device_counters),
+                  sizeof(corsika::gpu::em::detail::
+                             DeviceProfileCounters)) == cudaSuccess &&
+              cudaMalloc(
+                  reinterpret_cast<void**>(&device_transports),
+                  3 * sizeof(LeptonTransportRecord)) == cudaSuccess &&
+              cudaMalloc(
+                  reinterpret_cast<void**>(&device_final_states),
+                  3 * sizeof(BremsFinalStateRecord)) == cudaSuccess,
+          "could not allocate synthetic muon production profile fixture");
+      require(
+          cudaMemcpy(device_axis, axis_grammage,
+                     sizeof(axis_grammage),
+                     cudaMemcpyHostToDevice) == cudaSuccess &&
+              cudaMemset(device_histograms, 0,
+                         8 * Bins * sizeof(long long)) == cudaSuccess &&
+              cudaMemset(device_counters, 0,
+                         sizeof(corsika::gpu::em::detail::
+                                    DeviceProfileCounters)) ==
+                  cudaSuccess,
+          "could not initialize synthetic muon production profile fixture");
+
+      LeptonTransportRecord transports[3]{};
+      BremsFinalStateRecord final_states[3]{};
+      for (std::size_t index = 0; index < 3; ++index) {
+        auto& transport = transports[index];
+        transport.input_index = index;
+        transport.interaction.input_index = index;
+        transport.interaction.process_id = IonizationProcessId;
+        transport.start.pid =
+            index == 1
+                ? static_cast<std::int32_t>(EmPid::Electron)
+                : static_cast<std::int32_t>(EmPid::MuonMinus);
+        transport.start.history_id = 700 + index;
+        transport.start.energy_GeV = 10.;
+        transport.start.weight =
+            index == 0 ? 3. : index == 1 ? 7. : 11.;
+        transport.start.position_m[2] = 0.5;
+        transport.end = transport.start;
+        transport.end.position_m[2] =
+            index == 0 ? 2.5 : index == 1 ? 3.5 : 4.;
+        transport.limit =
+            LeptonTransportLimit::InteractionCandidate;
+        auto& final_state = final_states[index];
+        final_state.input_index = index;
+        final_state.parent_history_id =
+            transport.start.history_id;
+        final_state.secondary_count = 2;
+        final_state.process_id = IonizationProcessId;
+      }
+      require(
+          cudaMemcpy(device_transports, transports,
+                     sizeof(transports),
+                     cudaMemcpyHostToDevice) == cudaSuccess &&
+              cudaMemcpy(device_final_states, final_states,
+                         sizeof(final_states),
+                         cudaMemcpyHostToDevice) == cudaSuccess,
+          "could not upload synthetic muon production profile fixture");
+
+      corsika::gpu::em::detail::DeviceProfileProjection
+          projection{};
+      projection.axis_direction[2] = 1.;
+      projection.axis_step_length_m = 1.;
+      projection.axis_grammage_g_per_cm2 = device_axis;
+      projection.axis_support_count = 5;
+      corsika::gpu::em::detail::DeviceProfileAccumulator
+          accumulator{};
+      accumulator.photons = device_histograms;
+      accumulator.electrons = device_histograms + Bins;
+      accumulator.positrons = device_histograms + 2 * Bins;
+      accumulator.muons_minus = device_histograms + 3 * Bins;
+      accumulator.muons_plus = device_histograms + 4 * Bins;
+      accumulator.muon_parent_productions =
+          device_histograms + 5 * Bins;
+      accumulator.energy_loss = device_histograms + 6 * Bins;
+      accumulator.muon_energy_loss =
+          device_histograms + 7 * Bins;
+      accumulator.counters = device_counters;
+      accumulator.bins = Bins;
+      accumulator.bin_width_g_per_cm2 = 10.;
+      accumulator.energy_loss_threshold_g_per_cm2 = 1.e-4;
+      accumulator.weight_scale = 1.;
+      accumulator.inverse_weight_scale = 1.;
+      accumulator.energy_scale = 1.e6;
+      accumulator.inverse_energy_scale = 1.e-6;
+      corsika::gpu::em::detail::
+          launchLeptonProfileAccumulationOnDevice(
+          projection, accumulator, device_transports, 3,
+          device_final_states, 3);
+      require(
+          cudaDeviceSynchronize() == cudaSuccess,
+          "synthetic muon production profile kernel failed");
+
+      long long histograms[8 * Bins]{};
+      corsika::gpu::em::detail::DeviceProfileCounters
+          counters{};
+      require(
+          cudaMemcpy(histograms, device_histograms,
+                     sizeof(histograms),
+                     cudaMemcpyDeviceToHost) == cudaSuccess &&
+              cudaMemcpy(&counters, device_counters,
+                         sizeof(counters),
+                         cudaMemcpyDeviceToHost) == cudaSuccess,
+          "could not download synthetic muon production profile fixture");
+      auto const parent_begin = histograms + 5 * Bins;
+      require(
+          parent_begin[3] == 3 &&
+              std::accumulate(parent_begin,
+                              parent_begin + Bins, 0LL) == 3 &&
+              counters.invalid_records == 0,
+          "device muon-parent production bin differs from scalar ceil(X/dX) semantics");
+
+      cudaFree(device_final_states);
+      cudaFree(device_transports);
+      cudaFree(device_counters);
+      cudaFree(device_histograms);
+      cudaFree(device_axis);
+    }
 
     auto below_cut = makePhotons(2, earth_radius_m);
     below_cut[0].energy_GeV = 0.0004;
@@ -773,6 +916,8 @@ int main() {
                   projection.output_bin_count &&
               profile.positrons.size() ==
                   projection.output_bin_count &&
+              profile.muon_parent_productions.size() ==
+                  projection.output_bin_count &&
               profile.energy_loss_GeV.size() ==
                   projection.output_bin_count,
           "resident photon profile counters or bin counts differ");
@@ -874,6 +1019,8 @@ int main() {
                   profile.electrons &&
               repeated_profile.positrons ==
                   profile.positrons &&
+              repeated_profile.muon_parent_productions ==
+                  profile.muon_parent_productions &&
               repeated_profile.energy_loss_GeV ==
                   profile.energy_loss_GeV,
           "reused backend profile is not bitwise identical to its first shower");

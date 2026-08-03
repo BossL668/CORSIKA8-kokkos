@@ -401,6 +401,56 @@ finish. If either changed while showers were running, the outputs receive no
 provenance sidecar and cannot be pooled. This closes the otherwise dangerous
 case where a build path is reused for a physically different binary.
 
+When the scalar sample was already generated elsewhere, `--skip-proposal-run`
+launches only the new CUDA arm and requires one or more
+`--additional-proposal` roots. Separately compiled original-CORSIKA binaries
+remain rejected unless `--allow-mixed-proposal-builds` is explicit. In that
+mode all per-source provenance fingerprints are retained, physics-bearing CLI
+tokens must still agree, and machine-specific antenna paths are replaced by a
+SHA-256 of the observer locations and sampling grids actually written to the
+CoREAS and ZHS output. CUDA executable identity remains strict by default,
+and rate-table identity is always strict.
+
+For an analysis-only pool whose build strata have already passed an explicit
+compatibility study, `compare_ensembles.py --allow-mixed-cuda-builds` applies
+the same fail-closed rule to CUDA sources: canonical physics must match and
+every executable/table provenance fingerprint remains recorded. This option
+never weakens the default and must not substitute for a build-stratum test.
+
+Two recovery/audit exceptions are explicit rather than automatic:
+
+- `--resume-completed-cuda` (together with
+  `--resume-completed-proposal`) verifies the exact stored command, seed and
+  event count before reusing a closed CUDA directory after an interrupted
+  post-processing stage.
+- `--allow-mixed-cuda-builds` permits separately built CUDA executables only
+  when the complete rate-table SHA-256 and canonical physics configuration
+  remain identical. Every executable fingerprint is retained, and
+  `compare_cuda_build_strata.py` should be run before treating the pooled
+  sample as one physics ensemble.
+
+When two builds have deliberately reused the same seed range, use the stricter
+fixed-seed audit instead of an ensemble compatibility test:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/compare_fixed_seed_cuda_outputs.py \
+  --reference /path/to/reference/batch_000 \
+  --candidate /path/to/candidate/batch_000 \
+  --output /path/to/fixed_seed_build_audit
+```
+
+The tool normalizes only the executable and output paths, requires every other
+command/configuration field and the rate-table hash to agree, and streams the
+longitudinal, production, energy-loss, interaction, ground-particle, CoREAS and
+ZHS Parquet files in bounded batches. Primary, first-interaction, ground,
+energy-deposition and radio summary values are checked as well. It hashes the
+exact logical numeric values, including floating-point bit patterns,
+independently of Parquet compression. This is the appropriate regression test
+for a non-physics change such as the CUDA-parent FLUKA timer fix; failed builds
+must not be pooled merely because their small samples look statistically
+compatible.
+
 For a distribution, at least 95% of active bins must lie within three combined
 standard errors. Its relative L1 difference is reported as a convergence
 diagnostic, but the 1% gate is applied to the explicitly listed key scalar
@@ -612,6 +662,7 @@ at one radius so that the statistical unit remains one shower.
 conda run -n corsika_venv \
   python validation/gpu_em/analyze_geomagnetic_pulse_distributions.py \
   --dataset /path/to/original_vs_cuda_radio_ensemble \
+  --manifest /path/to/external_pooled_manifest.json \
   --radius-m 100 \
   --output /path/to/geomagnetic_pulse_comparison \
   --bootstrap-repetitions 20000 \
@@ -630,6 +681,17 @@ shape diagnostic, a minimum shower count, and sufficient fitted-width
 coverage for both CoREAS and ZHS. It does not accept a broad confidence
 interval merely because it contains one, and it never treats
 same-integer-seed showers as paired histories.
+
+`--manifest` is optional. It lets a read-only CPU shard directory be combined
+with explicitly listed CUDA roots without copying a `run_manifest.json` into
+the simulation output. `analyze_shower_feature_distributions.py`,
+`plot_single_event_runtime_histograms.py`, and the radial tool accept the same
+external-manifest pattern.
+
+The robust width filter treats a log-MAD at floating-point roundoff scale as
+zero before applying its factor gate. This prevents a discretized fitter bin
+from turning neighbouring physical width bins into enormous robust-z outliers
+when the ensemble becomes large.
 
 The four simultaneous KS shape diagnostics (CoREAS/ZHS amplitude and width)
 use a Holm-Bonferroni correction at the requested family-wise alpha. This
@@ -660,11 +722,27 @@ comparison tool rather than the multi-energy electron scaling-law matrix:
 conda run -n corsika_venv \
   python validation/gpu_em/analyze_geomagnetic_radial_comparison.py \
   --dataset /path/to/completed_cpu_cuda_ensemble \
+  --manifest /path/to/external_pooled_manifest.json \
   --output /path/to/geomagnetic_radial_validation \
-  --minimum-radius-m 1 \
-  --maximum-radius-m 600 \
+  --minimum-r-perp-m 1 \
+  --maximum-r-perp-m 600 \
   --bootstrap-repetitions 20000
 ```
+
+The horizontal coordinate is the perpendicular shower-axis distance used by
+`pulse_analysis_modular`, not the horizontal ground radius:
+
+\[
+r_\perp=\left\|\mathbf d-(\mathbf d\!\cdot\!\hat{\mathbf n})
+\hat{\mathbf n}\right\|,
+\]
+
+where \(\mathbf d=(x-x_{\rm core},y-y_{\rm core},0)\) is the antenna
+displacement in local NWU coordinates and \(\hat{\mathbf n}\) is constructed
+from the configured zenith and azimuth. The exported per-antenna CSV retains
+both `r_perp_m` and `ground_radius_m`; `radius_m` remains only as a backward-
+compatible internal alias of `r_perp_m`. A legacy extraction containing only
+ground radius is rejected by `--reuse-extracted` and must be regenerated.
 
 It plots CoREAS/ZHS amplitude and width against every common nominal antenna
 radius, plus separate CUDA/CPU ratio panels. Bands on the main curves are the
@@ -676,8 +754,37 @@ values at \(10^{-6}\) ns resolution are marked `diagnostic_only`: this catches
 the max-Q fitter sitting on its minimum window instead of presenting a
 spurious ratio of exactly one as physics agreement. The extractor loads one
 backend/algorithm stream at a time to bound memory; `--reuse-extracted`
-regenerates statistics and figures from its existing CSV files without
-reading waveforms again.
+reapplies the current robust width filter, rebuilds the per-shower aggregates,
+and regenerates statistics and figures from the existing per-antenna CSV
+without reading waveforms again.
+
+## Completion-conditioned milestone diagnostics
+
+`watch_interim_campaign_milestones.py` can repeat the complete shower,
+post-Xmax, CoREAS/ZHS, radial, and runtime plotting chain while a distributed
+campaign is still running. It only consumes closed CPU sources and CUDA
+batches that the independent production watcher has already strictly audited.
+For example:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/watch_interim_campaign_milestones.py \
+  --distributed-status /path/to/distributed_campaign_status.json \
+  --automatic-status /path/to/automatic_completion_watcher_status.json \
+  --local-campaign /path/to/cuda_shard_a \
+  --local-campaign /path/to/cuda_shard_b \
+  --final-root /path/to/final_campaign_root \
+  --status-json /path/to/interim_milestone_watcher_status.json \
+  --pulse-analysis-root /path/to/pulse_analysis_modular \
+  --milestone 50 --milestone 100 --milestone 250
+```
+
+These products are deliberately not acceptance evidence. Until the remote
+partition is terminal, the CPU subset is conditioned on which jobs happened
+to finish first. Every generated `interim_manifest.json` records the exact
+source roots and seed sets, carries this selection warning, and marks the
+sample ineligible for final acceptance. The watcher never controls simulation
+processes and is independent of the exact-seed 500+500 finalizer.
 
 ## Final fail-closed evidence audit
 
@@ -776,3 +883,244 @@ energy.  In addition to CPU/CUDA exponent differences, the JSON output
 retains the CUDA/CPU ensemble-mean ratio at every energy.  This distinction
 is important: two backends can agree in slope while retaining a
 normalization offset.
+
+## Post-Xmax electromagnetic profile analysis
+
+`analyze_post_xmax_em_profiles.py` removes the artificial broadening caused
+by averaging independent showers at fixed atmospheric depth. It locates the
+quadratic (e^-+e^+) maximum of each shower, interpolates all EM components
+onto a common \(\Delta X=X-X_{\max}^{e^\pm}\) grid, and writes absolute,
+per-shower-normalized and CUDA/CPU-ratio figures:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/analyze_post_xmax_em_profiles.py \
+  --ensemble-root /path/to/completed_cpu_cuda_ensemble \
+  --output-dir /path/to/post_xmax_em_profile_analysis \
+  --resamples 10000
+```
+
+For a pooled analysis assembled from several immutable campaigns, keep the
+simulation `run_manifest.json` files unchanged and pass a separate manifest:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/analyze_post_xmax_em_profiles.py \
+  --ensemble-root /path/to/cpu_profile_shards \
+  --manifest /path/to/final_analysis_manifest.json \
+  --output-dir /path/to/post_xmax_em_profile_analysis_500
+```
+
+The separate JSON uses the same `additional_sources.proposal` and
+`additional_sources.cuda` lists understood by the normal validation
+manifest. This is useful when an acceptance run spans more than one verified
+executable hash: provenance stays immutable while the pooled source list is
+explicit.
+
+The longitudinal writer has a common depth grid whose bins beyond the fixed
+observation surface are zero-filled. The analysis detects the last observed
+bin per shower and converts later bins to missing values. Ratio curves and
+the common tail integral require 90% coverage by default; every point in the
+CSV retains the actual CPU and CUDA shower counts. Bootstrap resampling uses
+complete showers, not longitudinal bins. The normalized curves divide every
+shower by its own value at \(\Delta X=0\), separating post-maximum shape from
+normalization and (X_{\max})-distribution effects.
+
+## Resumable local CUDA ensemble supplements
+
+`run_local_cuda_ensemble.py` extends existing completed CUDA ensembles to a
+target count using sequential fixed-size batches. It hashes the executable,
+rate table, original reference executable, FLUKA library, antenna file and
+physics runner before starting. A completed batch is reused only after its
+event count, seed, output set and CUDA provenance have been checked; an
+incomplete existing batch or a mid-campaign hash change stops the run.
+
+The following pattern counts two existing 50-shower outputs and adds sixteen
+25-shower batches to reach 500 total showers:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/run_local_cuda_ensemble.py \
+  --executable ../corsika8_gpu_refactor_build_cuda/applications/c8_air_shower \
+  --proposal-executable ../corsika-21cma/corsika-build/applications/c8_air_shower \
+  --table ../corsika8_gpu_refactor_build_cuda/gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt \
+  --physics-runner validation/gpu_em/run_physics_acceptance.py \
+  --output-root /path/to/local_cuda500 \
+  --existing-cuda /path/to/first_cuda50 \
+  --existing-cuda /path/to/second_cuda50 \
+  --reference-proposal-root /path/to/one_event_cpu_shards \
+  --antenna-file /path/to/antennas.txt \
+  --flupro /path/to/fluka \
+  --target-events 500 \
+  --batch-events 25 \
+  --cuda-seed-start 10200101
+```
+
+Each batch is a normal `run_physics_acceptance.py` result with its own exact
+command, provenance and CPU-reference diagnostic. `campaign_manifest.json`
+records the immutable configuration, completed batches, runtime and running
+total. Re-running the same command resumes only fully closed batches; it
+never overwrites a partial batch automatically.
+
+The runner no longer fixes the original 100 TeV vertical configuration in
+its source. The primary energy and PDG ID, zenith/azimuth, IGRF coefficient
+model and epoch, EM cut and thinning,
+automatic or explicit maximum weight, hadron/muon/tau cuts, core, ring, GPU
+batch/memory/table controls and FLUKA-process scheduling controls are command
+line options. All values are copied into the immutable campaign manifest and
+the exact child command. `--existing-cuda` is optional, so a new campaign can
+start from zero. If CPU references were linked on another machine, use
+`--allow-mixed-proposal-builds`: executable hashes remain in provenance while
+the later ensemble comparison still requires an identical canonical physics
+configuration and observer layout.
+
+For long GPU campaigns whose remote CPU references are not ready yet, select
+`--defer-reference-comparison`. This runs the same CUDA executable directly
+in resumable batches, writes normal CORSIKA output plus schema-1 CUDA
+provenance for every closed batch, and records `comparison_status: deferred`
+in the campaign manifest. It does not weaken the final comparison; it moves
+that comparison to the later pooled-analysis step. For example, the 100 PeV
+inclined proton campaign uses:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/run_local_cuda_ensemble.py \
+  --executable ../corsika8_gpu_refactor_build_cuda/applications/c8_air_shower \
+  --proposal-executable ../corsika-21cma/corsika-build/applications/c8_air_shower \
+  --table ../corsika8_gpu_refactor_build_cuda/gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt \
+  --physics-runner validation/gpu_em/run_physics_acceptance.py \
+  --output-root /path/to/proton_100PeV_theta47_phi180_cuda500 \
+  --defer-reference-comparison \
+  --antenna-file /path/to/antennas.txt \
+  --flupro /path/to/fluka \
+  --target-events 500 --batch-events 5 --cuda-seed-start 10400001 \
+  --primary-pdg 2212 --energy-gev 1e8 \
+  --zenith-deg 47 --azimuth-deg 180 \
+  --geomagnetic-model IGRF13 --geomagnetic-year 2025 \
+  --em-cut-gev 0.0005 --em-thinning 1e-4 --maximum-weight 0 \
+  --had-cut-gev 0.3 --mu-cut-gev 0.3 --tau-cut-gev 0.3 \
+  --gpu-min-batch 4096 --gpu-memory-fraction 0.70 \
+  --cuda-hadronic-workers 4 --cuda-hadronic-min-batch 64 \
+  --cuda-hadronic-target-batch-ms 5 --cuda-hadronic-max-batch 256
+```
+
+With `--maximum-weight 0`, the child command deliberately omits
+`--max-weight` and preserves `c8_air_shower`'s automatic Kobal maximum
+weight. A direct-production batch that exits before writing all summaries and
+provenance is not silently reused; inspect or quarantine that batch before
+resuming.
+
+When CPU-heavy hadronic phases leave one GPU process intermittently idle,
+separate the seed interval into two independent runner roots and reduce the
+memory fraction of each process. For example, two 250-event processes can use
+disjoint ranges `10400001--10400250` and `10400251--10400500`, each with
+`--gpu-memory-fraction 0.35`. Run them from different current working
+directories because FLUKA creates `fort.11` and `.timer.out` there. Pool the
+outputs only after both provenance records show the same executable, table,
+physics, antenna layout and no fatal overflow. This is an ensemble-throughput
+optimization, not a single-shower benchmark.
+
+## Exact remote CPU failure reruns
+
+`run_remote_cpu_ensemble.py` normally assigns the contiguous schedule
+`seed-start + index`. If a production shard fails because of an output-layer
+bug, replacing it with an arbitrary fresh seed can censor showers correlated
+with that failure. After fixing the output code, write the exact failed seeds
+to a UTF-8 file and rerun them with `--seed-list-file`:
+
+```text
+# failed_seeds.txt
+10300030
+10300040
+10300047
+10300067
+```
+
+```bash
+python validation/gpu_em/run_remote_cpu_ensemble.py \
+  --executable /path/to/fixed_original_c8_air_shower \
+  --output-root /path/to/exact_failed_seed_reruns \
+  --antenna-file /path/to/antennas_nwu.txt \
+  --seed-list-file failed_seeds.txt \
+  --jobs 4 --cpu-list 120-123 \
+  --energy-gev 1e8 --primary-pdg 2212 \
+  --zenith-deg 47 --azimuth-deg 180 \
+  --em-cut-gev 0.0005 --em-thinning 1e-4 \
+  --had-cut-gev 0.3 --mu-cut-gev 0.3 --tau-cut-gev 0.3
+```
+
+The list replaces `--events` and `--seed-start`; blank lines and `#` comments
+are ignored. Empty, duplicate, negative or malformed seeds are rejected, and
+the seed-list content hash is stored in immutable provenance.
+
+## Distributed campaign staging monitor
+
+`monitor_distributed_campaign.py` reads only the `completed_indices` declared
+by one or more remote CPU manifests. It incrementally `rsync`s those closed
+shards, then checks the seed, scalar executable SHA-256, runner provenance,
+closed shower timing and required profile/particle/radio files. Incomplete
+remote directories are never selected merely because they exist. It also
+records the completed/target counts of local CUDA campaign roots in one atomic
+status JSON.
+
+```bash
+python validation/gpu_em/monitor_distributed_campaign.py \
+  --remote-host SERVER_ALIAS \
+  --ssh-control-path /tmp/c8-server.sock \
+  --remote-campaign preflight=/absolute/remote/preflight \
+  --remote-campaign main=/absolute/remote/main \
+  --local-campaign /absolute/local/cuda-shard-a \
+  --local-campaign /absolute/local/cuda-shard-b \
+  --staging-root /mnt/d/CorsikaData/cpu-staging \
+  --status-json /mnt/d/CorsikaData/final/distributed_status.json \
+  --poll-seconds 60
+```
+
+Use `--once` for a single validation/synchronization pass. Continuous mode
+limits its sleep interval to at most 60 seconds, overwrites the atomic status
+snapshot, and prints only a compact heartbeat; it does not rebuild binaries,
+rerun failed seeds or start final statistical analysis automatically.
+
+## Fail-closed distributed campaign finalization
+
+`finalize_distributed_campaign.py` is the single entry point used after all
+remote CPU shards, exact failed-seed reruns and local CUDA batches have been
+staged.  Its default mode is a read-only readiness audit.  Before any plot is
+made it requires the exact requested CPU and CUDA seed intervals, closed
+per-shower timing records, zero fatal CUDA integrity counters, complete
+profile/particle/CoREAS/ZHS files, matching antenna contents and observer
+layouts, and one canonical physics configuration.  Independent scalar builds
+from the output-writer repair are retained as explicit provenance strata;
+CUDA executable and table hashes may not vary.
+
+For the 100 PeV, 47-degree campaign, first run without `--execute`:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/finalize_distributed_campaign.py \
+  --final-root /mnt/d/CorsikaData/corsika_validation_results/final_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_cuda500_v1 \
+  --proposal-root /mnt/d/CorsikaData/corsika_validation_results/remote_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_staging_v1 \
+  --cuda-root /mnt/d/CorsikaData/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardA_igrf13_2025 \
+  --cuda-root /mnt/d/CorsikaData/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardB_igrf13_2025 \
+  --expected-events 500 \
+  --proposal-seed-start 10300001 --cuda-seed-start 10400001 \
+  --antenna-sha256 238a481851b4d39e9fcc18ed5afefd5ea90a806e235ad7aa6e3bddae0e138668
+```
+
+The audit writes `finalization_readiness.json` atomically and exits before
+analysis if a seed, file or configuration is missing.  Once its status is
+`audit_complete`, repeat the same command with `--execute`.  The finalizer
+then creates an immutable pooled source manifest and runs, in order:
+
+- the 500-versus-500 ensemble comparison;
+- scalar-feature and all-component longitudinal plots;
+- per-shower-aligned post-\(X_{\max}\) EM profiles and fixed-depth diagnosis;
+- CoREAS/ZHS geomagnetic amplitude and pulse-width distributions using
+  `pulse_analysis_modular`;
+- amplitude and width versus shower-plane radius; and
+- CPU/GPU single-shower runtime histograms.
+
+Every child command and combined log is retained beside the plots.  The
+readiness status becomes `complete` only after all seven analysis steps exit
+successfully; a statistical discrepancy is still plotted and reported rather
+than being hidden by the orchestration layer.

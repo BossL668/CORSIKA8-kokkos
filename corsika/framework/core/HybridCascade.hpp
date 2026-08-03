@@ -48,6 +48,17 @@ namespace corsika {
                 std::declval<transport::HistoryId>(),
                 std::declval<transport::StepId>()))>>
         : std::true_type {};
+
+    template <typename T, typename = void>
+    struct HasReadyForScalarInterleave : std::false_type {};
+
+    template <typename T>
+    struct HasReadyForScalarInterleave<
+        T,
+        std::void_t<decltype(
+            std::declval<T const&>()
+                .readyForScalarInterleave())>>
+        : std::true_type {};
   } // namespace hybrid_detail
 
   struct DisabledHybridEmRouter {};

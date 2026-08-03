@@ -2048,6 +2048,76 @@ int main(int argc, char** argv) {
                     .observations.size() == 1,
         "near-observation magnetic lepton must terminate on the GPU");
 
+    // Production regression from proton seed 10200251, shower 22.  The
+    // maximum-deflection step ends about 43 micrometres inside the USStdBK
+    // 11.4 km boundary.  Direction-aware layer ownership already assigns
+    // that guarded endpoint to the outward layer, so it is a valid layer
+    // transition rather than a magnetic transport failure.
+    auto boundary_guard_environment = environment;
+    boundary_guard_environment.magnetic_field_T[0] =
+        2.5067327193094893e-05;
+    boundary_guard_environment.magnetic_field_T[1] =
+        -1.10186120465756e-06;
+    boundary_guard_environment.magnetic_field_T[2] =
+        -5.1031311292104371e-05;
+    boundary_guard_environment.maximum_magnetic_deflection_rad = 0.2;
+    CudaEmBackend boundary_guard_magnetic;
+    boundary_guard_magnetic.initialize(
+        boundary_guard_environment, descriptor, config);
+    EmParticleState boundary_guard_particle{};
+    boundary_guard_particle.pid =
+        static_cast<std::int32_t>(EmPid::Electron);
+    boundary_guard_particle.medium_id = 17;
+    boundary_guard_particle.energy_GeV =
+        0.0011808222196131866;
+    boundary_guard_particle.position_m[0] =
+        -32.82159051860207;
+    boundary_guard_particle.position_m[1] =
+        9.385832804803458;
+    boundary_guard_particle.position_m[2] =
+        6382399.0942817135;
+    boundary_guard_particle.direction[0] =
+        -0.4188050119591029;
+    boundary_guard_particle.direction[1] =
+        0.05284253648793534;
+    boundary_guard_particle.direction[2] =
+        0.9065373838377857;
+    boundary_guard_particle.weight = 1.;
+    boundary_guard_particle.history_id = 10021;
+    boundary_guard_particle.step_id = 13;
+    std::vector<EmParticleState> boundary_guard_particles;
+    for (std::uint64_t index = 0; index < 32; ++index) {
+      auto particle = boundary_guard_particle;
+      particle.history_id += index;
+      boundary_guard_particles.push_back(particle);
+    }
+    auto const boundary_guard_result =
+        boundary_guard_magnetic.runLeptonDevicePipelineForValidation(
+            boundary_guard_particles, 30031);
+    auto const boundary_guard_record_count =
+        boundary_guard_result.transport_records.size();
+    auto const boundary_guard_fallback_count =
+        boundary_guard_result.transport_fallback_events.size();
+    auto const accepted_guard_transition = std::any_of(
+        boundary_guard_result.transport_records.begin(),
+        boundary_guard_result.transport_records.end(),
+        [](LeptonTransportRecord const& record) {
+          return record.limit ==
+                     LeptonTransportLimit::LayerBoundary &&
+                 record.start_layer_index == 1 &&
+                 record.end_layer_index == 2 &&
+                 record.limiting_radius_m == 6382400.;
+        });
+    require(
+        boundary_guard_result.transport_fallback_events.empty() &&
+            boundary_guard_result.transport_records.size() ==
+                boundary_guard_particles.size() &&
+            accepted_guard_transition,
+        "guard-owned adjacent layer endpoint was not accepted as a transition: "
+        "records=" + std::to_string(boundary_guard_record_count) +
+            ", fallbacks=" +
+            std::to_string(boundary_guard_fallback_count));
+
     auto moliere_source = source;
     moliere_source.metadata.moliere =
         makeMoliereMetadata();

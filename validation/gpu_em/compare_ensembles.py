@@ -11,6 +11,7 @@ shower fluctuations by many orders of magnitude.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import shlex
@@ -156,6 +157,15 @@ OMITTABLE_PHYSICS_OPTION_DEFAULTS = {
     "--radio-pretrigger-ns": "10",
 }
 
+# These options were hard-coded rather than exposed through the CLI in the
+# original 21CMA application.  Keep them physics-bearing, but place them at a
+# stable position in the canonical command so an explicitly documented legacy
+# value can be compared with the refactor's explicit CLI value.
+NORMALIZED_PHYSICS_OPTIONS_WITH_VALUE = (
+    "--geomagnetic-model",
+    "--geomagnetic-year",
+)
+
 
 def canonical_command_token(token: str) -> str:
     alias = OPTION_ALIASES.get(token)
@@ -249,6 +259,43 @@ def parse_args() -> argparse.Namespace:
             "the scalar reference. Physics configurations must still match."
         ),
     )
+    parser.add_argument(
+        "--allow-mixed-proposal-builds",
+        action="store_true",
+        help=(
+            "Permit scalar shards produced by separately built original "
+            "CORSIKA executables. Every shard must remain provenanced and "
+            "have an identical canonical physics configuration."
+        ),
+    )
+    parser.add_argument(
+        "--allow-mixed-cuda-builds",
+        action="store_true",
+        help=(
+            "Permit CUDA shards produced by separately validated executable "
+            "builds. Every shard must remain provenanced and have an "
+            "identical canonical physics configuration."
+        ),
+    )
+    parser.add_argument(
+        "--proposal-implicit-geomagnetic-model",
+        choices=("IGRF13", "IGRF14"),
+        help=(
+            "Document the geomagnetic coefficient model hard-coded by a "
+            "legacy scalar executable whose config.yaml cannot contain the "
+            "equivalent option. Must be used together with "
+            "--proposal-implicit-geomagnetic-year."
+        ),
+    )
+    parser.add_argument(
+        "--proposal-implicit-geomagnetic-year",
+        type=float,
+        help=(
+            "Document the geomagnetic epoch hard-coded by a legacy scalar "
+            "executable. Must be used together with "
+            "--proposal-implicit-geomagnetic-model."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -263,7 +310,12 @@ def read_yaml(path: Path) -> Any:
     if not path.is_file():
         raise ValueError(f"required YAML file is missing: {path}")
     with path.open("r", encoding="utf-8") as source:
-        return yaml.safe_load(source)
+        # GPU summaries can contain several megabytes of nested process
+        # statistics per batch.  The C loader is both substantially faster
+        # and avoids the pure-Python reader's pathological behaviour on
+        # these long mappings.  SafeLoader remains the portable fallback.
+        loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+        return yaml.load(source, Loader=loader)
 
 
 def read_validation_provenance(
@@ -341,7 +393,71 @@ def provenance_fingerprint(
     )
 
 
-def canonical_physics_configuration(root: Path) -> tuple[str, ...]:
+def observer_layout_fingerprint(root: Path) -> str | None:
+    """Hash the radio geometry actually written to the shower output.
+
+    Input antenna paths are machine-specific and therefore cannot be compared
+    literally when an ensemble is produced on another host.  The output
+    configuration is authoritative: it records every observer location and
+    the time-grid definition used by both radio algorithms.
+    """
+
+    def normalized_float(value: Any) -> float:
+        # CPU and CUDA YAML writers may serialize the same configured value
+        # as 400 versus 399.99999999999994.  Twelve significant digits are
+        # far tighter than any observer-position or sampling tolerance here.
+        return float(f"{float(value):.12g}")
+
+    algorithms: dict[str, list[dict[str, Any]]] = {}
+    for algorithm in ("CoREAS", "ZHS"):
+        path = root / algorithm / "config.yaml"
+        if not path.is_file():
+            return None
+        config = read_yaml(path)
+        observers = (
+            config.get("observers")
+            if isinstance(config, dict)
+            else None
+        )
+        if not isinstance(observers, dict):
+            return None
+        records: list[dict[str, Any]] = []
+        for name, observer in sorted(observers.items()):
+            if not isinstance(observer, dict):
+                raise ValueError(f"invalid radio observer in {path}: {name}")
+            location = observer.get("location")
+            if not isinstance(location, list) or len(location) != 3:
+                raise ValueError(
+                    f"invalid radio observer location in {path}: {name}"
+                )
+            records.append(
+                {
+                    "name": str(name),
+                    "location_m": [
+                        normalized_float(value) for value in location
+                    ],
+                    "duration_ns": normalized_float(observer["duration"]),
+                    "number_of_bins": int(observer["number of bins"]),
+                    "sampling_frequency_GHz": normalized_float(
+                        observer["sampling frequency"]
+                    ),
+                }
+            )
+        algorithms[algorithm] = records
+    encoded = json.dumps(
+        algorithms,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def canonical_physics_configuration(
+    root: Path,
+    *,
+    implicit_physics_options: dict[str, str] | None = None,
+) -> tuple[str, ...]:
     """Return the physics-bearing CLI tokens stored by OutputManager.
 
     Seeds, event counts, output paths, verbosity and backend implementation
@@ -361,7 +477,21 @@ def canonical_physics_configuration(root: Path) -> tuple[str, ...]:
     if not command:
         raise ValueError(f"empty run command metadata in {root / 'config.yaml'}")
 
+    implicit = {
+        str(option): canonical_command_token(str(value))
+        for option, value in (implicit_physics_options or {}).items()
+    }
+    unsupported_implicit = set(implicit).difference(
+        NORMALIZED_PHYSICS_OPTIONS_WITH_VALUE
+    )
+    if unsupported_implicit:
+        raise ValueError(
+            "unsupported implicit physics options: "
+            + ", ".join(sorted(unsupported_implicit))
+        )
+
     canonical: list[str] = []
+    normalized: dict[str, str] = {}
     index = 1  # executable path is build provenance, not a physics option
     while index < len(command):
         token = command[index]
@@ -370,6 +500,42 @@ def canonical_physics_configuration(root: Path) -> tuple[str, ...]:
         if token.startswith("--") and "=" in token:
             option, attached_value = token.split("=", 1)
         option = canonical_command_token(option)
+
+        if option in NORMALIZED_PHYSICS_OPTIONS_WITH_VALUE:
+            if attached_value is None:
+                if index + 1 >= len(command):
+                    raise ValueError(
+                        f"run command option {option} has no value in {root}"
+                    )
+                value = canonical_command_token(command[index + 1])
+                index += 2
+            else:
+                value = canonical_command_token(attached_value)
+                index += 1
+            if option in normalized:
+                raise ValueError(
+                    f"run command repeats physics option {option} in {root}"
+                )
+            normalized[option] = value
+            continue
+
+        if option == "--antenna-file":
+            if attached_value is None:
+                if index + 1 >= len(command):
+                    raise ValueError(
+                        f"run command option {option} has no value in {root}"
+                    )
+                index += 2
+            else:
+                index += 1
+            layout = observer_layout_fingerprint(root)
+            canonical.extend(
+                (
+                    "--observer-layout-sha256",
+                    layout if layout is not None else "radio-output-unavailable",
+                )
+            )
+            continue
 
         if option in OMITTABLE_PHYSICS_OPTION_DEFAULTS:
             if attached_value is None:
@@ -410,6 +576,22 @@ def canonical_physics_configuration(root: Path) -> tuple[str, ...]:
                 canonical_command_token(attached_value)
             )
         index += 1
+
+    for option in NORMALIZED_PHYSICS_OPTIONS_WITH_VALUE:
+        explicit_value = normalized.get(option)
+        implicit_value = implicit.get(option)
+        if (
+            explicit_value is not None
+            and implicit_value is not None
+            and explicit_value != implicit_value
+        ):
+            raise ValueError(
+                f"explicit {option}={explicit_value} in {root} conflicts "
+                f"with documented implicit value {implicit_value}"
+            )
+        value = explicit_value if explicit_value is not None else implicit_value
+        if value is not None:
+            canonical.extend((option, value))
     return tuple(canonical)
 
 
@@ -635,6 +817,7 @@ def extract_ensemble(
     expect_gpu: bool,
     *,
     allow_legacy_provenance: bool = False,
+    implicit_physics_options: dict[str, str] | None = None,
 ) -> Ensemble:
     provenance = read_validation_provenance(
         root,
@@ -856,7 +1039,13 @@ def extract_ensemble(
         "events": len(showers),
         "source": str(root),
         "gpu_integrity_checked": expect_gpu,
-        "physics_configuration": canonical_physics_configuration(root),
+        "physics_configuration": canonical_physics_configuration(
+            root,
+            implicit_physics_options=implicit_physics_options,
+        ),
+        "implicit_physics_options": dict(
+            implicit_physics_options or {}
+        ),
         "validation_provenance": provenance,
         "provenance_fingerprint": provenance_fingerprint(provenance),
     }
@@ -874,6 +1063,8 @@ def extract_ensemble(
 def concatenate_ensembles(
     name: str,
     ensembles: list[Ensemble],
+    *,
+    allow_mixed_provenance: bool = False,
 ) -> Ensemble:
     if not ensembles:
         raise ValueError(f"cannot concatenate an empty {name} ensemble list")
@@ -902,7 +1093,8 @@ def concatenate_ensembles(
                 f"{ensembles[0].root} versus {ensemble.root}"
             )
         if (
-            ensemble.metadata.get("provenance_fingerprint")
+            not allow_mixed_provenance
+            and ensemble.metadata.get("provenance_fingerprint")
             != reference_provenance
         ):
             raise ValueError(
@@ -954,6 +1146,12 @@ def concatenate_ensembles(
         )
 
     total = len(scalars)
+    provenance_fingerprints = list(
+        dict.fromkeys(
+            ensemble.metadata.get("provenance_fingerprint")
+            for ensemble in ensembles
+        )
+    )
     return Ensemble(
         name=name,
         root=ensembles[0].root,
@@ -982,6 +1180,10 @@ def concatenate_ensembles(
                     "validation_provenance"
                 ),
             "provenance_fingerprint": reference_provenance,
+            "provenance_fingerprints": provenance_fingerprints,
+            "mixed_provenance_allowed": bool(
+                allow_mixed_provenance
+            ),
         },
     )
 
@@ -1425,6 +1627,29 @@ def main() -> int:
         raise ValueError("active fraction must be in [0, 1)")
     if not 0.0 < args.minimum_bin_pass_fraction <= 1.0:
         raise ValueError("minimum bin pass fraction must be in (0, 1]")
+    implicit_model_set = (
+        args.proposal_implicit_geomagnetic_model is not None
+    )
+    implicit_year_set = (
+        args.proposal_implicit_geomagnetic_year is not None
+    )
+    if implicit_model_set != implicit_year_set:
+        raise ValueError(
+            "proposal implicit geomagnetic model and year must be provided "
+            "together"
+        )
+    proposal_implicit_physics_options: dict[str, str] = {}
+    if implicit_model_set:
+        if not math.isfinite(args.proposal_implicit_geomagnetic_year):
+            raise ValueError(
+                "proposal implicit geomagnetic year must be finite"
+            )
+        proposal_implicit_physics_options = {
+            "--geomagnetic-model":
+                args.proposal_implicit_geomagnetic_model,
+            "--geomagnetic-year":
+                f"{args.proposal_implicit_geomagnetic_year:.17g}",
+        }
 
     proposal_roots = [
         require_directory(path, "proposal output")
@@ -1446,9 +1671,12 @@ def main() -> int:
                 expect_gpu=False,
                 allow_legacy_provenance=
                     args.allow_legacy_provenance,
+                implicit_physics_options=
+                    proposal_implicit_physics_options,
             )
             for root in proposal_roots
         ],
+        allow_mixed_provenance=args.allow_mixed_proposal_builds,
     )
     cuda = concatenate_ensembles(
         "cuda",
@@ -1461,6 +1689,7 @@ def main() -> int:
             )
             for root in cuda_roots
         ],
+        allow_mixed_provenance=args.allow_mixed_cuda_builds,
     )
     if (
         len(proposal.showers) < args.minimum_events

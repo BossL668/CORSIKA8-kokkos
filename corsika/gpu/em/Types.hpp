@@ -390,6 +390,12 @@ namespace corsika::gpu::em {
     std::vector<double> positrons{};
     std::vector<double> muons_minus{};
     std::vector<double> muons_plus{};
+    /**
+     * Muons produced by a muon parent at accepted device-resident discrete
+     * interaction vertices.  This is the accelerator counterpart of
+     * ProductionProfile::doSecondaries(), not a transported-particle count.
+     */
+    std::vector<double> muon_parent_productions{};
     std::vector<double> energy_loss_GeV{};
     std::vector<double> muon_energy_loss_GeV{};
     std::uint64_t steps{};

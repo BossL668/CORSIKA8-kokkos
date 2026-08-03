@@ -732,18 +732,79 @@ namespace corsika::gpu::em {
       }
 
       if (magnetic_step_wins) {
-        record.limit = LeptonTransportLimit::MagneticStep;
         auto const end_layer = queryAtmosphereLayer(
             environment, record.end.position_m,
             record.end.direction);
-        if (end_layer.status != AtmosphereStatus::Success ||
-            end_layer.layer_index != layer.layer_index) {
-          raw_fallbacks[index] = makeLeptonFallback(
+        if (end_layer.status != AtmosphereStatus::Success) {
+          auto fallback = makeLeptonFallback(
               interaction,
               ProposalFallbackReason::MagneticBoundaryFailed);
+          fallback.diagnostic_status =
+              static_cast<std::int32_t>(end_layer.status);
+          fallback.diagnostic_value0 = end_layer.radius_m;
+          fallback.diagnostic_value1 =
+              magnetic_limit.distance_m;
+          raw_fallbacks[index] = fallback;
           fallback_flags[index] = 1;
           return;
         }
+        if (end_layer.layer_index != layer.layer_index) {
+          // queryAtmosphereLayer deliberately assigns a point within the
+          // 0.1 mm tracking guard to the layer selected by its direction.
+          // The bounded curved-sphere solver can correctly report no root
+          // when the root lies only a few micrometres beyond the magnetic
+          // step.  Accept that direction-owned adjacent-layer transition;
+          // otherwise a valid maximum-deflection step is misclassified as
+          // a numerical transport failure on the next ownership query.
+          auto const outward =
+              end_layer.layer_index == layer.layer_index + 1;
+          auto const inward =
+              end_layer.layer_index == layer.layer_index - 1;
+          auto const shared_radius_m =
+              outward
+                  ? environment
+                        .atmosphere_layers[layer.layer_index]
+                        .outer_radius_m
+                  : (inward
+                         ? environment
+                               .atmosphere_layers[layer.layer_index]
+                               .inner_radius_m
+                         : 0.);
+          auto const floating_tolerance_m =
+              128. * 2.22044604925031308085e-16 *
+              (shared_radius_m > 1. ? shared_radius_m : 1.);
+          auto const boundary_tolerance_m =
+              floating_tolerance_m > AtmosphereBoundaryGuardM
+                  ? floating_tolerance_m
+                  : AtmosphereBoundaryGuardM;
+          if ((outward || inward) &&
+              ::fabs(end_layer.radius_m - shared_radius_m) <=
+                  boundary_tolerance_m) {
+            record.limit = LeptonTransportLimit::LayerBoundary;
+            record.limiting_radius_m = shared_radius_m;
+            record.end_layer_index = end_layer.layer_index;
+            record.end_density_g_per_cm3 =
+                end_layer.density_g_per_cm3;
+            record.end.medium_id =
+                environment
+                    .atmosphere_layers[end_layer.layer_index]
+                    .medium_id;
+            fallback_flags[index] = 0;
+            return;
+          }
+          auto fallback = makeLeptonFallback(
+              interaction,
+              ProposalFallbackReason::MagneticBoundaryFailed);
+          fallback.diagnostic_status = end_layer.layer_index;
+          fallback.diagnostic_value0 = end_layer.radius_m;
+          fallback.diagnostic_value1 = shared_radius_m;
+          fallback.diagnostic_value2 =
+              magnetic_limit.distance_m;
+          raw_fallbacks[index] = fallback;
+          fallback_flags[index] = 1;
+          return;
+        }
+        record.limit = LeptonTransportLimit::MagneticStep;
         record.end_layer_index = end_layer.layer_index;
         record.end_density_g_per_cm3 =
             end_layer.density_g_per_cm3;
