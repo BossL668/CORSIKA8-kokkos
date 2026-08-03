@@ -519,11 +519,10 @@ printf 'CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
 
 ### 7.5 创建统一工作目录、取得源码并安装 Release 依赖
 
-推荐先创建一个独立的总目录，再把源码、构建目录和安装目录并列放在其中。本机
-采用以下结构：
+推荐先创建一个独立的总目录，再把源码、构建目录和安装目录并列放在其中，例如：
 
 ```text
-/home/yuhanglu/21CMA/corsika-21cma-cuda/
+~/corsika-21cma-cuda/
 ├── corsika8_gpu_refactor/              # Git 源码
 ├── corsika8_gpu_refactor_build_cuda/   # CMake 构建文件
 └── corsika8_gpu_refactor_install_cuda/ # 安装后的程序和资源
@@ -532,7 +531,7 @@ printf 'CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
 先创建总目录，然后递归取得源码和子模块：
 
 ```bash
-export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+export C8_WORKSPACE=~/corsika-21cma-cuda
 mkdir -p "$C8_WORKSPACE"
 cd "$C8_WORKSPACE"
 

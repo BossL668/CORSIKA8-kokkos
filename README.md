@@ -186,8 +186,8 @@ this repository.
 ### 1. Create the workspace and clone the fork
 
 The recommended layout places the source, out-of-source build, and installation
-directories under one dedicated parent directory. On the current 21CMA
-workstation that parent is `/home/yuhanglu/21CMA/corsika-21cma-cuda`:
+directories under one dedicated parent directory, for example
+`~/corsika-21cma-cuda`:
 
 ```text
 corsika-21cma-cuda/
@@ -200,7 +200,7 @@ Create the parent first, then clone the repository into the source directory.
 The repository contains submodules, so the clone must be recursive:
 
 ```bash
-export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+export C8_WORKSPACE=~/corsika-21cma-cuda
 mkdir -p "$C8_WORKSPACE"
 cd "$C8_WORKSPACE"
 
@@ -259,7 +259,7 @@ CUDA toolkit instead of substituting an unrelated older architecture.
 Confirm the recommended sibling-directory layout in the current shell:
 
 ```bash
-export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+export C8_WORKSPACE=~/corsika-21cma-cuda
 export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
 export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
 export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"

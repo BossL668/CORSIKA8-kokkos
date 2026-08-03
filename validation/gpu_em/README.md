@@ -154,7 +154,7 @@ conda run -n corsika_venv \
   --legacy-executable ../corsika-21cma/corsika-build/applications/c8_air_shower \
   --cuda-executable ../corsika8_gpu_refactor_build_cuda/applications/c8_air_shower \
   --table ../corsika8_gpu_refactor_build_cuda/gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt \
-  --antenna-file /home/yuhanglu/21CMA/data/antennas.txt \
+  --antenna-file ~/corsika-data/antennas.txt \
   --output-root /tmp/c8_cuda_replay_1TeV_20 \
   --energy-gev 1000 \
   --events 20 \
@@ -811,11 +811,11 @@ The regression-suite evidence is generated rather than copied from terminal
 scrollback:
 
 ```bash
-FLUPRO=/home/yuhanglu/fluka \
+FLUPRO=~/fluka \
 conda run -n corsika_venv \
   python validation/gpu_em/run_final_test_acceptance.py \
-  --source-root /home/yuhanglu/21CMA/corsika8_gpu_refactor \
-  --build-root /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda \
+  --source-root ~/corsika-21cma-cuda/corsika8_gpu_refactor \
+  --build-root ~/corsika-21cma-cuda/corsika8_gpu_refactor_build_cuda \
   --output /path/to/final_test_acceptance.json \
   --minimum-ctest-count 32 \
   --minimum-python-count 100 \
@@ -1071,8 +1071,8 @@ python validation/gpu_em/monitor_distributed_campaign.py \
   --remote-campaign main=/absolute/remote/main \
   --local-campaign /absolute/local/cuda-shard-a \
   --local-campaign /absolute/local/cuda-shard-b \
-  --staging-root /mnt/d/CorsikaData/cpu-staging \
-  --status-json /mnt/d/CorsikaData/final/distributed_status.json \
+  --staging-root ~/corsika-data/cpu-staging \
+  --status-json ~/corsika-data/final/distributed_status.json \
   --poll-seconds 60
 ```
 
@@ -1098,10 +1098,10 @@ For the 100 PeV, 47-degree campaign, first run without `--execute`:
 ```bash
 conda run -n corsika_venv \
   python validation/gpu_em/finalize_distributed_campaign.py \
-  --final-root /mnt/d/CorsikaData/corsika_validation_results/final_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_cuda500_v1 \
-  --proposal-root /mnt/d/CorsikaData/corsika_validation_results/remote_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_staging_v1 \
-  --cuda-root /mnt/d/CorsikaData/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardA_igrf13_2025 \
-  --cuda-root /mnt/d/CorsikaData/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardB_igrf13_2025 \
+  --final-root ~/corsika-data/corsika_validation_results/final_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_cuda500_v1 \
+  --proposal-root ~/corsika-data/corsika_validation_results/remote_inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_staging_v1 \
+  --cuda-root ~/corsika-data/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardA_igrf13_2025 \
+  --cuda-root ~/corsika-data/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardB_igrf13_2025 \
   --expected-events 500 \
   --proposal-seed-start 10300001 --cuda-seed-start 10400001 \
   --antenna-sha256 238a481851b4d39e9fcc18ed5afefd5ea90a806e235ad7aa6e3bddae0e138668
