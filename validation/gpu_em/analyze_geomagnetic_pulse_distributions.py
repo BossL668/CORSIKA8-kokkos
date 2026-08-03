@@ -34,16 +34,6 @@ import yaml
 from scipy.stats import ks_2samp, ttest_ind
 
 
-WORKSPACE = Path("/home/yuhanglu/21CMA")
-DEFAULT_DATASET = (
-    WORKSPACE
-    / "corsika_validation_results"
-    / "original_vs_cuda_electron_1TeV_radio_50_v1"
-)
-DEFAULT_PULSE_ROOT = (
-    WORKSPACE / "python" / "MCMCTidyUp" / "pulse_analysis_modular"
-)
-DEFAULT_OUTPUT = DEFAULT_DATASET / "geomagnetic_pulse_comparison"
 BACKENDS = ("legacy_proposal", "cuda")
 BACKEND_LABELS = {"legacy_proposal": "Original CPU", "cuda": "CUDA"}
 BACKEND_COLORS = {"legacy_proposal": "#1565c0", "cuda": "#d84315"}
@@ -1058,7 +1048,7 @@ def write_markdown(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
+    parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument(
         "--manifest",
         type=Path,
@@ -1067,8 +1057,8 @@ def parse_args() -> argparse.Namespace:
             "separate from immutable simulation outputs."
         ),
     )
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--pulse-analysis-root", type=Path, default=DEFAULT_PULSE_ROOT)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--pulse-analysis-root", type=Path, required=True)
     parser.add_argument("--radius-m", type=float, default=100.0)
     parser.add_argument("--bootstrap-repetitions", type=int, default=20_000)
     parser.add_argument("--bootstrap-seed", type=int, default=20250730)

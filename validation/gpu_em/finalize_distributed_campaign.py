@@ -373,7 +373,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pulse-analysis-root",
         type=Path,
-        default=Path("/home/yuhanglu/21CMA/python/MCMCTidyUp/pulse_analysis_modular"),
+        required=True,
+        help="Path to the pulse_analysis_modular reference implementation.",
     )
     parser.add_argument("--bootstrap-repetitions", type=int, default=10000)
     parser.add_argument("--execute", action="store_true")

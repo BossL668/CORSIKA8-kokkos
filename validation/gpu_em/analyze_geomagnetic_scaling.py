@@ -37,10 +37,6 @@ import numpy as np
 import yaml
 
 
-WORKSPACE = Path("/home/yuhanglu/21CMA")
-DEFAULT_PULSE_ROOT = (
-    WORKSPACE / "python" / "MCMCTidyUp" / "pulse_analysis_modular"
-)
 BACKENDS = ("legacy_proposal", "cuda")
 BACKEND_LABELS = {"legacy_proposal": "Original CPU", "cuda": "CUDA"}
 BACKEND_COLORS = {"legacy_proposal": "#1565c0", "cuda": "#d84315"}
@@ -1459,7 +1455,7 @@ def parse_args() -> argparse.Namespace:
         help="Repeat for each complete legacy_proposal/cuda radio ensemble.",
     )
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--pulse-analysis-root", type=Path, default=DEFAULT_PULSE_ROOT)
+    parser.add_argument("--pulse-analysis-root", type=Path, required=True)
     parser.add_argument("--bootstrap-repetitions", type=int, default=10_000)
     parser.add_argument("--bootstrap-seed", type=int, default=20260730)
     return parser.parse_args()

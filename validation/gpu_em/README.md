@@ -1114,6 +1114,7 @@ conda run -n corsika_venv \
   --cuda-root ~/corsika-data/corsika_validation_results/local_proton_100PeV_theta47_phi180_emthin1e-4_cuda250_fullaccel_shardB_igrf13_2025 \
   --expected-events 500 \
   --proposal-seed-start 10300001 --cuda-seed-start 10400001 \
+  --pulse-analysis-root /path/to/pulse_analysis_modular \
   --antenna-sha256 238a481851b4d39e9fcc18ed5afefd5ea90a806e235ad7aa6e3bddae0e138668
 ```
 

@@ -40,7 +40,6 @@ from analyze_geomagnetic_pulse_distributions import (  # noqa: E402
     BACKENDS,
     BACKEND_COLORS,
     BACKEND_LABELS,
-    DEFAULT_PULSE_ROOT,
     aggregate_by_shower,
     apply_reference_width_filter,
     backend_output_directories,
@@ -720,9 +719,7 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument(
-        "--pulse-analysis-root", type=Path, default=DEFAULT_PULSE_ROOT
-    )
+    parser.add_argument("--pulse-analysis-root", type=Path, required=True)
     parser.add_argument(
         "--minimum-r-perp-m",
         "--minimum-radius-m",
