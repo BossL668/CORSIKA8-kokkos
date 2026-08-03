@@ -388,6 +388,8 @@ def write_direct_cuda_provenance(
         "backend": "cuda",
         "executable": fingerprint(args.executable),
         "table": fingerprint(args.table),
+        "antenna_file": fingerprint(args.antenna_file),
+        "flupro": fingerprint(args.flupro / "libflukahp.a"),
         "runner": fingerprint(args.physics_runner),
         "command": command,
         "command_sha256": hashlib.sha256(encoded_command).hexdigest(),

@@ -296,6 +296,24 @@ def parse_args() -> argparse.Namespace:
             "--proposal-implicit-geomagnetic-model."
         ),
     )
+    parser.add_argument(
+        "--cuda-implicit-geomagnetic-model",
+        choices=("IGRF13", "IGRF14"),
+        help=(
+            "Document the geomagnetic coefficient model recorded by a CUDA "
+            "run whose command omitted the equivalent default option. Must "
+            "be used together with --cuda-implicit-geomagnetic-year."
+        ),
+    )
+    parser.add_argument(
+        "--cuda-implicit-geomagnetic-year",
+        type=float,
+        help=(
+            "Document the geomagnetic epoch recorded by a CUDA run whose "
+            "command omitted the equivalent default option. Must be used "
+            "together with --cuda-implicit-geomagnetic-model."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1650,6 +1668,20 @@ def main() -> int:
             "--geomagnetic-year":
                 f"{args.proposal_implicit_geomagnetic_year:.17g}",
         }
+    cuda_implicit_model_set = args.cuda_implicit_geomagnetic_model is not None
+    cuda_implicit_year_set = args.cuda_implicit_geomagnetic_year is not None
+    if cuda_implicit_model_set != cuda_implicit_year_set:
+        raise ValueError(
+            "CUDA implicit geomagnetic model and year must be provided together"
+        )
+    cuda_implicit_physics_options: dict[str, str] = {}
+    if cuda_implicit_model_set:
+        if not math.isfinite(args.cuda_implicit_geomagnetic_year):
+            raise ValueError("CUDA implicit geomagnetic year must be finite")
+        cuda_implicit_physics_options = {
+            "--geomagnetic-model": args.cuda_implicit_geomagnetic_model,
+            "--geomagnetic-year": f"{args.cuda_implicit_geomagnetic_year:.17g}",
+        }
 
     proposal_roots = [
         require_directory(path, "proposal output")
@@ -1686,6 +1718,8 @@ def main() -> int:
                 expect_gpu=True,
                 allow_legacy_provenance=
                     args.allow_legacy_provenance,
+                implicit_physics_options=
+                    cuda_implicit_physics_options,
             )
             for root in cuda_roots
         ],

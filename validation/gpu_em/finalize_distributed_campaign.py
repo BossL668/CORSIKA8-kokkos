@@ -150,6 +150,47 @@ def require_close(observed: str | None, expected: float, label: str) -> None:
         raise ValueError(f"{label} differs: expected {expected}, observed {value}")
 
 
+def require_maximum_weight(command: list[str], expected: float) -> None:
+    observed = command_option(command, "--max-weight")
+    if expected == 0.0:
+        if observed is not None:
+            raise ValueError(
+                "campaign requires automatic maximum weight, but "
+                "--max-weight is present"
+            )
+        return
+    require_close(observed, expected, "maximum weight")
+
+
+def require_cuda_geomagnetic_configuration(
+    root: Path,
+    command: list[str],
+    expected_model: str,
+    expected_year: float,
+) -> None:
+    """Validate explicit CLI values or the immutable CUDA environment record."""
+
+    model = command_option(command, "--geomagnetic-model")
+    year = command_option(command, "--geomagnetic-year")
+    if (model is None) != (year is None):
+        raise ValueError(
+            f"geomagnetic model and year must both be explicit or both be omitted: {root}"
+        )
+    if model is None:
+        gpu_config = read_mapping(root / "gpu_em/config.yaml")
+        environment = gpu_config.get("environment")
+        if not isinstance(environment, dict):
+            raise ValueError(f"missing CUDA environment metadata in {root}")
+        model = str(environment.get("geomagnetic_model"))
+        recorded_year = environment.get("geomagnetic_year")
+        year = None if recorded_year is None else str(recorded_year)
+    if model != expected_model:
+        raise ValueError(
+            f"geomagnetic model differs in {root}: expected {expected_model}, observed {model}"
+        )
+    require_close(year, expected_year, "geomagnetic year")
+
+
 def audit_source(
     root: Path,
     backend: str,
@@ -228,15 +269,13 @@ def audit_source(
     require_close(command_option(command, "--shower-core-x"), 0.0, "core x")
     require_close(command_option(command, "--shower-core-y"), 0.0, "core y")
     require_close(command_option(command, "--ring"), float(expected.ring), "ring")
-    if command_option(command, "--max-weight") is not None:
-        raise ValueError(f"campaign requires automatic maximum weight, but --max-weight is present: {root}")
+    require_maximum_weight(command, expected.maximum_weight)
     if backend == "cuda":
-        if command_option(command, "--geomagnetic-model") != expected.geomagnetic_model:
-            raise ValueError(f"geomagnetic model differs in {root}")
-        require_close(
-            command_option(command, "--geomagnetic-year"),
+        require_cuda_geomagnetic_configuration(
+            root,
+            command,
+            expected.geomagnetic_model,
             expected.geomagnetic_year,
-            "geomagnetic year",
         )
         if command_option(command, "--em-backend") != "cuda":
             raise ValueError(f"CUDA EM backend is not selected in {root}")
@@ -288,7 +327,10 @@ def audit_configuration(
         canonical_physics_configuration(root, implicit_physics_options=implicit)
         for root in proposal_roots
     }
-    cuda_configs = {canonical_physics_configuration(root) for root in cuda_roots}
+    cuda_configs = {
+        canonical_physics_configuration(root, implicit_physics_options=implicit)
+        for root in cuda_roots
+    }
     if len(proposal_configs) != 1 or len(cuda_configs) != 1:
         raise ValueError("physics configurations differ within a backend")
     proposal = next(iter(proposal_configs))
@@ -317,6 +359,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--geomagnetic-year", type=float, default=2025.0)
     parser.add_argument("--em-cut-gev", type=float, default=5.0e-4)
     parser.add_argument("--em-thinning", type=float, default=1.0e-4)
+    parser.add_argument(
+        "--maximum-weight",
+        type=float,
+        default=0.0,
+        help="Expected explicit --max-weight; zero requires the option to be omitted.",
+    )
     parser.add_argument("--had-cut-gev", type=float, default=0.3)
     parser.add_argument("--mu-cut-gev", type=float, default=0.3)
     parser.add_argument("--tau-cut-gev", type=float, default=0.3)
@@ -357,6 +405,8 @@ def main() -> int:
     args = parse_args()
     if args.expected_events <= 1 or args.bootstrap_repetitions <= 0:
         raise ValueError("event and bootstrap counts must be positive")
+    if not math.isfinite(args.maximum_weight) or args.maximum_weight < 0.0:
+        raise ValueError("maximum weight must be finite and non-negative")
     args.antenna_sha256 = require_sha256(args.antenna_sha256, "expected antenna")
     final_root = args.final_root.resolve()
     final_root.mkdir(parents=True, exist_ok=True)
@@ -407,7 +457,12 @@ def main() -> int:
     analysis_manifest = final_root / "final_cpu500_cuda500_analysis_manifest.json"
     manifest_payload = {
         "schema_version": 1,
-        "label": "inclined_proton_100PeV_theta47_phi180_emthin1e-4_cpu500_cuda500",
+        "label": (
+            f"pdg{args.primary_pdg}_E{args.energy_gev:.17g}GeV_"
+            f"theta{args.zenith_deg:.17g}_phi{args.azimuth_deg:.17g}_"
+            f"emthin{args.em_thinning:.17g}_cpu{args.expected_events}_"
+            f"cuda{args.expected_events}"
+        ),
         "purpose": "Immutable source list for the complete distributed CPU/CUDA comparison",
         "configuration": {
             "energy_GeV": args.energy_gev,
@@ -423,8 +478,8 @@ def main() -> int:
             "IGRF": {"model": args.geomagnetic_model, "year": args.geomagnetic_year},
             "em_cut_GeV": args.em_cut_gev,
             "em_thinning": args.em_thinning,
-            "maximum_weight": 0.0,
-            "maximum_weight_cli_omitted": True,
+            "maximum_weight": args.maximum_weight,
+            "maximum_weight_cli_omitted": args.maximum_weight == 0.0,
             "hadron_cut_GeV": args.had_cut_gev,
             "muon_cut_GeV": args.mu_cut_gev,
             "tau_cut_GeV": args.tau_cut_gev,
@@ -480,6 +535,8 @@ def main() -> int:
             "--allow-mixed-proposal-builds",
             "--proposal-implicit-geomagnetic-model", args.geomagnetic_model,
             "--proposal-implicit-geomagnetic-year", f"{args.geomagnetic_year:.17g}",
+            "--cuda-implicit-geomagnetic-model", args.geomagnetic_model,
+            "--cuda-implicit-geomagnetic-year", f"{args.geomagnetic_year:.17g}",
         )
     )
 

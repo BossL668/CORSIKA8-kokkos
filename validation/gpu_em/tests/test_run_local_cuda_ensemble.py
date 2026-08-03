@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import tempfile
 from pathlib import Path
 
 
@@ -104,3 +106,35 @@ def test_direct_batch_command_preserves_full_acceleration_configuration() -> Non
     assert option(command, "--radio-backend") == "cuda"
     assert option(command, "--hadronic-backend") == "fluka-process"
     assert option(command, "--gpu-table-cache") == "/tmp/table"
+
+
+def test_direct_provenance_fingerprints_antenna_and_fluka_inputs() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        args = arguments()
+        args.executable = root / "c8_air_shower"
+        args.table = root / "table.c8emrt"
+        args.physics_runner = root / "runner.py"
+        args.antenna_file = root / "antennas.txt"
+        args.flupro = root / "fluka"
+        args.flupro.mkdir()
+        for path in (
+            args.executable,
+            args.table,
+            args.physics_runner,
+            args.antenna_file,
+            args.flupro / "libflukahp.a",
+        ):
+            path.write_bytes(path.name.encode("utf-8"))
+        output = root / "campaign"
+        (output / "cuda").mkdir(parents=True)
+
+        MODULE.write_direct_cuda_provenance(args, output, ["c8", "-N", "1"])
+        provenance = json.loads(
+            (output / "cuda/validation_provenance.json").read_text(encoding="utf-8")
+        )
+
+        assert provenance["antenna_file"]["path"] == str(args.antenna_file)
+        assert provenance["flupro"]["path"] == str(args.flupro / "libflukahp.a")
+        assert len(provenance["antenna_file"]["sha256"]) == 64
+        assert len(provenance["flupro"]["sha256"]) == 64

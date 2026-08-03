@@ -977,9 +977,10 @@ configuration and observer layout.
 For long GPU campaigns whose remote CPU references are not ready yet, select
 `--defer-reference-comparison`. This runs the same CUDA executable directly
 in resumable batches, writes normal CORSIKA output plus schema-1 CUDA
-provenance for every closed batch, and records `comparison_status: deferred`
-in the campaign manifest. It does not weaken the final comparison; it moves
-that comparison to the later pooled-analysis step. For example, the 100 PeV
+provenance for every closed batch (including executable, table, antenna and
+FLUKA-library hashes), and records `comparison_status: deferred` in the
+campaign manifest. It does not weaken the final comparison; it moves that
+comparison to the later pooled-analysis step. For example, the 100 PeV
 inclined proton campaign uses:
 
 ```bash
@@ -1092,6 +1093,15 @@ profile/particle/CoREAS/ZHS files, matching antenna contents and observer
 layouts, and one canonical physics configuration.  Independent scalar builds
 from the output-writer repair are retained as explicit provenance strata;
 CUDA executable and table hashes may not vary.
+
+Use `--maximum-weight VALUE` to state the thinning contract explicitly. A
+positive value requires every source command to contain the same
+`--max-weight`; zero requires the option to be absent and therefore audits the
+application's automatic Kobal value. If the run command omitted the
+geomagnetic CLI options because they were application defaults, the
+finalizer verifies IGRF model and epoch against `gpu_em/config.yaml` and adds
+the same documented implicit values to both canonical configurations. It
+never edits the original `config.yaml` to manufacture agreement.
 
 For the 100 PeV, 47-degree campaign, first run without `--execute`:
 
