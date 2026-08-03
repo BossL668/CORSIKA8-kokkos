@@ -183,22 +183,55 @@ this repository.
 
 ## Build from source
 
-### 1. Clone the fork
+### 1. Create the workspace and clone the fork
 
-The repository contains submodules, so clone it recursively:
+The recommended layout places the source, out-of-source build, and installation
+directories under one dedicated parent directory. On the current 21CMA
+workstation that parent is `/home/yuhanglu/21CMA/corsika-21cma-cuda`:
+
+```text
+corsika-21cma-cuda/
+├── corsika8_gpu_refactor/              # Git source tree
+├── corsika8_gpu_refactor_build_cuda/   # CMake build tree
+└── corsika8_gpu_refactor_install_cuda/ # Installed programs and resources
+```
+
+Create the parent first, then clone the repository into the source directory.
+The repository contains submodules, so the clone must be recursive:
 
 ```bash
+export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+mkdir -p "$C8_WORKSPACE"
+cd "$C8_WORKSPACE"
+
 git clone --recursive \
-  https://github.com/BossL668/corsika8-gpu-hybrid.git
-cd corsika8-gpu-hybrid
+  https://github.com/BossL668/corsika8-gpu-hybrid.git \
+  corsika8_gpu_refactor
 ```
 
 For a private-repository checkout authenticated through the GitHub CLI:
 
 ```bash
-gh repo clone BossL668/corsika8-gpu-hybrid -- --recurse-submodules
-cd corsika8-gpu-hybrid
+cd "$C8_WORKSPACE"
+gh repo clone BossL668/corsika8-gpu-hybrid \
+  corsika8_gpu_refactor \
+  -- --recurse-submodules
 ```
+
+Define all three paths once and keep them unchanged throughout configuration,
+compilation, installation, and validation:
+
+```bash
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
+cd "$C8_SOURCE"
+```
+
+On another machine, change only `C8_WORKSPACE` to the desired absolute parent
+path; preserve the three child-directory names shown above. Never place the
+build tree inside the Git source tree, and never reuse a build tree copied from
+another CUDA toolkit, compiler, or GPU architecture.
 
 ### 2. Select the CUDA architecture
 
@@ -223,12 +256,13 @@ CUDA toolkit instead of substituting an unrelated older architecture.
 
 ### 3. Install dependencies and configure a Release build
 
-Keep source, build, and install directories separate:
+Confirm the recommended sibling-directory layout in the current shell:
 
 ```bash
-export C8_SOURCE="$PWD"
-export C8_BUILD="$(dirname "$C8_SOURCE")/corsika8-gpu-build"
-export C8_INSTALL="$(dirname "$C8_SOURCE")/corsika8-gpu-install"
+export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
 
 "$C8_SOURCE/conan-install.sh" \
   --source-directory "$C8_SOURCE" \
@@ -285,7 +319,7 @@ The main installed programs are:
 CUDA is disabled by default. A CPU-only build does not require a CUDA toolkit:
 
 ```bash
-export C8_CPU_BUILD="$(dirname "$C8_SOURCE")/corsika8-cpu-build"
+export C8_CPU_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cpu"
 
 cmake \
   -S "$C8_SOURCE" \

@@ -517,20 +517,53 @@ printf 'CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
 若 NVCC 不认识新 GPU 的 architecture，应升级 toolkit，不能把一个无关旧架构
 当成正式性能构建。不要添加 `--use_fast_math`，否则现有数值验收失效。
 
-### 7.5 安装 Release 依赖
+### 7.5 创建统一工作目录、取得源码并安装 Release 依赖
+
+推荐先创建一个独立的总目录，再把源码、构建目录和安装目录并列放在其中。本机
+采用以下结构：
+
+```text
+/home/yuhanglu/21CMA/corsika-21cma-cuda/
+├── corsika8_gpu_refactor/              # Git 源码
+├── corsika8_gpu_refactor_build_cuda/   # CMake 构建文件
+└── corsika8_gpu_refactor_install_cuda/ # 安装后的程序和资源
+```
+
+先创建总目录，然后递归取得源码和子模块：
 
 ```bash
-export C8_SOURCE=/path/to/corsika8_gpu_refactor
-export C8_BUILD=/path/to/corsika8_gpu_refactor_build_cuda
-export C8_INSTALL=/path/to/corsika8_gpu_refactor_install_cuda
+export C8_WORKSPACE=/home/yuhanglu/21CMA/corsika-21cma-cuda
+mkdir -p "$C8_WORKSPACE"
+cd "$C8_WORKSPACE"
+
+gh repo clone BossL668/corsika8-gpu-hybrid \
+  corsika8_gpu_refactor \
+  -- --recurse-submodules
+```
+
+未使用 GitHub CLI 时，可以改用：
+
+```bash
+git clone --recursive \
+  https://github.com/BossL668/corsika8-gpu-hybrid.git \
+  "$C8_WORKSPACE/corsika8_gpu_refactor"
+```
+
+随后统一定义三个目录：
+
+```bash
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
 
 "$C8_SOURCE/conan-install.sh" \
   --source-directory "$C8_SOURCE" \
   --release
 ```
 
-不要复用另一台机器、另一 CUDA toolkit 或另一 GPU 架构产生的
-`CMakeCache.txt`。
+迁移到其他服务器时，只需把 `C8_WORKSPACE` 改成服务器上的绝对父目录，建议保持
+三个子目录的名称不变。不要把构建文件写入源码目录，也不要复制复用另一台机器、
+另一 CUDA toolkit、编译器或 GPU 架构产生的构建目录。
 
 ### 7.6 配置、编译和安装
 
