@@ -18,6 +18,7 @@ from analyze_cpu_cuda_radio import (  # noqa: E402
     band_limited_waveform,
     compare_distributions,
     compare_track_diagnostics,
+    json_compatible,
     paired_formalism_comparison,
     peak_aligned_unit_energy,
     radial_integral_contributions,
@@ -29,6 +30,25 @@ from analyze_cpu_cuda_radio import (  # noqa: E402
 
 
 class CpuCudaRadioAnalysisTest(unittest.TestCase):
+    def test_json_compatible_maps_undefined_single_event_statistics_to_null(
+        self,
+    ) -> None:
+        value = {
+            "finite": np.float64(1.5),
+            "undefined": math.nan,
+            "nested": [math.inf, np.asarray([2.0, -math.inf])],
+        }
+        converted = json_compatible(value)
+        self.assertEqual(
+            converted,
+            {
+                "finite": 1.5,
+                "undefined": None,
+                "nested": [None, [2.0, None]],
+            },
+        )
+        json.dumps(converted, allow_nan=False)
+
     def test_band_limited_waveform_rejects_out_of_band_tone(self) -> None:
         sample_rate = 1.0e9
         time = np.arange(1000) / sample_rate

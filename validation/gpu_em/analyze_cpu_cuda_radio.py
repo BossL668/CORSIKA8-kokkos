@@ -62,6 +62,28 @@ FEATURES = (
 NORMALIZATION_ENERGY_KEY = "electromagnetic_deposited_energy_GeV"
 
 
+def json_compatible(value: Any) -> Any:
+    """Return a strict-JSON representation of a diagnostic value.
+
+    Ensemble statistics such as the sample standard deviation are undefined
+    for a single shower.  Keep that distinction explicit as JSON ``null``
+    instead of failing during report serialization or emitting non-standard
+    NaN tokens.
+    """
+
+    if isinstance(value, dict):
+        return {str(key): json_compatible(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_compatible(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return [json_compatible(item) for item in value.tolist()]
+    if isinstance(value, np.generic):
+        return json_compatible(value.item())
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
 def finite_array(values: Iterable[float]) -> np.ndarray:
     result = np.asarray(list(values), dtype=np.float64)
     return result[np.isfinite(result)]
@@ -1259,7 +1281,9 @@ def main() -> int:
         }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("w", encoding="utf-8") as destination:
-        json.dump(report, destination, indent=2, allow_nan=False)
+        json.dump(
+            json_compatible(report), destination, indent=2, allow_nan=False
+        )
         destination.write("\n")
     if args.csv is not None:
         write_csv(args.csv, rows)
