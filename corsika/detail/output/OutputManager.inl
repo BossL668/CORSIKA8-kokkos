@@ -114,6 +114,10 @@ namespace corsika {
 
   inline int OutputManager::getEventId() const { return count_; }
 
+  inline bool OutputManager::showerInProgress() const noexcept {
+    return state_ == OutputState::ShowerInProgress;
+  }
+
   inline YAML::Node OutputManager::getConfig() const {
 
     YAML::Node config;

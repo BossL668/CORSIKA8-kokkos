@@ -116,6 +116,26 @@ namespace corsika {
     void write(Point const& p0, Code const pid, double const weight);
 
     /**
+     * Add a production vertex whose ShowerAxis grammage is already known.
+     *
+     * This is the projected-coordinate counterpart of write().  It is used
+     * by accelerated transports which evaluate the ShowerAxis projection on
+     * the device and therefore must not reconstruct an approximate position
+     * on the host.
+     */
+    void writeProjected(GrammageType grammage, Code pid, double weight);
+
+    /**
+     * Add a production vertex directly to an output bin.
+     *
+     * The projectile classification is deliberately shared with write() so
+     * CPU and accelerator paths populate the same parent and "all" columns.
+     */
+    void addBin(size_t bin, Code pid, double weight);
+
+    size_t getNBins() const noexcept { return nBins_; }
+
+    /**
      * Return a summary.
      */
     YAML::Node getSummary() const override;
@@ -128,6 +148,10 @@ namespace corsika {
     production_profile::ProfileData const& getProfile(
         production_profile::ProjectileIndex index) const {
       return profile_.at(static_cast<int>(index));
+    }
+
+    production_profile::ProfileData const& getBin(size_t bin) const {
+      return profile_.at(bin);
     }
 
   private:

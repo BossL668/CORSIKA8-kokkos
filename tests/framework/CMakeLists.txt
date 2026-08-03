@@ -17,6 +17,7 @@ set (test_framework_sources
   testCombinedStack.cpp
   testUnits.cpp
   testCascade.cpp 
+  testHadronicWorkQueue.cpp
   testRandom.cpp
   testNullModel.cpp  
   testHelix.cpp

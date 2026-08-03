@@ -25,6 +25,16 @@ option (WITH_HISTORY "Flag to switch on/off HISTORY" ON)
 # General config and flags
 #
 set (CMAKE_CXX_STANDARD @CMAKE_CXX_STANDARD@)
+
+set (CORSIKA8_WITH_CUDA @CORSIKA_ENABLE_CUDA@)
+if (CORSIKA8_WITH_CUDA)
+  include (CMakeFindDependencyMacro)
+  find_dependency (CUDAToolkit 12)
+  # CORSIKA8GpuEm is a static library. Its private Moliere interpolation
+  # implementation therefore remains a link-time dependency of downstream
+  # executables and must be materialized before corsikaTargets.cmake is read.
+  find_dependency (CubicInterpolation REQUIRED)
+endif ()
 set (CMAKE_CXX_EXTENSIONS @CMAKE_CXX_EXTENSIONS@)
 set (COMPILE_OPTIONS @COMPILE_OPTIONS@)
 set (CMAKE_VERBOSE_MAKEFILE  @CMAKE_VERBOSE_MAKEFILE@) 

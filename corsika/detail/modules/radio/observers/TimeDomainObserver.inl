@@ -196,6 +196,25 @@ namespace corsika {
 
   inline TimeType const& TimeDomainObserver::getStartTime() const { return start_time_; }
 
+  inline TimeType const& TimeDomainObserver::getDuration() const {
+    return duration_;
+  }
+
+  inline void TimeDomainObserver::addWaveform(
+      std::vector<double> const& x, std::vector<double> const& y,
+      std::vector<double> const& z) {
+    if (x.size() != num_bins_ || y.size() != num_bins_ ||
+        z.size() != num_bins_) {
+      throw std::invalid_argument(
+          "radio waveform size does not match observer");
+    }
+    for (std::size_t index = 0; index < num_bins_; ++index) {
+      waveformEX_[index] += x[index];
+      waveformEY_[index] += y[index];
+      waveformEZ_[index] += z[index];
+    }
+  }
+
   inline void TimeDomainObserver::reset() {
     std::fill(waveformEX_.begin(), waveformEX_.end(), 0);
     std::fill(waveformEY_.begin(), waveformEY_.end(), 0);

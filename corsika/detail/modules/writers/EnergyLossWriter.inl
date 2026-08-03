@@ -48,6 +48,7 @@ namespace corsika {
     // reset profile
     profile_.clear();
     profile_.resize(nBins_);
+    electromagneticEnergyLost_ = HEPEnergyType::zero();
   }
 
   template <typename TOutput>
@@ -85,6 +86,8 @@ namespace corsika {
             1_GeV);
 
     summary_["shower_" + std::to_string(showerId)]["sum_dEdX"] = getEnergyLost() / 1_GeV;
+    summary_["shower_" + std::to_string(showerId)]["sum_dEdX_em"] =
+        electromagneticEnergyLost_ / 1_GeV;
     summary_["shower_" + std::to_string(showerId)]["Xmax"] = Xmax;
     summary_["shower_" + std::to_string(showerId)]["dEdXmax"] = dEdXmax;
 
@@ -104,6 +107,13 @@ namespace corsika {
 
     GrammageType grammageStart = showerAxis_.getProjectedX(p0);
     GrammageType grammageEnd = showerAxis_.getProjectedX(p1);
+    writeProjected(grammageStart, grammageEnd, PID, dE);
+  }
+
+  template <typename TOutput>
+  inline void EnergyLossWriter<TOutput>::writeProjected(
+      GrammageType grammageStart, GrammageType grammageEnd,
+      Code const PID, HEPEnergyType const dE) {
 
     if (grammageStart > grammageEnd) { // particle going upstream
       std::swap(grammageStart, grammageEnd);
@@ -119,7 +129,12 @@ namespace corsika {
 
     if (deltaX < dX_threshold_) {
       CORSIKA_LOGGER_TRACE(TOutput::getLogger(), "Point-like dE");
-      this->write(p0, PID, dE);
+      int const maxBin = int(profile_.size() - 1);
+      int bin = grammageStart / dX_;
+      if (bin < 0) bin = 0;
+      if (bin > maxBin) bin = maxBin;
+      profile_[bin][static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
+      if (is_em(PID)) { electromagneticEnergyLost_ += dE; }
       return;
     }
 
@@ -158,10 +173,25 @@ namespace corsika {
 
     CORSIKA_LOGGER_TRACE(TOutput::getLogger(), "total energy added to histogram: {} GeV ",
                          energyCount / 1_GeV);
+    if (is_em(PID)) { electromagneticEnergyLost_ += energyCount; }
   }
 
   template <typename TOutput>
-  inline void EnergyLossWriter<TOutput>::write(Point const& point, Code const,
+  inline void EnergyLossWriter<TOutput>::addBin(
+      size_t bin, HEPEnergyType dE) {
+    profile_.at(bin)[
+        static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
+  }
+
+  template <typename TOutput>
+  inline void EnergyLossWriter<TOutput>::addElectromagneticBin(
+      size_t bin, HEPEnergyType dE) {
+    addBin(bin, dE);
+    electromagneticEnergyLost_ += dE;
+  }
+
+  template <typename TOutput>
+  inline void EnergyLossWriter<TOutput>::write(Point const& point, Code const PID,
                                                HEPEnergyType const dE) {
     GrammageType grammage = showerAxis_.getProjectedX(point);
     int const maxBin = int(profile_.size() - 1);
@@ -173,11 +203,12 @@ namespace corsika {
                          bin, dE / 1_GeV);
 
     profile_[bin][static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
+    if (is_em(PID)) { electromagneticEnergyLost_ += dE; }
   }
 
   template <typename TOutput>
   inline void EnergyLossWriter<TOutput>::write(GrammageType const Xstart,
-                                               GrammageType const Xend, Code const,
+                                               GrammageType const Xend, Code const PID,
                                                HEPEnergyType const dE) {
     double const bstart = Xstart / dX_;
     double const bend = Xend / dX_;
@@ -205,6 +236,7 @@ namespace corsika {
       return;
     }
     profile_[bin][static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
+    if (is_em(PID)) { electromagneticEnergyLost_ += dE; }
   }
 
   template <typename TOutput>

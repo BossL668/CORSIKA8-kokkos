@@ -138,6 +138,12 @@ namespace corsika {
     void write(Point const& p0, Point const& p1, Code const PID, HEPEnergyType const dE);
 
     /**
+     * Add continuous loss for endpoints already projected onto ShowerAxis.
+     */
+    void writeProjected(GrammageType Xstart, GrammageType Xend, Code const PID,
+                        HEPEnergyType const dE);
+
+    /**
      * Add localized energy loss.
      */
     void write(Point const& point, Code const PID, HEPEnergyType const dE);
@@ -147,6 +153,20 @@ namespace corsika {
      */
     void write(GrammageType const Xstart, GrammageType const Xend, Code const PID,
                HEPEnergyType const dE);
+
+    /**
+     * Merge one already accumulated longitudinal energy-loss bin.
+     */
+    void addBin(size_t bin, HEPEnergyType dE);
+
+    /**
+     * Merge one already accumulated electromagnetic energy-loss bin.
+     *
+     * The CUDA resident EM cascade uses this entry point because its profile
+     * bins no longer carry an individual particle PID when they are copied
+     * back to the host.
+     */
+    void addElectromagneticBin(size_t bin, HEPEnergyType dE);
 
     auto GetNBins() const { return nBins_; }
 
@@ -173,6 +193,7 @@ namespace corsika {
     size_t nBins_;                 ///< number of profile bins.
     GrammageType dX_threshold_;    ///< too short tracks are discarded.
     std::vector<dEdX_output::Profile> profile_; // longitudinal profile
+    HEPEnergyType electromagneticEnergyLost_{HEPEnergyType::zero()};
     YAML::Node summary_;
   }; // namespace corsika
 

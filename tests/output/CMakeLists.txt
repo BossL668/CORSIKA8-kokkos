@@ -3,6 +3,7 @@ set (test_output_sources
   testInteractionWriter.cpp
   TestMain.cpp
   testOutputManager.cpp
+  testSimulationTiming.cpp
   testParquetStreamer.cpp
   testWriterObservationPlane.cpp
   testWriterTracks.cpp

@@ -45,17 +45,9 @@ namespace corsika {
         return ProcessReturn::Ok;
     }
 
-    HEPEnergyType const kineticEnergy = step.getEkinPost();
-    Point const pointOfIntersection = step.getPositionPost();
-    Vector const displacement = pointOfIntersection - plane_.getCenter();
-    DirectionVector const direction = step.getDirectionPost();
-
-    // add our particles to the output file stream
-    double const weight = step.getParticlePre().getWeight();
-    this->write(step.getParticlePre().getPID(), kineticEnergy, displacement.dot(xAxis_),
-                displacement.dot(yAxis_), 0_m, direction.dot(xAxis_),
-                direction.dot(yAxis_), direction.dot(plane_.getNormal()),
-                step.getTimePost(), weight);
+    writeParticle(step.getParticlePre().getPID(), step.getEkinPost(),
+                  step.getPositionPost(), step.getDirectionPost(),
+                  step.getTimePost(), step.getParticlePre().getWeight());
 
     CORSIKA_LOG_TRACE("Particle detected absorbed={}", deleteOnHit_);
 
@@ -80,6 +72,17 @@ namespace corsika {
       return ProcessReturn::Ok;
     }
   } // namespace corsika
+
+  template <typename TTracking, typename TOutput>
+  inline void ObservationPlane<TTracking, TOutput>::writeParticle(
+      Code const pid, HEPEnergyType const kineticEnergy, Point const& position,
+      DirectionVector const& direction, TimeType const time, double const weight) {
+    Vector const displacement = position - plane_.getCenter();
+    this->write(pid, kineticEnergy, displacement.dot(xAxis_),
+                displacement.dot(yAxis_), 0_m, direction.dot(xAxis_),
+                direction.dot(yAxis_), direction.dot(plane_.getNormal()), time,
+                weight);
+  }
 
   template <typename TTracking, typename TOutput>
   template <typename TParticle, typename TTrajectory>

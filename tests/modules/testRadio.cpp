@@ -227,8 +227,22 @@ TEST_CASE("Radio", "[processes]") {
     // run end of shower and make sure that something extra was added
     auto const fileSizeC = boost::filesystem::file_size(outputFileC);
     coreas.endOfShower(0);
-    CHECK(boost::filesystem::file_size(outputFileC) > fileSizeC);
+    // A library may contain multiple showers.  The parquet stream must stay
+    // open until endOfLibrary(), while endOfShower() only flushes and resets
+    // observer waveforms.
+    CHECK_NOTHROW(coreas.endOfShower(1));
     coreas.endOfLibrary();
+    CHECK(boost::filesystem::file_size(outputFileC) > fileSizeC);
+    auto const diagnostics = coreas.getSummary();
+    REQUIRE(diagnostics["shower_0"]["segment_count"].as<std::uint64_t>() >= 1);
+    REQUIRE(
+        diagnostics["shower_0"]["weighted_track_length_m"].as<double>() > 0.);
+    REQUIRE(
+        diagnostics["shower_0"]["electron_weighted_track_length_m"].as<double>() >
+        0.);
+    REQUIRE(
+        diagnostics["shower_0"]["positron_weighted_track_length_m"].as<double>() ==
+        0.);
 
   } // END: SECTION("CoREAS process")
 
@@ -444,8 +458,9 @@ TEST_CASE("Radio", "[processes]") {
     // run end of shower and make sure that something extra was added
     auto const fileSizeZ = boost::filesystem::file_size(outputFileZ);
     zhs.endOfShower(0);
-    CHECK(boost::filesystem::file_size(outputFileZ) > fileSizeZ);
+    CHECK_NOTHROW(zhs.endOfShower(1));
     zhs.endOfLibrary();
+    CHECK(boost::filesystem::file_size(outputFileZ) > fileSizeZ);
 
   } // END: SECTION("ZHS process")
 

@@ -40,12 +40,83 @@ struct DummyOutput {
   /* can do nothing */
 };
 
+struct DeferredDummyProcess {
+  static constexpr HadronicWorkerModel
+      hadronic_worker_model =
+          HadronicWorkerModel::Fluka;
+  bool called{};
+
+  CrossSectionType getCrossSection(
+      Code const, Code const,
+      FourMomentum const&,
+      FourMomentum const&) {
+    return 100_mb;
+  }
+
+  template <typename TParticle>
+  void doInteraction(
+      TParticle&, Code const, Code const,
+      FourMomentum const&,
+      FourMomentum const&) {
+    called = true;
+  }
+};
+
+TEST_CASE("InteractionCounter captures worker-capable final state",
+          "[HadronicInteractionDeferral]") {
+  auto const rootCS = get_root_CoordinateSystem();
+  DummyOutput output;
+  DeferredDummyProcess process;
+  InteractionCounter counted{process};
+  HadronicRandomKey const key{
+      1234, 2, 77, 9, 4, 0};
+  HadronicInteractionDeferralContext context{
+      key, 19};
+
+  {
+    ScopedHadronicInteractionDeferral scope{
+        context};
+    counted.doInteraction(
+        output, Code::Proton, Code::Oxygen,
+        {10_GeV,
+         {rootCS, {0_GeV, 0_GeV, 9_GeV}}},
+        {Oxygen::mass,
+         {rootCS, {0_GeV, 0_GeV, 0_GeV}}});
+  }
+
+  CHECK_FALSE(process.called);
+  CHECK(context.hasPrepared());
+  auto prepared = context.takePrepared();
+  CHECK(
+      prepared.request.model ==
+      HadronicWorkerModel::Fluka);
+  CHECK(prepared.request.sequence_id == 19);
+  CHECK(prepared.request.random_key.history_id == 77);
+  CHECK(prepared.request.projectile_pdg == 2212);
+  CHECK(
+      prepared.request.target_pdg ==
+      static_cast<std::int32_t>(
+          get_PDG(Code::Oxygen)));
+  CHECK(
+      prepared.request.projectile_four_momentum_GeV[3] ==
+      Catch::Approx(9.));
+  CHECK(counted.getCount() == 1);
+  REQUIRE(counted.getTimingSamples().size() == 1);
+  CHECK(counted.getTimingSamples().front().deferred);
+  CHECK(
+      counted.getTimingSamples().front()
+          .final_state_time_ms == 0.);
+}
+
 TEST_CASE("InteractionCounter", "process") {
 
   logging::set_level(logging::level::info);
 
   DummyProcess d;
   InteractionCounter countedProcess(d);
+  CHECK(countedProcess.getCount() == 0);
+  CHECK(countedProcess.getTimingSamples().empty());
+  CHECK(countedProcess.getTotalFinalStateTimeMs() == 0.);
 
   auto const rootCS = get_root_CoordinateSystem();
   DummyOutput output;
@@ -65,6 +136,16 @@ TEST_CASE("InteractionCounter", "process") {
         {sqrt(static_pow<2>(105_TeV) + static_pow<2>(get_mass(pid))),
          {rootCS, {105_TeV, 0_GeV, 0_GeV}}},
         {Oxygen::mass, {rootCS, {0_eV, 0_eV, 0_eV}}});
+    CHECK(countedProcess.getCount() == 1);
+    REQUIRE(countedProcess.getTimingSamples().size() == 1);
+    auto const& timing = countedProcess.getTimingSamples().front();
+    CHECK(timing.sequence_id == 0);
+    CHECK(timing.projectile == pid);
+    CHECK(timing.target == Code::Oxygen);
+    CHECK(timing.kinetic_energy > 0_GeV);
+    CHECK(timing.final_state_time_ms >= 0.);
+    CHECK(countedProcess.getTotalFinalStateTimeMs() ==
+          Catch::Approx(timing.final_state_time_ms));
 
     auto const& h = countedProcess.getHistogram().labHist();
     CHECK(h.at(h.axis(0).index(1'000'070'140), h.axis(1).index(1.05e14)) == 1);
@@ -109,6 +190,10 @@ TEST_CASE("InteractionCounter", "process") {
         {sqrt(static_pow<2>(105_TeV) + static_pow<2>(get_mass(pid))),
          {rootCS, {105_TeV, 0_GeV, 0_GeV}}},
         {Oxygen::mass, {rootCS, {0_eV, 0_eV, 0_eV}}});
+    CHECK(countedProcess.getCount() == 1);
+    REQUIRE(countedProcess.getTimingSamples().size() == 1);
+    CHECK(countedProcess.getTimingSamples().front().projectile ==
+          pid);
 
     auto const& h = countedProcess.getHistogram().labHist();
     CHECK(h.at(h.axis(0).index(3122), h.axis(1).index(1.05e14)) == 1);

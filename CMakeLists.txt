@@ -24,6 +24,26 @@ project (
   LANGUAGES CXX
   )
 
+option (
+  CORSIKA_ENABLE_CUDA
+  "Build the experimental CUDA electromagnetic transport backend"
+  OFF
+  )
+
+if (CORSIKA_ENABLE_CUDA)
+  if (${CMAKE_VERSION} VERSION_LESS "3.24")
+    message (
+      FATAL_ERROR
+      "| CORSIKA8 > CORSIKA_ENABLE_CUDA requires CMake 3.24 or newer."
+      )
+  endif ()
+  enable_language (CUDA)
+  set (CMAKE_CUDA_STANDARD 17)
+  set (CMAKE_CUDA_STANDARD_REQUIRED ON)
+  set (CMAKE_CUDA_EXTENSIONS OFF)
+  find_package (CUDAToolkit 12 REQUIRED)
+endif ()
+
 #+++++++++++++++++++++++++++++
 # for pre-defined standard path
 #
@@ -285,6 +305,12 @@ target_link_libraries (
 
 # "src" is needed, since some headers (namely GeneratedParticleProperties.inc ec.) are produced by python script from e.g. ParticleData.xml
 add_subdirectory (src)
+add_subdirectory (src/gpu/em/tables)
+list (APPEND public_CORSIKA8_targets CORSIKA8GpuEmTables)
+if (CORSIKA_ENABLE_CUDA)
+  add_subdirectory (src/gpu/em)
+  list (APPEND public_CORSIKA8_targets CORSIKA8GpuEm)
+endif ()
 add_subdirectory (documentation)
 
 #+++++++++++++++++++++++++++++
@@ -328,6 +354,22 @@ install (
   EXPORT CORSIKA8PublicTargets
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}
   )
+install (
+  TARGETS CORSIKA8GpuEmTables
+  EXPORT CORSIKA8PublicTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+if (CORSIKA_ENABLE_CUDA)
+  install (
+    TARGETS CORSIKA8GpuEm
+    EXPORT CORSIKA8PublicTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif ()
 #
 # header only part, just copy entire directory tree
 #

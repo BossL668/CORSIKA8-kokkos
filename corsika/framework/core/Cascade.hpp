@@ -9,23 +9,13 @@
 
 #include <corsika/corsika.hpp>
 
-#include <corsika/framework/process/ProcessReturn.hpp>
-#include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/framework/core/Logging.hpp>
-#include <corsika/framework/random/ExponentialDistribution.hpp>
-#include <corsika/framework/random/RNGManager.hpp>
-#include <corsika/framework/random/UniformRealDistribution.hpp>
-#include <corsika/framework/stack/SecondaryView.hpp>
-#include <corsika/framework/geometry/FourVector.hpp>
+#include <corsika/framework/core/ScalarCascadeStepper.hpp>
 
 #include <corsika/media/Environment.hpp>
 
-#include <corsika/stack/history/HistoryStackExtension.hpp>
-
-#include <cassert>
-#include <cmath>
-#include <limits>
 #include <type_traits>
+#include <utility>
 
 namespace corsika {
 
@@ -104,33 +94,11 @@ namespace corsika {
     void forceDecay();
 
   private:
-    /**
-     * The Step function is executed for each particle from the
-     * stack. It will calcualte geometric transport of the particles,
-     * and apply continuous and stochastic processes to it, which may
-     * lead to energy losses, scattering, absorption, decays and the
-     * production of secondary particles.
-     *
-     * New particles produced in one step are subject to further
-     * processing, e.g. thinning, etc.
-     */
-    void step(particle_type& vParticle);
-
-    ProcessReturn decay(stack_view_type& view, InverseTimeType initial_inv_decay_time);
-    ProcessReturn interaction(stack_view_type& view, FourMomentum const& projectileP4,
-                              NuclearComposition const& composition,
-                              CrossSectionType const initial_cross_section);
-    void setEventType(stack_view_type& view, history::EventType);
-
     // data members
-    Environment<medium_interface_type> const& environment_;
-    TTracking& tracking_;
     TProcessList& sequence_;
     TOutput& output_;
     TStack& stack_;
-    default_prng_type& rng_ = RNGManager<>::getInstance().getRandomStream("cascade");
-    bool forceInteraction_;
-    bool forceDecay_;
+    ScalarCascadeStepper<TTracking, TProcessList, TStack> stepper_;
     unsigned int count_ = 0;
 
     // but this here temporarily. Should go into dedicated file later:

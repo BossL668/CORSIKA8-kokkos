@@ -7,13 +7,141 @@ set_target_properties(c8_air_shower PROPERTIES
   INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
 )
 
+target_compile_definitions (
+  c8_air_shower PRIVATE
+  CORSIKA8_BUNDLED_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF"
+)
+
+# FLUKA discovery and application selection historically used two independent
+# switches.  If a valid FLUKA library was discovered, make it the application
+# default so a fresh build cannot silently select UrQMD instead.  An explicit
+# -DWITH_FLUKA=OFF still remains available.
+if (NOT DEFINED WITH_FLUKA)
+  if (TARGET fluka)
+    set (WITH_FLUKA ON CACHE BOOL
+         "Use FLUKA for low-energy hadronic interactions")
+  else ()
+    set (WITH_FLUKA OFF CACHE BOOL
+         "Use FLUKA for low-energy hadronic interactions")
+  endif ()
+endif ()
+
+if (WITH_FLUKA AND NOT TARGET fluka)
+  message (FATAL_ERROR
+           "WITH_FLUKA=ON, but no valid FLUKA library was configured. "
+           "Set C8_FLUKALIB or FLUPRO to a directory containing libflukahp.a.")
+endif ()
+
+# A Conda Fortran compiler can contribute an old-sysroot libm linker script
+# even when the final C++ driver and all C++ objects use the host glibc. Put
+# the matching host multiarch directory first instead of applying the Conda
+# sysroot to host objects.
+if (CMAKE_Fortran_COMPILER_SYSROOT)
+  set (_c8_host_multiarch_libdir
+       "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
+  if (EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+    target_link_options (
+      c8_air_shower PRIVATE
+      "-L${_c8_host_multiarch_libdir}"
+      )
+  endif ()
+endif ()
+
+if (CORSIKA_ENABLE_CUDA)
+  target_link_libraries (c8_air_shower PRIVATE CORSIKA8GpuEm)
+  target_compile_definitions (c8_air_shower PRIVATE CORSIKA8_WITH_CUDA_EM=1)
+
+  # Explicit, opt-in validation binary.  It is excluded from the default
+  # build so a long campaign can continue using its already-linked
+  # c8_air_shower while output/accounting changes are compiled and tested in
+  # isolation.
+  add_executable (
+    c8_air_shower_parent_profile_validation EXCLUDE_FROM_ALL
+    c8_air_shower.cpp
+    )
+  target_link_libraries (
+    c8_air_shower_parent_profile_validation
+    PRIVATE CORSIKA8 CORSIKA8GpuEm
+    )
+  target_compile_definitions (
+    c8_air_shower_parent_profile_validation
+    PRIVATE
+    CORSIKA8_WITH_CUDA_EM=1
+    CORSIKA8_BUNDLED_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF"
+    )
+  if (CMAKE_Fortran_COMPILER_SYSROOT AND
+      EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+    target_link_options (
+      c8_air_shower_parent_profile_validation PRIVATE
+      "-L${_c8_host_multiarch_libdir}"
+      )
+  endif ()
+
+  add_executable (cuda_decision_replay cuda_decision_replay.cpp)
+  target_link_libraries (
+    cuda_decision_replay
+    PRIVATE
+    CORSIKA8
+    CORSIKA8GpuEm
+    )
+endif ()
+
+add_executable (gpu_em_tablegen gpu_em_tablegen.cpp)
+target_link_libraries (
+  gpu_em_tablegen
+  PRIVATE
+  CORSIKA8GpuEmTables
+  CLI11::CLI11
+  PROPOSAL::PROPOSAL
+  spdlog::spdlog
+  )
+add_dependencies (gpu_em_tablegen GenParticlesHeaders GenMediaProperties)
+
+add_executable (gpu_em_table_prepare gpu_em_table_prepare.cpp)
+target_link_libraries (
+  gpu_em_table_prepare
+  PRIVATE
+  CORSIKA8GpuEmTables
+  CLI11::CLI11
+  PROPOSAL::PROPOSAL
+  yaml-cpp::yaml-cpp
+  )
+
 if(WITH_FLUKA)
   message("compiling c8_air_shower.cpp with FLUKA")
   target_compile_definitions(c8_air_shower PRIVATE WITH_FLUKA)
+  if (TARGET c8_air_shower_parent_profile_validation)
+    target_compile_definitions(
+      c8_air_shower_parent_profile_validation PRIVATE WITH_FLUKA)
+  endif ()
+  add_executable (fluka_batch_worker fluka_batch_worker.cpp)
+  target_link_libraries (fluka_batch_worker PRIVATE CORSIKA8 fluka)
+  # The worker is exec'ed from the installed bin directory and links FLUKA
+  # directly.  Keep its runtime lookup consistent with c8_air_shower, since
+  # CORSIKA's model libraries are installed below lib/corsika rather than lib.
+  set_target_properties(fluka_batch_worker PROPERTIES
+    INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
+  )
 else()
   message("compiling c8_air_shower.cpp with UrQMD")
 endif()
 
 install (
-  TARGETS c8_air_shower DESTINATION bin
+  TARGETS c8_air_shower gpu_em_tablegen gpu_em_table_prepare DESTINATION bin
 )
+install (
+  DIRECTORY "${CMAKE_SOURCE_DIR}/configs/media"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/corsika"
+)
+install (
+  FILES "${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/corsika/GeoMag"
+)
+
+if (TARGET cuda_decision_replay)
+  install (TARGETS cuda_decision_replay DESTINATION bin)
+endif ()
+
+if (TARGET fluka_batch_worker)
+  install (TARGETS fluka_batch_worker DESTINATION bin)
+endif ()

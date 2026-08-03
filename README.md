@@ -1,225 +1,915 @@
-# CORSIKA 8 Framework for Particle Cascades in Astroparticle Physics
+# CORSIKA 8 GPU Hybrid Cascade
 
-The purpose of CORSIKA 8 is to simulate any particle cascades in
-astroparticle physics or astrophysical context. A lot of emphasis has been
-put on modularity, flexibility, completeness, validation and
-correctness. To boost computational efficiency, different techniques
-are provided, like thinning or cascade equations. The aim is that
-CORSIKA 8 remains the most comprehensive framework for simulating
-particle cascades with stochastic and continuous processes.
+This repository is a research fork of CORSIKA 8 that adds an optional NVIDIA
+CUDA backend for high-energy air-shower production. It is being developed for
+21CMA cosmic-ray and radio-emission studies, with an emphasis on accelerating
+individual proton showers while retaining the established CORSIKA 8 physics
+modules.
 
-The software makes extensive use of static design patterns and
-compiler optimization. Thus, the most fundamental configuration
-decisions of the user must be performed at compile time. At run time,
-model parameters can still be changed.
+The original scalar `Cascade + PROPOSAL` execution path remains available and
+is the default. CUDA transport, CUDA radio projection, and the process-isolated
+FLUKA pool are explicit opt-in features.
 
-CORSIKA 8 is by default released under the BSD 3-Clause License. See [license
-file](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/blob/master/LICENSE)
-which is part of every release and the source code.
+> **Project status:** this is an independent research fork. It has not been
+> reviewed or accepted by the CORSIKA Collaboration. Use it for scientific
+> production only within the supported and validated configurations described
+> below.
 
-If you use, or want to refer to, CORSIKA 8 please cite ["Towards a Next
-Generation of CORSIKA: A Framework for the Simulation of Particle
-Cascades in Astroparticle Physics", Comput. Softw. Big Sci. 3 (2019)
-2](https://doi.org/10.1007/s41781-018-0013-0) as well as
-["Simulating radio emission from particle cascades with CORSIKA 8", Astropart. Phys. 166 (2025)
-103072](https://doi.org/10.1016/j.astropartphys.2024.103072).
+[Chinese README](README_CN.md) ·
+[GPU production guide](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md) ·
+[CLI reference](documentation/cuda_em_refactor/cli_reference.md) ·
+[validation tools](validation/gpu_em/README.md) ·
+[upstream CORSIKA 8](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika)
 
-We kindly ask (and require) any relevant improvement or addition to be offered or
-contributed to the main CORSIKA 8 repository for the benefit of the
-whole community.
+## What this fork adds
 
-CORSIKA 8 makes use of various third-party code, in particular interaction
-models. Please check the [using and collaborating
-agreement](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/blob/master/USING_COLLABORATING.md)
-for further information on this topic.
+The fork separates scalar particle stepping from cascade scheduling and adds a
+hybrid CPU/GPU execution path. The main additions are:
 
-If you plan to contribute to CORSIKA 8, please check the guidelines outlined here:
-[coding
-guidelines](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/blob/master/CONTRIBUTING.md). Code
-that fails the review by the CORSIKA 8 author group must be improved
-before it can be merged in the official code base. After your code has
-been accepted and merged, you become a contributor of the CORSIKA 8
-project (code author).
+| Capability | Implementation |
+|---|---|
+| CUDA electromagnetic transport | Device-resident wavefront transport for photons, electrons, and positrons |
+| CUDA charged-lepton transport | Table-enabled muon transport with CPU return for decay and unsupported final states |
+| Hybrid scheduling | Stable routing between the original CPU stack and independent GPU structure-of-arrays queues |
+| Physics tables | Versioned PROPOSAL-derived rate, inverse-CDF, continuous-loss, LPM, and scattering tables |
+| Automatic table preparation | Material YAML normalization, content hashing, cache lookup, locked generation, and validation |
+| Radio calculation | Selectable CPU or CUDA CoREAS/ZHS waveform projection for electromagnetic tracks |
+| Low-energy hadronic throughput | Optional persistent multi-process FLUKA final-state pool |
+| Reproducibility | History-addressed Philox random numbers and exact scalar decision-tape replay tools |
+| Scientific audit | Fail-closed output metadata, timing, fallback counters, energy accounting, and ensemble-validation tools |
 
-IMPORTANT: Before you contribute, you need to read and agree to the conditions set out in the
-[using and collaborating
-agreement](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/blob/master/USING_COLLABORATING.md).
-The agreement can be discussed, and eventually improved if necessary.
+Unsupported or rare processes are never silently discarded. They are either
+returned to a declared CPU physics module or treated as a hard failure.
 
+### Execution model
 
-## Get in contact
-  * Join our chat threads using Mattermost via this [invite link](https://mattermost.hzdr.de/signup_user_complete/?id=xtdd8jyt6trbiezt71gaz3z4ge&md=link&sbr=su). Click the `GitLab` button, then `Sign in with Helmholtz ID`. You will be able to make an account by either finding your institution, or using your e.g. ORCID, GitHub, or Google account.
-  * Connect to https://gitlab.iap.kit.edu, register yourself and join the "Air Shower Physics" group. Write to us on Mattermost (in the User Questions channel), or directly contact one of the [steering comittee members](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/-/wikis/Steering-Committee) in case there are problems with that.
-  * Connect to corsika-devel@lists.kit.edu (self-register at
-    https://www.lists.kit.edu/sympa/subscribe/corsika-devel) to get in
-    touch with the project.
-
-
-## Installation
-
-CORSIKA 8 is tested regularly at least on `gcc11.0.0` and `clang-14.0.0`.
-
-### Prerequisites
-
-You will also need:
-
-- Python 3 (supported versions are Python >= 3.6), with pip
-- cmake > 3.4
-- git
-- g++, gfortran, binutils, make
-- optional: FLUKA (see below)
-
-
-On a bare Ubuntu machine, just add:
-``` shell
-sudo apt-get install python3 python3-pip cmake g++ gfortran git doxygen graphviz
+```text
+primary particle
+      |
+      v
+CPU CORSIKA 8: primary hadrons, interactions, decays, unsupported final states
+      |
+      +---------------- gamma / e- / e+ ----------------+
+      |                                                  |
+      +------------- table-enabled mu- / mu+ --------+   |
+                                                     v   v
+                                                CUDA wavefronts
+                                                     |
+                    +--------------------------------+------------------+
+                    |                                |                  |
+                    v                                v                  v
+             CPU final-state fallback       longitudinal/profile   radio tracks
+                    |                         accumulation          |
+                    v                                               v
+             CORSIKA CPU stack                              CPU or CUDA CoREAS/ZHS
 ```
 
-### Creating a virtual environment and Conan
+The `fluka-process` backend does not move hadronic physics to the GPU. It runs
+the same low-energy FLUKA final-state calculation in persistent worker
+processes and batches homogeneous requests through binary IPC.
 
-It is recommended that you install CORSIKA 8 and its dependencies within a python3 virtual environment.
-To do so, you can run the following.
-``` shell
-# Create the environment using your native python3 binary
-python3 -m venv /path/to/new/virtual/environment/corsika-8
-# Load the environment (should be run each time you open a new terminal)
-source /path/to/new/virtual/environment/corsika-8/bin/activate
+## Supported production contract
 
+The current CUDA application is intended for the following configuration:
+
+- NVIDIA CUDA 12.x on Linux or WSL2;
+- a five-layer spherical dry-air atmosphere;
+- the spherical observation surface used by `c8_air_shower`;
+- a uniform magnetic-field vector calculated by the host application;
+- photon, electron, positron, and table-enabled muon transport;
+- electromagnetic cuts and the existing CORSIKA 8 EM thinning algorithm;
+- CPU or CUDA CoREAS/ZHS projection;
+- CPU high-energy hadronic physics and FLUKA 2025 low-energy interactions;
+- double-precision particle state, geometry, and physics-table calculations;
+- deterministic same-machine CUDA repetition without `--use_fast_math`.
+
+The reference `c8_air_shower` application defaults to `GeoMag/IGRF14.COF` and
+the 21CMA site field for the year 2027 at latitude 42.5527 degrees, longitude
+86.4153816422 degrees, and altitude 2680.444195 m. `--geomagnetic-model`
+selects IGRF13 or IGRF14 and `--geomagnetic-year` selects the epoch. Both
+scalar and CUDA paths receive the same resolved field vector, and the selected
+model/year are stored in the output metadata. IGRF14 is bundled under
+`resources/GeoMag` and is installed automatically; an existing
+`CORSIKA_DATA/GeoMag/IGRF14.COF` takes precedence.
+
+Rock, soil, ice, lunar regolith, mountains, and arbitrary three-dimensional
+media are not end-to-end supported yet. Their material tables can be prepared,
+but device geometry, grammage integration, medium-ID mapping, and dedicated
+physics validation must also be implemented before such a table can be used in
+`c8_air_shower`.
+
+## Requirements
+
+### Host software
+
+- Linux or WSL2;
+- CMake 3.24 or newer for a CUDA build;
+- a C++17 and Fortran toolchain;
+- Conan 2;
+- Python 3.9 or newer for the validation utilities;
+- Git with submodule support;
+- NVIDIA CUDA toolkit 12.x, including `nvcc`;
+- a host NVIDIA driver compatible with the selected CUDA toolkit;
+- FLUKA and its data files for the production low-energy hadronic path.
+
+Check the machine before building:
+
+```bash
+nvidia-smi
+nvidia-smi \
+  --query-gpu=index,name,compute_cap,driver_version,memory.total \
+  --format=csv
+nvcc --version
+cmake --version
+c++ --version
+gfortran --version
+ldd --version
 ```
 
-You will need to load the environment each time that you open a new terminal.
+In WSL2, install the NVIDIA display driver on Windows. Install only the CUDA
+toolkit inside WSL; a second Linux display driver is neither required nor
+recommended.
 
-CORSIKA 8 uses the [conan](https://conan.io/) package manager to
-manage our dependencies. Currently, version 2.50.0 or higher is required.
-**Note**: if you are NOT using a virtual environment, you may want to use the `pip install --user` flag.
+### Reference Conda environment
 
-``` shell
-pip install conan particle==0.25.1 numpy
+The following environment reproduces the current development toolchain:
+
+```bash
+conda create -n corsika_venv \
+  -c conda-forge \
+  python=3.9 \
+  cmake=3.31 \
+  conan=2.11 \
+  particle=0.25.1 \
+  numpy pandas scipy matplotlib pyyaml
+
+conda activate corsika_venv
+
+conda install \
+  -c nvidia/label/cuda-12.6.3 \
+  cuda-toolkit=12.6.3
 ```
 
-### Enabling FLUKA support
+On a managed cluster, loading the site's compiler and CUDA modules is usually
+preferable to installing the toolkit in Conda. Use the same compiler family
+when Conan creates its profile and when CMake builds the project.
 
-For legal reasons we do not distribute/bundle FLUKA together with CORSIKA 8.
-As FLUKA is the standard low-energy hadronic interaction model for CORSIKA 8, you have to download
-it separately from (http://www.fluka.org/), which requires registering there as FLUKA user.
-The following should be done *before* compiling CORSIKA 8:
-
- 1. Note your system's version of gfortran (`gfortran --version`) and glibc (`ldd --version`)
- 2. Download the FLUKA __binary__, ensuring that it matches the versions you found above
- 3. Download the FLUKA __data file__ (will be named something similar to __fluka20xy.z-data.tar.gz__).
- 4. Un-tar the files that you downloaded using `tar -xf <filename>`
- 5. Set environmental variables `export FLUFOR=gfortran` and `export FLUPRO=<path to where you unzipped the files>`. Note that the `FLUPRO` directory should contain __libflukahp.a__. Both of these variables will have to be set every time you open a new terminal.
- 6. Go to the `FLUPRO` directory and run `make`. This will compile an exe, __flukahp__, in your current directory.
- 7. Follow the normal steps to compile CORSIKA 8 (see below).
-
-When you later install CORSIKA 8, you should see a message during the __cmake__ step indicating the FLUKA was correctly found.
-
-``` shell
-libflukahp.a found in directory <some location here> via FLUPRO environment variable
-FLUKA support is enabled.
+```bash
+which c++
+which gfortran
+which nvcc
+conan profile detect --force
 ```
 
-### Compiling CORSIKA 8
+### FLUKA
 
-Once Conan is installed and FLUKA provided, follow these steps to download and install CORSIKA 8:
+FLUKA is licensed separately and is not distributed by this repository.
+Download a FLUKA binary and data package compatible with the machine's glibc
+and Fortran runtime, build it, and expose the installation before configuring
+CMake:
 
-``` shell
-cd ./top/directory/for/corsika/installation
-git clone --recursive git@gitlab.iap.kit.edu:AirShowerPhysics/corsika.git
-# Or for https: git clone --recursive https://gitlab.iap.kit.edu/AirShowerPhysics/corsika.git
-mkdir corsika-build
-cd corsika-build
-../corsika/conan-install.sh --source-directory ../corsika --release-with-debug
-# conan-install.sh takes required options from command line to install dependencies for 'Debug', 'Release' and 'RelWithDebInfo' builds.
-../corsika/corsika-cmake.sh -c "-DCMAKE_BUILD_TYPE="RelWithDebInfo" -DWITH_FLUKA=ON -DCMAKE_INSTALL_PREFIX=../corsika-install"
-make -j4  #The number should match the number of available cores on your machine
-make install
+```bash
+export C8_FLUKA_ROOT=/path/to/fluka
+export FLUPRO="$C8_FLUKA_ROOT"
+export FLUFOR=gfortran
+
+test -f "$C8_FLUKA_ROOT/libflukahp.a"
 ```
 
-## Alternate installation using docker containers
+`-DWITH_FLUKA=ON` is fail-closed: configuration stops if a valid FLUKA library
+cannot be found. `-DWITH_FLUKA=OFF` remains available for deliberate UrQMD
+experiments, but it is not the reference configuration used for the results in
+this repository.
 
-There are docker containers prepared that bring all the environment and packages you need to run CORSIKA. See [docker hub](https://hub.docker.com/repository/docker/corsika/devel) for a complete overview.
+## Build from source
 
-### Prerequisites
+### 1. Create the workspace and clone the fork
 
-You only need docker, e.g. on Ubuntu: `sudo apt-get install docker` and of course root access.
+The recommended layout places the source, out-of-source build, and installation
+directories under one dedicated parent directory, for example
+`~/corsika-21cma-cuda`:
 
-### Compiling
-
-Follow these steps to download and install CORSIKA 8, master development version
-```shell
-cd ./top/directory/for/corsika/installation
-git clone --recursive git@gitlab.iap.kit.edu:AirShowerPhysics/corsika.git
-sudo docker run -v $PWD:/corsika -it corsika/devel:clang-8 /bin/bash
-mkdir corsika-build
-cd corsika-build
-../corsika/conan-install.sh --source-directory ../corsika --release-with-debug
-# conan-install.sh takes required options from command line to install dependencies for 'Debug', 'Release' and 'RelWithDebInfo' builds.
-../corsika/corsika-cmake.sh -c "-DCMAKE_BUILD_TYPE="RelWithDebInfo" -DWITH_FLUKA=ON -DCMAKE_INSTALL_PREFIX=../corsika-install"
-make -j4  #The number should match the number of available cores on your machine
-make install
+```text
+corsika-21cma-cuda/
+├── corsika8_gpu_refactor/              # Git source tree
+├── corsika8_gpu_refactor_build_cuda/   # CMake build tree
+└── corsika8_gpu_refactor_install_cuda/ # Installed programs and resources
 ```
 
-## Running Unit Tests
+Create the parent first, then clone the repository into the source directory.
+The repository contains submodules, so the clone must be recursive:
 
-To run the unit tests, do the following.
+```bash
+export C8_WORKSPACE=~/corsika-21cma-cuda
+mkdir -p "$C8_WORKSPACE"
+cd "$C8_WORKSPACE"
 
-```shell
-cd ./corsika-build
-ctest -j4  #The number should match the number of available cores on your machine
+git clone --recursive \
+  https://github.com/BossL668/corsika8-gpu-hybrid.git \
+  corsika8_gpu_refactor
 ```
 
-## Running applications and examples
+For a private-repository checkout authenticated through the GitHub CLI:
 
-### Standard applications
-
-Applications for standard use-cases are located in the `applications` directory.
-These are example scripts that can be used directly or slightly modified for your use case.
-See [applications/README.md] for more.
-The applications are compiled automatically after running `make` and will appear your `corsika-build/bin` directory.
-After running `make install` the binaries will also be copied into your `corsika-install/bin` directory as well.
-
-
-For example, from inside your `corsika-install/bin` directory, run
-```shell
-c8_air_shower --pdg 2212 -E 1e5 -f my_shower
-```
-This will run a vertical 100 TeV proton shower and will create and put the output into `./my_shower`.
-
-
-### Building the examples
-
-Unlike the applications, the examples must be compiled as a second step.
-From your top corsika directory, (the one that includes `corsika-build` and `corsika-install`) run
-```shell
-export CONAN_DEPENDENCIES=$PWD/corsika-install/lib/cmake/dependencies
-cmake -DCMAKE_TOOLCHAIN_FILE=${CONAN_DEPENDENCIES}/conan_toolchain.cmake -DCMAKE_PREFIX_PATH=${CONAN_DEPENDENCIES} -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=RelWithDebInfo -Dcorsika_DIR=$PWD/corsika-build -DWITH_FLUKA=ON -S $PWD/corsika/examples -B $PWD/corsika-build-examples
-cd corsika-build-examples
-make -j4 #The number should match the number of available cores on your machine
+```bash
+cd "$C8_WORKSPACE"
+gh repo clone BossL668/corsika8-gpu-hybrid \
+  corsika8_gpu_refactor \
+  -- --recurse-submodules
 ```
 
-You can run the examples by using the binaries in `corsika-build-examples/bin/`.
-For example:
-```shell
-corsika-build-examples/bin/known_particles
-```
-This will print out all of the particles that are known by CORSIKA.
+Define all three paths once and keep them unchanged throughout configuration,
+compilation, installation, and validation:
 
+```bash
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
+cd "$C8_SOURCE"
+```
 
-### Generating doxygen documentation
+On another machine, change only `C8_WORKSPACE` to the desired absolute parent
+path; preserve the three child-directory names shown above. Never place the
+build tree inside the Git source tree, and never reuse a build tree copied from
+another CUDA toolkit, compiler, or GPU architecture.
 
-To generate the documentation, you need doxygen and graphviz. If you work with
-the docker corsika/devel containers this is already included.
-Otherwise, e.g. on Ubuntu machines, do:
-```shell
-sudo apt-get install doxygen graphviz
+### 2. Select the CUDA architecture
+
+Compile for the compute capability of the GPU that will run the program.
+CMake writes capability 8.9 as architecture `89`:
+
+```bash
+export C8_CUDA_ARCHS="$(
+  nvidia-smi --query-gpu=compute_cap --format=csv,noheader |
+  sed 's/\.//g' |
+  sort -u |
+  paste -sd';' -
+)"
+
+printf 'CMake CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
 ```
-Switch to the `corsika-build` directory and do
-```shell
-make docs
-make install
+
+A homogeneous server should normally use one architecture. A binary intended
+for several GPU generations may list multiple architectures separated by
+semicolons. If `nvcc` does not recognize a new GPU architecture, upgrade the
+CUDA toolkit instead of substituting an unrelated older architecture.
+
+### 3. Install dependencies and configure a Release build
+
+Confirm the recommended sibling-directory layout in the current shell:
+
+```bash
+export C8_WORKSPACE=~/corsika-21cma-cuda
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
+
+"$C8_SOURCE/conan-install.sh" \
+  --source-directory "$C8_SOURCE" \
+  --release
+
+cmake \
+  -S "$C8_SOURCE" \
+  -B "$C8_BUILD" \
+  -DCONAN_CMAKE_DIR="$C8_SOURCE/conan_cmake" \
+  -DCMAKE_TOOLCHAIN_FILE="$C8_SOURCE/conan_cmake/conan_toolchain.cmake" \
+  -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCORSIKA_ENABLE_CUDA=ON \
+  "-DCMAKE_CUDA_ARCHITECTURES=$C8_CUDA_ARCHS" \
+  -DWITH_FLUKA=ON \
+  -DC8_FLUKALIB="$C8_FLUKA_ROOT/libflukahp.a" \
+  -DCMAKE_INSTALL_PREFIX="$C8_INSTALL"
 ```
-open with firefox:
-```shell
-firefox ../corsika-install/share/corsika/doc/html/index.html
+
+`Release` is required for performance measurements. The CUDA build deliberately
+does not enable fast math.
+
+### 4. Build, install, and test
+
+```bash
+cmake --build "$C8_BUILD" --parallel 16
+cmake --install "$C8_BUILD"
+
+ctest \
+  --test-dir "$C8_BUILD" \
+  --output-on-failure \
+  --parallel 16
+
+python -m unittest discover \
+  -s "$C8_SOURCE/validation/gpu_em/tests" \
+  -p 'test_*.py'
 ```
+
+CUDA translation units can require several GiB of host RAM during compilation.
+Reduce `--parallel` on memory-limited systems.
+
+The main installed programs are:
+
+| Program | Purpose |
+|---|---|
+| `c8_air_shower` | Scalar or hybrid CUDA shower simulation |
+| `gpu_em_table_prepare` | Find or generate a content-addressed physics table |
+| `gpu_em_tablegen` | Low-level PROPOSAL table generator |
+| `cuda_decision_replay` | Replay an exact scalar decision tape on CUDA |
+| `fluka_batch_worker` | Persistent FLUKA final-state worker |
+
+### CPU-only compatibility build
+
+CUDA is disabled by default. A CPU-only build does not require a CUDA toolkit:
+
+```bash
+export C8_CPU_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cpu"
+
+cmake \
+  -S "$C8_SOURCE" \
+  -B "$C8_CPU_BUILD" \
+  -DCONAN_CMAKE_DIR="$C8_SOURCE/conan_cmake" \
+  -DCMAKE_TOOLCHAIN_FILE="$C8_SOURCE/conan_cmake/conan_toolchain.cmake" \
+  -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCORSIKA_ENABLE_CUDA=OFF \
+  -DWITH_FLUKA=ON \
+  -DC8_FLUKALIB="$C8_FLUKA_ROOT/libflukahp.a"
+
+cmake --build "$C8_CPU_BUILD" --parallel 16
+```
+
+## Prepare the CUDA physics table
+
+CUDA showers require a versioned `.c8emrt` file. This file is different from
+PROPOSAL's internal interpolation cache. `c8_air_shower` never creates a table
+implicitly during a shower; prepare it first with `gpu_em_table_prepare`.
+
+### Recommended automatic workflow
+
+The preparation tool performs the complete workflow:
+
+```text
+material YAML
+  -> canonical material representation
+  -> material and request SHA-256
+  -> compatible table lookup
+  -> locked generation on a cache miss
+  -> read-back validation
+  -> manifest and resolved table path
+```
+
+Prepare the standard dry-air table for primaries up to \(10^{18}\) eV:
+
+```bash
+export C8_TABLE_CACHE="$(dirname "$C8_SOURCE")/corsika8-table-cache"
+
+export C8_TABLE="$(
+  "$C8_BUILD/applications/gpu_em_table_prepare" \
+    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e18 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --print-path-only
+)"
+
+test -f "$C8_TABLE"
+printf 'CUDA physics table: %s\n' "$C8_TABLE"
+```
+
+The first request may take a long time because the tool calls PROPOSAL and
+adaptively validates the interpolation grids. Identical requests, and smaller
+compatible energy requests, reuse the content-addressed cache.
+
+For a \(10^{19}\) eV primary, change only the requested primary energy:
+
+```bash
+export C8_TABLE_1E19="$(
+  "$C8_BUILD/applications/gpu_em_table_prepare" \
+    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e19 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --print-path-only
+)"
+```
+
+The default energy margin is 1.05. A \(10^{19}\) eV request therefore creates
+or resolves a table with an upper bound of at least
+\(1.05\times10^{13}\) MeV. Tables are never extrapolated beyond their declared
+energy range.
+
+Useful preparation modes are:
+
+| Option | Behavior |
+|---|---|
+| `--dry-run` | Print the normalized request without generating anything |
+| `--lookup-only` | Return exit code 2 on a cache miss instead of generating |
+| `--force` | Regenerate the exact content-addressed request |
+| `--print-path-only` | Print only the resolved `.c8emrt` path |
+| `--no-muons` | Prepare only photon/electron/positron tables |
+
+### Download the validated dry-air table
+
+Repository collaborators may download the validated \(10^{18}\) eV dry-air
+table from the private GitHub release instead of generating it:
+
+```bash
+export C8_RELEASE_TABLE_DIR="$C8_BUILD/gpu_em_tables"
+mkdir -p "$C8_RELEASE_TABLE_DIR"
+
+gh release download gpu-table-dry-air-v10 \
+  --repo BossL668/corsika8-gpu-hybrid \
+  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
+  --dir "$C8_RELEASE_TABLE_DIR"
+
+export C8_TABLE="$C8_RELEASE_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
+
+printf '%s  %s\n' \
+  '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521' \
+  "$C8_TABLE" | sha256sum --check
+```
+
+The validated table contract is:
+
+- `AirDry1Atm` composition;
+- photon, electron, positron, negative-muon, and positive-muon tables;
+- 0.5 MeV electromagnetic stochastic and transport cuts;
+- 300 MeV muon transport cut;
+- total particle energies through \(10^{18}\) eV;
+- maximum rate and inverse-CDF interpolation tolerance of \(10^{-3}\).
+
+### Custom material YAML
+
+`configs/media/air_dry_1_atm.yaml` is the schema-1 reference. The table request
+hash includes material composition, PROPOSAL parameters, cuts, energy range,
+grid controls, and format version. Comments, whitespace, and component order do
+not change the normalized hash; a physical material change does.
+
+Generating a rock, ice, soil, or lunar-regolith table does not enable that
+material in the current GPU atmosphere. See
+[`gpu_em_tables/README.md`](gpu_em_tables/README.md) for the YAML schema and the
+runtime-environment boundary.
+
+## Run a shower
+
+`c8_air_shower` uses GeV for particle energies, degrees for direction angles,
+and metres for geometry. The output directory passed to `-f` must not already
+exist.
+
+### Scalar reference run
+
+Omitting `--em-backend` selects the original scalar PROPOSAL path:
+
+```bash
+export C8_ANTENNAS=/absolute/path/to/antennas.txt
+export C8_CPU_OUTPUT=/absolute/path/to/proton_100TeV_cpu
+
+"$C8_BUILD/applications/c8_air_shower" \
+  -p 2212 \
+  -E 1e5 \
+  -N 1 \
+  -z 0 \
+  -a 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  -s 10001 \
+  -f "$C8_CPU_OUTPUT" \
+  --emcut 0.0005 \
+  --emthin 1e-6 \
+  --ring 0 \
+  --antenna-file "$C8_ANTENNAS"
+```
+
+This is equivalent to explicitly passing `--em-backend proposal`.
+
+### Minimal CUDA run
+
+The minimum additional CUDA arguments are the backend selection and a
+compatible physics table:
+
+```bash
+export C8_CUDA_OUTPUT=/absolute/path/to/proton_100TeV_cuda
+
+"$C8_BUILD/applications/c8_air_shower" \
+  -p 2212 \
+  -E 1e5 \
+  -N 1 \
+  -z 0 \
+  -a 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  -s 20001 \
+  -f "$C8_CUDA_OUTPUT" \
+  --emcut 0.0005 \
+  --emthin 1e-6 \
+  --ring 0 \
+  --antenna-file "$C8_ANTENNAS" \
+  --em-backend cuda \
+  --gpu-table-cache "$C8_TABLE"
+```
+
+This uses CUDA electromagnetic transport with the default CPU radio and scalar
+low-energy hadronic backends.
+
+### Fully accelerated reference run
+
+Enable CUDA radio and the process-isolated FLUKA pool explicitly:
+
+```bash
+export C8_FULL_OUTPUT=/absolute/path/to/proton_100TeV_cuda_full
+
+"$C8_BUILD/applications/c8_air_shower" \
+  -p 2212 \
+  -E 1e5 \
+  -N 1 \
+  -z 0 \
+  -a 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  -s 20001 \
+  -f "$C8_FULL_OUTPUT" \
+  --emcut 0.0005 \
+  --hadcut 0.3 \
+  --mucut 0.3 \
+  --taucut 0.3 \
+  --emthin 1e-6 \
+  --ring 0 \
+  --antenna-file "$C8_ANTENNAS" \
+  --em-backend cuda \
+  --gpu-device 0 \
+  --gpu-min-batch 4096 \
+  --gpu-memory-fraction 0.70 \
+  --gpu-table-cache "$C8_TABLE" \
+  --gpu-table-tolerance 1e-3 \
+  --gpu-deterministic true \
+  --gpu-resident-cross-species true \
+  --radio-backend cuda \
+  --gpu-radio-field-limit 1 \
+  --hadronic-backend fluka-process \
+  --hadronic-workers 4 \
+  --hadronic-min-batch 64 \
+  --hadronic-target-batch-ms 5 \
+  --hadronic-max-batch 256
+```
+
+For the inclined \(10^{17}\) eV test configuration, change the energy and
+direction while retaining the same cuts and thinning:
+
+```text
+-E 1e8 -z 47 -a 180 --emcut 0.0005 --emthin 1e-6
+```
+
+### Antenna file
+
+`--antenna-file` expects three whitespace-separated columns in the local NWU
+coordinate system:
+
+```text
+North_m  West_m  Up_m
+```
+
+Use `--ring 0` to disable the generated star-shaped observer rings and use only
+the supplied antennas. CPU and CUDA radio calculations consume the same
+observer geometry.
+
+## Essential command-line options
+
+Run the compiled program with `--help` for the exact defaults and constraints:
+
+```bash
+"$C8_BUILD/applications/c8_air_shower" --help
+"$C8_BUILD/applications/gpu_em_table_prepare" --help
+"$C8_BUILD/applications/gpu_em_tablegen" --help
+"$C8_BUILD/applications/cuda_decision_replay" --help
+"$C8_BUILD/applications/fluka_batch_worker" --help
+```
+
+### Shower configuration
+
+| Option | Meaning |
+|---|---|
+| `-p, --pdg` | Primary PDG code; proton is 2212, photon is 22, electron is 11 |
+| `-Z` and `-A` | Nuclear charge and mass number; mutually exclusive with `--pdg` |
+| `-E, --energy` | Primary total energy in GeV |
+| `-N, --nevent` | Number of showers in the output library |
+| `-z, --zenith` | Zenith angle in degrees |
+| `-a, --azimuth` | Azimuth angle in degrees |
+| `--geomagnetic-model` | `IGRF13` or `IGRF14`; default `IGRF14` |
+| `--geomagnetic-year` | IGRF epoch in the range 1900--2030; default 2027 |
+| `-s, --seed` | Initial random seed |
+| `-f, --filename` | New output-library path |
+| `--emcut` | Photon/electron/positron kinetic-energy cut in GeV |
+| `--hadcut`, `--mucut`, `--taucut` | Non-EM kinetic-energy cuts in GeV |
+| `--emthin` | Fraction of primary energy at which EM thinning starts |
+| `--max-weight` | Maximum EM thinning weight; zero selects the application's automatic value |
+| `--antenna-file` | Observer positions in NWU metres |
+| `--ring` | Number of generated observer rings; zero uses only the antenna file |
+
+When comparing CPU and CUDA ensembles, keep all physical parameters identical.
+The application records the resolved thinning behavior, including whether the
+automatic maximum weight can activate from an initially unweighted history.
+
+### CUDA transport
+
+| Option | Default | Meaning |
+|---|---:|---|
+| `--em-backend proposal\|cuda` | `proposal` | Select scalar PROPOSAL or hybrid CUDA transport |
+| `--gpu-device` | `0` | CUDA device index |
+| `--gpu-min-batch` | `4096` | Minimum useful GPU front; smaller fronts receive bounded scalar expansion |
+| `--gpu-memory-fraction` | `0.70` | Fraction of currently free device memory available to the backend |
+| `--gpu-table-cache` | none | Required versioned `.c8emrt` file |
+| `--gpu-table-tolerance` | `1e-3` | Maximum accepted table interpolation error |
+| `--gpu-deterministic` | `true` | Enable history-addressed deterministic Philox random numbers |
+| `--gpu-resident-cross-species` | `true` | Keep photon/lepton secondaries in persistent device queues |
+| `--gpu-detailed-stage-timing` | off | Record detailed CUDA stage timings; profiling only |
+| `--gpu-full-step-records` | off | Return full transport records; validation only |
+
+### Radio projection
+
+| Option | Default | Meaning |
+|---|---:|---|
+| `--radio-backend cpu\|cuda` | `cpu` | Select CPU or resident CUDA CoREAS/ZHS projection |
+| `--gpu-radio-field-limit` | `1.0` V/m | Checked fixed-point waveform range; overflow is fatal |
+| `--radio-sampling-rate-ghz` | `1.0` | Radio time-domain sampling rate |
+| `--radio-window-duration-ns` | `400` ns | Observer time-window length |
+| `--radio-pretrigger-ns` | `10` ns | Time before the geometric direct-arrival reference |
+| `--gpu-radio-track-diagnostics` | off | Collect extra track diagnostics; validation only |
+
+Use at least 10 GHz sampling when making precision 50--350 MHz CPU/CUDA
+waveform comparisons. CPU and CUDA radio projection are accumulated while the
+electromagnetic tracks are produced; neither backend waits to reconstruct the
+particle tree after the complete shower.
+
+### FLUKA scheduling
+
+| Option | Default | Meaning |
+|---|---:|---|
+| `--hadronic-backend scalar\|fluka-process` | `scalar` | Select in-process scalar FLUKA or persistent FLUKA workers |
+| `--hadronic-workers` | `4` | Number of persistent FLUKA worker processes |
+| `--hadronic-min-batch` | `64` | Parked vertices required before cost-based flushing |
+| `--hadronic-target-batch-ms` | `5` ms | Target estimated work per homogeneous worker batch |
+| `--hadronic-max-batch` | `256` | Maximum requests in one worker batch |
+| `--hadronic-worker-executable` | sibling binary | Explicit path to `fluka_batch_worker` |
+| `--cpu-detailed-step-timing` | off | Record detailed scalar phase timings |
+
+The worker executable must match the `c8_air_shower` build. Keep it beside the
+main executable unless an explicit path is supplied.
+
+FLUKA installs a periodic quota timer when its in-process interaction object is
+constructed. In `fluka-process` mode the CUDA parent disables that redundant
+timer after the isolated workers have been started. The workers retain native
+FLUKA initialization and physics. This avoids calling C stdio from a
+`SIGALRM` handler in the multithreaded CUDA parent, which can otherwise
+deadlock on a libc stream lock. The scalar backend is unchanged.
+
+### Replay and diagnostics
+
+| Option | Meaning |
+|---|---|
+| `--cuda-replay-trace PATH` | Write a process-level CSV trace |
+| `--cuda-replay-tape-out PATH` | Record scalar transport segments and the radio observer snapshot |
+| `cuda_decision_replay --tape ...` | Replay the exact recorded decisions and tracks on CUDA |
+
+Production profiling options add synchronization or data-transfer overhead.
+Keep them disabled when reporting performance.
+
+## Output and failure semantics
+
+Each run writes a CORSIKA output library. Important paths include:
+
+| Path | Contents |
+|---|---|
+| `config.yaml` | Complete application command and top-level configuration |
+| `summary.yaml` | Library completion status |
+| `gpu_em/config.yaml` | GPU, table, medium, magnetic field, backend, and build provenance |
+| `gpu_em/summary.yaml` | Particle counts, fallbacks, queue peaks, memory, timing, and completion status |
+| `simulation_timing/summary.yaml` | Per-shower end-to-end wall time |
+| `profile/` | Longitudinal particle profiles |
+| `production_profile/` | Particle-production and parent profiles |
+| `energyloss/` | Longitudinal energy deposition |
+| `particles/` | Observation-level particle output when enabled |
+| `CoREAS/` and `ZHS/` | Radio observer configuration and waveforms |
+
+The CUDA path fails closed for incompatible tables, unsupported environment
+identity, illegal process registration, NaN or negative energy, invalid PID,
+queue overflow, radio fixed-point overflow, CUDA errors, or an inconsistent
+energy ledger. It does not silently switch the whole shower back to scalar
+PROPOSAL.
+
+Declared rare final states and bounded low-energy memory spill are the only
+normal CPU returns. Every fallback category and spill count is written to the
+GPU summary.
+
+Before accepting an output, check at least:
+
+```text
+summary.yaml exists
+gpu_em/summary.yaml: complete: true
+gpu_em/summary.yaml: status: complete
+simulation_timing/summary.yaml: closed: true
+no unexpected fallback, overflow, NaN, or energy-ledger failure
+```
+
+## Reproducibility and CPU/CUDA comparison
+
+The CUDA backend addresses random draws with a key derived from the seed,
+shower, particle history, step, process, and draw index. On the same GPU, with
+the same binary, table, and configuration, a deterministic CUDA run must repeat.
+Different GPU architectures are required to reproduce statistical distributions
+but are not required to reproduce every floating-point bit.
+
+The scalar and CUDA schedulers do not consume one shared global random stream in
+the same order. Therefore, the same initial seed does not imply an identical
+production shower between scalar CORSIKA 8 and the CUDA backend. Physics
+equivalence is evaluated with independent ensembles.
+
+For process-by-process debugging, record and replay the exact scalar decision
+tape:
+
+```bash
+"$C8_BUILD/applications/c8_air_shower" \
+  -p 11 -E 1000 -N 1 -s 10001 \
+  -f /absolute/path/to/scalar_replay_source \
+  --cuda-replay-tape-out /absolute/path/to/event.c8rpt
+
+"$C8_BUILD/applications/cuda_decision_replay" \
+  --tape /absolute/path/to/event.c8rpt \
+  --output /absolute/path/to/cuda_replay_output \
+  --device 0 \
+  --deterministic true
+```
+
+Decision replay verifies identical recorded transport decisions and radio
+tracks; it is not a replacement for independent production-ensemble tests.
+
+## Validation and measured performance
+
+The validation suite compares:
+
+- electromagnetic, muonic, and hadronic longitudinal profiles;
+- shower maximum and profile integrals;
+- energy deposition and energy closure;
+- observation-level spectra, counts, lateral distributions, and arrival times;
+- CoREAS/ZHS geomagnetic pulse amplitude and width;
+- deterministic repetition, table identity, fallbacks, and failure behavior;
+- cold-cache and warm-cache end-to-end timing.
+
+The largest completed reference comparison contains 500 original scalar and
+500 CUDA proton showers with the following configuration:
+
+```text
+primary: proton
+energy: 100 TeV (1e5 GeV)
+zenith: 0 degrees
+azimuth: 0 degrees (irrelevant for vertical incidence)
+EM cut: 0.5 MeV
+EM thinning: 1e-6
+```
+
+The main shower-component profiles and radio-pulse features show overall
+statistical consistency with the public scalar CORSIKA 8 implementation at the
+precision of the current samples. Detailed reports retain the status of each
+individual acceptance gate rather than replacing them with a single pass/fail
+claim.
+
+In the completed production datasets:
+
+- the 500 scalar showers had a mean wall time of 9,955 s per event;
+- the 500 CUDA showers on an RTX 4060 Laptop GPU had a mean wall time of
+  69.1 s per event;
+- ten scalar \(10^{17}\) eV proton jobs at zenith 47 degrees, azimuth
+  180 degrees, and EM thinning \(10^{-6}\) required 4.69--5.18 days per
+  event, with a mean of 5.09 days;
+- one complete CUDA event with the same primary energy, direction, cuts, and
+  thinning completed in 3,204 s, or 53.4 minutes, on the RTX 4060 Laptop GPU.
+
+The CPU and GPU production campaigns used different host computers. These
+numbers document observed scientific turnaround and are not a controlled
+same-host hardware benchmark.
+
+Run the maintained acceptance drivers rather than comparing only one shower:
+
+```bash
+python "$C8_SOURCE/validation/gpu_em/run_physics_acceptance.py" \
+  --executable "$C8_BUILD/applications/c8_air_shower" \
+  --table "$C8_TABLE" \
+  --output-root /absolute/path/to/acceptance_output \
+  --primary-pdg 2212 \
+  --energy-gev 100000 \
+  --zenith-deg 0 \
+  --azimuth-deg 0 \
+  --em-cut-gev 5e-4 \
+  --em-thinning 1e-6 \
+  --maximum-weight 0 \
+  --events 100
+```
+
+See [`validation/gpu_em/README.md`](validation/gpu_em/README.md) for replay,
+energy-closure, ensemble, radio, scaling-law, and performance workflows.
+
+## Performance tuning on a new GPU
+
+Start from the reference configuration and tune scheduling parameters without
+changing the physics configuration, seed, table, or cache state.
+
+1. Build for the actual CUDA architecture in `Release` mode.
+2. Warm the physics and Moliere sidecar caches before production timing.
+3. Sweep `--gpu-min-batch` over values such as 64, 256, 1024, 4096, and 8192.
+4. Repeat each point at least five times and compare the median end-to-end time.
+5. Sweep `--hadronic-workers` separately over values such as 1, 2, 4, and 8.
+6. Inspect fallback time, FLUKA worker utilization, queue peaks, transfer time,
+   peak device memory, and spill/overflow counts.
+7. Re-run physics validation after selecting the performance configuration.
+
+The current RTX 4060 100 TeV proton workload favors a minimum CUDA batch near
+4096. This is not a universal value; larger GPUs and different shower energies
+may prefer another threshold.
+
+One `c8_air_shower` process controls one CUDA device. A single shower is not
+split across several GPUs. On a multi-GPU node, launch one independent process
+per GPU with disjoint seeds and output directories:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 c8_air_shower \
+  ... --gpu-device 0 -s 20000001 -f /path/to/output_gpu0 &
+
+CUDA_VISIBLE_DEVICES=1 c8_air_shower \
+  ... --gpu-device 0 -s 30000001 -f /path/to/output_gpu1 &
+
+wait
+```
+
+Reserve CPU cores for each process's FLUKA workers and host scheduler. Do not
+run a competing scalar campaign while measuring CUDA performance.
+
+## Current limitations
+
+- NVIDIA CUDA is the only accelerator backend; HIP and SYCL are not supported.
+- A single shower uses one GPU.
+- The device environment is limited to the validated five-layer dry-air
+  atmosphere and spherical observation geometry.
+- Custom material tables do not by themselves add custom runtime geometry.
+- High-energy hadronic interactions remain on the CPU.
+- `fluka-process` is CPU multiprocessing, not GPU hadronic transport.
+- Rare and unsupported final states return to explicit CPU generators.
+- Same-seed scalar and production CUDA showers are not expected to be
+  event-by-event identical.
+- New media, energy ranges, cuts, GPU architectures, or performance settings
+  require renewed validation.
+- The fork is not an official CORSIKA Collaboration release.
+
+## Repository layout
+
+| Path | Purpose |
+|---|---|
+| `applications/c8_air_shower.cpp` | Main scalar/CUDA production application |
+| `corsika/framework/core/HybridCascade.hpp` | CPU/GPU cascade scheduler |
+| `corsika/gpu/` and `src/gpu/` | CUDA transport, tables, radio, and runtime |
+| `applications/gpu_em_table_prepare.cpp` | Material hashing and automatic table preparation |
+| `applications/gpu_em_tablegen.cpp` | Low-level PROPOSAL table generation |
+| `applications/cuda_decision_replay.cpp` | Exact scalar-tape CUDA replay |
+| `applications/fluka_batch_worker.cpp` | Process-isolated FLUKA worker |
+| `configs/media/` | Canonical schema-1 material definitions |
+| `gpu_em_tables/` | Table documentation and release hashes; large tables are not tracked |
+| `validation/gpu_em/` | Physics, radio, reproducibility, and performance validation |
+| `documentation/cuda_em_refactor/` | Architecture, CLI, evidence, and implementation history |
+
+Generated shower libraries, build directories, installed FLUKA files,
+PROPOSAL caches, and large `.c8emrt` tables are deliberately excluded from Git.
+
+## Relationship to upstream CORSIKA 8
+
+This repository extends the CORSIKA 8 framework; it is not a replacement for
+the upstream project or its documentation. For the upstream installation,
+physics modules, collaboration agreement, contribution rules, and current
+releases, use the official resources:
+
+- [CORSIKA 8 repository](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika)
+- [CORSIKA 8 documentation](https://corsika-8.readthedocs.io/)
+- [CORSIKA project website](https://www.iap.kit.edu/corsika/)
+- [upstream contribution guidelines](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika/blob/master/CONTRIBUTING.md)
+
+The scalar path is intentionally retained so that the public CORSIKA 8
+implementation remains available as the reference backend in the same source
+tree.
+
+## Citation and license
+
+When using this fork, cite the CORSIKA 8 works requested by the upstream
+project, including:
+
+- *Towards a Next Generation of CORSIKA: A Framework for the Simulation of
+  Particle Cascades in Astroparticle Physics*, Comput. Softw. Big Sci. 3
+  (2019) 2, https://doi.org/10.1007/s41781-018-0013-0
+- *Simulating radio emission from particle cascades with CORSIKA 8*,
+  Astropart. Phys. 166 (2025) 103072,
+  https://doi.org/10.1016/j.astropartphys.2024.103072
+
+See [`LICENSE`](LICENSE), [`USING_COLLABORATING.md`](USING_COLLABORATING.md),
+and [`CONTRIBUTING.md`](CONTRIBUTING.md) before redistributing or contributing
+code. CORSIKA 8 and this fork are distributed under the BSD 3-Clause License.

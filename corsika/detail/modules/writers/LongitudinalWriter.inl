@@ -69,6 +69,13 @@ namespace corsika {
                                                  Code const pid, double const weight) {
     GrammageType const grammageStart = showerAxis_.getProjectedX(p0);
     GrammageType const grammageEnd = showerAxis_.getProjectedX(p1);
+    writeProjected(grammageStart, grammageEnd, pid, weight);
+  }
+
+  template <typename TOutput>
+  inline void LongitudinalWriter<TOutput>::writeProjected(
+      GrammageType const grammageStart, GrammageType const grammageEnd,
+      Code const pid, double const weight) {
 
     // Avoid over counting in first bin when backscattered particle goes beyond the
     // injection point.
@@ -84,28 +91,29 @@ namespace corsika {
                          grammageEnd / 1_g * square(1_cm), binStart, binEnd);
 
     for (size_t bin = binStart; bin <= std::min(binEnd, profile_.size() - 1); ++bin) {
-      if (pid == Code::Photon) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Photon)] +=
-            weight;
-      } else if (pid == Code::Positron) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Positron)] +=
-            weight;
-      } else if (pid == Code::Electron) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Electron)] +=
-            weight;
-      } else if (pid == Code::MuPlus) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::MuPlus)] +=
-            weight;
-      } else if (pid == Code::MuMinus) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::MuMinus)] +=
-            weight;
-      } else if (is_hadron(pid)) {
-        profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Hadron)] +=
-            weight;
-      }
-      if (is_charged(pid)) {
-        profile_[bin][static_cast<int>(number_profile::ProfileIndex::Charged)] += weight;
-      }
+      addBin(bin, pid, weight);
+    }
+  }
+
+  template <typename TOutput>
+  inline void LongitudinalWriter<TOutput>::addBin(
+      size_t bin, Code pid, double weight) {
+    auto& row = profile_.at(bin);
+    if (pid == Code::Photon) {
+      row[static_cast<int>(number_profile::ProfileIndex::Photon)] += weight;
+    } else if (pid == Code::Positron) {
+      row[static_cast<int>(number_profile::ProfileIndex::Positron)] += weight;
+    } else if (pid == Code::Electron) {
+      row[static_cast<int>(number_profile::ProfileIndex::Electron)] += weight;
+    } else if (pid == Code::MuPlus) {
+      row[static_cast<int>(number_profile::ProfileIndex::MuPlus)] += weight;
+    } else if (pid == Code::MuMinus) {
+      row[static_cast<int>(number_profile::ProfileIndex::MuMinus)] += weight;
+    } else if (is_hadron(pid)) {
+      row[static_cast<int>(number_profile::ProfileIndex::Hadron)] += weight;
+    }
+    if (is_charged(pid)) {
+      row[static_cast<int>(number_profile::ProfileIndex::Charged)] += weight;
     }
   }
 
@@ -135,24 +143,7 @@ namespace corsika {
       return;
     }
 
-    if (pid == Code::Photon) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Photon)] += weight;
-    } else if (pid == Code::Positron) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Positron)] +=
-          weight;
-    } else if (pid == Code::Electron) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Electron)] +=
-          weight;
-    } else if (pid == Code::MuPlus) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::MuPlus)] += weight;
-    } else if (pid == Code::MuMinus) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::MuMinus)] += weight;
-    } else if (is_hadron(pid)) {
-      profile_.at(bin)[static_cast<int>(number_profile::ProfileIndex::Hadron)] += weight;
-    }
-    if (is_charged(pid)) {
-      profile_[bin][static_cast<int>(number_profile::ProfileIndex::Charged)] += weight;
-    }
+    addBin(bin, pid, weight);
   }
 
   template <typename TOutput>

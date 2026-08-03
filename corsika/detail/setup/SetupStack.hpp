@@ -9,6 +9,7 @@
 
 #include <corsika/framework/stack/CombinedStack.hpp>
 #include <corsika/stack/GeometryNodeStackExtension.hpp>
+#include <corsika/stack/TransportIdentityStackExtension.hpp>
 #include <corsika/stack/VectorStack.hpp>
 #include <corsika/stack/WeightStackExtension.hpp>
 #include <corsika/stack/history/HistorySecondaryProducer.hpp>
@@ -77,6 +78,30 @@ namespace corsika {
       using StackWithWeight_PI_type = typename StackWithWeight::template pi_type<T>;
 
       // ------------------------------------------
+      // Add stable scheduler-facing identities. This stack is opt-in so that the
+      // existing setup::Stack type and CPU application behavior remain unchanged.
+
+      template <typename TStackIter>
+      using SetupTransportIdentityDataInterface =
+          typename transport::MakeTransportIdentityDataInterface<TStackIter>::type;
+
+      template <typename TStackIter>
+      using StackWithTransportIdentityInterface =
+          CombinedParticleInterface<StackWithWeight_PI_type,
+                                    SetupTransportIdentityDataInterface, TStackIter>;
+
+    public:
+      using StackWithTransportIdentity =
+          CombinedStack<typename StackWithWeight::stack_data_type,
+                        transport::TransportIdentityData,
+                        StackWithTransportIdentityInterface, DefaultSecondaryProducer>;
+
+    private:
+      template <typename T>
+      using StackWithTransportIdentity_PI_type =
+          typename StackWithTransportIdentity::template pi_type<T>;
+
+      // ------------------------------------------
       // Add [OPTIONAL] history data to stack, too.
       // This keeps the entire lineage of particles in memory.
 
@@ -89,6 +114,19 @@ namespace corsika {
       using StackWithHistory =
           CombinedStack<typename StackWithWeight::stack_data_type,
                         history::HistoryEventData, StackWithHistoryInterface,
+                        history::HistorySecondaryProducer>;
+
+    private:
+      template <typename TStackIter>
+      using StackWithTransportIdentityAndHistoryInterface =
+          CombinedParticleInterface<StackWithTransportIdentity_PI_type,
+                                    history::HistoryEventDataInterface, TStackIter>;
+
+    public:
+      using StackWithTransportIdentityAndHistory =
+          CombinedStack<typename StackWithTransportIdentity::stack_data_type,
+                        history::HistoryEventData,
+                        StackWithTransportIdentityAndHistoryInterface,
                         history::HistorySecondaryProducer>;
     };
 

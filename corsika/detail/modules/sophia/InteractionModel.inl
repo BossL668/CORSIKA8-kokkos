@@ -9,6 +9,7 @@
 
 #include <corsika/framework/geometry/Point.hpp>
 #include <corsika/modules/sophia/ParticleConversion.hpp>
+#include <corsika/modules/sophia/ThresholdKinematics.hpp>
 #include <corsika/framework/utility/COMBoost.hpp>
 #include <corsika/modules/Random.hpp>
 #include <corsika/modules/sophia/SophiaStack.hpp>
@@ -31,18 +32,21 @@ namespace corsika::sophia {
     CORSIKA_LOG_DEBUG("Sophia::Model n={}", count_);
   }
 
-  inline bool constexpr InteractionModel::isValid(Code const projectileId,
-                                                  Code const targetId,
-                                                  HEPEnergyType const sqrtSnn) const {
-    if ((minEnergyCoM_ > sqrtSnn) || (sqrtSnn > maxEnergyCoM_)) { return false; }
-
+  inline bool InteractionModel::isValid(
+      Code const projectileId, Code const targetId,
+      HEPEnergyType const sqrtSnn) const {
     if (!(targetId == Code::Proton || targetId == Code::Neutron ||
           targetId == Code::Hydrogen))
       return false;
 
     if (projectileId != Code::Photon) return false;
 
-    return true;
+    auto const internal_sqrt_s =
+        internalComEnergy(targetId, sqrtSnn);
+    return internal_sqrt_s >=
+               sqrt(InternalPhotopionThresholdSGeV2) *
+                   1_GeV &&
+           internal_sqrt_s <= maxEnergyCoM_;
   }
 
   template <typename TSecondaryView>
@@ -74,12 +78,15 @@ namespace corsika::sophia {
 
     COMBoost const boost(projectileP4, targetP4);
 
-    int nucleonSophiaCode = convertToSophiaRaw(targetId); // either proton or neutron
+    auto const internal_target =
+        internalNucleonCode(targetId);
+    int nucleonSophiaCode =
+        convertToSophiaRaw(internal_target);
     // initialize resonance spectrum
     initial_(nucleonSophiaCode);
     // Sophia does sqrt(1 - mass_sophia / mass_c8), so we need to make sure that E0 >=
     // m_sophia
-    double Enucleon = std::max(corsika::sophia::getSophiaMass(targetId) / 1_GeV,
+    double Enucleon = std::max(corsika::sophia::getSophiaMass(internal_target) / 1_GeV,
                                targetP4.getTimeLikeComponent() / 1_GeV);
     double Ephoton = projectileP4.getTimeLikeComponent() / 1_GeV;
     double theta = 0.0; // set nucleon at rest in collision
@@ -104,6 +111,11 @@ namespace corsika::sophia {
         make_rotation(csPrime, QuantityVector<length_d>{1_m, 0_m, 0_m}, M_PI);
 
     SophiaStack ss;
+    if (ss.getSize() == 0) {
+      throw std::runtime_error(
+          "SOPHIA returned an empty final state for a collision accepted by "
+          "its C++ capability check");
+    }
 
     MomentumVector P_final(originalCS, {0.0_GeV, 0.0_GeV, 0.0_GeV});
     HEPEnergyType E_final = 0_GeV;

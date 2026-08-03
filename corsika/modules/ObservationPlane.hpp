@@ -59,6 +59,19 @@ namespace corsika {
     template <typename TParticle>
     ProcessReturn doContinuous(Step<TParticle>&, bool const stepLimit);
 
+    /**
+     * Write one particle already known to have reached this observation
+     * plane.
+     *
+     * This is the non-tracking counterpart of doContinuous().  It is used by
+     * transport backends (for example the CUDA EM wavefront backend) that
+     * solve the surface intersection themselves and therefore do not own a
+     * CORSIKA Step object at the observation boundary.
+     */
+    void writeParticle(Code const pid, HEPEnergyType const kineticEnergy,
+                       Point const& position, DirectionVector const& direction,
+                       TimeType const time, double const weight);
+
     template <typename TParticle, typename TTrajectory>
     LengthType getMaxStepLength(TParticle const&, TTrajectory const& vTrajectory);
 

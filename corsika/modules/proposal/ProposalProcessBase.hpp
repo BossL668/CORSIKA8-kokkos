@@ -13,6 +13,12 @@
 #include <corsika/framework/random/RNGManager.hpp>
 
 #include <array>
+#include <functional>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <unordered_map>
+#include <vector>
 
 namespace corsika::proposal {
 
@@ -57,14 +63,12 @@ namespace corsika::proposal {
   // Cross sections for muons and taus
   template <typename T>
   auto cross_builder = [](PROPOSAL::Medium& medium,
-                          corsika::units::si::HEPEnergyType
-                              emCut) { //!< Stochastic losses smaller than the given cut
-                                       //!< will be handeled continuously.
+                          corsika::units::si::HEPEnergyType emCut,
+                          bool const interpolate) {
+    // Stochastic losses smaller than the given cut are handled continuously.
     auto particle_def = T();
     CORSIKA_LOG_DEBUG("PROPOSAL: Generate general cross sections for particle type {} ",
                       particle_def.name);
-    auto interpolate = true;
-
     auto p_cut =
         std::make_shared<const PROPOSAL::EnergyCutSettings>(emCut / 1_MeV, v_cut, false);
 
@@ -94,13 +98,13 @@ namespace corsika::proposal {
   template <>
   auto cross_builder<PROPOSAL::GammaDef> =
       [](PROPOSAL::Medium& medium,
-         corsika::units::si::HEPEnergyType) { //!< Only-stochastic propagation
+         corsika::units::si::HEPEnergyType,
+         bool const interpolate) { //!< Only-stochastic propagation
         auto particle_def = PROPOSAL::GammaDef();
         CORSIKA_LOG_DEBUG(
             "PROPOSAL: Generate photon cross sections for particle type {} ",
             particle_def.name);
 
-        auto interpolate = true;
         auto cross_vec = std::vector<std::shared_ptr<PROPOSAL::CrossSectionBase>>();
         auto photopair =
             PROPOSAL::make_crosssection(PROPOSAL::crosssection::PhotoPairKochMotz{false},
@@ -128,16 +132,13 @@ namespace corsika::proposal {
   // cross sections for electrons
   template <>
   auto cross_builder<PROPOSAL::EMinusDef> =
-      [](PROPOSAL::Medium& medium,
-         corsika::units::si::HEPEnergyType
-             emCut) { //!< Stochastic losses smaller than the given cut
-                      //!< will be handeled continuously.
+      [](PROPOSAL::Medium& medium, corsika::units::si::HEPEnergyType emCut,
+         bool const interpolate) {
+        // Stochastic losses smaller than the given cut are handled continuously.
         auto particle_def = PROPOSAL::EMinusDef();
         CORSIKA_LOG_DEBUG(
             "PROPOSAL: Generate electron cross sections for particle type {} ",
             particle_def.name);
-        auto interpolate = true;
-
         auto p_cut = std::make_shared<const PROPOSAL::EnergyCutSettings>(emCut / 1_MeV,
                                                                          v_cut, false);
 
@@ -166,16 +167,13 @@ namespace corsika::proposal {
   // cross sections for positrons
   template <>
   auto cross_builder<PROPOSAL::EPlusDef> =
-      [](PROPOSAL::Medium& medium,
-         corsika::units::si::HEPEnergyType
-             emCut) { //!< Stochastic losses smaller than the given cut
-                      //!< will be handeled continuously.
+      [](PROPOSAL::Medium& medium, corsika::units::si::HEPEnergyType emCut,
+         bool const interpolate) {
+        // Stochastic losses smaller than the given cut are handled continuously.
         auto particle_def = PROPOSAL::EPlusDef();
         CORSIKA_LOG_DEBUG(
             "PROPOSAL: Generate positron cross sections for particle type {} ",
             particle_def.name);
-        auto interpolate = true;
-
         auto p_cut = std::make_shared<const PROPOSAL::EnergyCutSettings>(emCut / 1_MeV,
                                                                          v_cut, false);
 
@@ -208,15 +206,62 @@ namespace corsika::proposal {
   //! PROPOSAL default crosssections are maped to corresponding corsika particle
   //! code.
   //!
+  inline PROPOSAL::crosssection_list_t make_cross_sections(
+      Code const code, PROPOSAL::Medium& medium,
+      corsika::units::si::HEPEnergyType const emCut,
+      bool const interpolate) {
+    switch (code) {
+    case Code::Photon:
+      return cross_builder<PROPOSAL::GammaDef>(medium, emCut, interpolate);
+    case Code::Electron:
+      return cross_builder<PROPOSAL::EMinusDef>(medium, emCut, interpolate);
+    case Code::Positron:
+      return cross_builder<PROPOSAL::EPlusDef>(medium, emCut, interpolate);
+    case Code::MuMinus:
+      return cross_builder<PROPOSAL::MuMinusDef>(medium, emCut, interpolate);
+    case Code::MuPlus:
+      return cross_builder<PROPOSAL::MuPlusDef>(medium, emCut, interpolate);
+    case Code::TauMinus:
+      return cross_builder<PROPOSAL::TauMinusDef>(medium, emCut, interpolate);
+    case Code::TauPlus:
+      return cross_builder<PROPOSAL::TauPlusDef>(medium, emCut, interpolate);
+    default:
+      throw std::invalid_argument(
+          "PROPOSAL cannot build cross sections for this particle code");
+    }
+  }
+
   static std::map<Code, std::function<PROPOSAL::crosssection_list_t(
                             PROPOSAL::Medium&, corsika::units::si::HEPEnergyType)>>
-      cross = {{Code::Photon, cross_builder<PROPOSAL::GammaDef>},
-               {Code::Electron, cross_builder<PROPOSAL::EMinusDef>},
-               {Code::Positron, cross_builder<PROPOSAL::EPlusDef>},
-               {Code::MuMinus, cross_builder<PROPOSAL::MuMinusDef>},
-               {Code::MuPlus, cross_builder<PROPOSAL::MuPlusDef>},
-               {Code::TauMinus, cross_builder<PROPOSAL::TauMinusDef>},
-               {Code::TauPlus, cross_builder<PROPOSAL::TauPlusDef>}};
+      cross = {
+          {Code::Photon,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::Photon, medium, cut, true);
+           }},
+          {Code::Electron,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::Electron, medium, cut, true);
+           }},
+          {Code::Positron,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::Positron, medium, cut, true);
+           }},
+          {Code::MuMinus,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::MuMinus, medium, cut, true);
+           }},
+          {Code::MuPlus,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::MuPlus, medium, cut, true);
+           }},
+          {Code::TauMinus,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::TauMinus, medium, cut, true);
+           }},
+          {Code::TauPlus,
+           [](auto& medium, auto const cut) {
+             return make_cross_sections(Code::TauPlus, medium, cut, true);
+           }}};
 
   //!
   //! PROPOSAL base process which handels mapping of particle codes to

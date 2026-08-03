@@ -162,6 +162,39 @@ TEST_CASE("ProductionWriter") {
   test.write(r0, Code::Electron, 1.0);
   test.write(r0, Code::Positron, 1.0);
 
+  // Accelerator transports add already-projected or already-binned vertices.
+  // Both paths must share the scalar projectile classification, including the
+  // implicit contribution to the "all" column.
+  test.writeProjected(25_g / square(1_cm), Code::MuMinus, 2.5);
+  test.addBin(4, Code::PiMinus, 3.0);
+
+  auto const& projected_bin = test.getBin(2);
+  CHECK(projected_bin[static_cast<int>(
+            production_profile::ProjectileIndex::Muon)] == 2.5);
+  CHECK(projected_bin[static_cast<int>(
+            production_profile::ProjectileIndex::All)] == 2.5);
+  auto const& direct_bin = test.getBin(4);
+  CHECK(direct_bin[static_cast<int>(
+            production_profile::ProjectileIndex::Pion)] == 3.0);
+  CHECK(direct_bin[static_cast<int>(
+            production_profile::ProjectileIndex::Hadron)] == 3.0);
+  CHECK(direct_bin[static_cast<int>(
+            production_profile::ProjectileIndex::All)] == 3.0);
+
+  // The direct-bin accelerator interface rejects an invalid bin, while the
+  // projected-coordinate interface follows the icrc2025-beta2 scalar
+  // behavior and clamps a finite vertex beyond the configured range to the
+  // final bin.
+  CHECK_NOTHROW(test.addBin(test.getNBins(), Code::Proton, 1.0));
+  CHECK_NOTHROW(test.writeProjected(
+      showerAxis.getMaximumX() + 10_g / square(1_cm),
+      Code::Proton, 1.0));
+  auto const& final_bin = test.getBin(test.getNBins() - 1);
+  CHECK(final_bin[static_cast<int>(
+            production_profile::ProjectileIndex::Heavy)] == 1.0);
+  CHECK(final_bin[static_cast<int>(
+            production_profile::ProjectileIndex::All)] == 1.0);
+
   test.endOfShower(0);
   test.endOfLibrary();
 

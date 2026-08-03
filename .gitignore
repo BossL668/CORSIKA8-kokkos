@@ -9,6 +9,11 @@ flymd.html
 flymd.md
 Testing
 tags
+__pycache__/
+*.py[cod]
+.timer.out
+fort.*
+tables.dat
 Environment/GeneratedMediaProperties.inc
 CMakeUserPresets.json
 corsika/framework/core/GeneratedParticleClasses.inc
@@ -22,3 +27,10 @@ corsika/modules/sibyll/Generated.inc
 corsika/modules/sophia/Generated.inc
 conan_cmake/
 corsika-cmake.sh
+
+# Local validation products. Validation programs, configuration, and tests
+# remain tracked; generated shower libraries and smoke-test output do not.
+/validation/*_smoke_v*/
+/validation/gpu_em/.timer.out
+/validation/gpu_em/fort.*
+/validation/gpu_em/tables.dat

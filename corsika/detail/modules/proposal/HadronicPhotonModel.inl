@@ -79,10 +79,12 @@ namespace corsika::proposal {
             "HE interaction model cannot handle configuration in photo-hadronic "
             "interaction! projectile={}, target={} (A={}, Z={}), sqrt(S) per "
             "nuc.={:8.2f} "
-            "GeV. Skipping secondary production!",
+            "GeV. Aborting instead of discarding the selected final state!",
             Code::Rho0, targetId, get_nucleus_A(targetId), get_nucleus_Z(targetId),
             sqrtSNN / 1_GeV);
-        return ProcessReturn::Ok;
+        throw std::runtime_error(
+            "high-energy photo-hadronic final-state model rejected the "
+            "selected projectile/target/energy configuration");
       }
       heHadronicInteraction_.doInteraction(photon_secondaries, Code::Rho0, targetId,
                                            photonP4, targetP4);
@@ -112,10 +114,12 @@ namespace corsika::proposal {
             "LE interaction model cannot handle configuration in photo-hadronic "
             "interaction! projectile={}, target={} (A={}, Z={}), sqrt(S) per "
             "nuc.={:8.2f} "
-            "GeV. Skipping secondary production!",
+            "GeV. Aborting instead of discarding the selected final state!",
             Code::Photon, targetId, get_nucleus_A(targetId), get_nucleus_Z(targetId),
             sqrtSNN / 1_GeV);
-        return ProcessReturn::Ok;
+        throw std::runtime_error(
+            "low-energy photo-hadronic final-state model rejected the "
+            "selected projectile/target/energy configuration");
       }
       leHadronicInteraction_.doInteraction(photon_secondaries, Code::Photon, nucleonId,
                                            photonP4, nucleonP4);
