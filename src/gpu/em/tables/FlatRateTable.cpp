@@ -421,6 +421,21 @@ namespace corsika::gpu::em::tables {
 
   FlatRateTableView makeFlatRateTableView(FlatRateTable const& table) {
     validateFlatRateTable(table);
+    auto em_transport_cut_MeV = table.energy_cut_MeV;
+    auto const electron = std::find(
+        table.continuous_pdg_ids.begin(),
+        table.continuous_pdg_ids.end(), 11);
+    if (electron != table.continuous_pdg_ids.end()) {
+      auto const index = static_cast<std::size_t>(
+          electron - table.continuous_pdg_ids.begin());
+      auto const encoded_cut =
+          table.continuous_minimum_energies_MeV[index] -
+          table.continuous_masses_MeV[index];
+      if (encoded_cut > 0.) {
+        em_transport_cut_MeV =
+            encoded_cut / ContinuousCutSafetyFactor;
+      }
+    }
     return {
         table.particle_pdg_ids.data(),
         table.particle_energy_offsets.data(),
@@ -458,6 +473,7 @@ namespace corsika::gpu::em::tables {
         checkedSize(table.continuous_energies_MeV,
                     "continuous value"),
         table.energy_cut_MeV,
+        em_transport_cut_MeV,
         table.epair_rho_component_hashes.data(),
         table.epair_rho_energies_MeV.data(),
         table.epair_rho_v_coordinates.data(),

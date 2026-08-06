@@ -18,6 +18,7 @@
 #include <corsika/gpu/em/ProposalFallback.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
+#include <corsika/modules/proposal/ProposalProcessBase.hpp>
 
 namespace {
 
@@ -127,6 +128,21 @@ namespace {
             corsika::gpu::em::tables::RateTableFormatVersion,
         "default PROPOSAL table format differs from the current rate-table schema");
     require(MaxAtmosphereLayers == 5, "environment schema is not five-layer");
+  }
+
+  void testScalarProposalCutResolution() {
+    using namespace corsika;
+    using corsika::proposal::optimized_proposal_energy_cut;
+    require(
+        optimized_proposal_energy_cut(0.5_MeV) == 0.4_MeV,
+        "0.5 MeV CORSIKA cut no longer resolves to the scalar 0.4 MeV "
+        "PROPOSAL table");
+    require(
+        optimized_proposal_energy_cut(1_MeV) == 1_MeV,
+        "an exact standard PROPOSAL cut was changed");
+    require(
+        optimized_proposal_energy_cut(0.01_MeV) == 0.01_MeV,
+        "a cut below the standard PROPOSAL cache grid was changed");
   }
 
   void testInteractionRecords() {
@@ -354,6 +370,7 @@ int main() {
     testReferenceVector();
     testIdentityKey();
     testDefaults();
+    testScalarProposalCutResolution();
     testInteractionRecords();
     testProcessCapabilities();
     testProcessSequenceCompatibility();

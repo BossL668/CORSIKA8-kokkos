@@ -49,6 +49,12 @@ namespace corsika::gpu::em {
     std::uint64_t particles_returned_for_cpu_memory_spill{};
     std::uint64_t particles_returned_for_cpu_decay{};
     std::uint64_t specified_cpu_final_states{};
+    std::uint64_t deferred_cpu_fallbacks_queued{};
+    std::uint64_t deferred_cpu_fallbacks_flushed{};
+    std::uint64_t deferred_cpu_fallback_flushes{};
+    std::uint64_t deferred_fallback_scalar_expansion_rounds{};
+    std::uint64_t deferred_front_gpu_flushes{};
+    std::uint64_t deferred_product_gpu_flushes{};
     std::uint64_t cpu_fallback_steps_executed{};
     std::uint64_t cpu_memory_spill_steps_executed{};
     std::uint64_t forced_cpu_decays_executed{};
@@ -63,6 +69,7 @@ namespace corsika::gpu::em {
     std::uint64_t wavefronts{};
     std::uint64_t reserved_history_ids{};
     std::size_t maximum_input_batch{};
+    std::size_t maximum_deferred_cpu_fallback_batch{};
     double deposited_energy_GeV{};
     double medium_rest_mass_input_GeV{};
     double cut_rest_mass_energy_GeV{};
@@ -251,7 +258,9 @@ namespace corsika::gpu::em {
     bool pending() const {
       return !staged_.empty() ||
              backend_.pendingPhotonCount() != 0 ||
-             backend_.pendingLeptonCount() != 0;
+             backend_.pendingLeptonCount() != 0 ||
+             !deferred_fallback_events_.empty() ||
+             force_deferred_product_batch_to_gpu_;
     }
 
     /**
@@ -279,7 +288,9 @@ namespace corsika::gpu::em {
       }
       if (!staged_.empty() ||
           backend_.pendingPhotonCount() != 0 ||
-          backend_.pendingLeptonCount() != 0) {
+          backend_.pendingLeptonCount() != 0 ||
+          !deferred_fallback_events_.empty() ||
+          force_deferred_product_batch_to_gpu_) {
         throw std::logic_error(
             "CUDA EM router cannot finalize with an unconsumed host or device wavefront");
       }
@@ -364,11 +375,23 @@ namespace corsika::gpu::em {
           backend_.pendingLeptonCount();
       if (staged_.empty() &&
           initial_device_pending == 0) {
+        if (!deferred_fallback_events_.empty()) {
+          return flushDeferredFallbacks(stack);
+        }
+        // A deferred CPU final-state batch can produce only non-EM children.
+        // In that case the one-shot instruction to send its EM products back
+        // to CUDA has no staged work to consume and must not leak into an
+        // unrelated later wavefront.
+        force_deferred_product_batch_to_gpu_ = false;
         return 0;
       }
+      auto const draining_before_deferred_fallback =
+          !deferred_fallback_events_.empty();
       if (staged_.size() <
               backend_.minimumBatchSize() &&
           !force_small_batch_to_gpu_ &&
+          !draining_before_deferred_fallback &&
+          !force_deferred_product_batch_to_gpu_ &&
           initial_device_pending == 0 &&
           consecutive_scalar_expansion_rounds_ <
               MaximumConsecutiveScalarExpansionRounds) {
@@ -392,6 +415,10 @@ namespace corsika::gpu::em {
         force_small_batch_to_gpu_ = false;
         ++consecutive_scalar_expansion_rounds_;
         ++statistics_.small_batch_expansions;
+        if (draining_before_deferred_fallback) {
+          ++statistics_
+                .deferred_fallback_scalar_expansion_rounds;
+        }
         statistics_
             .particles_returned_for_cpu_wavefront_expansion +=
             expansion.size();
@@ -412,25 +439,28 @@ namespace corsika::gpu::em {
         }
         return expansion.size();
       }
-      if (force_small_batch_to_gpu_ &&
-          staged_.size() <
-              backend_.minimumBatchSize()) {
-        ++statistics_.stalled_boundary_gpu_flushes;
-      } else if (
-          initial_device_pending == 0 &&
-          staged_.size() <
-              backend_.minimumBatchSize() &&
-          consecutive_scalar_expansion_rounds_ >=
-              MaximumConsecutiveScalarExpansionRounds) {
-        ++statistics_
-              .scalar_expansion_budget_gpu_flushes;
-        CORSIKA_LOG_DEBUG(
-            "CUDA EM forced a {}-particle wavefront after {} "
-            "consecutive scalar expansion rounds",
-            staged_.size(),
-            consecutive_scalar_expansion_rounds_);
+      if (staged_.size() < backend_.minimumBatchSize()) {
+        if (force_small_batch_to_gpu_) {
+          ++statistics_.stalled_boundary_gpu_flushes;
+        } else if (draining_before_deferred_fallback) {
+          ++statistics_.deferred_front_gpu_flushes;
+        } else if (force_deferred_product_batch_to_gpu_) {
+          ++statistics_.deferred_product_gpu_flushes;
+        } else if (
+            initial_device_pending == 0 &&
+            consecutive_scalar_expansion_rounds_ >=
+                MaximumConsecutiveScalarExpansionRounds) {
+          ++statistics_
+                .scalar_expansion_budget_gpu_flushes;
+          CORSIKA_LOG_DEBUG(
+              "CUDA EM forced a {}-particle wavefront after {} "
+              "consecutive scalar expansion rounds",
+              staged_.size(),
+              consecutive_scalar_expansion_rounds_);
+        }
       }
       force_small_batch_to_gpu_ = false;
+      force_deferred_product_batch_to_gpu_ = false;
       consecutive_scalar_expansion_rounds_ = 0;
       last_cpu_expansion_states_.clear();
       std::vector<EmParticleState> current;
@@ -685,6 +715,12 @@ namespace corsika::gpu::em {
       }
       statistics_.electromagnetic_particles_produced +=
           staged_.size();
+      if (staged_.empty() &&
+          backend_.pendingPhotonCount() == 0 &&
+          backend_.pendingLeptonCount() == 0 &&
+          !deferred_fallback_events_.empty()) {
+        returned_to_cpu += flushDeferredFallbacks(stack);
+      }
       return returned_to_cpu;
     }
 
@@ -698,6 +734,10 @@ namespace corsika::gpu::em {
 
     std::vector<ProposalFallbackEvent> const& fallbackEvents() const {
       return fallback_events_;
+    }
+
+    std::size_t deferredFallbackCount() const noexcept {
+      return deferred_fallback_events_.size();
     }
 
     std::vector<EmStepRecord> const& stepRecords() const {
@@ -849,20 +889,21 @@ namespace corsika::gpu::em {
                 ScalarProposalFallback>) {
           if (fallback_handler_ != nullptr &&
               fallback_handler_->canHandle(event)) {
-            auto const fallback_start =
-                std::chrono::steady_clock::now();
-            fallback_handler_->handle(stack, event);
-            auto const fallback_stop =
-                std::chrono::steady_clock::now();
-            statistics_
-                .specified_cpu_fallback_time_ms +=
-                std::chrono::duration<double, std::milli>(
-                    fallback_stop - fallback_start)
-                    .count();
-            if (retain_records_) {
-              fallback_events_.push_back(event);
-            }
-            ++statistics_.specified_cpu_final_states;
+            // A specified PROPOSAL completion is independent of every other
+            // particle in the active EM front.  Park it until both resident
+            // device queues and host staging have drained.  Completing it
+            // here would put one or two children on the scalar stack after
+            // every device checkpoint and repeatedly rebuild tiny CUDA
+            // wavefronts.  Valid contract-0.18 electron/positron columns have
+            // a device inverse CDF (including dry-air argon); the remaining
+            // specified completions are chiefly rate-only muon radiative
+            // branches and exceptional quantile-bound returns.
+            deferred_fallback_events_.push_back(event);
+            ++statistics_.deferred_cpu_fallbacks_queued;
+            statistics_.maximum_deferred_cpu_fallback_batch =
+                std::max(
+                    statistics_.maximum_deferred_cpu_fallback_batch,
+                    deferred_fallback_events_.size());
             continue;
           }
         }
@@ -921,6 +962,71 @@ namespace corsika::gpu::em {
       statistics_.particles_returned_for_cpu_fallback +=
           returned_to_scalar;
       return returned_to_scalar;
+    }
+
+    std::size_t flushDeferredFallbacks(TStack& stack) {
+      if (deferred_fallback_events_.empty()) {
+        return 0;
+      }
+      if constexpr (
+          std::is_same_v<
+              TProposalFallbackHandler,
+              ScalarProposalFallback>) {
+        throw std::logic_error(
+            "deferred PROPOSAL fallbacks require a CPU final-state handler");
+      } else {
+        if (fallback_handler_ == nullptr) {
+          throw std::logic_error(
+              "deferred PROPOSAL fallback handler is unavailable");
+        }
+        if (!staged_.empty() ||
+            backend_.pendingPhotonCount() != 0 ||
+            backend_.pendingLeptonCount() != 0) {
+          throw std::logic_error(
+              "deferred PROPOSAL fallbacks may only flush after the CUDA EM front drains");
+        }
+
+        std::vector<ProposalFallbackEvent> batch;
+        batch.swap(deferred_fallback_events_);
+        auto const fallback_start =
+            std::chrono::steady_clock::now();
+        for (auto const& event : batch) {
+          if (!fallback_handler_->canHandle(event)) {
+            throw std::logic_error(
+                "deferred PROPOSAL fallback lost its specified CPU capability");
+          }
+          fallback_handler_->handle(stack, event);
+          if (retain_records_) {
+            fallback_events_.push_back(event);
+          }
+          ++statistics_.specified_cpu_final_states;
+        }
+        auto const fallback_stop =
+            std::chrono::steady_clock::now();
+        statistics_.specified_cpu_fallback_time_ms +=
+            std::chrono::duration<double, std::milli>(
+                fallback_stop - fallback_start)
+                .count();
+        statistics_.deferred_cpu_fallbacks_flushed +=
+            batch.size();
+        ++statistics_.deferred_cpu_fallback_flushes;
+
+        // The specified CPU final states are generated only after the active
+        // CUDA front has drained.  Their EM products therefore arrive as a
+        // fresh, often sub-threshold host batch.  Keep those products on the
+        // GPU path instead of expanding them for up to eight scalar rounds.
+        // pending() retains this one-shot flag until HybridCascade has drained
+        // the generated CPU stack and either stages the complete EM product
+        // batch or confirms that the batch produced no EM particle.
+        force_deferred_product_batch_to_gpu_ = true;
+        consecutive_scalar_expansion_rounds_ = 0;
+        last_cpu_expansion_states_.clear();
+
+        // handle() may have generated no surviving secondary after cuts or
+        // thinning, but a non-zero return still tells HybridCascade to refresh
+        // environment nodes once for the whole CPU batch.
+        return batch.size();
+      }
     }
 
     std::size_t returnMemorySpills(
@@ -1332,8 +1438,11 @@ namespace corsika::gpu::em {
         MaximumConsecutiveScalarExpansionRounds = 8;
     std::uint32_t consecutive_scalar_expansion_rounds_{};
     bool force_small_batch_to_gpu_{};
+    bool force_deferred_product_batch_to_gpu_{};
     std::vector<ObservationRecord> observations_{};
     std::vector<ProposalFallbackEvent> fallback_events_{};
+    std::vector<ProposalFallbackEvent>
+        deferred_fallback_events_{};
     std::vector<EmStepRecord> step_records_{};
     std::vector<RadioTrackRecord> radio_tracks_{};
     TProposalFallbackHandler* fallback_handler_{};

@@ -661,13 +661,14 @@ namespace corsika::gpu::em {
           if (projection.accumulate_on_device) {
             if (projection.output_bin_count >
                 std::numeric_limits<std::size_t>::max() /
-                    8 / sizeof(long long)) {
+                    detail::DeviceProfileHistogramCount /
+                    sizeof(long long)) {
               throw std::overflow_error(
                   "GPU profile histogram allocation size overflow");
             }
             auto const histogram_bytes =
-                projection.output_bin_count * 8 *
-                sizeof(long long);
+                detail::deviceProfileHistogramBytes(
+                    projection.output_bin_count);
             profile_accumulator_device_bytes_ =
                 checkedAdd(
                     histogram_bytes,
@@ -997,8 +998,8 @@ namespace corsika::gpu::em {
       radio_accumulator_.drain();
       if (gpuProfileEnabled()) {
         auto const histogram_bytes =
-            7 * device_profile_accumulator_.bins *
-            sizeof(long long);
+            detail::deviceProfileHistogramBytes(
+                device_profile_accumulator_.bins);
         checkCuda(
             cudaMemset(
                 device_profile_histograms_, 0,
@@ -1290,7 +1291,8 @@ namespace corsika::gpu::em {
       refreshProfileCounters();
       auto const counters = profile_counter_snapshot_;
       auto const bins = device_profile_accumulator_.bins;
-      std::vector<long long> fixed(8 * bins);
+      std::vector<long long> fixed(
+          detail::DeviceProfileHistogramCount * bins);
       auto const bytes = fixed.size() * sizeof(long long);
       auto const transfer_start =
           std::chrono::steady_clock::now();

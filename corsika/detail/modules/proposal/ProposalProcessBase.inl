@@ -28,22 +28,7 @@ namespace corsika::proposal {
   inline HEPEnergyType ProposalProcessBase::getOptimizedEmCut(Code code) const {
     // get energy above which energy losses need to be considered
     auto const production_threshold = get_energy_production_threshold(code);
-
-    HEPEnergyType lowest_table_value = 0_GeV;
-
-    // find tables for EnergyCuts closest (but still smaller than) production_threshold
-    for (auto const& table_energy : energycut_table_values) {
-      if (table_energy <= production_threshold && table_energy > lowest_table_value) {
-        lowest_table_value = table_energy;
-      }
-    }
-
-    if (lowest_table_value == 0_GeV) {
-      // no appropriate table available
-      return production_threshold;
-    }
-
-    return lowest_table_value;
+    return optimized_proposal_energy_cut(production_threshold);
   }
 
   template <typename TEnvironment>

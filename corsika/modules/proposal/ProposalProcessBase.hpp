@@ -45,6 +45,30 @@ namespace corsika::proposal {
       1000_MeV, 100_MeV, 20_MeV,   10_MeV,   3_MeV,
       1_MeV,    0.4_MeV, 0.25_MeV, 0.15_MeV, 0.05_MeV};
 
+  /**
+   * Resolve the stochastic PROPOSAL cut used by the scalar CORSIKA path.
+   *
+   * The user-facing particle-production/transport cut is not necessarily the
+   * cut of the cached PROPOSAL calculator.  The scalar backend deliberately
+   * selects the largest standard table cut that does not exceed the requested
+   * threshold.  CUDA rate tables must use this resolved value as well; using
+   * the requested value directly changes the discrete ionization rate (for
+   * example, a requested 0.5 MeV cut resolves to 0.4 MeV).
+   */
+  inline HEPEnergyType optimized_proposal_energy_cut(
+      HEPEnergyType const production_threshold) {
+    HEPEnergyType resolved = HEPEnergyType::zero();
+    for (auto const table_energy : energycut_table_values) {
+      if (table_energy <= production_threshold &&
+          table_energy > resolved) {
+        resolved = table_energy;
+      }
+    }
+    return resolved == HEPEnergyType::zero()
+               ? production_threshold
+               : resolved;
+  }
+
   //!
   //! Internal map from particle codes to particle properties required for
   //! crosssections, decay and scattering algorithms. In the future the

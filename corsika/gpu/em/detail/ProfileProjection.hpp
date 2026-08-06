@@ -16,6 +16,17 @@
 
 namespace corsika::gpu::em::detail {
 
+  // Keep the contiguous resident-profile allocation and every shower reset
+  // tied to the same layout count.  The final slot stores muon energy loss;
+  // omitting it from a reset makes dE/dX accumulate across showers when one
+  // backend instance is reused.
+  inline constexpr std::size_t DeviceProfileHistogramCount = 8;
+
+  inline constexpr std::size_t deviceProfileHistogramBytes(
+      std::size_t const bins) {
+    return DeviceProfileHistogramCount * bins * sizeof(long long);
+  }
+
   struct DeviceProfileProjection {
     double axis_start_position_m[3]{};
     double axis_direction[3]{};

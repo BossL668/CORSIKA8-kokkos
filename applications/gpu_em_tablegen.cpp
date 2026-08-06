@@ -86,6 +86,11 @@ namespace {
     std::size_t loss_initial_energy_intervals{8};
     std::size_t loss_initial_quantile_intervals{8};
     std::size_t loss_max_energy_points{4096};
+    // A column rebuilt from direct numerical integration/root finding can
+    // require a denser high-quantile energy grid than the ordinary cached
+    // PROPOSAL interpolation.
+    std::size_t direct_loss_max_energy_points{65536};
+    std::string nonmonotonic_loss_policy{"proposal-monotone"};
     std::size_t loss_max_quantile_points{2048};
     std::size_t loss_validation_samples{64};
     double epair_rho_min_energy_MeV{
@@ -162,6 +167,12 @@ namespace {
         , medium_(std::move(medium)) {
       cross_sections_ = proposal::make_cross_sections(
           code_, medium_, energy_cut_MeV * 1_MeV, true);
+      // Keep a non-interpolated oracle available for diagnosing narrow
+      // numerical features in PROPOSAL's production interpolation.  It is
+      // queried only when the interpolated inverse violates monotonicity, so
+      // ordinary table generation retains its cached/interpolated cost.
+      direct_cross_sections_ = proposal::make_cross_sections(
+          code_, medium_, energy_cut_MeV * 1_MeV, false);
       interaction_ =
           PROPOSAL::make_interaction(cross_sections_, true, true);
       if (!interaction_) {
@@ -298,6 +309,31 @@ namespace {
       if (!std::isfinite(loss) || loss < 0. || loss > 1.) {
         throw std::runtime_error(
             "PROPOSAL returned an invalid stochastic loss fraction");
+      }
+      return loss;
+    }
+
+    double sampleDirectLoss(RateKey const& key, double energy_MeV,
+                            double quantile) const {
+      if (!std::isfinite(quantile) ||
+          quantile < LossQuantileMinimum ||
+          quantile > LossQuantileMaximum) {
+        throw std::invalid_argument(
+            "direct-loss quantile is outside the device Philox support");
+      }
+      auto const cross = directCrossSection(key);
+      auto const column_rate = cross->CalculatedNdx(
+          energy_MeV, static_cast<std::size_t>(key.component_hash));
+      if (!(column_rate > 0.)) {
+        throw std::domain_error(
+            "cannot sample a direct stochastic loss from a zero-rate column");
+      }
+      auto const loss = cross->CalculateStochasticLoss(
+          static_cast<std::size_t>(key.component_hash), energy_MeV,
+          quantile * column_rate);
+      if (!std::isfinite(loss) || loss < 0. || loss > 1.) {
+        throw std::runtime_error(
+            "PROPOSAL returned an invalid direct stochastic loss fraction");
       }
       return loss;
     }
@@ -450,12 +486,29 @@ namespace {
       return cross->second;
     }
 
+    std::shared_ptr<PROPOSAL::CrossSectionBase> directCrossSection(
+        RateKey const& key) const {
+      auto const type = static_cast<PROPOSAL::InteractionType>(
+          key.process_id);
+      auto const cross = std::find_if(
+          direct_cross_sections_.begin(), direct_cross_sections_.end(),
+          [type](auto const& candidate) {
+            return candidate->GetInteractionType() == type;
+          });
+      if (cross == direct_cross_sections_.end()) {
+        throw std::out_of_range(
+            "PROPOSAL direct cross section is unavailable for rate column");
+      }
+      return *cross;
+    }
+
     Code code_;
     std::int32_t pdg_id_;
     std::string particle_name_;
     PROPOSAL::Medium medium_;
     std::uint64_t medium_hash_{};
     PROPOSAL::crosssection_list_t cross_sections_;
+    PROPOSAL::crosssection_list_t direct_cross_sections_;
     std::unique_ptr<PROPOSAL::Interaction> interaction_;
     std::unique_ptr<PROPOSAL::Displacement> displacement_;
     double particle_mass_MeV_{};
@@ -565,12 +618,37 @@ namespace {
     std::size_t evaluations{};
   };
 
+  enum class LossReference {
+    ProposalInterpolated,
+    ProposalDirect,
+  };
+
+  inline constexpr std::string_view ProposalMonotonePolicy =
+      "proposal-monotone";
+  inline constexpr std::string_view ProposalDirectPolicy =
+      "proposal-direct";
+
+  class NonMonotonicProposalInverseCdf final
+      : public std::runtime_error {
+  public:
+    explicit NonMonotonicProposalInverseCdf(std::string message)
+        : std::runtime_error(std::move(message)) {}
+  };
+
   InverseCdfResult buildInverseCdf(ProposalReferenceEvaluator& evaluator,
                                    RateKey const& key,
                                    RateColumn const& rate_column,
                                    ParticleRateTable const& particle,
                                    Options const& options,
-                                   bool final_state_split = false) {
+                                   bool final_state_split = false,
+                                   LossReference reference =
+                                       LossReference::ProposalInterpolated) {
+    if (final_state_split &&
+        reference == LossReference::ProposalDirect) {
+      throw std::invalid_argument(
+          "photon-pair final-state tables do not support the direct-loss "
+          "reference mode");
+    }
     // Adaptive probes are finite. Keep headroom for the independent
     // low-discrepancy validation points that are deliberately not part of the
     // refinement sequence.
@@ -621,18 +699,29 @@ namespace {
 
     using LossSampleKey = std::pair<double, double>;
     std::map<LossSampleKey, double> samples;
+    std::size_t sample_evaluations = 0;
+    auto erase_samples_for_energy = [&](double energy) {
+      auto const first = samples.lower_bound(
+          {energy, -std::numeric_limits<double>::infinity()});
+      auto const last = samples.upper_bound(
+          {energy, std::numeric_limits<double>::infinity()});
+      samples.erase(first, last);
+    };
     auto sample = [&](double energy, double quantile) {
       auto const sample_key = std::make_pair(energy, quantile);
       auto found = samples.find(sample_key);
       if (found == samples.end()) {
-        found = samples
-                    .emplace(sample_key,
-                             final_state_split
-                                 ? evaluator.samplePhotonPairFinalState(
-                                       key, energy, quantile)
-                                 : evaluator.sampleLoss(
-                                       key, energy, quantile))
-                    .first;
+        auto const value =
+            final_state_split
+                ? evaluator.samplePhotonPairFinalState(
+                      key, energy, quantile)
+                : (reference == LossReference::ProposalDirect
+                       ? evaluator.sampleDirectLoss(
+                             key, energy, quantile)
+                       : evaluator.sampleLoss(
+                             key, energy, quantile));
+        found = samples.emplace(sample_key, value).first;
+        ++sample_evaluations;
       }
       return found->second;
     };
@@ -658,7 +747,10 @@ namespace {
               << rate_column.target_name << ": E=["
               << active_min << ", " << active_max << "] MeV, u=["
               << quantile_minimum << ", " << quantile_maximum
-              << "], reference=proposal_interpolated"
+              << "], reference="
+              << (reference == LossReference::ProposalDirect
+                      ? "proposal_direct"
+                      : "proposal_interpolated")
               << '\n';
     auto const quantile_coordinate_min =
         quantileCoordinate(quantile_minimum);
@@ -669,7 +761,19 @@ namespace {
       std::vector<double> quantiles;
       std::vector<double> losses;
       double maximum_error{};
+      double repaired_quantile_min{
+          std::numeric_limits<double>::infinity()};
     };
+
+    auto const monotone_projection =
+        reference == LossReference::ProposalInterpolated &&
+        options.nonmonotonic_loss_policy == ProposalMonotonePolicy;
+    std::size_t monotone_repair_count = 0;
+    double maximum_monotone_repair = 0.;
+    double minimum_monotone_repair_quantile =
+        std::numeric_limits<double>::infinity();
+    std::size_t ignored_branch_probe_count = 0;
+    double maximum_ignored_branch_deviation = 0.;
 
     auto build_row = [&](double energy) {
       std::set<double> grid{quantile_minimum, quantile_maximum};
@@ -788,7 +892,21 @@ namespace {
         auto loss = sample(energy, quantile);
         if (loss + 1.e-14 < previous) {
           auto const error = lossRelativeError(previous, loss);
-          if (error > refinement_tolerance) {
+          if (error > refinement_tolerance &&
+              !monotone_projection) {
+            double direct_previous =
+                std::numeric_limits<double>::quiet_NaN();
+            double direct_current =
+                std::numeric_limits<double>::quiet_NaN();
+            std::string direct_diagnostic;
+            try {
+              direct_previous = evaluator.sampleDirectLoss(
+                  key, energy, previous_quantile);
+              direct_current = evaluator.sampleDirectLoss(
+                  key, energy, quantile);
+            } catch (std::exception const& direct_error) {
+              direct_diagnostic = direct_error.what();
+            }
             std::ostringstream message;
             message << evaluator.particleName() << "/"
                     << rate_column.process_name << "/"
@@ -798,19 +916,44 @@ namespace {
                     << ", u changed from " << previous_quantile
                     << " to " << quantile << ", v changed from "
                     << previous << " to " << loss
-                    << ", relative difference=" << error;
-            throw std::runtime_error(message.str());
+                    << ", relative difference=" << error
+                    << ", refinement tolerance="
+                    << refinement_tolerance;
+            if (direct_diagnostic.empty()) {
+              message << ", proposal_direct v changed from "
+                      << direct_previous << " to " << direct_current
+                      << ", proposal_direct_monotonic="
+                      << (direct_current + 1.e-14 >= direct_previous
+                              ? "true"
+                              : "false");
+            } else {
+              message << ", proposal_direct diagnostic failed: "
+                      << direct_diagnostic;
+            }
+            throw NonMonotonicProposalInverseCdf(message.str());
           }
-          // PROPOSAL's Newton/bisection inverse occasionally changes by a
-          // few ulps in the wrong direction.  Project those harmless solver
-          // fluctuations onto a monotone CDF while retaining the requested
-          // accuracy bound.
+          if (error > refinement_tolerance) {
+            ++monotone_repair_count;
+            maximum_monotone_repair =
+                std::max(maximum_monotone_repair, error);
+            row.repaired_quantile_min =
+                std::min(row.repaired_quantile_min, quantile);
+            minimum_monotone_repair_quantile = std::min(
+                minimum_monotone_repair_quantile, quantile);
+          }
+          // Project solver-scale fluctuations that remain inside adaptive
+          // refinement headroom. In proposal-monotone mode, larger local
+          // reversals are also projected and explicitly tagged in the table.
           loss = previous;
         }
         row.losses.push_back(loss);
         previous = loss;
         previous_quantile = quantile;
       }
+      // Once a row is materialized, later energy refinement uses the compact
+      // LossRow and never queries its direct samples again. Releasing these
+      // map nodes bounds host memory for dense proposal_direct repair grids.
+      erase_samples_for_energy(energy);
       return row;
     };
 
@@ -879,8 +1022,39 @@ namespace {
       row(energy);
     }
 
+    if (monotone_projection) {
+      // Discover a moving reversal before the adaptive energy pass reaches
+      // the first affected interval. This makes the upper-tail exclusion a
+      // column policy rather than an order-dependent row accident.
+      std::vector<double> diagnostic_energies;
+      for (auto lower = energy_grid.begin(); lower != energy_grid.end();) {
+        auto const upper = std::next(lower);
+        if (upper == energy_grid.end()) {
+          break;
+        }
+        auto const lower_log = energyCoordinate(*lower);
+        auto const upper_log = energyCoordinate(*upper);
+        for (auto const fraction : ProbeFractions) {
+          auto const energy = energyFromCoordinate(
+              lower_log + fraction * (upper_log - lower_log));
+          if (evaluator.rate(key, energy) > 0.) {
+            row(energy);
+            diagnostic_energies.push_back(energy);
+          }
+        }
+        lower = upper;
+      }
+      for (auto const energy : diagnostic_energies) {
+        if (energy_grid.find(energy) == energy_grid.end()) {
+          rows.erase(energy);
+        }
+      }
+    }
+
     double accepted_maximum_error = 0.;
+    std::size_t energy_refinement_iteration = 0;
     while (true) {
+      ++energy_refinement_iteration;
       std::set<double> energy_insertions;
       double iteration_maximum = 0.;
       double maximum_energy = 0.;
@@ -919,22 +1093,65 @@ namespace {
           if (!(evaluator.rate(key, energy) > 0.)) {
             continue;
           }
+          LossRow const* monotone_row = nullptr;
+          if (monotone_projection) {
+            monotone_row = &row(energy);
+          }
+          bool refine_energy = false;
           for (auto const quantile : validation_quantiles) {
-            auto const direct = sample(energy, quantile);
+            auto const direct =
+                monotone_row != nullptr
+                    ? interpolate_row(*monotone_row, quantile)
+                    : sample(energy, quantile);
             auto const interpolated = interpolateLoss(
                 interpolate_row(lower_row, quantile),
                 interpolate_row(upper_row, quantile), fraction);
             auto const error =
                 lossRelativeError(direct, interpolated);
-            if (error > iteration_maximum) {
+            bool moving_reversal = false;
+            if (error > refinement_tolerance) {
+              auto const repaired_at =
+                  [quantile](LossRow const& candidate) {
+                    // A cumulative-maximum projection can remain active
+                    // beyond the sampled reversal until the raw branch catches
+                    // up. Treat the complete upper tail as ambiguous.
+                    return quantile >=
+                           candidate.repaired_quantile_min;
+                  };
+              moving_reversal =
+                  monotone_projection &&
+                  (quantile >=
+                       minimum_monotone_repair_quantile ||
+                   repaired_at(lower_row) ||
+                   repaired_at(upper_row) ||
+                   (monotone_row != nullptr &&
+                    repaired_at(*monotone_row)));
+              if (moving_reversal) {
+                ++ignored_branch_probe_count;
+                maximum_ignored_branch_deviation = std::max(
+                    maximum_ignored_branch_deviation, error);
+              } else {
+                energy_insertions.insert(energy);
+                refine_energy = true;
+              }
+            }
+            if (!moving_reversal &&
+                error > iteration_maximum) {
               iteration_maximum = error;
               maximum_energy = energy;
               maximum_quantile = quantile;
               maximum_direct = direct;
               maximum_interpolated = interpolated;
             }
-            if (error > refinement_tolerance) {
-              energy_insertions.insert(energy);
+          }
+          // Values for an accepted probe energy are never needed again.
+          // Samples for a candidate insertion remain cached until build_row
+          // materializes that row and then releases them.
+          if (!refine_energy) {
+            erase_samples_for_energy(energy);
+            if (monotone_row != nullptr &&
+                energy_grid.find(energy) == energy_grid.end()) {
+              rows.erase(energy);
             }
           }
         }
@@ -948,10 +1165,57 @@ namespace {
           ++iterator;
         }
       }
+      if (reference == LossReference::ProposalDirect) {
+        std::cout
+            << "    proposal_direct energy refinement "
+            << energy_refinement_iteration
+            << ": current points=" << energy_grid.size()
+            << ", candidate points="
+            << energy_grid.size() + energy_insertions.size()
+            << ", probe max error=" << iteration_maximum
+            << '\n'
+            << std::flush;
+      }
       if (energy_insertions.empty()) {
         if (iteration_maximum > refinement_tolerance) {
-          throw std::runtime_error(
-              "inverse-CDF energy refinement reached floating-point resolution");
+          // The requested probe lies between adjacent representable energy
+          // coordinates.  As with the bounded-grid case below, exhausting
+          // the 0.75 refinement headroom is not itself a failure when the
+          // complete adaptive probe set still satisfies the user-facing
+          // tolerance.  Retain the grid and let the independent validation
+          // (which uses a different low-discrepancy sequence) make the final
+          // acceptance decision.
+          if (iteration_maximum <= options.loss_tolerance) {
+            accepted_maximum_error = iteration_maximum;
+            for (auto const& [energy, stored_row] : rows) {
+              (void)energy;
+              accepted_maximum_error =
+                  std::max(accepted_maximum_error,
+                           stored_row.maximum_error);
+            }
+            std::cout
+                << "    inverse-CDF energy refinement reached "
+                   "floating-point resolution with probe error="
+                << iteration_maximum
+                << " inside requested tolerance="
+                << options.loss_tolerance
+                << "; deferring final acceptance to independent validation"
+                << '\n';
+            break;
+          }
+          std::ostringstream message;
+          message << evaluator.particleName() << "/"
+                  << rate_column.process_name << "/"
+                  << rate_column.target_name
+                  << " inverse-CDF energy refinement reached floating-point "
+                     "resolution with error="
+                  << iteration_maximum << " at E="
+                  << std::setprecision(17) << maximum_energy
+                  << ", u=" << maximum_quantile
+                  << ", direct v=" << maximum_direct
+                  << ", interpolated v=" << maximum_interpolated
+                  << ", tolerance=" << options.loss_tolerance;
+          throw std::runtime_error(message.str());
         }
         accepted_maximum_error = iteration_maximum;
         for (auto const& [energy, stored_row] : rows) {
@@ -997,7 +1261,10 @@ namespace {
                 << rate_column.process_name << "/"
                 << rate_column.target_name
                 << " inverse-CDF energy grid exceeds "
-                   "--loss-max-energy-points; E points="
+                << (reference == LossReference::ProposalDirect
+                        ? "--direct-loss-max-energy-points"
+                        : "--loss-max-energy-points")
+                << "; E points="
                 << energy_grid.size() + energy_insertions.size()
                 << ", error=" << iteration_maximum
                 << " at E=" << std::setprecision(17) << maximum_energy
@@ -1014,7 +1281,12 @@ namespace {
     }
 
     InverseCdfTable table;
-    table.reference_mode = "proposal_interpolated";
+    table.reference_mode =
+        reference == LossReference::ProposalDirect
+            ? "proposal_direct"
+            : (monotone_repair_count != 0
+                   ? "proposal_interpolated_monotone"
+                   : "proposal_interpolated");
     table.quantile_offsets.push_back(0);
     for (auto const energy : energy_grid) {
       auto const& stored_row = row(energy);
@@ -1026,7 +1298,21 @@ namespace {
                           stored_row.losses.end());
       table.quantile_offsets.push_back(table.quantiles.size());
     }
-    return {std::move(table), accepted_maximum_error, samples.size()};
+    if (monotone_repair_count != 0) {
+      std::cout
+          << "    proposal-monotone repair "
+          << rate_column.process_name << "/"
+          << rate_column.target_name
+          << ": projected reversals=" << monotone_repair_count
+          << ", maximum relative projection="
+          << maximum_monotone_repair
+          << ", ignored moving-branch probes="
+          << ignored_branch_probe_count
+          << ", maximum raw branch deviation="
+          << maximum_ignored_branch_deviation << '\n';
+    }
+    return {std::move(table), accepted_maximum_error,
+            sample_evaluations};
   }
 
   AdaptiveResult buildAdaptiveTable(ProposalReferenceEvaluator& evaluator,
@@ -1235,8 +1521,34 @@ namespace {
                   << ": CPU selected-process fallback (rate-only muon column)\n";
         continue;
       }
-      auto result =
-          buildInverseCdf(evaluator, key, column, particle, options);
+      InverseCdfResult result;
+      try {
+        result = buildInverseCdf(
+            evaluator, key, column, particle, options);
+      } catch (NonMonotonicProposalInverseCdf const& error) {
+        if (options.nonmonotonic_loss_policy !=
+            ProposalDirectPolicy) {
+          throw;
+        }
+        // The scalar PROPOSAL 7.6.2 interpolant has a narrow non-monotonic
+        // root branch for the air/argon bremsstrahlung column.  Resolve the
+        // ambiguity once, while preparing the table: rebuild the complete
+        // affected column against interpolate=false numerical integration
+        // and root finding.  Runtime CUDA transport then remains entirely on
+        // device and never pays a selected-loss CPU fallback for this issue.
+        std::cout
+            << "    inverse-CDF " << column.process_name << "/"
+            << column.target_name
+            << ": interpolated PROPOSAL reference is non-monotonic ("
+            << error.what()
+            << "); rebuilding this complete column from proposal_direct\n";
+        auto direct_options = options;
+        direct_options.loss_max_energy_points =
+            options.direct_loss_max_energy_points;
+        result = buildInverseCdf(
+            evaluator, key, column, particle, direct_options, false,
+            LossReference::ProposalDirect);
+      }
       maximum_loss_error =
           std::max(maximum_loss_error, result.maximum_error);
       column.inverse_cdf = std::move(result.table);
@@ -1294,6 +1606,19 @@ namespace {
       if (inverse.energies_MeV.empty()) {
         continue;
       }
+      if (inverse.reference_mode ==
+          "proposal_interpolated_monotone") {
+        // This reference is the cumulative-monotone projection assembled and
+        // adaptively probed inside buildInverseCdf. A pointwise raw PROPOSAL
+        // call would compare against the deliberately rejected reversal, not
+        // against the selected table policy.
+        std::cout
+            << "    independent raw-PROPOSAL validation skipped for "
+            << column.process_name << "/" << column.target_name
+            << " (proposal-monotone policy; adaptive projected-reference "
+               "validation already passed)\n";
+        continue;
+      }
       auto const row_end =
           static_cast<std::size_t>(inverse.quantile_offsets[1]);
       auto const quantile_minimum = inverse.quantiles.front();
@@ -1340,7 +1665,11 @@ namespace {
             final_state_split
                 ? evaluator.samplePhotonPairFinalState(
                       key, energy, quantile)
-                : evaluator.sampleLoss(key, energy, quantile);
+                : (inverse.reference_mode == "proposal_direct"
+                       ? evaluator.sampleDirectLoss(
+                             key, energy, quantile)
+                       : evaluator.sampleLoss(
+                             key, energy, quantile));
         auto const interpolated = interpolateLossFraction(
             particle, column.process_id, column.component_hash, energy,
             quantile);
@@ -2510,6 +2839,18 @@ namespace {
     app.add_option("--loss-max-energy-points",
                    options.loss_max_energy_points,
                    "Maximum energy points per inverse-CDF column");
+    app.add_option(
+        "--direct-loss-max-energy-points",
+        options.direct_loss_max_energy_points,
+        "Maximum energy points for a column rebuilt from PROPOSAL direct "
+        "integration/root finding after an interpolated-reference reversal");
+    app.add_option(
+           "--nonmonotonic-loss-policy",
+           options.nonmonotonic_loss_policy,
+           "Repair policy: proposal-monotone or proposal-direct")
+        ->check(CLI::IsMember(
+            {std::string(ProposalMonotonePolicy),
+             std::string(ProposalDirectPolicy)}));
     app.add_option("--loss-max-quantile-points",
                    options.loss_max_quantile_points,
                    "Maximum quantile points per inverse-CDF column");
@@ -2613,10 +2954,13 @@ namespace {
     if (options.loss_initial_energy_intervals < 1 ||
         options.loss_initial_quantile_intervals < 1 ||
         options.loss_max_energy_points < 2 ||
+        options.direct_loss_max_energy_points < 2 ||
         options.loss_max_quantile_points < 2 ||
         options.loss_validation_samples < 1 ||
         options.loss_initial_energy_intervals + 1 >
             options.loss_max_energy_points ||
+        options.loss_initial_energy_intervals + 1 >
+            options.direct_loss_max_energy_points ||
         options.loss_initial_quantile_intervals + 1 >
             options.loss_max_quantile_points) {
       throw std::invalid_argument(

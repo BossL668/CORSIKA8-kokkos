@@ -42,6 +42,41 @@ if (CORSIKA_ENABLE_CUDA)
   set (CMAKE_CUDA_STANDARD_REQUIRED ON)
   set (CMAKE_CUDA_EXTENSIONS OFF)
   find_package (CUDAToolkit 12 REQUIRED)
+
+  # A Conda CUDA toolkit can make FindCUDAToolkit attach the compatibility
+  # sysroot's librt.so to CUDA::cudart_static_deps as an absolute path.  Mixing
+  # that old glibc object with a native host compiler fails on current
+  # Debian/Ubuntu systems with unresolved GLIBC_PRIVATE symbols.  Replace only
+  # that sysroot entry with the native (and, on modern glibc, intentionally
+  # minimal) librt archive.  All other CUDA usage requirements remain untouched.
+  get_target_property (
+    _c8_cudart_static_links
+    CUDA::cudart_static_deps
+    INTERFACE_LINK_LIBRARIES
+    )
+  set (_c8_host_librt
+       "/usr/lib/${CMAKE_CXX_LIBRARY_ARCHITECTURE}/librt.a")
+  if (_c8_cudart_static_links AND EXISTS "${_c8_host_librt}")
+    set (_c8_cudart_static_links_fixed "")
+    set (_c8_replaced_cuda_sysroot_librt OFF)
+    foreach (_c8_cudart_link IN LISTS _c8_cudart_static_links)
+      if (_c8_cudart_link MATCHES "/sysroot/.*/librt\\.so$")
+        list (APPEND _c8_cudart_static_links_fixed "${_c8_host_librt}")
+        set (_c8_replaced_cuda_sysroot_librt ON)
+      else ()
+        list (APPEND _c8_cudart_static_links_fixed "${_c8_cudart_link}")
+      endif ()
+    endforeach ()
+    if (_c8_replaced_cuda_sysroot_librt)
+      message (STATUS
+               "CUDA: replacing Conda sysroot librt with ${_c8_host_librt}")
+      set_property (
+        TARGET CUDA::cudart_static_deps
+        PROPERTY INTERFACE_LINK_LIBRARIES
+        "${_c8_cudart_static_links_fixed}"
+        )
+    endif ()
+  endif ()
 endif ()
 
 #+++++++++++++++++++++++++++++
@@ -333,6 +368,17 @@ add_subdirectory (modules/conex)
 add_subdirectory (modules/epos-lhc)
 add_subdirectory (modules/tauola)
 add_subdirectory (modules/fluka)
+
+# Some Conda compiler toolchains retain sysroot libm/librt linker scripts that
+# refer to library paths unavailable on Debian/Ubuntu multiarch systems.
+# Applications and tests are defined below, so put the matching native host
+# directory first for all of them.  This is derived at configure time and does
+# not embed a user- or machine-specific project path.
+set (_c8_host_multiarch_libdir "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
+if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
+    EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+  add_link_options ("-L${_c8_host_multiarch_libdir}")
+endif ()
 
 #
 #+++++++++++++++++++++++++++++++

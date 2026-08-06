@@ -84,7 +84,8 @@ namespace corsika::gpu::em {
       auto const photon =
           particle.pid ==
           static_cast<std::int32_t>(EmPid::Photon);
-      if (photon && energy_MeV < table.energy_cut_MeV) {
+      if (photon &&
+          energy_MeV < table.em_transport_cut_MeV) {
         record.status = EmInteractionStatus::ParticleCut;
         record.interaction_grammage_g_per_cm2 = CUDART_INF;
         raw_interactions[index] = record;
@@ -129,7 +130,7 @@ namespace corsika::gpu::em {
                 table, particle.pid);
         auto const below_cut =
             mass.status == tables::TableLookupStatus::Success &&
-            energy_MeV - mass.value < table.energy_cut_MeV;
+            energy_MeV - mass.value < table.em_transport_cut_MeV;
         if (below_cut ||
             (minimum_energy.status ==
                 tables::TableLookupStatus::Success &&

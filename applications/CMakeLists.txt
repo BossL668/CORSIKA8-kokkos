@@ -36,15 +36,14 @@ endif ()
 # even when the final C++ driver and all C++ objects use the host glibc. Put
 # the matching host multiarch directory first instead of applying the Conda
 # sysroot to host objects.
-if (CMAKE_Fortran_COMPILER_SYSROOT)
-  set (_c8_host_multiarch_libdir
-       "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-  if (EXISTS "${_c8_host_multiarch_libdir}/libm.so")
-    target_link_options (
-      c8_air_shower PRIVATE
-      "-L${_c8_host_multiarch_libdir}"
-      )
-  endif ()
+set (_c8_host_multiarch_libdir
+     "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
+if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
+    EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+  target_link_options (
+    c8_air_shower PRIVATE
+    "-L${_c8_host_multiarch_libdir}"
+    )
 endif ()
 
 if (CORSIKA_ENABLE_CUDA)
@@ -69,7 +68,7 @@ if (CORSIKA_ENABLE_CUDA)
     CORSIKA8_WITH_CUDA_EM=1
     CORSIKA8_BUNDLED_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF"
     )
-  if (CMAKE_Fortran_COMPILER_SYSROOT AND
+  if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
       EXISTS "${_c8_host_multiarch_libdir}/libm.so")
     target_link_options (
       c8_air_shower_parent_profile_validation PRIVATE

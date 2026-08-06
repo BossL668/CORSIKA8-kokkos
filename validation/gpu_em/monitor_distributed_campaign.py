@@ -171,7 +171,12 @@ def validate_staged_shard(
     return {
         "path": str(root.resolve()),
         "seed": expected_seed_value,
-        "runtime_seconds": float(summary.get("runtime_raw", 0.0)),
+        # Older campaign summaries used ``runtime_raw`` while current
+        # c8_air_shower writes ``runtime``.  Preserve both schemas so the
+        # staging status never turns a valid measured runtime into zero.
+        "runtime_seconds": float(
+            summary.get("runtime_raw", summary.get("runtime", 0.0))
+        ),
         "wall_time_seconds": float(shower["wall_time_ms"]) / 1000.0,
         "executable_sha256": expected_executable_sha256,
     }

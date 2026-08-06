@@ -89,15 +89,16 @@ build type                Release
 在 `corsika_venv` 中：
 
 ```bash
-cmake -S /home/yuhanglu/21CMA/corsika8_gpu_refactor \
-  -B /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda \
+export C8_SOURCE=~/corsika-21cma-cuda/corsika8_gpu_refactor
+export C8_BUILD=~/corsika-21cma-cuda/corsika8_gpu_refactor_build_cuda
+
+cmake -S "$C8_SOURCE" \
+  -B "$C8_BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCORSIKA_ENABLE_CUDA=ON \
   -DCMAKE_CUDA_ARCHITECTURES=89
 
-cmake --build \
-  /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda \
-  --parallel 8
+cmake --build "$C8_BUILD" --parallel 8
 ```
 
 上述命令适合已有 Conan/CMake 配置的本机增量构建。迁移到新服务器时还必须
@@ -112,7 +113,7 @@ CORSIKA_ENABLE_CUDA=OFF
 ```
 
 CPU-only build 不要求 CUDA toolkit。当前 CPU-only 全树及 CTest 10/10、CUDA
-Release 全树及 CTest 32/32 均通过。
+Release 全树及 CTest 34/34 均通过；包含 FLUKA 的模块测试需要设置 `FLUPRO`。
 
 ## 4. 物理表
 
@@ -127,34 +128,13 @@ Release 全树及 CTest 32/32 均通过。
 运行不能在缺少 `.c8emrt` 时生成或切换 CPU。`c8_air_shower` 要求显式传入
 `--gpu-table-cache`，文件不存在、损坏或不匹配都会立即终止。
 
-### 4.1 获取已验证的默认表
+### 4.1 默认表合同
 
-私有 GitHub 仓库的协作者可以直接下载标准干空气表：
-
-```bash
-export C8_TABLE_DIR=/path/to/gpu_em_tables
-mkdir -p "$C8_TABLE_DIR"
-
-gh release download gpu-table-dry-air-v10 \
-  --repo BossL668/corsika8-gpu-hybrid \
-  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
-  --dir "$C8_TABLE_DIR"
-
-export C8_TABLE="$C8_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
-echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TABLE" |
-  sha256sum --check
-```
-
-本地开发环境中同一张表位于：
-
-```text
-/home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda/
-  gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt
-```
-
-它覆盖标准干空气、0.5 MeV EM cut、300 MeV muon cut 和最高
-\(10^{18}\) eV。表中同时存在 PDG `13/-13` 时启用 CUDA μ 子输运；没有 μ 子
-列时 EM CUDA 仍可使用，而 μ 子保留在 CPU。
+旧的 `production_v10_muons_1e-3_1EeV.c8emrt` Release 表产生于 split-cut
+合同之前，不能用于当前应用。默认标准干空气请求使用 0.5 MeV CORSIKA EM
+输运 cut、按标量缓存规则解析出的 0.4 MeV PROPOSAL stochastic cut、300 MeV
+muon cut 和所需的明确能区。表中同时存在 PDG `13/-13` 时启用 CUDA μ 子输运；
+没有 μ 子列时 EM CUDA 仍可使用，而 μ 子保留在 CPU。
 
 ### 4.2 自动查找或生成标准干空气表
 
@@ -175,7 +155,8 @@ export C8_TABLE="$(
 )"
 ```
 
-工具对 YAML 规范化并计算 SHA-256，扫描兼容的现有表；未命中时通过跨进程锁
+工具对 YAML 规范化并计算 SHA-256，扫描介质、cut、能区、精度和制表器合同
+版本均兼容的现有表；未命中时通过跨进程锁
 调用 `gpu_em_tablegen`，随后回读校验并写 manifest。`--dry-run` 只显示请求，
 `--lookup-only` 禁止生成。已有 \(10^{18}\) eV 表不能外推到 \(10^{19}\) eV；
 后者应将 `--primary-energy-eV` 改为 `1e19`，默认表上限会解析为
@@ -246,13 +227,12 @@ c8_air_shower \
   --gpu-min-batch 4096 \
   --gpu-memory-fraction 0.70 \
   --gpu-table-cache \
-    /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda/gpu_em_tables/production_v10_muons_1e-3_1EeV.c8emrt \
+    "$C8_TABLE" \
   --gpu-table-tolerance 1e-3 \
   --gpu-deterministic true
 ```
 
-正式参数中的物理表应替换为当前通过验收的
-`production_v10_muons_1e-3_1EeV.c8emrt`。接口默认值为
+`C8_TABLE` 应来自第 4.2 节的当前内容寻址准备请求。接口默认值为
 `--gpu-min-batch 4096`；当前 RTX 4060 的 100 TeV 强子 shower 实测也优于
 64。这个阈值不是跨 GPU 常数：迁移到新卡后应固定物理配置和热缓存，对
 64、256、1024、4096、8192 等候选值做至少五次重复的中位数扫描。小于阈值时
@@ -388,7 +368,7 @@ fallback 枚举的单元测试。
 
 ```bash
 ctest \
-  --test-dir /home/yuhanglu/21CMA/corsika8_gpu_refactor_build_cuda \
+  --test-dir "$C8_BUILD" \
   --output-on-failure --parallel 8
 ```
 
@@ -485,7 +465,7 @@ CoREAS/ZHS；它明确不是 production CUDA 独立抽样。
 
 ```text
 CUDA Release all target                 PASS
-CUDA CTest                              32/32
+CUDA CTest                              34/34
 CPU-only all target                     PASS
 CPU-only CTest                          10/10
 Python validation                       53/53

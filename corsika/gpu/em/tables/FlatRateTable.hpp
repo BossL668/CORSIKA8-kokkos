@@ -119,7 +119,12 @@ namespace corsika::gpu::em::tables {
     double const* continuous_dEdX_MeV_cm2_per_g{};
     double const* continuous_ranges_g_per_cm2{};
     std::uint32_t continuous_value_count{};
+    // Absolute stochastic cut used to generate the PROPOSAL rate columns.
     double energy_cut_MeV{};
+    // User-facing EM transport/ParticleCut threshold.  This can differ from
+    // energy_cut_MeV because scalar CORSIKA selects the nearest standard
+    // PROPOSAL stochastic table below the requested transport cut.
+    double em_transport_cut_MeV{};
 
     std::uint64_t const* epair_rho_component_hashes{};
     double const* epair_rho_energies_MeV{};
@@ -326,6 +331,8 @@ namespace corsika::gpu::em::tables {
              view.continuous_value_count > 0 &&
              finiteValue(view.energy_cut_MeV) &&
              view.energy_cut_MeV > 0. &&
+             finiteValue(view.em_transport_cut_MeV) &&
+             view.em_transport_cut_MeV > 0. &&
              view.particle_pdg_ids != nullptr &&
              view.particle_energy_offsets != nullptr &&
              view.particle_energy_counts != nullptr &&

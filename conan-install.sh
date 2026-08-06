@@ -109,7 +109,15 @@ printf "[ conan-install | info > conan2 home: ${CONAN2_HOME}\n"
 # Conan2 commands 
 CONAN2_DEFAULT_PROFILE_COMMAND="conan profile detect --force"
 CONAN2_PROFILE_COMMAND="conan profile detect --name ${CONAN2_PROFILE_NAME} --force"
-CONAN2_INSTALL_COMMAND="conan install ${CORSIKA_DIR} --output-folder=${CORSIKA_DIR}/${CONAN2_OUTPUT_FOLDER_NAME} --build=missing  --settings=build_type=${BUILD_TYPE} --profile=${CONAN2_PROFILE_NAME}"
+CONAN2_JOBS_OPTION=""
+if [[ -n "${C8_CONAN_JOBS:-}" ]]; then
+  if [[ ! "${C8_CONAN_JOBS}" =~ ^[1-9][0-9]*$ ]]; then
+    printf "[ conan-install | error > C8_CONAN_JOBS must be a positive integer.\n"
+    exit 2
+  fi
+  CONAN2_JOBS_OPTION="--conf=tools.build:jobs=${C8_CONAN_JOBS}"
+fi
+CONAN2_INSTALL_COMMAND="conan install ${CORSIKA_DIR} --output-folder=${CORSIKA_DIR}/${CONAN2_OUTPUT_FOLDER_NAME} --build=missing --settings=build_type=${BUILD_TYPE} --profile=${CONAN2_PROFILE_NAME} ${CONAN2_JOBS_OPTION}"
 CONAN2_SHOW_PROFLE_COMMAND="conan profile show -pr ${CONAN2_PROFILE_NAME}"
 
 printf "[ conan-install | info > Creating default profile...\n\n"

@@ -35,6 +35,12 @@ def make_arguments(root: Path) -> argparse.Namespace:
         zenith_deg=45.0,
         azimuth_deg=90.0,
         ring=1,
+        geomagnetic_model="IGRF14",
+        geomagnetic_year=2027.0,
+        antenna_file=None,
+        radio_sampling_rate_ghz=1.0,
+        radio_window_duration_ns=400.0,
+        radio_pretrigger_ns=10.0,
         em_cut_gev=0.0005,
         em_thinning=1.0e-4,
         maximum_weight=100.0,
@@ -69,6 +75,12 @@ class RadioAcceptanceRunnerTest(unittest.TestCase):
             self.assertEqual(cuda[cuda.index("--radio-backend") + 1], "cuda")
             self.assertNotIn("--gpu-radio-field-limit", cpu)
             self.assertIn("--gpu-radio-field-limit", cuda)
+            self.assertEqual(
+                cpu[cpu.index("--geomagnetic-model") + 1], "IGRF14"
+            )
+            self.assertEqual(
+                cpu[cpu.index("--geomagnetic-year") + 1], "2027"
+            )
 
     def test_zero_ring_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -76,6 +88,22 @@ class RadioAcceptanceRunnerTest(unittest.TestCase):
             args.ring = 0
             with self.assertRaisesRegex(ValueError, "non-zero observer ring"):
                 MODULE.validate_arguments(args)
+
+    def test_zero_ring_with_explicit_antenna_file_is_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = make_arguments(root)
+            antenna = root / "antennas.txt"
+            antenna.write_text("0 0 0\n", encoding="utf-8")
+            args.ring = 0
+            args.antenna_file = antenna
+            MODULE.validate_arguments(args)
+            command = MODULE.common_cuda_command(args, root / "output")
+            self.assertEqual(command[command.index("--ring") + 1], "0")
+            self.assertEqual(
+                Path(command[command.index("--antenna-file") + 1]),
+                antenna.resolve(),
+            )
 
     def test_non_finite_tolerance_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -319,6 +319,32 @@ namespace {
   }
 
   void testValidation() {
+    {
+      auto monotone = fixture();
+      monotone.particles.front()
+          .columns.front()
+          .inverse_cdf.reference_mode =
+          "proposal_interpolated_monotone";
+      validateRateTable(monotone);
+      ++checks;
+    }
+    {
+      auto fallback = fixture();
+      auto& inverse = fallback.particles.front()
+                          .columns.front()
+                          .inverse_cdf;
+      inverse = {};
+      inverse.reference_mode =
+          SelectedLossCpuFallbackReferenceMode;
+      validateRateTable(fallback);
+      ++checks;
+
+      inverse.energies_MeV = {1., 10.};
+      requireThrows(
+          [&] { validateRateTable(fallback); },
+          "selected-loss fallback accepted residual inverse-CDF arrays");
+    }
+
     auto table = fixture();
     table.metadata.components.front().number_fraction = 0.7;
     requireThrows([&] { validateRateTable(table); },

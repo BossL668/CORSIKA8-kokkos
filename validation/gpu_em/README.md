@@ -688,6 +688,18 @@ the simulation output. `analyze_shower_feature_distributions.py`,
 `plot_single_event_runtime_histograms.py`, and the radial tool accept the same
 external-manifest pattern.
 
+The shower-feature analysis also writes
+`muon_production_parent_xmax_aligned_comparison.png`.  It interpolates every
+production profile on
+`Delta X = X - Xmax_charged` before taking the ensemble mean, so two
+independent ensembles are compared at equal shower age.  The original
+fixed-depth parent plot is retained: alignment is a shape diagnostic, not a
+replacement for an absolute-depth test.  The accompanying
+`muon_production_parent_alignment_summary.json` reports the unshifted
+per-shower parent-peak distributions, bootstrap intervals, KS/Welch tests and
+profile integrals, preventing a one-bin displacement of an ensemble-mean peak
+from being mistaken for a transported-particle accounting error.
+
 The robust width filter treats a log-MAD at floating-point roundoff scale as
 zero before applying its factor gate. This prevents a discretized fitter bin
 from turning neighbouring physical width bins into enormous robust-z outliers

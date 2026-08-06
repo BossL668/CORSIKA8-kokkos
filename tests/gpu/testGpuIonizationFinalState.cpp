@@ -412,6 +412,32 @@ int main() {
             muon_result.fallback_events.empty(),
         "muon ionization process counts differ");
 
+    auto muon_thinning_config = config;
+    muon_thinning_config.thinning = {
+        1.e20, 1.e20, 1, 1};
+    CudaEmBackend muon_thinning_backend;
+    muon_thinning_backend.initialize(
+        environment, descriptor, muon_thinning_config);
+    auto const muon_thinning_result =
+        muon_thinning_backend
+            .generateBremsFinalStatesForValidation(
+                muon_interactions, FirstMuonHistory);
+    require(
+        muon_thinning_result.secondaries.size() ==
+                2 * MuonValidCount &&
+            muon_thinning_result.final_state_records.size() ==
+                MuonValidCount &&
+            std::all_of(
+                muon_thinning_result.final_state_records.begin(),
+                muon_thinning_result.final_state_records.end(),
+                [](BremsFinalStateRecord const& record) {
+                  return record.thinning_status ==
+                             static_cast<std::uint32_t>(
+                                 EmThinningStatus::NotApplied) &&
+                         record.thinning_keep_mask == 0x3U;
+                }),
+        "GPU ionization applied EMThinning to a muon projectile");
+
     PROPOSAL::secondaries::NaivIonization muon_minus_reference(
         PROPOSAL::MuMinusDef(), medium);
     PROPOSAL::secondaries::NaivIonization muon_plus_reference(

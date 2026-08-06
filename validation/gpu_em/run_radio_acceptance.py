@@ -41,6 +41,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--zenith-deg", type=float, default=0.0)
     parser.add_argument("--azimuth-deg", type=float, default=0.0)
     parser.add_argument("--ring", type=int, default=1)
+    parser.add_argument(
+        "--geomagnetic-model",
+        choices=("IGRF13", "IGRF14"),
+        default="IGRF14",
+    )
+    parser.add_argument("--geomagnetic-year", type=float, default=2027.0)
+    parser.add_argument("--antenna-file", type=Path)
+    parser.add_argument("--radio-sampling-rate-ghz", type=float, default=1.0)
+    parser.add_argument("--radio-window-duration-ns", type=float, default=400.0)
+    parser.add_argument("--radio-pretrigger-ns", type=float, default=10.0)
     parser.add_argument("--em-cut-gev", type=float, default=0.5e-3)
     parser.add_argument("--em-thinning", type=float, default=1.0e-4)
     parser.add_argument("--maximum-weight", type=float, default=100.0)
@@ -83,8 +93,10 @@ def validate_arguments(args: argparse.Namespace) -> None:
         )
     if args.energy_gev <= 0.0 or args.events <= 0:
         raise ValueError("energy and event count must be positive")
-    if args.ring == 0:
+    if args.ring == 0 and args.antenna_file is None:
         raise ValueError("radio acceptance requires a non-zero observer ring")
+    if args.antenna_file is not None and not args.antenna_file.is_file():
+        raise ValueError(f"antenna file is absent: {args.antenna_file}")
     if args.em_cut_gev <= 0.0 or args.non_em_cut_gev <= 0.0:
         raise ValueError("particle cuts must be positive")
     if not 0.0 <= args.em_thinning <= 1.0:
@@ -95,6 +107,13 @@ def validate_arguments(args: argparse.Namespace) -> None:
         raise ValueError("GPU memory fraction must lie in (0, 1]")
     if args.gpu_radio_field_limit <= 0.0:
         raise ValueError("GPU radio field limit must be positive")
+    if (
+        not math.isfinite(args.geomagnetic_year)
+        or args.radio_sampling_rate_ghz <= 0.0
+        or args.radio_window_duration_ns <= 0.0
+        or args.radio_pretrigger_ns < 0.0
+    ):
+        raise ValueError("invalid geomagnetic or radio observer configuration")
     for name in (
         "relative_tolerance",
         "l2_tolerance",
@@ -107,7 +126,7 @@ def validate_arguments(args: argparse.Namespace) -> None:
 
 
 def common_cuda_command(args: argparse.Namespace, output: Path) -> list[str]:
-    return [
+    command = [
         str(args.executable),
         "-p",
         str(args.primary_pdg),
@@ -123,8 +142,18 @@ def common_cuda_command(args: argparse.Namespace, output: Path) -> list[str]:
         f"{args.zenith_deg:.17g}",
         "--azimuth",
         f"{args.azimuth_deg:.17g}",
+        "--geomagnetic-model",
+        args.geomagnetic_model,
+        "--geomagnetic-year",
+        f"{args.geomagnetic_year:.17g}",
         "--ring",
         str(args.ring),
+        "--radio-sampling-rate-ghz",
+        f"{args.radio_sampling_rate_ghz:.17g}",
+        "--radio-window-duration-ns",
+        f"{args.radio_window_duration_ns:.17g}",
+        "--radio-pretrigger-ns",
+        f"{args.radio_pretrigger_ns:.17g}",
         "--emcut",
         f"{args.em_cut_gev:.17g}",
         "--emthin",
@@ -153,6 +182,9 @@ def common_cuda_command(args: argparse.Namespace, output: Path) -> list[str]:
         f"{args.gpu_table_tolerance:.17g}",
         "--gpu-detailed-stage-timing",
     ]
+    if args.antenna_file is not None:
+        command.extend(("--antenna-file", str(args.antenna_file.resolve())))
+    return command
 
 
 def radio_command(
@@ -220,6 +252,16 @@ def main() -> int:
             "zenith_deg": args.zenith_deg,
             "azimuth_deg": args.azimuth_deg,
             "ring": args.ring,
+            "geomagnetic_model": args.geomagnetic_model,
+            "geomagnetic_year": args.geomagnetic_year,
+            "antenna_file": (
+                str(args.antenna_file.resolve())
+                if args.antenna_file is not None
+                else None
+            ),
+            "radio_sampling_rate_GHz": args.radio_sampling_rate_ghz,
+            "radio_window_duration_ns": args.radio_window_duration_ns,
+            "radio_pretrigger_ns": args.radio_pretrigger_ns,
             "em_cut_GeV": args.em_cut_gev,
             "em_thinning": args.em_thinning,
             "maximum_weight": args.maximum_weight,

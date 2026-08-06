@@ -499,8 +499,16 @@ namespace corsika::gpu::em {
       second_key.draw_id = EmThinningSecondDrawId;
       sample.thinning_first_uniform = uniformOpen01(first_key);
       sample.thinning_second_uniform = uniformOpen01(second_key);
+      auto effective_thinning = thinning;
+      // Scalar EMThinning returns immediately for a non-EM projectile.
+      // This shared final-state kernel also handles muons, so preserve that
+      // eligibility rule explicitly instead of thinning muon ionization
+      // branches at high primary-energy thresholds.
+      if (!isElectronOrPositronPid(parent.pid)) {
+        effective_thinning.enabled = 0;
+      }
       auto const result = applyEmThinning(
-          thinning, parent.energy_GeV, parent.weight,
+          effective_thinning, parent.energy_GeV, parent.weight,
           first_energy_GeV, second_energy_GeV,
           sample.thinning_first_uniform,
           sample.thinning_second_uniform);

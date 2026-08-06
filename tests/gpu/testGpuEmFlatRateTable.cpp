@@ -77,11 +77,30 @@ namespace {
     require(flatRateTableBytes(flat) > 0,
             "flat table reports an empty device image");
 
+    auto split_cut_source = source;
+    split_cut_source.metadata.energy_cut_MeV = 0.4;
+    for (auto& continuous :
+         split_cut_source.continuous_energy_tables) {
+      continuous.minimum_total_energy_MeV =
+          continuous.mass_MeV +
+          ContinuousCutSafetyFactor * 0.5;
+      continuous.energies_MeV.front() =
+          continuous.minimum_total_energy_MeV;
+    }
+    auto const split_cut_view = makeFlatRateTableView(
+        flattenRateTable(split_cut_source));
+    requireClose(
+        split_cut_view.energy_cut_MeV, 0.4,
+        "flat view changed the scalar PROPOSAL stochastic cut");
+    requireClose(
+        split_cut_view.em_transport_cut_MeV, 0.5,
+        "flat view did not preserve a transport cut distinct from the "
+        "PROPOSAL stochastic cut");
+
     auto malformed = flat;
     malformed.column_rate_offsets.pop_back();
     requireThrows([&] { validateFlatRateTable(malformed); },
                   "malformed flat metadata was accepted");
-    malformed = flat;
     malformed.inverse_row_offsets[1] =
         malformed.inverse_row_offsets[0];
     requireThrows([&] { validateFlatRateTable(malformed); },

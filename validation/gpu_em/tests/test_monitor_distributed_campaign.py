@@ -91,9 +91,18 @@ class DistributedCampaignMonitorTest(unittest.TestCase):
             )
             record = validate_staged_shard(root, 123, "a" * 64)
             self.assertEqual(record["seed"], 123)
+            self.assertEqual(record["runtime_seconds"], 10.0)
             self.assertEqual(record["wall_time_seconds"], 9.0)
             with self.assertRaisesRegex(ValueError, "summary seed differs"):
                 validate_staged_shard(root, 124, "a" * 64)
+
+            with (root / "summary.yaml").open("w", encoding="utf-8") as output:
+                yaml.safe_dump(
+                    {"showers": 1, "seed": 123, "runtime": 11.0},
+                    output,
+                )
+            current_record = validate_staged_shard(root, 123, "a" * 64)
+            self.assertEqual(current_record["runtime_seconds"], 11.0)
 
     def test_compact_status_does_not_repeat_per_event_records(self) -> None:
         compact = compact_status(

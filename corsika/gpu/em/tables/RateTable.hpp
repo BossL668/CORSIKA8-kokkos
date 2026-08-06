@@ -26,6 +26,13 @@ namespace corsika::gpu::em::tables {
   inline constexpr double ProposalRelativeVCut = 0.01;
   inline constexpr char RateUnit[] = "cm2/g";
   inline constexpr char EnergyUnit[] = "MeV";
+  // An explicit, serialized capability marker for a process/component whose
+  // rate remains device-selectable but whose PROPOSAL inverse CDF cannot be
+  // represented monotonically within the requested table tolerance.  The
+  // selector preserves process, component and loss quantile and routes only
+  // the selected-loss evaluation/final state through the CPU fallback.
+  inline constexpr char SelectedLossCpuFallbackReferenceMode[] =
+      "proposal_selected_loss_cpu_fallback";
   inline constexpr std::uint64_t LossQuantileCount =
       std::uint64_t{1} << 32;
   inline constexpr double lossQuantileFromPhiloxWord(
@@ -166,9 +173,9 @@ namespace corsika::gpu::em::tables {
   };
 
   struct InverseCdfTable {
-    // "proposal_interpolated" reproduces the production CPU path;
-    // "proposal_direct" is reserved for diagnostic interpolate=false
-    // oracle tables and is not used by the current production generator.
+    // "proposal_interpolated" follows the production CPU interpolant,
+    // "proposal_interpolated_monotone" projects its narrow local reversals,
+    // and "proposal_direct" uses interpolate=false integration/root finding.
     std::string reference_mode;
     std::vector<double> energies_MeV;
     // Row i occupies [quantile_offsets[i], quantile_offsets[i + 1]).

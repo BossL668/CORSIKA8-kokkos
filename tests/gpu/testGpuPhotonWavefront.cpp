@@ -347,7 +347,8 @@ int main() {
                      sizeof(axis_grammage)) == cudaSuccess &&
               cudaMalloc(
                   reinterpret_cast<void**>(&device_histograms),
-                  8 * Bins * sizeof(long long)) == cudaSuccess &&
+                  corsika::gpu::em::detail::
+                      deviceProfileHistogramBytes(Bins)) == cudaSuccess &&
               cudaMalloc(
                   reinterpret_cast<void**>(&device_counters),
                   sizeof(corsika::gpu::em::detail::
@@ -364,7 +365,9 @@ int main() {
                      sizeof(axis_grammage),
                      cudaMemcpyHostToDevice) == cudaSuccess &&
               cudaMemset(device_histograms, 0,
-                         8 * Bins * sizeof(long long)) == cudaSuccess &&
+                         corsika::gpu::em::detail::
+                             deviceProfileHistogramBytes(Bins)) ==
+                  cudaSuccess &&
               cudaMemset(device_counters, 0,
                          sizeof(corsika::gpu::em::detail::
                                     DeviceProfileCounters)) ==
@@ -442,7 +445,9 @@ int main() {
           cudaDeviceSynchronize() == cudaSuccess,
           "synthetic muon production profile kernel failed");
 
-      long long histograms[8 * Bins]{};
+      long long histograms[
+          corsika::gpu::em::detail::
+              DeviceProfileHistogramCount * Bins]{};
       corsika::gpu::em::detail::DeviceProfileCounters
           counters{};
       require(
@@ -1021,6 +1026,8 @@ int main() {
                   profile.positrons &&
               repeated_profile.muon_parent_productions ==
                   profile.muon_parent_productions &&
+              repeated_profile.muon_energy_loss_GeV ==
+                  profile.muon_energy_loss_GeV &&
               repeated_profile.energy_loss_GeV ==
                   profile.energy_loss_GeV,
           "reused backend profile is not bitwise identical to its first shower");

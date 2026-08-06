@@ -28,6 +28,32 @@ target_include_directories (
   $<INSTALL_INTERFACE:include>
   )
 
+# Public C++ headers such as DeviceWorkspace.hpp include cuda_runtime_api.h.
+# With some Conda CUDA packages CMake records the toolkit directory as implicit
+# for CUDA and removes it from commands compiling ordinary C++ consumers.  Find
+# the header without embedding a machine-specific path, then keep it on the C++
+# usage interface so applications and tests can include the public GPU headers.
+set (_c8_gpu_cuda_runtime_include_dir "")
+foreach (_c8_gpu_cuda_include_candidate IN ITEMS
+         "${CUDAToolkit_INCLUDE_DIRS}"
+         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+         "${CUDAToolkit_CUPTI_INCLUDE_DIR}")
+  if (EXISTS "${_c8_gpu_cuda_include_candidate}/cuda_runtime_api.h")
+    set (_c8_gpu_cuda_runtime_include_dir
+         "${_c8_gpu_cuda_include_candidate}")
+    break ()
+  endif ()
+endforeach ()
+if (NOT _c8_gpu_cuda_runtime_include_dir)
+  message (FATAL_ERROR
+           "CORSIKA8GpuEm requires a directory containing cuda_runtime_api.h")
+endif ()
+target_compile_options (
+  CORSIKA8GpuEm
+  PUBLIC
+  "$<$<COMPILE_LANGUAGE:CXX>:-I${_c8_gpu_cuda_runtime_include_dir}>"
+  )
+
 target_link_libraries (
   CORSIKA8GpuEm
   PUBLIC

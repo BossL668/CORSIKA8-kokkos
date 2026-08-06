@@ -4,13 +4,18 @@
 > 官方发布版，也尚未经过 CORSIKA 8 上游评审。默认 CPU 路径仍是原来的
 > `Cascade + PROPOSAL`；CUDA、CUDA 射电和 FLUKA 进程池都必须显式启用。
 
+> **当前分支建议（2026-08-06）：**beta2 是目前推荐的本地生产分支。独立的
+> beta3 分支加入了实验性的同步强子多核调度，但当前会增加单 shower 时间，而且
+> 尚未完成同等级的物理与射电验收；在该调度器完成异步重构和重新验收前，正式
+> 生产继续使用 beta2。
+
 文档导航：
 
 - [新增命令行参数完整参考](documentation/cuda_em_refactor/cli_reference.md)
 - [CUDA 后端生产使用指南](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md)
 - [验证脚本和复现实验](validation/gpu_em/README.md)
 - [架构文档与阶段记录索引](documentation/cuda_em_refactor/README.md)
-- [英文主 README 与新服务器部署](README.md#deploying-on-a-new-nvidia-server)
+- [英文主 README 与新服务器部署](README.md#build-from-source)
 
 本文回答四个问题：
 
@@ -20,7 +25,7 @@
 4. 与当前官方公开版本相比，哪些方向是本分支的特色，哪些方面官方版本更强？
 
 从零迁移、CUDA 架构选择和多核服务器调优的完整命令见
-[英文主 README](README.md#deploying-on-a-new-nvidia-server)；物理覆盖、表格、
+[英文主 README](README.md#build-from-source)；物理覆盖、表格、
 fallback 和输出字段见
 [CUDA 后端生产指南](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md)。
 
@@ -444,47 +449,138 @@ CUDA 模式写出：
 
 CUDA 构建要求 CMake 3.24+、CUDA toolkit 12.x、C++/CUDA 17。下面是一套可
 迁移流程；更详细的故障排查和多 GPU 调优见
-[英文主 README](README.md#deploying-on-a-new-nvidia-server)。
+[英文主 README](README.md#build-from-source)。本节假设 Conda 环境是全新的，
+不依赖另一份 CORSIKA 构建目录或旧 Conan profile。7.1--7.7 应在同一个已激活
+`corsika_venv` 的 shell 中依次执行；若中途重新登录，必须重新执行相应的
+`export`，不能继承另一份旧构建的变量。
 
 ### 7.1 检查 driver、GPU 和编译器
+
+Conda 负责安装项目级工具、CUDA toolkit 和 Python 包，但下面经过实测的流程
+刻意使用宿主机同一套 GCC/G++/GFortran。全新的 Ubuntu/WSL 系统应先安装：
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  gfortran \
+  git \
+  ca-certificates
+```
+
+没有 `sudo` 的集群应加载管理员提供且互相匹配的 GCC、G++、GFortran 和 CUDA
+module。首次构建还需要能够通过 HTTPS 访问 Conda channel、Conan Center、私有
+GitHub fork、KIT 的公开子模块，以及 Pythia/Tauola 源码下载地址。
 
 ```bash
 nvidia-smi
 nvidia-smi \
   --query-gpu=index,name,compute_cap,driver_version,memory.total \
   --format=csv
-nvcc --version
-cmake --version
-c++ --version
+gcc --version
+g++ --version
 gfortran --version
+make --version
+git --version
 ldd --version
+free -h
+df -h .
 ```
 
 NVIDIA driver 属于宿主系统。Conda 中只有 toolkit 而 `nvidia-smi` 失败时，
 需要先修复宿主 driver；在 WSL2 中应安装 Windows NVIDIA driver，不应在 WSL
 内再安装第二套显示驱动。
 
+`nvidia-smi` 显示的 `CUDA Version` 是当前 driver 能支持的最高 CUDA driver API，
+不是本项目实际使用的编译工具包版本；应以 `nvcc --version` 为准。因此 driver
+显示 CUDA 13.x 时，仍可正常运行用受支持的 CUDA 12.6 toolkit 编译的程序。
+
 ### 7.2 建立参考 Conda 环境
+
+下面从一个完全不存在的新环境开始，同时安装验收脚本需要的 Parquet 和
+`pytest` 支持；这些 Python 包不会由后面 Conan 编译的 C++ Arrow 自动提供。
+
+若新的 SSH 或非交互 shell 中还不能使用 `conda activate`，可以先执行下面一条，
+不必修改 shell 启动文件：
+
+```bash
+source "$(conda info --base)/etc/profile.d/conda.sh"
+```
 
 ```bash
 conda create -n corsika_venv \
+  -y \
   -c conda-forge \
   python=3.9 \
   cmake=3.31 \
   conan=2.11 \
+  pip \
+  git \
+  make \
+  pkg-config \
   particle=0.25.1 \
-  numpy pandas scipy matplotlib pyyaml
+  numpy pandas scipy matplotlib pyyaml pyarrow pytest
 
 conda activate corsika_venv
+conda config --env --set channel_priority strict
 
 conda install \
+  -y \
   -c nvidia/label/cuda-12.6.3 \
+  -c conda-forge \
+  cuda-nvcc=12.6.85 \
+  cuda-cudart-dev=12.6.77 \
+  cuda-cccl=12.6.77
+```
+
+上面三个 CUDA 包是本项目在 T400 上经过实测的最小集合。若服务器必须安装完整
+toolkit，而且历史 NVIDIA label 仍能解析元包，可以用下面这一条替换上面的三个
+CUDA 包；不要因为一次求解失败而把两套方案重复叠加安装：
+
+```bash
+conda install \
+  -y \
+  -c nvidia/label/cuda-12.6.3 \
+  -c conda-forge \
   cuda-toolkit=12.6.3
 ```
 
 这组版本复现当前开发环境。HPC 上也可以使用管理员提供的 CUDA/GCC module；
 关键是 Conan 建 profile、CMake 和 NVCC host compiler 必须选择同一套 C++
 工具链。
+
+部分 Conda CUDA 包会把 C/C++ wrapper 加入 `PATH`，却没有同时提供相同版本的
+Fortran 编译器。下面显式选择 Ubuntu/WSL 原生工具链和 Conda 中的 NVCC；集群
+使用 module 时，应把前三个路径一起换成该 module 提供的路径：
+
+```bash
+test "$CONDA_DEFAULT_ENV" = corsika_venv
+
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export FC=/usr/bin/gfortran
+export CUDACXX="$CONDA_PREFIX/bin/nvcc"
+export CUDAHOSTCXX="$CXX"
+
+for program in "$CC" "$CXX" "$FC" "$CUDACXX" cmake conan python make git; do
+  test -x "$(command -v "$program")" || {
+    printf '缺少必需程序：%s\n' "$program" >&2
+    exit 1
+  }
+done
+
+"$CC" --version | head -n 1
+"$CXX" --version | head -n 1
+"$FC" --version | head -n 1
+"$CUDACXX" --version
+cmake --version | head -n 1
+conan --version
+python -c 'import numpy, pandas, pyarrow, pytest, scipy, yaml; print("Python 依赖：OK")'
+```
+
+GCC、G++ 和 GFortran 必须来自同一个 major toolchain。后面的
+`conan-install.sh` 会在这些变量已经生效后创建项目 profile；不能先用一套编译器
+建 Conan profile，再用另一套编译器运行 CMake。
 
 ### 7.3 配置 FLUKA
 
@@ -497,7 +593,9 @@ test -f "$C8_FLUPRO/libflukahp.a"
 
 FLUKA binary 必须匹配服务器的 glibc 和 Fortran runtime。
 `-DWITH_FLUKA=ON` 在本分支是 fail-closed：找不到库时 CMake 直接失败，不会
-静默换成 UrQMD。
+静默换成 UrQMD。`FLUPRO` 和 `FLUFOR` 同时也是运行期环境变量；每次重新登录
+服务器后、启动 `c8_air_shower` 前都要再次导出。仅仅链接成功并不代表运行期
+能够找到 FLUKA 数据目录。
 
 ### 7.4 自动取得 GPU architecture
 
@@ -505,13 +603,20 @@ CMake 把 compute capability `8.9` 写成 `89`：
 
 ```bash
 export C8_CUDA_ARCHS="$(
-  nvidia-smi --query-gpu=compute_cap --format=csv,noheader |
+  nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits |
+  tr -d ' ' |
   sed 's/\.//g' |
   sort -u |
   paste -sd';' -
 )"
 
 printf 'CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
+case "$C8_CUDA_ARCHS" in
+  ''|*[!0-9\;]*)
+    printf '无法自动取得有效的 CUDA architecture。\n' >&2
+    false
+    ;;
+esac
 ```
 
 若 NVCC 不认识新 GPU 的 architecture，应升级 toolkit，不能把一个无关旧架构
@@ -528,24 +633,58 @@ printf 'CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
 └── corsika8_gpu_refactor_install_cuda/ # 安装后的程序和资源
 ```
 
-先创建总目录，然后递归取得源码和子模块：
+先创建总目录，并明确 clone `cuda-em-icrc2025-beta2` 分支。私有仓库推荐使用
+已经加入 GitHub 账户的 SSH key：
 
 ```bash
 export C8_WORKSPACE=~/corsika-21cma-cuda
 mkdir -p "$C8_WORKSPACE"
 cd "$C8_WORKSPACE"
 
-gh repo clone BossL668/corsika8-gpu-hybrid \
-  corsika8_gpu_refactor \
-  -- --recurse-submodules
+ssh -T git@github.com
+
+git clone \
+  --branch cuda-em-icrc2025-beta2 \
+  --single-branch \
+  git@github.com:BossL668/corsika8-gpu-hybrid.git \
+  corsika8_gpu_refactor
 ```
 
-未使用 GitHub CLI 时，可以改用：
+GitHub 在 SSH 验证成功后会提示不提供 shell access，这是正常现象。不能使用 SSH
+时，可以在新 Conda 环境安装并认证 GitHub CLI：
 
 ```bash
-git clone --recursive \
-  https://github.com/BossL668/corsika8-gpu-hybrid.git \
-  "$C8_WORKSPACE/corsika8_gpu_refactor"
+conda install -y -c conda-forge gh
+gh auth login
+gh auth status
+
+cd "$C8_WORKSPACE"
+gh repo clone BossL668/corsika8-gpu-hybrid \
+  corsika8_gpu_refactor \
+  -- --branch cuda-em-icrc2025-beta2 --single-branch
+```
+
+这里不要给 GitHub clone 增加 `--recursive`。上游 `.gitmodules` 使用针对 KIT
+GitLab origin 的相对 URL；从 GitHub fork clone 时会被错误解析成不存在的 GitHub
+仓库。应先把两个子模块指向公开的上游地址，再初始化：
+
+```bash
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+
+git -C "$C8_SOURCE" config \
+  submodule.modules/data.url \
+  https://gitlab.iap.kit.edu/AirShowerPhysics/corsika-data.git
+git -C "$C8_SOURCE" config \
+  submodule.modules/conex.url \
+  https://gitlab.iap.kit.edu/AirShowerPhysics/cxroot.git
+
+git -C "$C8_SOURCE" submodule update --init --recursive --jobs 8
+git -C "$C8_SOURCE" submodule status --recursive
+
+test -f "$C8_SOURCE/modules/data/CMakeLists.txt"
+test -f "$C8_SOURCE/modules/conex/cxroot/CMakeLists.txt"
+test "$(git -C "$C8_SOURCE" branch --show-current)" = \
+  cuda-em-icrc2025-beta2
 ```
 
 随后统一定义三个目录：
@@ -555,9 +694,25 @@ export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
 export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
 export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
 
+# 同时根据可用内存和核心数设置；内存较小的笔记本应从更小值开始。
+export C8_BUILD_JOBS=16
+export C8_CONAN_JOBS="$C8_BUILD_JOBS"
+
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export FC=/usr/bin/gfortran
+export CUDACXX="$CONDA_PREFIX/bin/nvcc"
+export CUDAHOSTCXX="$CXX"
+
+test -f "$C8_SOURCE/conanfile.py"
+test -f "$C8_FLUPRO/libflukahp.a"
+
 "$C8_SOURCE/conan-install.sh" \
   --source-directory "$C8_SOURCE" \
   --release
+
+test -f "$C8_SOURCE/conan_cmake/conan_toolchain.cmake"
+conan profile show -pr corsika8
 ```
 
 迁移到其他服务器时，只需把 `C8_WORKSPACE` 改成服务器上的绝对父目录，建议保持
@@ -567,9 +722,17 @@ export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
 ### 7.6 配置、编译和安装
 
 ```bash
+# testModules 会初始化 FLUKA；若新 shell 丢失运行期变量，应在这里明确失败。
+test -f "$FLUPRO/libflukahp.a"
+
 cmake \
   -S "$C8_SOURCE" \
   -B "$C8_BUILD" \
+  -DCMAKE_CXX_COMPILER="$CXX" \
+  -DCMAKE_Fortran_COMPILER="$FC" \
+  -DCMAKE_CUDA_COMPILER="$CUDACXX" \
+  -DCMAKE_CUDA_HOST_COMPILER="$CUDAHOSTCXX" \
+  -DCUDAToolkit_ROOT="$CONDA_PREFIX" \
   -DCONAN_CMAKE_DIR="$C8_SOURCE/conan_cmake" \
   -DCMAKE_TOOLCHAIN_FILE="$C8_SOURCE/conan_cmake/conan_toolchain.cmake" \
   -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
@@ -580,27 +743,54 @@ cmake \
   -DC8_FLUKALIB="$C8_FLUPRO/libflukahp.a" \
   -DCMAKE_INSTALL_PREFIX="$C8_INSTALL"
 
-cmake --build "$C8_BUILD" --parallel 16
+cmake --build "$C8_BUILD" --parallel "$C8_BUILD_JOBS"
 cmake --install "$C8_BUILD"
 ```
 
-CUDA 编译会消耗较多主机内存，`--parallel` 应同时考虑核心数和 RAM。预期得到：
+CUDA 编译会消耗较多主机内存，`--parallel` 应同时考虑核心数和 RAM。CMake 会在
+第一次配置时缓存编译器和 CUDA 选择；如果这些选择需要改变，应创建新的空构建
+目录，不要尝试修补旧 cache。安装后检查：
 
 ```bash
-test -x "$C8_BUILD/applications/c8_air_shower"
-test -x "$C8_BUILD/applications/gpu_em_table_prepare"
-test -x "$C8_BUILD/applications/gpu_em_tablegen"
-test -x "$C8_BUILD/applications/cuda_decision_replay"
-test -x "$C8_BUILD/applications/fluka_batch_worker"
+for program in \
+  c8_air_shower \
+  gpu_em_table_prepare \
+  gpu_em_tablegen \
+  cuda_decision_replay \
+  fluka_batch_worker; do
+  test -x "$C8_INSTALL/bin/$program" || {
+    printf '缺少安装程序：%s\n' "$program" >&2
+    exit 1
+  }
+done
+
+test -d "$C8_INSTALL/share/corsika/data/PROPOSAL"
+test -f "$C8_INSTALL/share/corsika/GeoMag/IGRF14.COF"
+test -f "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml"
+
+if ldd "$C8_INSTALL/bin/c8_air_shower" | grep -q 'not found'; then
+  ldd "$C8_INSTALL/bin/c8_air_shower"
+  false
+fi
+
+"$C8_INSTALL/bin/c8_air_shower" --help >/dev/null
 ```
 
 ### 7.7 构建后测试
 
 ```bash
+# 先运行直接覆盖 GPU/CUDA 的快速子集。
+ctest \
+  --test-dir "$C8_BUILD" \
+  -R '^testGpu' \
+  --output-on-failure \
+  --parallel "$C8_BUILD_JOBS"
+
+# 正式科研生产前再运行完整 C++/CUDA 测试集。
 ctest \
   --test-dir "$C8_BUILD" \
   --output-on-failure \
-  --parallel 16
+  --parallel "$C8_BUILD_JOBS"
 
 cd "$C8_SOURCE"
 python -m unittest discover \
@@ -608,27 +798,132 @@ python -m unittest discover \
   -p 'test_*.py'
 ```
 
-### 7.8 准备默认干空气物理表
+### 7.8 在新 shell 恢复运行环境
 
-物理表不是 GPU 架构文件。换显卡或 CUDA 架构不需要重新生成。最简单的方式是
-从本项目的私有 GitHub Release 下载已经验收的默认表：
+注销后 Conda activation 和 export 变量都会消失。重新制表或运行 shower 前，应
+恢复安装路径以及 FLUKA 运行期数据目录：
 
 ```bash
-export C8_TABLE_DIR="$C8_BUILD/gpu_em_tables"
-mkdir -p "$C8_TABLE_DIR"
+conda activate corsika_venv
 
-gh release download gpu-table-dry-air-v10 \
-  --repo BossL668/corsika8-gpu-hybrid \
-  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
-  --dir "$C8_TABLE_DIR"
+export C8_WORKSPACE=~/corsika-21cma-cuda
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
+export C8_FLUPRO=/path/to/fluka
 
-export C8_TABLE="$C8_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
-echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TABLE" |
-  sha256sum --check
+export FLUPRO="$C8_FLUPRO"
+export FLUFOR=gfortran
+export CORSIKA_DATA="$C8_INSTALL/share/corsika/data"
+export PATH="$C8_INSTALL/bin:$PATH"
+
+test -x "$C8_INSTALL/bin/c8_air_shower"
+test -f "$FLUPRO/libflukahp.a"
+nvidia-smi
 ```
 
-私有仓库的协作者需要先运行 `gh auth login`。也可以从 Release 网页手工下载，
-但仍应执行同一个 SHA-256 检查。该表适用于：
+安装程序已经包含指向 `$C8_INSTALL/lib/corsika` 的 runpath，通常不需要手动修改
+`LD_LIBRARY_PATH`。随意加入其他系统或 Conda library 目录反而可能破坏
+Fortran/FLUKA runtime 的一致性。
+
+### 7.9 运行安装树的端到端冒烟测试
+
+单元测试能证明 CUDA kernel 可以执行，但不会初始化完整 shower。正式生成高能
+生产表之前，先制作一张 100 GeV 小表并运行一个安装后的质子事例。首次制表会
+调用 PROPOSAL，可能需要数分钟；相同请求以后直接复用缓存。
+
+```bash
+export C8_TABLE_CACHE="$C8_WORKSPACE/gpu_em_table_cache"
+export C8_SMOKE_TABLE="$(
+  "$C8_INSTALL/bin/gpu_em_table_prepare" \
+    --medium-yaml "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e11 \
+    --energy-margin 1.05 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --nonmonotonic-loss-policy proposal-monotone \
+    --print-path-only
+)"
+
+test -f "$C8_SMOKE_TABLE"
+
+export C8_SMOKE_ANTENNAS="$C8_WORKSPACE/antennas_smoke.txt"
+printf '100 0 0\n' > "$C8_SMOKE_ANTENNAS"
+
+# c8_air_shower 启动前输出路径不能已经存在。
+export C8_SMOKE_OUTPUT="$C8_WORKSPACE/smoke_$(date +%Y%m%d_%H%M%S)"
+
+"$C8_INSTALL/bin/c8_air_shower" \
+  --pdg 2212 \
+  --energy 100 \
+  --seed 40077 \
+  --filename "$C8_SMOKE_OUTPUT" \
+  --emthin 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  --antenna-file "$C8_SMOKE_ANTENNAS" \
+  --ring 0 \
+  --em-backend cuda \
+  --radio-backend cuda \
+  --gpu-device 0 \
+  --gpu-min-batch 128 \
+  --gpu-memory-fraction 0.70 \
+  --gpu-table-cache "$C8_SMOKE_TABLE" \
+  --gpu-table-tolerance 1e-3 \
+  --gpu-deterministic true \
+  --gpu-resident-cross-species true
+
+test -f "$C8_SMOKE_OUTPUT/summary.yaml"
+test -f "$C8_SMOKE_OUTPUT/gpu_em/summary.yaml"
+test -f "$C8_SMOKE_OUTPUT/CoREAS/observers.parquet"
+test -f "$C8_SMOKE_OUTPUT/ZHS/observers.parquet"
+grep -q 'complete: true' "$C8_SMOKE_OUTPUT/gpu_em/summary.yaml"
+```
+
+该命令必须以状态 0 结束，而且 `gpu_em/summary.yaml` 中应存在非零的光子/轻子
+GPU 步和射电轨迹。它只验证迁移和执行链，不能替代多随机种子的 CPU/CUDA 物理
+验收。
+
+#### NVIDIA T400 4 GB 迁移实测
+
+2026-08-06 已在 NVIDIA T400 4 GB（compute capability 7.5、driver
+595.71.05）上完整执行工作目录、配置、构建、制表和运行流程。由于服务器没有
+认证私有 Git remote，本次把同一份 beta2 源码快照复制到服务器，因此源码 clone
+的身份认证不属于本次测试范围。隔离的 Conda 环境使用 Python 3.9.23、CMake
+3.31.8、Conan 2.11、系统 GCC/G++/GFortran 13.3，以及本节列出的最小 CUDA
+12.6.3 包集合；以 `CMAKE_CUDA_ARCHITECTURES=75` 完成了 Release CUDA+FLUKA
+配置、编译和安装。
+
+27 项针对性 GPU 测试全部通过，覆盖物理表读取、Hybrid 路由、CPU fallback、
+真实 CUDA kernel、wavefront 队列、过程与末态抽样、LPM、薄化、多重散射、磁场
+和球形大气输运、μ 子、光子以及 CUDA 射电投影。随后现场生成并成功加载了一张
+制表合同 0.18、上限 105 GeV 的干空气表；在目标容差 `1e-3` 下，实测最大 rate
+误差为 `9.996133e-4`，inverse-CDF 误差为 `8.541396e-4`。
+
+最后运行了一个 100 GeV 质子端到端冒烟事例，实际启用 SIBYLL、FLUKA、
+PROPOSAL、IGRF14/2027、CUDA EM、CUDA 射电和 81 个外部天线。程序以状态 0
+正常结束，耗时 6.94 s，并写出了完整的顶层、GPU、CoREAS 和 ZHS 输出组。
+GPU summary 记录 3,643 个光子步、31,534 个带电轻子步、5,497 个 GPU 末态、
+29,774 条射电轨迹、0 次 CPU fallback，设备峰值分配为 344.4 MiB。该结果证明
+beta2 能够在 T400 上完成构建与执行迁移，但它只是冒烟测试，不是 CPU/CUDA
+物理一致性或性能验收。该低能事例的 CUDA 专用能量账本注明 coverage 不完整，
+普通总能量预算差为 -3.51%，因此不能把它引用为高精度能量闭合结果。
+
+这次迁移暴露出的两个构建问题已由当前源码处理：普通 C++ consumer 能够获得
+公开 GPU header 所需的 CUDA include 路径；Conda compatibility sysroot 中的
+`libm`/`librt` 会替换成匹配的系统 multiarch 库。Pythia 8.315 也已改用官方
+GitLab release archive，因为原 `pythia.org/download` 压缩包地址已经返回 404。
+
+### 7.10 准备正式生产用干空气物理表
+
+物理表不是 GPU 架构文件。换显卡或 CUDA 架构不需要重新生成。最简单且可靠的
+方式是使用下文的 `gpu_em_table_prepare` 自动查找或生成内容寻址表。旧的
+`production_v10_muons_1e-3_1EeV.c8emrt` 表产生于切分 cut 合同之前，不能用于
+当前版本。一个兼容的默认表应满足：
 
 - CORSIKA `AirDry1Atm` 标准干空气；
 - `--emcut 0.0005` GeV；
@@ -636,12 +931,13 @@ echo '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521  '"$C8_TA
 - 初级总能量不高于 \(10^{18}\) eV；
 - CUDA 电磁和可选 CUDA \(\mu^\pm\) 输运。
 
-如果不需要 CUDA μ 子输运，也可以使用只含 \(\gamma/e^\pm\) 的已验证表；
+如果不需要 CUDA μ 子输运，也可以生成只含 \(\gamma/e^\pm\) 的表；
 表中没有成对的 PDG `13/-13` 时，μ 子保留在 CPU 路径。
 
 `c8_air_shower` 不会在缺表时自动执行生成器。应在运行 shower 前显式调用
 `gpu_em_table_prepare`；它会自动查找兼容表，并在未命中时通过跨进程锁生成、
 回读校验和写 manifest。这样避免生产事件隐式制表，同时允许多任务共享缓存。
+查找还会核对制表器合同版本；旧生成器产生的表不会被静默复用。
 若只改变 GPU 型号、GPU 数量、磁场、天线、观测高度或同一干空气的密度
 profile，直接复用表。
 以下变化必须生成并重新验收表：
@@ -651,13 +947,13 @@ profile，直接复用表。
 - `--emcut`、`--mucut`；
 - 所需最大能量或表格式版本。
 
-例如已有 Release 表只到 \(10^{18}\) eV。为 \(10^{19}\) eV 质子准备新表：
+例如缓存中的旧表只到 \(10^{18}\) eV。为 \(10^{19}\) eV 质子准备新表：
 
 ```bash
 export C8_TABLE_CACHE=/path/to/c8_gpu_table_cache
 export C8_TABLE="$(
-  "$C8_BUILD/applications/gpu_em_table_prepare" \
-    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+  "$C8_INSTALL/bin/gpu_em_table_prepare" \
+    --medium-yaml "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml" \
     --cache-dir "$C8_TABLE_CACHE" \
     --primary-energy-eV 1e19 \
     --em-cut-MeV 0.5 \
@@ -672,11 +968,80 @@ export C8_TABLE="$(
 默认 1.05 安全系数使上限为 \(1.05\times10^{13}\) MeV。首次严格制表可能耗时
 很长；同一请求随后直接命中缓存。生成成功不替代新能区的 shower 和射电验收。
 
+这里的 `--em-cut-MeV` 是 CORSIKA 面向用户的产生/输运 cut。准备工具会自动
+复用标量 PROPOSAL 的标准缓存选择规则：例如用户设置 0.5 MeV 时，电子和光子
+输运 cut 仍是 0.5 MeV，但随机 PROPOSAL 过程表使用不高于该阈值的最近标准值
+0.4 MeV；manifest 会同时记录这两个数值。这个区别会直接影响离散 μ 子电离率，
+不能把命令中的 0.5 手工改成 0.4。旧制表流程若把两者都设为 0.5 MeV，新版
+`c8_air_shower` 会明确拒绝该表，必须用当前 `gpu_em_table_prepare` 重新准备。
+
+#### PROPOSAL 插值与氩组分轫致辐射列
+
+PROPOSAL 7.6.2 的缓存插值与逆求解器，在干空气中电子/正电子对氩靶组分的
+轫致辐射随机能损逆 CDF 上可能给出很窄的局部非单调区间。这里的“氩”是靶
+组分，不是入射氩核；关闭 PROPOSAL 插值并对相同点进行直接数值积分和求根后，
+该区间恢复单调。因此这是原 PROPOSAL 插值/数值反演误差，不是氩的物理异常。
+原标量路径不会跨相邻分位点检查单调性，通常直接接受插值求解器返回的结果。
+
+一个干空气诊断点为 \(E=623.7318908\) MeV：分位点从 0.9859885644 增加到
+0.9859897698 时，插值能损比例由 0.8847353442 反向降至 0.8836791531，局部
+反转约 0.119%；相同两点的非插值直接计算则从 0.8592897295 单调增加到
+0.8593004245。这些数值用于记录数值问题，不应解释成对氩物理过程的新修正。
+
+beta2 和 beta3 通过 `--nonmonotonic-loss-policy` 提供两种离线策略：
+
+- `proposal-monotone`（默认）仍从原标量程序使用的 PROPOSAL 缓存插值出发，只把
+  局部下降投影到此前的累计最大值；发现随能量移动的反转后，该高分位分支不再
+  驱动能量网格细化，从而保持跨能量表面平滑。该列标记为
+  `proposal_interpolated_monotone`。它最接近原标量且表较小；这里明确把 0.119%
+  的局部反转视为插值噪声，因此表格容差描述的是对“修复后单调参考”的逼近，
+  而不是逐点复刻原始反转。
+- `proposal-direct` 会关闭 PROPOSAL 插值，用直接积分/求根重建受影响的完整列，
+  写入 `proposal_direct` 并对直接参考验收。该策略适合物理诊断，但代价很大：
+  在 0.4 MeV--105 GeV、\(10^{-3}\) 的干空气测试中，仅这一列就提出超过五万个
+  能量节点，因此不作为紧凑默认值。它的独立节点预算由
+  `--direct-loss-max-energy-points` 控制，默认 65536。
+
+已完成的 0.4 MeV--105 GeV 干空气 `proposal-monotone` 测试表大小为 3.69 MB；
+rate 与“修复后参考”的 inverse-CDF 实测误差分别为
+\(9.996\times10^{-4}\) 和 \(8.541\times10^{-4}\)。审计日志同时记录最大局部
+单调投影 0.924%、最大原始移动分支偏差 9.90%。后两个数描述被拒绝的 PROPOSAL
+数值分支，不属于插值误差声明；正式使用仍需继续做 CPU/CUDA shower 统计验收。
+
+同一张表已在 beta2 和 beta3 中分别完成 100 GeV 电子初级的 CUDA EM + CUDA
+射电 smoke test；两次运行都没有轫致辐射/氩 selected-loss 回退。剩余 CPU 返回
+属于既定物理路径（光致强子，以及 beta3 中一次电离分位边界返回），不是本节的
+PROPOSAL 氩插值问题。
+
+修复后的性能复查使用 12 个配对随机种子：100 GeV 垂直电子初级、
+`emthin=1e-3`、0.5 MeV 输运 cut、IGRF14/2027，并在同一块 RTX 4060 Laptop GPU
+上同时启用 CUDA EM 与 CUDA 射电。干净 Release 重建后，beta1、beta2、beta3
+的 shower 内部时间均值/中位数分别为 0.731/0.715 s、0.684/0.594 s 和
+0.737/0.670 s；beta3 均值与 beta1 相差 0.8%，beta2 均值低 6.5%。三者有活动时
+的采样 GPU 利用率均值分别为 19.2%、25.5% 和 24.2%。beta2/3 均未再出现氩轫致
+辐射回退；12 个 shower 中
+只剩 1 次和 4 次非氩过程的低频分位边界返回。因此此前约两倍的低能运行时间
+回退已经消失；这组数据用于性能核查，不替代 shower observable 的统计验收。
+
+若要逐位复刻原标量中的原始反转，则需要把 PROPOSAL 插值器和逆求解器本身移植
+到 CUDA，不能依赖平滑二维表。简单地按粒子或过程多开进程也不能消除 direct
+策略的主要成本，因为密集细化集中在单个氩轫致辐射列内部；对行采样做并行需要
+先完成 PROPOSAL 线程安全审计，留作后续优化。
+
+当前 `gpu_em_tablegen` 本身是串行实现，设置 `OMP_NUM_THREADS` 不会令单张表加速。
+制表属于离线成本，内容寻址缓存会避免相同介质、cut 和能区请求被重复生成；只有
+在服务器策略和内存允许时，才应把互不相同的制表请求作为独立任务并行运行。
+
+两种已实现策略都只在制表阶段处理该问题，shower 运行期仍在 GPU 上采样，氩
+组分不会触发 selected-loss CPU 回退，也不会切碎 EM wavefront。反应率以及过程/
+靶组分选择保持不变。策略名和网格预算都会进入内容寻址请求，制表器合同 `0.18`
+会阻止旧的含回退表被静默复用。
+
 介质 YAML、自动准备、完整参数以及 \(10^{19}\) eV 质子新表命令见
 [`gpu_em_tables/README.md`](gpu_em_tables/README.md)，全部开关见
 [`cli_reference.md`](documentation/cuda_em_refactor/cli_reference.md)。
 
-### 7.9 典型全加速运行
+### 7.11 典型全加速运行
 
 典型全加速运行参数：
 

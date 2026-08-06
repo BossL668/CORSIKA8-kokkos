@@ -98,7 +98,8 @@ namespace {
     auto const photon =
         particle.pid ==
         static_cast<std::int32_t>(EmPid::Photon);
-    if (photon && energy_MeV < flat_view.energy_cut_MeV) {
+    if (photon &&
+        energy_MeV < flat_view.em_transport_cut_MeV) {
       record.status = EmInteractionStatus::ParticleCut;
       record.interaction_grammage_g_per_cm2 =
           std::numeric_limits<double>::infinity();
@@ -138,7 +139,7 @@ namespace {
       auto const below_cut =
           mass.status == TableLookupStatus::Success &&
           energy_MeV - mass.value <
-              flat_view.energy_cut_MeV;
+              flat_view.em_transport_cut_MeV;
       if (below_cut ||
           (minimum_energy.status ==
                TableLookupStatus::Success &&
@@ -248,7 +249,7 @@ namespace {
       RateTableSet const& source, std::size_t count,
       bool add_fixture_fallbacks) {
     std::vector<EmParticleState> particles;
-    particles.reserve(count + (add_fixture_fallbacks ? 2 : 0));
+    particles.reserve(count + (add_fixture_fallbacks ? 3 : 0));
     for (std::size_t i = 0; i < count; ++i) {
       auto const energy_fraction =
           std::fmod(
@@ -282,6 +283,12 @@ namespace {
       outside.energy_GeV = 0.0005;
       outside.history_id = count + 2;
       particles.push_back(outside);
+      auto below_transport_cut = particles.front();
+      below_transport_cut.pid = 11;
+      below_transport_cut.energy_GeV =
+          (0.5109989461 + 0.45) / 1000.;
+      below_transport_cut.history_id = count + 3;
+      particles.push_back(below_transport_cut);
     }
     return particles;
   }
@@ -450,9 +457,20 @@ int main(int argc, char** argv) {
 
   std::filesystem::path temporary;
   try {
+    auto const fixture_mode = argc == 1;
     auto source =
         argc == 2 ? readRateTable(argv[1])
                   : testing::makeFlatRateTableFixture();
+    if (fixture_mode) {
+      source.metadata.energy_cut_MeV = 0.4;
+      for (auto& continuous : source.continuous_energy_tables) {
+        continuous.minimum_total_energy_MeV =
+            continuous.mass_MeV +
+            0.5 * ContinuousCutSafetyFactor;
+        continuous.energies_MeV.front() =
+            continuous.minimum_total_energy_MeV;
+      }
+    }
     std::filesystem::path table_path;
     Sha256Digest digest{};
     if (argc == 2) {
@@ -492,7 +510,6 @@ int main(int argc, char** argv) {
                 backend.statistics().table_device_bytes,
             "backend peak memory excludes its physical table");
 
-    auto const fixture_mode = argc == 1;
     auto const particles =
         makeParticles(source, fixture_mode ? 4096 : 8192,
                       fixture_mode);
@@ -519,6 +536,21 @@ int main(int argc, char** argv) {
         backend.selectInteractionsForValidation(particles);
     compareBatches(first, expected);
     compareBatches(second, first);
+    if (fixture_mode) {
+      auto const split_cut_history = particles.size();
+      auto const split_cut_record = std::find_if(
+          first.interactions.begin(), first.interactions.end(),
+          [&](EmInteractionRecord const& record) {
+            return record.particle.history_id ==
+                   split_cut_history;
+          });
+      require(
+          split_cut_record != first.interactions.end() &&
+              split_cut_record->status ==
+                  EmInteractionStatus::ParticleCut,
+          "charged-lepton transport used the 0.4 MeV stochastic cut "
+          "instead of the 0.5 MeV EM transport cut");
+    }
     auto reordered_particles = particles;
     std::reverse(reordered_particles.begin(),
                  reordered_particles.end());

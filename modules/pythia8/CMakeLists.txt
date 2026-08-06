@@ -50,15 +50,19 @@ if ("x_${USE_Pythia8_C8}" STREQUAL "x_SYSTEM")
 
 else ()
 
-  set (_C8_Pythia8_Download_Dir "https://pythia.org/download/pythia83")
   set (_C8_Pythia8_VERSION "8315")
+  # The former pythia.org/download/pythia83 URL now returns HTTP 404 for
+  # archived releases. Pin the official GitLab release tag and verify the
+  # archive content so a fresh build does not depend on a moved web link.
+  set (_C8_Pythia8_Archive_URL
+       "https://gitlab.com/Pythia8/releases/-/archive/pythia${_C8_Pythia8_VERSION}/releases-pythia${_C8_Pythia8_VERSION}.tar.bz2")
   message (STATUS "Building modules/pythia8 using pythia${_C8_Pythia8_VERSION}.tar.bz2")
   message (STATUS "This will take a bit.....")
   # this is not a full Pythia8 install, it is a bit simplified, e.g. no pythia8-config, no examples
   # and also, it is fitted into the normal CORSIKA8 install "include/corsika_modules/Pythia8, lib/corsika"
   ExternalProject_Add (pythia8
-    URL ${_C8_Pythia8_Download_Dir}/pythia${_C8_Pythia8_VERSION}.tar.bz2
-    URL_MD5 faf2730a959369e4d25e1285ab70d915
+    URL ${_C8_Pythia8_Archive_URL}
+    URL_HASH SHA256=f6fa6574fde96bd106e25884ee6ebeba1d5407a48b7aa7447c2e07bf62964337
     SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pythia8/source"
     INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/pythia8/install"
     CONFIGURE_COMMAND ./configure --prefix=${CMAKE_CURRENT_BINARY_DIR}/pythia8/install

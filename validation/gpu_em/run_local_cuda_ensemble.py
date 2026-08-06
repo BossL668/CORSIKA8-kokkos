@@ -401,6 +401,40 @@ def write_direct_cuda_provenance(
     write_manifest(destination, payload)
 
 
+def parse_summary_runtime_seconds(summary: dict[str, Any]) -> float:
+    """Read both the legacy numeric and current duration-string schemas."""
+
+    for key in ("runtime_raw", "runtime"):
+        value = summary.get(key)
+        if isinstance(value, (int, float)):
+            seconds = float(value)
+            if math.isfinite(seconds) and seconds > 0.0:
+                return seconds
+        if not isinstance(value, str):
+            continue
+        text = value.strip()
+        days = 0.0
+        if " day" in text:
+            day_text, separator, text = text.partition(",")
+            if not separator:
+                raise ValueError(f"invalid summary runtime duration: {value!r}")
+            days = float(day_text.split()[0])
+            text = text.strip()
+        fields = text.split(":")
+        if len(fields) != 3:
+            continue
+        hours, minutes, seconds_text = fields
+        seconds = (
+            days * 86400.0
+            + float(hours) * 3600.0
+            + float(minutes) * 60.0
+            + float(seconds_text)
+        )
+        if math.isfinite(seconds) and seconds > 0.0:
+            return seconds
+    raise ValueError("summary does not contain a positive finite runtime")
+
+
 def validate_completed_batch(
     output: Path,
     events: int,
@@ -448,7 +482,7 @@ def validate_completed_batch(
         "cuda_output": str((output / "cuda").resolve()),
         "events": events,
         "seed": seed,
-        "runtime_seconds": float(summary.get("runtime_raw", 0.0)),
+        "runtime_seconds": parse_summary_runtime_seconds(summary),
         "status": "complete",
         "comparison_status": "deferred" if deferred else "complete",
     }

@@ -27,6 +27,7 @@
 #include <corsika/gpu/em/ProposalFallback.hpp>
 #include <corsika/gpu/em/detail/DeviceWavefrontBucketing.hpp>
 #include <corsika/gpu/em/ProposalCpuFallbackHandler.hpp>
+#include <corsika/gpu/em/tables/MediumConfig.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 #include <corsika/gpu/em/tables/Sha256.hpp>
 #include <corsika/gpu/radio/RadioSnapshotBuilder.hpp>
@@ -554,7 +555,7 @@ int main(int argc, char** argv) {
       ->group("Radio");
   app.add_option("--antenna-file",
                  "Path to antenna positions in NWU coordinates (m)")
-      ->default_val("/home/yuhanglu/21CMA/data/antennas.txt")
+      ->default_val("antennas.txt")
       ->group("Radio");
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
@@ -816,6 +817,25 @@ int main(int argc, char** argv) {
     using namespace corsika::gpu::em::tables;
     loaded_gpu_table.emplace(
         readRateTable(gpu_table_cache));
+    if (loaded_gpu_table->metadata.generator_version !=
+        TableGeneratorContractVersion) {
+      throw std::runtime_error(
+          "CUDA EM table generator contract mismatch: table=" +
+          loaded_gpu_table->metadata.generator_version +
+          ", required=" + TableGeneratorContractVersion +
+          "; regenerate the table with gpu_em_table_prepare");
+    }
+    for (auto const& particle : loaded_gpu_table->particles) {
+      for (auto const& column : particle.columns) {
+        if (column.inverse_cdf.reference_mode ==
+            SelectedLossCpuFallbackReferenceMode) {
+          throw std::runtime_error(
+              "CUDA EM table contains a runtime selected-loss CPU fallback; "
+              "regenerate it with table contract " +
+              std::string(TableGeneratorContractVersion));
+        }
+      }
+    }
 
     cudaDeviceProp properties{};
     auto const property_status =
@@ -1396,18 +1416,28 @@ int main(int argc, char** argv) {
       }
       auto const& table = *loaded_gpu_table;
       auto const requested_cut_MeV = emcut / 1_MeV;
+      auto const proposal_stochastic_cut =
+          proposal::optimized_proposal_energy_cut(prod_threshold);
+      auto const proposal_stochastic_cut_MeV =
+          proposal_stochastic_cut / 1_MeV;
       auto const cut_scale =
-          std::max({1., std::abs(requested_cut_MeV),
+          std::max({1., std::abs(proposal_stochastic_cut_MeV),
                     std::abs(table.metadata.energy_cut_MeV)});
-      if (std::abs(table.metadata.energy_cut_MeV - requested_cut_MeV) >
+      if (std::abs(
+              table.metadata.energy_cut_MeV -
+              proposal_stochastic_cut_MeV) >
           32. * std::numeric_limits<double>::epsilon() * cut_scale) {
         throw std::runtime_error(
-            "CUDA EM table stochastic cut does not match --emcut");
+            "CUDA EM table stochastic cut does not match the scalar "
+            "PROPOSAL cut resolved from the configured production threshold");
       }
-      if (table.metadata.energy_min_MeV > requested_cut_MeV) {
+      if (table.metadata.energy_min_MeV >
+          std::min(
+              requested_cut_MeV,
+              proposal_stochastic_cut_MeV)) {
         throw std::runtime_error(
-            "CUDA EM table energy domain does not cover the photon "
-            "transport cut");
+            "CUDA EM table energy domain does not cover the configured "
+            "transport and stochastic cuts");
       }
       for (auto const pdg : {11, -11}) {
         auto const& continuous = findContinuousEnergyTable(table, pdg);
@@ -1604,7 +1634,8 @@ int main(int argc, char** argv) {
           ProposalCpuFallbackHandler<StackType, decltype(emCascade), Sequence, EnvType>;
       FallbackHandler fallback_handler{
           emCascade, sequence, env, rootCS, static_cast<std::uint64_t>(seed),
-          static_cast<std::uint64_t>(i_shower), emcut};
+          static_cast<std::uint64_t>(i_shower),
+          proposal_stochastic_cut};
 
       CorsikaOutputSink output_sink{
           rootCS, dEdX, profile, prod_profile, observationLevel, coreas, zhs,
@@ -1923,6 +1954,21 @@ int main(int argc, char** argv) {
           router_stats.forced_cpu_decays_executed;
       shower_metadata["cpu_specified_final_states"] =
           router_stats.specified_cpu_final_states;
+      shower_metadata["deferred_cpu_fallbacks_queued"] =
+          router_stats.deferred_cpu_fallbacks_queued;
+      shower_metadata["deferred_cpu_fallbacks_flushed"] =
+          router_stats.deferred_cpu_fallbacks_flushed;
+      shower_metadata["deferred_cpu_fallback_flushes"] =
+          router_stats.deferred_cpu_fallback_flushes;
+      shower_metadata["deferred_fallback_scalar_expansion_rounds"] =
+          router_stats.deferred_fallback_scalar_expansion_rounds;
+      shower_metadata["deferred_front_gpu_flushes"] =
+          router_stats.deferred_front_gpu_flushes;
+      shower_metadata["deferred_product_gpu_flushes"] =
+          router_stats.deferred_product_gpu_flushes;
+      shower_metadata["maximum_deferred_cpu_fallback_batch"] =
+          static_cast<std::uint64_t>(
+              router_stats.maximum_deferred_cpu_fallback_batch);
       shower_metadata["cpu_completed_selected_losses"] =
           proposal_fallback_stats
               .completed_selected_losses;

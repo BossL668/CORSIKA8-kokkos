@@ -590,6 +590,38 @@ def main() -> int:
         ],
         [
             python,
+            str(SCRIPT_DIR / "diagnose_ground_radio_distribution_shift.py"),
+            "--observables",
+            str(comparison / "per_shower_observables.csv"),
+            "--radio-features",
+            str(
+                final_root
+                / "geomagnetic_pulse_validation"
+                / "per_shower_pulse_features.csv"
+            ),
+            "--output",
+            str(final_root / "ground_radio_attribution"),
+            "--bootstrap-repetitions",
+            str(args.bootstrap_repetitions),
+        ],
+        [
+            python,
+            str(SCRIPT_DIR / "diagnose_radio_radial_attribution.py"),
+            "--observables",
+            str(comparison / "per_shower_observables.csv"),
+            "--radial-features",
+            str(
+                final_root
+                / "geomagnetic_radial_validation"
+                / "per_shower_radius_features.csv"
+            ),
+            "--output",
+            str(final_root / "ground_radio_attribution"),
+            "--bootstrap-repetitions",
+            str(args.bootstrap_repetitions),
+        ],
+        [
+            python,
             str(SCRIPT_DIR / "plot_single_event_runtime_histograms.py"),
             str(comparison),
             "--manifest", str(analysis_manifest),

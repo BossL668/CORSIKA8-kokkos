@@ -7,6 +7,8 @@ import importlib.util
 from pathlib import Path
 import unittest
 
+import numpy as np
+
 
 MODULE_PATH = (
     Path(__file__).resolve().parents[1]
@@ -37,6 +39,28 @@ class PrimaryLabelTests(unittest.TestCase):
             MODULE.primary_label(
                 {"primary_pdg": None, "primary_Z": 26, "primary_A": None}
             )
+
+
+class HistogramNormalizationTests(unittest.TestCase):
+    def test_linear_histogram_uses_density(self) -> None:
+        density, weights = MODULE.histogram_normalization(
+            np.asarray([1.0, 2.0]), False
+        )
+        self.assertTrue(density)
+        self.assertIsNone(weights)
+
+    def test_log_histogram_uses_equal_event_probability(self) -> None:
+        density, weights = MODULE.histogram_normalization(
+            np.asarray([1.0, 2.0, 4.0, 8.0]), True
+        )
+        self.assertFalse(density)
+        assert weights is not None
+        self.assertAlmostEqual(float(np.sum(weights)), 1.0)
+        np.testing.assert_array_equal(weights, np.full(4, 0.25))
+
+    def test_empty_log_histogram_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "empty logarithmic"):
+            MODULE.histogram_normalization(np.asarray([]), True)
 
 
 if __name__ == "__main__":

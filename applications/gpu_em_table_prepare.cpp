@@ -47,7 +47,7 @@ namespace {
 
   using namespace corsika::gpu::em::tables;
 
-  inline constexpr std::uint32_t PreparationSchemaVersion = 1;
+  inline constexpr std::uint32_t PreparationSchemaVersion = 2;
 
   struct Options {
     std::filesystem::path medium_yaml;
@@ -67,6 +67,8 @@ namespace {
     std::size_t loss_initial_energy_intervals{8};
     std::size_t loss_initial_quantile_intervals{8};
     std::size_t loss_max_energy_points{4096};
+    std::size_t direct_loss_max_energy_points{65536};
+    std::string nonmonotonic_loss_policy{"proposal-monotone"};
     std::size_t loss_max_quantile_points{2048};
     std::size_t loss_validation_samples{64};
     int lock_timeout_seconds{7200};
@@ -81,7 +83,10 @@ namespace {
   struct Request {
     double energy_min_MeV{};
     double energy_max_MeV{};
+    // User-facing CORSIKA ParticleCut/production threshold.
     double em_cut_MeV{};
+    // Effective stochastic cut selected by the scalar PROPOSAL cache policy.
+    double proposal_cut_MeV{};
     double electron_transport_cut_MeV{};
     double muon_transport_cut_MeV{};
     double tolerance{};
@@ -91,6 +96,8 @@ namespace {
     std::size_t loss_initial_energy_intervals{};
     std::size_t loss_initial_quantile_intervals{};
     std::size_t loss_max_energy_points{};
+    std::size_t direct_loss_max_energy_points{};
+    std::string nonmonotonic_loss_policy;
     std::size_t loss_max_quantile_points{};
     std::size_t loss_validation_samples{};
     bool include_muons{};
@@ -211,8 +218,10 @@ namespace {
         ->check(CLI::Range(1.0, 10.0));
     app.add_option("--energy-min-MeV", options.energy_min_MeV,
                    "Table lower energy; zero selects --em-cut-MeV");
-    app.add_option("--em-cut-MeV", options.em_cut_MeV,
-                   "EM stochastic cut in MeV");
+    app.add_option(
+        "--em-cut-MeV", options.em_cut_MeV,
+        "CORSIKA EM production/transport cut in MeV; the matching scalar "
+        "PROPOSAL stochastic-table cut is resolved automatically");
     app.add_option("--electron-transport-cut-MeV",
                    options.electron_transport_cut_MeV,
                    "e-/e+ transport cut; zero selects --em-cut-MeV");
@@ -231,6 +240,15 @@ namespace {
                    options.loss_initial_quantile_intervals);
     app.add_option("--loss-max-energy-points",
                    options.loss_max_energy_points);
+    app.add_option("--direct-loss-max-energy-points",
+                   options.direct_loss_max_energy_points,
+                   "Energy-grid budget for PROPOSAL-direct repair columns");
+    app.add_option(
+           "--nonmonotonic-loss-policy",
+           options.nonmonotonic_loss_policy,
+           "Repair policy: proposal-monotone or proposal-direct")
+        ->check(CLI::IsMember(
+            {"proposal-monotone", "proposal-direct"}));
     app.add_option("--loss-max-quantile-points",
                    options.loss_max_quantile_points);
     app.add_option("--loss-validation-samples",
@@ -300,6 +318,7 @@ namespace {
           options.loss_initial_energy_intervals,
           options.loss_initial_quantile_intervals,
           options.loss_max_energy_points,
+          options.direct_loss_max_energy_points,
           options.loss_max_quantile_points,
           options.loss_validation_samples}) {
       if (value == 0) {
@@ -317,15 +336,34 @@ namespace {
   }
 
   Request makeRequest(Options const& options) {
+    auto optimizedProposalCutMeV = [](double const requested) {
+      // Numeric mirror of proposal::energycut_table_values.  Keep this tool
+      // independent of the full application stack while preserving the exact
+      // scalar table-selection contract.
+      constexpr double standard_cuts_MeV[]{
+          1000., 100., 20., 10., 3., 1., 0.4, 0.25, 0.15, 0.05};
+      double resolved = 0.;
+      for (auto const candidate : standard_cuts_MeV) {
+        if (candidate <= requested && candidate > resolved) {
+          resolved = candidate;
+        }
+      }
+      return resolved == 0. ? requested : resolved;
+    };
     Request request;
+    request.em_cut_MeV = options.em_cut_MeV;
+    request.proposal_cut_MeV =
+        optimizedProposalCutMeV(options.em_cut_MeV);
     request.energy_min_MeV =
-        options.energy_min_MeV == 0. ? options.em_cut_MeV
-                                    : options.energy_min_MeV;
+        options.energy_min_MeV == 0.
+            ? std::min(
+                  request.em_cut_MeV,
+                  request.proposal_cut_MeV)
+            : options.energy_min_MeV;
     request.energy_max_MeV =
         options.energy_max_MeV != 0.
             ? options.energy_max_MeV
             : options.primary_energy_eV / 1.e6 * options.energy_margin;
-    request.em_cut_MeV = options.em_cut_MeV;
     request.electron_transport_cut_MeV =
         options.electron_transport_cut_MeV == 0.
             ? options.em_cut_MeV
@@ -341,6 +379,10 @@ namespace {
     request.loss_initial_quantile_intervals =
         options.loss_initial_quantile_intervals;
     request.loss_max_energy_points = options.loss_max_energy_points;
+    request.direct_loss_max_energy_points =
+        options.direct_loss_max_energy_points;
+    request.nonmonotonic_loss_policy =
+        options.nonmonotonic_loss_policy;
     request.loss_max_quantile_points = options.loss_max_quantile_points;
     request.loss_validation_samples = options.loss_validation_samples;
     request.include_muons = !options.no_muons;
@@ -355,7 +397,7 @@ namespace {
           " MeV (1e20 eV)");
     }
     if (!(request.energy_min_MeV > 0.) ||
-        !(request.energy_min_MeV <= request.em_cut_MeV) ||
+        !(request.energy_min_MeV <= request.proposal_cut_MeV) ||
         !(request.energy_max_MeV > request.energy_min_MeV) ||
         !std::isfinite(request.energy_max_MeV)) {
       throw std::invalid_argument(
@@ -376,6 +418,8 @@ namespace {
         << "energy_min_MeV=" << canonicalNumber(request.energy_min_MeV) << '\n'
         << "energy_max_MeV=" << canonicalNumber(request.energy_max_MeV) << '\n'
         << "em_cut_MeV=" << canonicalNumber(request.em_cut_MeV) << '\n'
+        << "proposal_cut_MeV="
+        << canonicalNumber(request.proposal_cut_MeV) << '\n'
         << "proposal_relative_v_cut="
         << canonicalNumber(ProposalRelativeVCut) << '\n'
         << "electron_transport_cut_MeV="
@@ -391,6 +435,10 @@ namespace {
         << "loss_initial_quantile_intervals="
         << request.loss_initial_quantile_intervals << '\n'
         << "loss_max_energy_points=" << request.loss_max_energy_points << '\n'
+        << "direct_loss_max_energy_points="
+        << request.direct_loss_max_energy_points << '\n'
+        << "nonmonotonic_loss_policy="
+        << request.nonmonotonic_loss_policy << '\n'
         << "loss_max_quantile_points=" << request.loss_max_quantile_points
         << '\n'
         << "loss_validation_samples=" << request.loss_validation_samples
@@ -424,12 +472,19 @@ namespace {
                        Request const& request,
                        std::string* reason) {
     try {
+      if (table.metadata.generator_version !=
+          TableGeneratorContractVersion) {
+        throw std::runtime_error(
+            "table generator contract mismatch: cached=" +
+            table.metadata.generator_version + ", required=" +
+            TableGeneratorContractVersion);
+      }
       validateCompatibility(
           table,
           RateTableRequirements{
               getPROPOSALVersion(), medium.GetName(),
               static_cast<std::uint64_t>(medium.GetHash()),
-              request.em_cut_MeV, ProposalRelativeVCut,
+              request.proposal_cut_MeV, ProposalRelativeVCut,
               request.energy_min_MeV, request.energy_max_MeV,
               request.tolerance, request.loss_tolerance,
               makeRateTableMediumComponents(medium_config, medium)});
@@ -601,7 +656,7 @@ namespace {
         "--energy-max-MeV",
         number(request.energy_max_MeV),
         "--cut-MeV",
-        number(request.em_cut_MeV),
+        number(request.proposal_cut_MeV),
         "--transport-cut-MeV",
         number(request.electron_transport_cut_MeV),
         "--muon-transport-cut-MeV",
@@ -620,6 +675,10 @@ namespace {
         std::to_string(request.loss_initial_quantile_intervals),
         "--loss-max-energy-points",
         std::to_string(request.loss_max_energy_points),
+        "--direct-loss-max-energy-points",
+        std::to_string(request.direct_loss_max_energy_points),
+        "--nonmonotonic-loss-policy",
+        request.nonmonotonic_loss_policy,
         "--loss-max-quantile-points",
         std::to_string(request.loss_max_quantile_points),
         "--loss-validation-samples",
@@ -683,6 +742,8 @@ namespace {
            << request.energy_max_MeV
            << YAML::Key << "em_cut_MeV" << YAML::Value
            << request.em_cut_MeV
+           << YAML::Key << "proposal_stochastic_cut_MeV" << YAML::Value
+           << request.proposal_cut_MeV
            << YAML::Key << "proposal_relative_v_cut" << YAML::Value
            << ProposalRelativeVCut
            << YAML::Key << "electron_transport_cut_MeV" << YAML::Value
@@ -703,6 +764,10 @@ namespace {
            << request.loss_initial_quantile_intervals
            << YAML::Key << "loss_max_energy_points" << YAML::Value
            << request.loss_max_energy_points
+           << YAML::Key << "direct_loss_max_energy_points" << YAML::Value
+           << request.direct_loss_max_energy_points
+           << YAML::Key << "nonmonotonic_loss_policy" << YAML::Value
+           << request.nonmonotonic_loss_policy
            << YAML::Key << "loss_max_quantile_points" << YAML::Value
            << request.loss_max_quantile_points
            << YAML::Key << "loss_validation_samples" << YAML::Value
@@ -769,6 +834,12 @@ namespace {
               << "energy_max_MeV=" << std::setprecision(17)
               << request.energy_max_MeV << '\n'
               << "em_cut_MeV=" << request.em_cut_MeV << '\n'
+              << "proposal_stochastic_cut_MeV="
+              << request.proposal_cut_MeV << '\n'
+              << "direct_loss_max_energy_points="
+              << request.direct_loss_max_energy_points << '\n'
+              << "nonmonotonic_loss_policy="
+              << request.nonmonotonic_loss_policy << '\n'
               << "muon_transport="
               << (request.include_muons ? "enabled" : "disabled") << '\n'
               << "table="

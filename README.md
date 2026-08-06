@@ -15,6 +15,13 @@ FLUKA pool are explicit opt-in features.
 > production only within the supported and validated configurations described
 > below.
 
+> **Current branch recommendation (2026-08-06):** this beta2 branch is the
+> recommended local production branch. The separate beta3 branch adds
+> experimental synchronous hadronic multiprocessing, which currently increases
+> single-shower latency and has not completed the same physics/radio acceptance
+> gates. Keep beta2 for production until that scheduler is redesigned and
+> revalidated.
+
 [Chinese README](README_CN.md) ·
 [GPU production guide](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md) ·
 [CLI reference](documentation/cuda_em_refactor/cli_reference.md) ·
@@ -102,6 +109,7 @@ physics validation must also be implemented before such a table can be used in
 
 ### Host software
 
+- a working Miniconda, Anaconda, or compatible Conda installation;
 - Linux or WSL2;
 - CMake 3.24 or newer for a CUDA build;
 - a C++17 and Fortran toolchain;
@@ -112,6 +120,26 @@ physics validation must also be implemented before such a table can be used in
 - a host NVIDIA driver compatible with the selected CUDA toolkit;
 - FLUKA and its data files for the production low-energy hadronic path.
 
+The Conda recipe below installs the project-level tools and Python packages,
+but it deliberately uses the native host GCC/G++/GFortran family. On a fresh
+Ubuntu or WSL installation, install that host toolchain before creating the
+Conda environment:
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  gfortran \
+  git \
+  ca-certificates
+```
+
+On a managed server without `sudo`, load the site's mutually compatible GCC,
+G++, GFortran, and CUDA modules instead. Do not mix a Conda C++ compiler with
+an unrelated system Fortran compiler. The initial dependency build also needs
+outbound HTTPS access to Conda channels, Conan Center, the private GitHub fork,
+the public KIT submodules, and the bundled Pythia/Tauola source archives.
+
 Check the machine before building:
 
 ```bash
@@ -119,47 +147,117 @@ nvidia-smi
 nvidia-smi \
   --query-gpu=index,name,compute_cap,driver_version,memory.total \
   --format=csv
-nvcc --version
-cmake --version
-c++ --version
+gcc --version
+g++ --version
 gfortran --version
+make --version
+git --version
 ldd --version
+free -h
+df -h .
 ```
 
 In WSL2, install the NVIDIA display driver on Windows. Install only the CUDA
 toolkit inside WSL; a second Linux display driver is neither required nor
 recommended.
 
+The `CUDA Version` printed by `nvidia-smi` is the newest CUDA driver API the
+installed driver can support; it is not the toolkit used to compile this
+project. `nvcc --version` is the authoritative compiler check. A driver that
+reports CUDA 13.x can run a binary built with the supported CUDA 12.6 toolkit.
+
 ### Reference Conda environment
 
-The following environment reproduces the current development toolchain:
+The following commands start from a completely new environment. They include
+the Python packages required by the validation scripts, including Parquet and
+`pytest` support; these are not supplied by the C++ Arrow package that Conan
+builds later.
+
+If `conda activate` is not yet available in the current non-interactive or SSH
+shell, initialize it without modifying the shell startup files:
+
+```bash
+source "$(conda info --base)/etc/profile.d/conda.sh"
+```
 
 ```bash
 conda create -n corsika_venv \
+  -y \
   -c conda-forge \
   python=3.9 \
   cmake=3.31 \
   conan=2.11 \
+  pip \
+  git \
+  make \
+  pkg-config \
   particle=0.25.1 \
-  numpy pandas scipy matplotlib pyyaml
+  numpy pandas scipy matplotlib pyyaml pyarrow pytest
 
 conda activate corsika_venv
+conda config --env --set channel_priority strict
 
 conda install \
+  -y \
   -c nvidia/label/cuda-12.6.3 \
+  -c conda-forge \
+  cuda-nvcc=12.6.85 \
+  cuda-cudart-dev=12.6.77 \
+  cuda-cccl=12.6.77
+```
+
+The three CUDA packages above are the tested minimum for this project. If a
+site requires the full toolkit and the historical NVIDIA label can still
+resolve it, the following may be used instead of those three packages:
+
+```bash
+conda install \
+  -y \
+  -c nvidia/label/cuda-12.6.3 \
+  -c conda-forge \
   cuda-toolkit=12.6.3
 ```
+
+Do not install both alternatives merely to repair a failed solve. Remove the
+failed transaction and use the tested minimum set. Verify that all commands
+are coming from the intended environment and host toolchain:
+
+```bash
+test "$CONDA_DEFAULT_ENV" = corsika_venv
+
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export FC=/usr/bin/gfortran
+export CUDACXX="$CONDA_PREFIX/bin/nvcc"
+export CUDAHOSTCXX="$CXX"
+
+for program in "$CC" "$CXX" "$FC" "$CUDACXX" cmake conan python make git; do
+  test -x "$(command -v "$program")" || {
+    printf 'Missing required program: %s\n' "$program" >&2
+    exit 1
+  }
+done
+
+"$CC" --version | head -n 1
+"$CXX" --version | head -n 1
+"$FC" --version | head -n 1
+"$CUDACXX" --version
+cmake --version | head -n 1
+conan --version
+python -c 'import numpy, pandas, pyarrow, pytest, scipy, yaml; print("Python dependencies: OK")'
+```
+
+The explicit `/usr/bin` paths are the tested Ubuntu/WSL choice. Replace all
+three together with the paths supplied by a cluster compiler module when
+needed. GCC, G++, and GFortran must be from the same major toolchain family.
 
 On a managed cluster, loading the site's compiler and CUDA modules is usually
 preferable to installing the toolkit in Conda. Use the same compiler family
 when Conan creates its profile and when CMake builds the project.
 
-```bash
-which c++
-which gfortran
-which nvcc
-conan profile detect --force
-```
+`conan-install.sh` creates the project profile after these variables have been
+set. Do not create the profile with one compiler and later configure CMake with
+another one.
 
 ### FLUKA
 
@@ -179,9 +277,16 @@ test -f "$C8_FLUKA_ROOT/libflukahp.a"
 `-DWITH_FLUKA=ON` is fail-closed: configuration stops if a valid FLUKA library
 cannot be found. `-DWITH_FLUKA=OFF` remains available for deliberate UrQMD
 experiments, but it is not the reference configuration used for the results in
-this repository.
+this repository. `FLUPRO` and `FLUFOR` are also runtime variables: export them
+again in every new login shell before starting `c8_air_shower`. A successful
+link alone does not make the FLUKA data directory discoverable at runtime.
 
 ## Build from source
+
+Run steps 1--4 in the same activated `corsika_venv` shell so the selected
+compiler, CUDA architecture, FLUKA, and workspace variables remain defined. If
+the login session changes, repeat the relevant `export` commands before
+continuing; do not rely on variables inherited from an older build.
 
 ### 1. Create the workspace and clone the fork
 
@@ -196,26 +301,61 @@ corsika-21cma-cuda/
 └── corsika8_gpu_refactor_install_cuda/ # Installed programs and resources
 ```
 
-Create the parent first, then clone the repository into the source directory.
-The repository contains submodules, so the clone must be recursive:
+Create the parent first and clone the beta2 branch explicitly. The GitHub fork
+is private, so the recommended command assumes that an SSH key with repository
+access has already been added to the user's GitHub account:
 
 ```bash
 export C8_WORKSPACE=~/corsika-21cma-cuda
 mkdir -p "$C8_WORKSPACE"
 cd "$C8_WORKSPACE"
 
-git clone --recursive \
-  https://github.com/BossL668/corsika8-gpu-hybrid.git \
+ssh -T git@github.com
+
+git clone \
+  --branch cuda-em-icrc2025-beta2 \
+  --single-branch \
+  git@github.com:BossL668/corsika8-gpu-hybrid.git \
   corsika8_gpu_refactor
 ```
 
-For a private-repository checkout authenticated through the GitHub CLI:
+GitHub's successful SSH test reports that it does not provide shell access;
+that message is expected. If SSH is unavailable, install and authenticate the
+GitHub CLI, then clone the same branch:
 
 ```bash
+conda install -y -c conda-forge gh
+gh auth login
+gh auth status
+
 cd "$C8_WORKSPACE"
 gh repo clone BossL668/corsika8-gpu-hybrid \
   corsika8_gpu_refactor \
-  -- --recurse-submodules
+  -- --branch cuda-em-icrc2025-beta2 --single-branch
+```
+
+Do not add `--recursive` to either GitHub clone command. The upstream project
+stores relative submodule URLs intended for its KIT GitLab origin. Relative to
+the GitHub fork they resolve to non-existent GitHub repositories. Override the
+two URLs with their public upstream locations and then initialize them:
+
+```bash
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+
+git -C "$C8_SOURCE" config \
+  submodule.modules/data.url \
+  https://gitlab.iap.kit.edu/AirShowerPhysics/corsika-data.git
+git -C "$C8_SOURCE" config \
+  submodule.modules/conex.url \
+  https://gitlab.iap.kit.edu/AirShowerPhysics/cxroot.git
+
+git -C "$C8_SOURCE" submodule update --init --recursive --jobs 8
+git -C "$C8_SOURCE" submodule status --recursive
+
+test -f "$C8_SOURCE/modules/data/CMakeLists.txt"
+test -f "$C8_SOURCE/modules/conex/cxroot/CMakeLists.txt"
+test "$(git -C "$C8_SOURCE" branch --show-current)" = \
+  cuda-em-icrc2025-beta2
 ```
 
 Define all three paths once and keep them unchanged throughout configuration,
@@ -240,13 +380,20 @@ CMake writes capability 8.9 as architecture `89`:
 
 ```bash
 export C8_CUDA_ARCHS="$(
-  nvidia-smi --query-gpu=compute_cap --format=csv,noheader |
+  nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits |
+  tr -d ' ' |
   sed 's/\.//g' |
   sort -u |
   paste -sd';' -
 )"
 
 printf 'CMake CUDA architectures: %s\n' "$C8_CUDA_ARCHS"
+case "$C8_CUDA_ARCHS" in
+  ''|*[!0-9\;]*)
+    printf 'Could not determine a valid CUDA architecture.\n' >&2
+    false
+    ;;
+esac
 ```
 
 A homogeneous server should normally use one architecture. A binary intended
@@ -264,13 +411,35 @@ export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
 export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
 export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
 
+# Set this from available RAM as well as CPU count. Start lower on a laptop.
+export C8_BUILD_JOBS=16
+export C8_CONAN_JOBS="$C8_BUILD_JOBS"
+
+# These must still refer to the toolchain used when the Conan profile is made.
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export FC=/usr/bin/gfortran
+export CUDACXX="$CONDA_PREFIX/bin/nvcc"
+export CUDAHOSTCXX="$CXX"
+
+test -f "$C8_SOURCE/conanfile.py"
+test -f "$C8_FLUKA_ROOT/libflukahp.a"
+
 "$C8_SOURCE/conan-install.sh" \
   --source-directory "$C8_SOURCE" \
   --release
 
+test -f "$C8_SOURCE/conan_cmake/conan_toolchain.cmake"
+conan profile show -pr corsika8
+
 cmake \
   -S "$C8_SOURCE" \
   -B "$C8_BUILD" \
+  -DCMAKE_CXX_COMPILER="$CXX" \
+  -DCMAKE_Fortran_COMPILER="$FC" \
+  -DCMAKE_CUDA_COMPILER="$CUDACXX" \
+  -DCMAKE_CUDA_HOST_COMPILER="$CUDAHOSTCXX" \
+  -DCUDAToolkit_ROOT="$CONDA_PREFIX" \
   -DCONAN_CMAKE_DIR="$C8_SOURCE/conan_cmake" \
   -DCMAKE_TOOLCHAIN_FILE="$C8_SOURCE/conan_cmake/conan_toolchain.cmake" \
   -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
@@ -283,26 +452,195 @@ cmake \
 ```
 
 `Release` is required for performance measurements. The CUDA build deliberately
-does not enable fast math.
+does not enable fast math. CMake caches compiler and CUDA selections on its
+first configuration. If any of them must change, use a new empty build
+directory instead of attempting to repair an old cache.
 
 ### 4. Build, install, and test
 
 ```bash
-cmake --build "$C8_BUILD" --parallel 16
+# testModules initializes FLUKA; fail here with a clear message if a new shell
+# lost the runtime variables.
+test -f "$FLUPRO/libflukahp.a"
+
+cmake --build "$C8_BUILD" --parallel "$C8_BUILD_JOBS"
 cmake --install "$C8_BUILD"
 
+# The GPU subset is the fastest required hardware/build check.
+ctest \
+  --test-dir "$C8_BUILD" \
+  -R '^testGpu' \
+  --output-on-failure \
+  --parallel "$C8_BUILD_JOBS"
+
+# Run the complete C++/CUDA suite before scientific production.
 ctest \
   --test-dir "$C8_BUILD" \
   --output-on-failure \
-  --parallel 16
+  --parallel "$C8_BUILD_JOBS"
 
+cd "$C8_SOURCE"
 python -m unittest discover \
   -s "$C8_SOURCE/validation/gpu_em/tests" \
   -p 'test_*.py'
+
+for program in \
+  c8_air_shower \
+  gpu_em_table_prepare \
+  gpu_em_tablegen \
+  cuda_decision_replay \
+  fluka_batch_worker; do
+  test -x "$C8_INSTALL/bin/$program" || {
+    printf 'Missing installed program: %s\n' "$program" >&2
+    exit 1
+  }
+done
+
+test -d "$C8_INSTALL/share/corsika/data/PROPOSAL"
+test -f "$C8_INSTALL/share/corsika/GeoMag/IGRF14.COF"
+test -f "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml"
+
+if ldd "$C8_INSTALL/bin/c8_air_shower" | grep -q 'not found'; then
+  ldd "$C8_INSTALL/bin/c8_air_shower"
+  false
+fi
+
+"$C8_INSTALL/bin/c8_air_shower" --help >/dev/null
 ```
 
 CUDA translation units can require several GiB of host RAM during compilation.
 Reduce `--parallel` on memory-limited systems.
+
+### 5. Restore the runtime environment in a new shell
+
+Conda activation and exported variables do not survive logout. Before table
+preparation or shower production in a new shell, restore the same installation
+and the FLUKA runtime directory:
+
+```bash
+conda activate corsika_venv
+
+export C8_WORKSPACE=~/corsika-21cma-cuda
+export C8_SOURCE="$C8_WORKSPACE/corsika8_gpu_refactor"
+export C8_BUILD="$C8_WORKSPACE/corsika8_gpu_refactor_build_cuda"
+export C8_INSTALL="$C8_WORKSPACE/corsika8_gpu_refactor_install_cuda"
+export C8_FLUKA_ROOT=/path/to/fluka
+
+export FLUPRO="$C8_FLUKA_ROOT"
+export FLUFOR=gfortran
+export CORSIKA_DATA="$C8_INSTALL/share/corsika/data"
+export PATH="$C8_INSTALL/bin:$PATH"
+
+test -x "$C8_INSTALL/bin/c8_air_shower"
+test -f "$FLUPRO/libflukahp.a"
+nvidia-smi
+```
+
+The installed binary contains a runpath to `$C8_INSTALL/lib/corsika`, so a
+manual `LD_LIBRARY_PATH` is normally unnecessary. Adding unrelated system or
+Conda library directories can instead make the Fortran/FLUKA runtime
+inconsistent.
+
+### 6. Run an installed end-to-end smoke check
+
+The unit tests prove that CUDA kernels execute, but they do not initialize the
+complete shower application. Before generating a high-energy production
+table, prepare a small 100 GeV table and run one installed proton shower. The
+first table request calls PROPOSAL and may take several minutes; repeating the
+same request reuses the cache.
+
+```bash
+export C8_TABLE_CACHE="$C8_WORKSPACE/gpu_em_table_cache"
+export C8_SMOKE_TABLE="$(
+  "$C8_INSTALL/bin/gpu_em_table_prepare" \
+    --medium-yaml "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml" \
+    --cache-dir "$C8_TABLE_CACHE" \
+    --primary-energy-eV 1e11 \
+    --energy-margin 1.05 \
+    --em-cut-MeV 0.5 \
+    --electron-transport-cut-MeV 0.5 \
+    --muon-transport-cut-MeV 300 \
+    --tolerance 1e-3 \
+    --loss-tolerance 1e-3 \
+    --nonmonotonic-loss-policy proposal-monotone \
+    --print-path-only
+)"
+
+test -f "$C8_SMOKE_TABLE"
+
+export C8_SMOKE_ANTENNAS="$C8_WORKSPACE/antennas_smoke.txt"
+printf '100 0 0\n' > "$C8_SMOKE_ANTENNAS"
+
+# The output path must not exist before c8_air_shower starts.
+export C8_SMOKE_OUTPUT="$C8_WORKSPACE/smoke_$(date +%Y%m%d_%H%M%S)"
+
+"$C8_INSTALL/bin/c8_air_shower" \
+  --pdg 2212 \
+  --energy 100 \
+  --seed 40077 \
+  --filename "$C8_SMOKE_OUTPUT" \
+  --emthin 0 \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  --antenna-file "$C8_SMOKE_ANTENNAS" \
+  --ring 0 \
+  --em-backend cuda \
+  --radio-backend cuda \
+  --gpu-device 0 \
+  --gpu-min-batch 128 \
+  --gpu-memory-fraction 0.70 \
+  --gpu-table-cache "$C8_SMOKE_TABLE" \
+  --gpu-table-tolerance 1e-3 \
+  --gpu-deterministic true \
+  --gpu-resident-cross-species true
+
+test -f "$C8_SMOKE_OUTPUT/summary.yaml"
+test -f "$C8_SMOKE_OUTPUT/gpu_em/summary.yaml"
+test -f "$C8_SMOKE_OUTPUT/CoREAS/observers.parquet"
+test -f "$C8_SMOKE_OUTPUT/ZHS/observers.parquet"
+grep -q 'complete: true' "$C8_SMOKE_OUTPUT/gpu_em/summary.yaml"
+```
+
+This check must exit with status zero and report non-zero photon/lepton GPU
+steps and radio tracks in `gpu_em/summary.yaml`. It is a portability check, not
+a replacement for a multi-seed CPU/CUDA physics-validation campaign.
+
+#### Portability check: NVIDIA T400 4 GB
+
+The workspace, configure, build, table, and run workflow was exercised on
+2026-08-06 on an NVIDIA T400 4 GB (compute capability 7.5) with driver
+595.71.05. The same beta2 source snapshot was copied to the server because the
+private Git remote was not authenticated there; source checkout authentication
+was therefore outside this test. An isolated Conda environment used Python
+3.9.23, CMake 3.31.8, Conan 2.11, native GCC/G++/GFortran 13.3, and the minimal
+CUDA 12.6.3 package set listed above. The Release CUDA+FLUKA build and install
+completed with `CMAKE_CUDA_ARCHITECTURES=75`.
+
+All 27 targeted GPU tests passed. They cover table loading, hybrid routing,
+fallback handling, real CUDA execution, wavefront queues, process and
+final-state sampling, LPM, thinning, multiple scattering, magnetic and
+spherical-atmosphere transport, muons, photons, and CUDA radio projection.
+A new generator-contract-0.18 dry-air table through 105 GeV was then produced
+and loaded successfully; its measured maximum rate and inverse-CDF errors were
+`9.996133e-4` and `8.541396e-4` for a requested tolerance of `1e-3`.
+
+Finally, one 100 GeV proton smoke shower was run with SIBYLL, FLUKA, PROPOSAL,
+IGRF14/2027, CUDA EM, CUDA radio, and 81 external antennas. It exited normally
+in 6.94 s and wrote complete top-level, GPU, CoREAS, and ZHS output groups. The
+GPU summary records 3,643 photon steps, 31,534 charged-lepton steps, 5,497 GPU
+final states, 29,774 radio tracks, zero CPU fallback, and a 344.4 MiB peak
+device allocation. This establishes build and execution portability to the
+T400; it is deliberately a smoke test, not a CPU/CUDA physics-equivalence or
+performance benchmark. Its dedicated CUDA energy ledger reports incomplete
+coverage, and the ordinary total-energy budget differs by -3.51%, so this
+low-energy event must not be quoted as a precision-closure validation.
+
+Two practical issues exposed by this test are handled by the current source:
+public CUDA headers remain visible to non-CUDA C++ consumers of the GPU
+library, and Conda compatibility-sysroot `libm`/`librt` entries are replaced by
+the matching native multiarch libraries. The Pythia 8.315 fetch also uses the
+official GitLab release archive because the former `pythia.org/download`
+archive endpoint now returns 404.
 
 The main installed programs are:
 
@@ -361,8 +699,8 @@ Prepare the standard dry-air table for primaries up to \(10^{18}\) eV:
 export C8_TABLE_CACHE="$(dirname "$C8_SOURCE")/corsika8-table-cache"
 
 export C8_TABLE="$(
-  "$C8_BUILD/applications/gpu_em_table_prepare" \
-    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+  "$C8_INSTALL/bin/gpu_em_table_prepare" \
+    --medium-yaml "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml" \
     --cache-dir "$C8_TABLE_CACHE" \
     --primary-energy-eV 1e18 \
     --em-cut-MeV 0.5 \
@@ -381,12 +719,20 @@ The first request may take a long time because the tool calls PROPOSAL and
 adaptively validates the interpolation grids. Identical requests, and smaller
 compatible energy requests, reuse the content-addressed cache.
 
+`--em-cut-MeV` is the user-facing CORSIKA production/transport cut. The
+preparation tool automatically applies the same standard-table selection rule
+as the scalar PROPOSAL backend. Consequently, a requested 0.5 MeV cut is stored
+as a 0.5 MeV transport cut but uses a 0.4 MeV stochastic PROPOSAL table. The
+manifest records both values. This distinction is required for CPU/CUDA
+agreement, most visibly for discrete muon ionization. Do not replace the
+requested 0.5 MeV value by 0.4 MeV in the command above.
+
 For a \(10^{19}\) eV primary, change only the requested primary energy:
 
 ```bash
 export C8_TABLE_1E19="$(
-  "$C8_BUILD/applications/gpu_em_table_prepare" \
-    --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
+  "$C8_INSTALL/bin/gpu_em_table_prepare" \
+    --medium-yaml "$C8_INSTALL/share/corsika/media/air_dry_1_atm.yaml" \
     --cache-dir "$C8_TABLE_CACHE" \
     --primary-energy-eV 1e19 \
     --em-cut-MeV 0.5 \
@@ -412,36 +758,121 @@ Useful preparation modes are:
 | `--force` | Regenerate the exact content-addressed request |
 | `--print-path-only` | Print only the resolved `.c8emrt` path |
 | `--no-muons` | Prepare only photon/electron/positron tables |
+| `--nonmonotonic-loss-policy proposal-monotone\|proposal-direct` | Select compact interpolant repair (default) or full direct-column rebuild |
+| `--direct-loss-max-energy-points N` | Set the independent energy-node budget used only by `proposal-direct` |
 
-### Download the validated dry-air table
+### Validated dry-air table contract
 
-Repository collaborators may download the validated \(10^{18}\) eV dry-air
-table from the private GitHub release instead of generating it:
-
-```bash
-export C8_RELEASE_TABLE_DIR="$C8_BUILD/gpu_em_tables"
-mkdir -p "$C8_RELEASE_TABLE_DIR"
-
-gh release download gpu-table-dry-air-v10 \
-  --repo BossL668/corsika8-gpu-hybrid \
-  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
-  --dir "$C8_RELEASE_TABLE_DIR"
-
-export C8_TABLE="$C8_RELEASE_TABLE_DIR/production_v10_muons_1e-3_1EeV.c8emrt"
-
-printf '%s  %s\n' \
-  '14eb8d7fe38c8046e3f6e38935a107e08e5e07e45d11496f6cda9e8a41cd9521' \
-  "$C8_TABLE" | sha256sum --check
-```
+Any downloaded table for `--emcut 0.0005` GeV must have a preparation manifest
+containing both `em_cut_MeV: 0.5` and
+`proposal_stochastic_cut_MeV: 0.4`. Tables made by an earlier preparation
+contract that used 0.5 MeV for both values are intentionally rejected by the
+application. Until a release asset with the split-cut manifest is available,
+use the automatic preparation workflow above. Do not reuse the legacy
+`production_v10_muons_1e-3_1EeV.c8emrt` asset: it was generated before the
+scalar-compatible split-cut contract and is intentionally rejected.
 
 The validated table contract is:
 
 - `AirDry1Atm` composition;
 - photon, electron, positron, negative-muon, and positive-muon tables;
-- 0.5 MeV electromagnetic stochastic and transport cuts;
+- a 0.4 MeV PROPOSAL stochastic cut resolved from the 0.5 MeV CORSIKA
+  electromagnetic transport cut;
 - 300 MeV muon transport cut;
 - total particle energies through \(10^{18}\) eV;
 - maximum rate and inverse-CDF interpolation tolerance of \(10^{-3}\).
+
+The content-addressed lookup also checks the table-generator contract version.
+A table created by an older generator is regenerated instead of being silently
+accepted.
+
+#### PROPOSAL interpolation and the argon bremsstrahlung column
+
+PROPOSAL 7.6.2 can return a locally non-monotonic stochastic-loss inverse CDF
+for electron or positron bremsstrahlung on the argon component of dry air. This
+is not an argon-projectile effect. It is a numerical feature of the cached
+PROPOSAL interpolation and its inverse solver: evaluating the same points with
+PROPOSAL interpolation disabled, using direct numerical integration and root
+finding, restores the expected monotonic behavior. The original scalar path
+does not scan adjacent quantiles for this condition and therefore normally
+uses the interpolated result as returned.
+
+For the diagnostic dry-air column at \(E=623.7318908\) MeV, increasing the
+quantile from 0.9859885644 to 0.9859897698 changed the interpolated loss
+fraction from 0.8847353442 down to 0.8836791531 (a 0.119% reversal). The
+non-interpolated calculation changed monotonically from 0.8592897295 to
+0.8593004245 at the same two points. These numbers are recorded as a numerical
+diagnostic, not as a new physical correction to argon.
+
+Beta2 and beta3 expose two offline policies through
+`--nonmonotonic-loss-policy`:
+
+- `proposal-monotone` (default) starts from the same cached PROPOSAL
+  interpolant as the scalar program and replaces only local decreases by the
+  preceding cumulative maximum. Once a moving reversal is identified, its
+  upper-quantile branch is excluded from energy refinement so the stored
+  surface remains smooth across energy. It is the closer, compact comparison
+  policy;
+  the affected column is tagged `proposal_interpolated_monotone`. This policy
+  deliberately treats the 0.119% reversal as interpolation noise, so the
+  configured table tolerance describes approximation of the repaired
+  monotone reference rather than strict pointwise reproduction of that raw
+  reversal.
+- `proposal-direct` rebuilds the complete affected column with PROPOSAL
+  interpolation disabled. It is tagged `proposal_direct` and is validated
+  against direct integration/root values. This is a useful physics-oriented
+  diagnostic, but it is expensive: a 0.4 MeV--105 GeV dry-air test requested
+  more than 50,000 energy nodes for this one column at \(10^{-3}\), so it is
+  not the compact default. Its independent node budget is controlled by
+  `--direct-loss-max-energy-points` (default 65536).
+
+In the completed 0.4 MeV--105 GeV dry-air `proposal-monotone` test, the final
+table was 3.69 MB. Its measured rate and repaired-reference inverse-CDF errors
+were \(9.996\times10^{-4}\) and \(8.541\times10^{-4}\), respectively. The audit
+log reported a maximum local monotone projection of 0.924% and a maximum raw
+moving-branch deviation of 9.90%. The latter two values quantify the rejected
+PROPOSAL numerical branch and are not included in the interpolation-error
+claim; production CPU/CUDA ensemble validation remains necessary.
+
+The same table completed 100 GeV electron smoke showers with CUDA EM and CUDA
+radio in both beta2 and beta3. Neither run reported a bremsstrahlung/argon
+selected-loss fallback. The remaining CPU returns were already-defined physics
+paths (photoproduction, plus one beta3 ionization quantile-bound return), not
+the PROPOSAL argon interpolation issue.
+
+A post-repair timing check used 12 paired seeds, 100 GeV vertical electron
+primaries, `emthin=1e-3`, a 0.5 MeV transport cut, IGRF14 at epoch 2027, and
+CUDA EM plus CUDA radio on the same RTX 4060 Laptop GPU. After a clean Release
+rebuild, mean/median in-shower times were 0.731/0.715 s for beta1,
+0.684/0.594 s for beta2, and 0.737/0.670 s for beta3. Thus the beta3 mean was
+within 0.8% of the beta1 mean, while beta2 was 6.5% lower. Mean sampled active
+GPU utilization was 19.2%, 25.5%, and 24.2%,
+respectively. The repaired beta2/beta3 runs contained no argon bremsstrahlung
+fallback; only one and four low-frequency non-argon quantile-bound returns
+remained across the 12 showers. This test supports removal of the previous
+roughly twofold low-energy timing regression, but it is a performance check,
+not a shower-observable validation sample.
+
+Strict bit-level reproduction of the raw scalar reversal is a third,
+algorithm-emulation task and would require porting PROPOSAL's interpolation
+and inverse solver rather than representing it by a smooth CUDA table. Simple
+multi-process parallelism over particles or columns does not remove the main
+direct-policy cost because the dense refinement occurs inside one argon
+bremsstrahlung column; parallel row sampling may be added later after a
+thread-safety audit of PROPOSAL.
+
+The current `gpu_em_tablegen` implementation is serial; setting
+`OMP_NUM_THREADS` does not accelerate it. Table preparation is an offline cost,
+and the content-addressed cache prevents the same material/cut/energy request
+from being generated again. Run independent table requests as separate jobs
+only when the server policy and available memory permit it.
+
+Both implemented policies finish during table preparation and keep shower
+transport on the GPU: argon never causes a runtime selected-loss CPU fallback
+or fragments an EM wavefront. Rate and process/component selection tables are
+unchanged. The selected policy and grid budget enter the content-addressed
+request, and generator contract `0.18` prevents an older fallback-bearing table
+from being silently reused.
 
 ### Custom material YAML
 
@@ -469,7 +900,7 @@ Omitting `--em-backend` selects the original scalar PROPOSAL path:
 export C8_ANTENNAS=/absolute/path/to/antennas.txt
 export C8_CPU_OUTPUT=/absolute/path/to/proton_100TeV_cpu
 
-"$C8_BUILD/applications/c8_air_shower" \
+"$C8_INSTALL/bin/c8_air_shower" \
   -p 2212 \
   -E 1e5 \
   -N 1 \
@@ -495,7 +926,7 @@ compatible physics table:
 ```bash
 export C8_CUDA_OUTPUT=/absolute/path/to/proton_100TeV_cuda
 
-"$C8_BUILD/applications/c8_air_shower" \
+"$C8_INSTALL/bin/c8_air_shower" \
   -p 2212 \
   -E 1e5 \
   -N 1 \
@@ -523,7 +954,7 @@ Enable CUDA radio and the process-isolated FLUKA pool explicitly:
 ```bash
 export C8_FULL_OUTPUT=/absolute/path/to/proton_100TeV_cuda_full
 
-"$C8_BUILD/applications/c8_air_shower" \
+"$C8_INSTALL/bin/c8_air_shower" \
   -p 2212 \
   -E 1e5 \
   -N 1 \
@@ -582,11 +1013,11 @@ observer geometry.
 Run the compiled program with `--help` for the exact defaults and constraints:
 
 ```bash
-"$C8_BUILD/applications/c8_air_shower" --help
-"$C8_BUILD/applications/gpu_em_table_prepare" --help
-"$C8_BUILD/applications/gpu_em_tablegen" --help
-"$C8_BUILD/applications/cuda_decision_replay" --help
-"$C8_BUILD/applications/fluka_batch_worker" --help
+"$C8_INSTALL/bin/c8_air_shower" --help
+"$C8_INSTALL/bin/gpu_em_table_prepare" --help
+"$C8_INSTALL/bin/gpu_em_tablegen" --help
+"$C8_INSTALL/bin/cuda_decision_replay" --help
+"$C8_INSTALL/bin/fluka_batch_worker" --help
 ```
 
 ### Shower configuration
@@ -732,12 +1163,12 @@ For process-by-process debugging, record and replay the exact scalar decision
 tape:
 
 ```bash
-"$C8_BUILD/applications/c8_air_shower" \
+"$C8_INSTALL/bin/c8_air_shower" \
   -p 11 -E 1000 -N 1 -s 10001 \
   -f /absolute/path/to/scalar_replay_source \
   --cuda-replay-tape-out /absolute/path/to/event.c8rpt
 
-"$C8_BUILD/applications/cuda_decision_replay" \
+"$C8_INSTALL/bin/cuda_decision_replay" \
   --tape /absolute/path/to/event.c8rpt \
   --output /absolute/path/to/cuda_replay_output \
   --device 0 \
@@ -796,7 +1227,7 @@ Run the maintained acceptance drivers rather than comparing only one shower:
 
 ```bash
 python "$C8_SOURCE/validation/gpu_em/run_physics_acceptance.py" \
-  --executable "$C8_BUILD/applications/c8_air_shower" \
+  --executable "$C8_INSTALL/bin/c8_air_shower" \
   --table "$C8_TABLE" \
   --output-root /absolute/path/to/acceptance_output \
   --primary-pdg 2212 \

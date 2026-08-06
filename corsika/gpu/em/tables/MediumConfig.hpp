@@ -18,7 +18,7 @@ namespace corsika::gpu::em::tables {
 
   inline constexpr std::uint32_t MediumConfigSchemaVersion = 1;
   inline constexpr char TableGeneratorContractVersion[] =
-      "c8-gpu-em-tablegen-0.15";
+      "c8-gpu-em-tablegen-0.18";
 
   struct MediumComponentConfig {
     std::string name;

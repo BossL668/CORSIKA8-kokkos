@@ -206,6 +206,7 @@ namespace corsika::gpu::em::tables {
             continuous_ranges_g_per_cm2_,
             host_view.continuous_value_count,
             host_view.energy_cut_MeV,
+            host_view.em_transport_cut_MeV,
             epair_rho_component_hashes_,
             epair_rho_energies_MeV_,
             epair_rho_v_coordinates_,

@@ -10,7 +10,7 @@ from pathlib import Path
 MODULE_DIRECTORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODULE_DIRECTORY))
 
-from run_remote_cpu_ensemble import resolve_seed_schedule  # noqa: E402
+from run_remote_cpu_ensemble import c8_command, resolve_seed_schedule  # noqa: E402
 
 
 class RemoteCpuSeedScheduleTest(unittest.TestCase):
@@ -61,6 +61,34 @@ class RemoteCpuSeedScheduleTest(unittest.TestCase):
             path.write_text("-1\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "negative seed"):
                 resolve_seed_schedule(args)
+
+
+class RemoteCpuCommandTest(unittest.TestCase):
+    def test_geomagnetic_configuration_is_explicit(self) -> None:
+        args = argparse.Namespace(
+            executable=Path("/tmp/c8_air_shower"),
+            primary_pdg=2212,
+            energy_gev=1.0e5,
+            zenith_deg=0.0,
+            azimuth_deg=0.0,
+            geomagnetic_model="IGRF14",
+            geomagnetic_year=2027.0,
+            shower_core_x_m=0.0,
+            shower_core_y_m=0.0,
+            ring=0,
+            antenna_file=Path("/tmp/antennas.txt"),
+            em_cut_gev=0.5e-3,
+            em_thinning=1.0e-6,
+            had_cut_gev=0.3,
+            mu_cut_gev=0.3,
+            tau_cut_gev=0.3,
+            maximum_weight=0.0,
+        )
+        command = c8_command(args, Path("/tmp/output"), 10100051)
+        model_index = command.index("--geomagnetic-model")
+        year_index = command.index("--geomagnetic-year")
+        self.assertEqual(command[model_index + 1], "IGRF14")
+        self.assertEqual(command[year_index + 1], "2027")
 
 
 if __name__ == "__main__":

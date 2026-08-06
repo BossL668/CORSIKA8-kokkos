@@ -6,6 +6,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 MODULE_PATH = Path(__file__).parents[1] / "run_local_cuda_ensemble.py"
 SPEC = importlib.util.spec_from_file_location("run_local_cuda_ensemble", MODULE_PATH)
@@ -138,3 +140,26 @@ def test_direct_provenance_fingerprints_antenna_and_fluka_inputs() -> None:
         assert provenance["flupro"]["path"] == str(args.flupro / "libflukahp.a")
         assert len(provenance["antenna_file"]["sha256"]) == 64
         assert len(provenance["flupro"]["sha256"]) == 64
+
+
+def test_parse_summary_runtime_accepts_legacy_numeric_schema() -> None:
+    assert MODULE.parse_summary_runtime_seconds({"runtime_raw": 12.5}) == 12.5
+
+
+def test_parse_summary_runtime_accepts_current_duration_schema() -> None:
+    observed = MODULE.parse_summary_runtime_seconds(
+        {"runtime": "00:46:37.554719515"}
+    )
+    assert observed == pytest.approx(2797.554719515)
+
+
+def test_parse_summary_runtime_accepts_day_duration_schema() -> None:
+    observed = MODULE.parse_summary_runtime_seconds(
+        {"runtime": "2 days, 01:02:03.5"}
+    )
+    assert observed == pytest.approx(176523.5)
+
+
+def test_parse_summary_runtime_rejects_missing_or_zero_runtime() -> None:
+    with pytest.raises(ValueError, match="positive finite runtime"):
+        MODULE.parse_summary_runtime_seconds({"runtime": "00:00:00"})

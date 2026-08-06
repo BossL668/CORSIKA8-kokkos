@@ -559,14 +559,18 @@ namespace {
   int validateExternalMuonTable(
       std::filesystem::path const& table_path) {
     auto const source = readRateTable(table_path);
-    require(source.particles.size() == 2,
-            "muon validation table must contain two charge states");
+    std::vector<ParticleRateTable const*> muon_tables;
     for (auto const& particle : source.particles) {
-      require(isMuonPid(particle.pdg_id),
-              "external validation table contains a non-muon");
-      require(!particle.energies_MeV.empty(),
+      if (isMuonPid(particle.pdg_id)) {
+        muon_tables.push_back(&particle);
+      }
+    }
+    require(muon_tables.size() == 2,
+            "muon validation table must contain both charge states");
+    for (auto const* particle : muon_tables) {
+      require(!particle->energies_MeV.empty(),
               "muon rate grid is empty");
-      findContinuousEnergyTable(source, particle.pdg_id);
+      findContinuousEnergyTable(source, particle->pdg_id);
     }
 
     ProposalTableSet descriptor{};
@@ -602,7 +606,7 @@ namespace {
     particles.reserve(ParticleCount);
     for (std::size_t index = 0; index < ParticleCount; ++index) {
       auto const& particle_table =
-          source.particles[index % source.particles.size()];
+          *muon_tables[index % muon_tables.size()];
       auto const fraction = std::fmod(
           (static_cast<double>(index) + 0.5) *
               0.6180339887498948482,

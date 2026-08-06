@@ -13,6 +13,7 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 import platform
 import queue
@@ -62,6 +63,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--energy-gev", type=float, default=1.0e5)
     parser.add_argument("--zenith-deg", type=float, default=0.0)
     parser.add_argument("--azimuth-deg", type=float, default=0.0)
+    parser.add_argument(
+        "--geomagnetic-model",
+        choices=("IGRF13", "IGRF14"),
+        default="IGRF14",
+    )
+    parser.add_argument("--geomagnetic-year", type=float, default=2027.0)
     parser.add_argument("--shower-core-x-m", type=float, default=0.0)
     parser.add_argument("--shower-core-y-m", type=float, default=0.0)
     parser.add_argument("--ring", type=int, default=0)
@@ -226,6 +233,10 @@ def c8_command(
         f"{args.zenith_deg:.17g}",
         "--azimuth",
         f"{args.azimuth_deg:.17g}",
+        "--geomagnetic-model",
+        args.geomagnetic_model,
+        "--geomagnetic-year",
+        f"{args.geomagnetic_year:.17g}",
         "--shower-core-x",
         f"{args.shower_core_x_m:.17g}",
         "--shower-core-y",
@@ -282,6 +293,8 @@ def immutable_configuration(
             "energy_GeV": args.energy_gev,
             "zenith_deg": args.zenith_deg,
             "azimuth_deg": args.azimuth_deg,
+            "geomagnetic_model": args.geomagnetic_model,
+            "geomagnetic_year": args.geomagnetic_year,
             "shower_core_x_m": args.shower_core_x_m,
             "shower_core_y_m": args.shower_core_y_m,
             "ring": args.ring,
@@ -411,6 +424,10 @@ def validate_args(args: argparse.Namespace, cpus: list[int]) -> None:
         raise ValueError("resolved seed schedule length differs from --events")
     if args.energy_gev <= 0.0:
         raise ValueError("--energy-gev must be positive")
+    if not math.isfinite(args.geomagnetic_year) or not (
+        1900.0 <= args.geomagnetic_year <= 2030.0
+    ):
+        raise ValueError("--geomagnetic-year must be in [1900, 2030]")
     if any(
         value <= 0.0
         for value in (

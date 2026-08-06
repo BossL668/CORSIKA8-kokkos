@@ -30,7 +30,25 @@ else()
     set_property(TARGET flukahp-norndm PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/libflukahp-norndm.a)
 
     find_library(MATH_LIBRARY m)
-    target_link_libraries(flukahp-norndm INTERFACE gfortran ${MATH_LIBRARY})
+
+    # A Conda CUDA toolchain can make find_library() select the libm linker
+    # script from its cross-compilation sysroot.  On Debian/Ubuntu that script
+    # may contain absolute /lib64 paths which do not exist, even though the
+    # Fortran compiler itself is the native /usr/bin/gfortran.  Prefer the
+    # matching native multiarch libm in that specific situation.  This is
+    # deliberately local to the FLUKA wrapper so ordinary system builds are
+    # unchanged.
+    set(C8_FLUKA_MATH_LIBRARY "${MATH_LIBRARY}")
+    set(_c8_fluka_host_libm
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libm.so")
+    if (MATH_LIBRARY MATCHES "/sysroot/" AND EXISTS "${_c8_fluka_host_libm}")
+        message(STATUS
+            "FLUKA: replacing Conda sysroot libm with ${_c8_fluka_host_libm}")
+        set(C8_FLUKA_MATH_LIBRARY "${_c8_fluka_host_libm}")
+    endif()
+
+    target_link_libraries(flukahp-norndm INTERFACE
+        gfortran ${C8_FLUKA_MATH_LIBRARY})
     target_include_directories (flukahp-norndm INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include/corsika_modules/fluka>

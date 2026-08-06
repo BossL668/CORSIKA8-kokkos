@@ -1289,10 +1289,21 @@ namespace corsika::gpu::em::tables {
             std::any_of(column.rates_cm2_per_g.begin(),
                         column.rates_cm2_per_g.end(),
                         [](double rate) { return rate > 0.; });
-        if (inverse.reference_mode.empty() &&
+        auto const inverse_arrays_empty =
             inverse.energies_MeV.empty() &&
             inverse.quantile_offsets.empty() &&
-            inverse.quantiles.empty() && inverse.v_loss.empty()) {
+            inverse.quantiles.empty() && inverse.v_loss.empty();
+        if (inverse.reference_mode ==
+            SelectedLossCpuFallbackReferenceMode) {
+          if (!inverse_arrays_empty || !has_positive_rate) {
+            throw std::invalid_argument(
+                "selected-loss CPU fallback column must have a positive "
+                "rate and no inverse-CDF arrays");
+          }
+          continue;
+        }
+        if (inverse.reference_mode.empty() &&
+            inverse_arrays_empty) {
           auto const selected_process_cpu_fallback =
               (particle.pdg_id == 13 ||
                particle.pdg_id == -13) &&
@@ -1306,7 +1317,9 @@ namespace corsika::gpu::em::tables {
           continue;
         }
         if (inverse.reference_mode != "proposal_interpolated" &&
-            inverse.reference_mode != "proposal_direct") {
+            inverse.reference_mode != "proposal_direct" &&
+            inverse.reference_mode !=
+                "proposal_interpolated_monotone") {
           throw std::invalid_argument(
               "inverse-CDF reference mode is unsupported");
         }

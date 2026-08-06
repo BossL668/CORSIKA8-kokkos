@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,24 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from scipy import stats  # noqa: E402
+
+try:
+    from .analyze_muon_parent_alignment import analyze_parent_alignment
+except ImportError:  # Direct execution from validation/gpu_em.
+    _PARENT_MODULE_PATH = (
+        Path(__file__).resolve().parent
+        / "analyze_muon_parent_alignment.py"
+    )
+    _PARENT_SPEC = importlib.util.spec_from_file_location(
+        "analyze_muon_parent_alignment", _PARENT_MODULE_PATH
+    )
+    if _PARENT_SPEC is None or _PARENT_SPEC.loader is None:
+        raise ImportError(
+            f"cannot load parent-profile analyzer: {_PARENT_MODULE_PATH}"
+        )
+    _PARENT_MODULE = importlib.util.module_from_spec(_PARENT_SPEC)
+    _PARENT_SPEC.loader.exec_module(_PARENT_MODULE)
+    analyze_parent_alignment = _PARENT_MODULE.analyze_parent_alignment
 
 
 BACKENDS = ("proposal", "cuda")
@@ -209,6 +228,25 @@ def common_bins(arrays: dict[str, np.ndarray], log_x: bool) -> np.ndarray:
     return bins
 
 
+def histogram_normalization(
+    values: np.ndarray, log_x: bool
+) -> tuple[bool, np.ndarray | None]:
+    """Return a visually honest normalization for linear or log bins.
+
+    ``density=True`` divides counts by the *linear* bin width.  Applied to
+    geometrically spaced bins on a logarithmic x axis, that convention makes
+    the narrow low-value bins appear disproportionately tall.  Ground-EM
+    observables therefore use equal-width log bins with one-event probability
+    weights, while linear observables retain the conventional density.
+    """
+
+    if not log_x:
+        return True, None
+    if values.size == 0:
+        raise ValueError("cannot normalize an empty logarithmic histogram")
+    return False, np.full(values.shape, 1.0 / values.size, dtype=np.float64)
+
+
 def plot_feature_distributions(
     frame: pd.DataFrame,
     summaries: dict[str, dict[str, Any]],
@@ -223,10 +261,14 @@ def plot_feature_distributions(
         }
         bins = common_bins(arrays, log_x)
         for backend in BACKENDS:
+            density, weights = histogram_normalization(
+                arrays[backend], log_x
+            )
             axis.hist(
                 arrays[backend],
                 bins=bins,
-                density=True,
+                density=density,
+                weights=weights,
                 histtype="step",
                 linewidth=1.8,
                 color=COLORS[backend],
@@ -261,7 +303,11 @@ def plot_feature_distributions(
             },
         )
         axis.set_xlabel(label)
-        axis.set_ylabel("probability density")
+        axis.set_ylabel(
+            "probability per logarithmic bin"
+            if log_x
+            else "probability density"
+        )
         axis.grid(alpha=0.2)
     axes[0, 0].legend(frameon=False, fontsize=9)
     figure.suptitle(f"Original CPU versus CUDA EM: {title}")
@@ -639,6 +685,11 @@ def main() -> int:
         curves,
         output / "muon_production_parent_mean_comparison.png",
     )
+    if isinstance(manifest.get("additional_sources"), dict):
+        analyze_parent_alignment(
+            manifest_path,
+            output,
+        )
     print(
         json.dumps(
             {

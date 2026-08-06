@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include <testCascade.hpp>
 
@@ -137,6 +138,22 @@ namespace {
   private:
     std::uint64_t starts_{};
     std::uint64_t ends_{};
+  };
+
+  struct DeferredFallbackSink {
+    std::vector<gpu::em::ProposalFallbackEvent> handled;
+
+    bool canHandle(
+        gpu::em::ProposalFallbackEvent const& event) const {
+      return event.reason ==
+             gpu::em::ProposalFallbackReason::InverseCdfUnavailable;
+    }
+
+    template <typename TStack>
+    void handle(
+        TStack&, gpu::em::ProposalFallbackEvent const& event) {
+      handled.push_back(event);
+    }
   };
 
   std::filesystem::path temporaryTablePath() {
@@ -840,6 +857,180 @@ int main() {
                 physical_statistics.particles_staged +
                     physical_tracking.calls(),
         "physical HybridCascade scheduler lost a particle");
+
+    // A selected-loss CPU completion must not interrupt an active CUDA EM
+    // front.  The first wavefront below parks one electron fallback while a
+    // photon-generated electron remains staged.  That residual tail stays on
+    // the GPU even below the ordinary production batch threshold, and the
+    // specified CPU handler is called only after the resident front drains.
+    auto deferred_source = source;
+    for (auto& particle : deferred_source.particles) {
+      if (particle.pdg_id != 11) {
+        continue;
+      }
+      for (auto& column : particle.columns) {
+        if (column.process_id == gpu::em::BremsProcessId) {
+          std::fill(
+              column.rates_cm2_per_g.begin(),
+              column.rates_cm2_per_g.end(), 1.e6);
+          column.inverse_cdf.reference_mode =
+              gpu::em::tables::
+                  SelectedLossCpuFallbackReferenceMode;
+          column.inverse_cdf.energies_MeV.clear();
+          column.inverse_cdf.quantile_offsets.clear();
+          column.inverse_cdf.quantiles.clear();
+          column.inverse_cdf.v_loss.clear();
+        } else {
+          std::fill(
+              column.rates_cm2_per_g.begin(),
+              column.rates_cm2_per_g.end(), 0.);
+        }
+      }
+    }
+    auto const deferred_table_path = temporaryTablePath();
+    auto const deferred_digest =
+        gpu::em::tables::writeRateTable(
+            deferred_table_path, deferred_source);
+    auto deferred_descriptor = descriptor;
+    deferred_descriptor.content_hash = deferred_digest;
+    auto deferred_config = physical_config;
+    deferred_config.min_batch_size = 2;
+    deferred_config.shower_id = 4;
+    deferred_config.table_cache = deferred_table_path;
+    deferred_config.resident_cross_species = false;
+    gpu::em::CudaEmBackend deferred_backend;
+    deferred_backend.initialize(
+        physical_environment, deferred_descriptor,
+        deferred_config);
+
+    TestCascadeIdentityStack deferred_stack;
+    auto deferred_photon = deferred_stack.addParticle(
+        std::make_tuple(
+            Code::Photon, 10_MeV,
+            DirectionVector{
+                physical_coordinate_system,
+                {0., 0., -1.}},
+            Point{
+                physical_coordinate_system, 0_m, 0_m,
+                (earth_radius_m + 50000.) * meter},
+            0_s));
+    auto deferred_electron = deferred_stack.addParticle(
+        std::make_tuple(
+            Code::Electron,
+            100_MeV - get_mass(Code::Electron),
+            DirectionVector{
+                physical_coordinate_system,
+                {0., 0., -1.}},
+            Point{
+                physical_coordinate_system, 0_m, 0_m,
+                (earth_radius_m + 50000.) * meter},
+            0_s));
+    DeferredFallbackSink deferred_sink;
+    using DeferredRouter =
+        gpu::em::PhysicalCudaEmRouter<
+            TestCascadeIdentityStack,
+            DeferredFallbackSink>;
+    DeferredRouter deferred_router{
+        deferred_backend, physical_coordinate_system,
+        physical_environment, deferred_sink};
+    auto const photon_step =
+        deferred_photon.beginTransportStep();
+    auto const electron_step =
+        deferred_electron.beginTransportStep();
+    require(
+        deferred_router.canRoute(
+            deferred_photon, photon_step) &&
+            deferred_router.canRoute(
+                deferred_electron, electron_step),
+        "deferred fallback fixture was not GPU routable");
+    deferred_router.stage(
+        deferred_photon, deferred_photon.getHistoryId(),
+        deferred_photon.getParentHistoryId(),
+        deferred_photon.getGeneration(), photon_step);
+    deferred_router.stage(
+        deferred_electron,
+        deferred_electron.getHistoryId(),
+        deferred_electron.getParentHistoryId(),
+        deferred_electron.getGeneration(), electron_step);
+    deferred_photon.erase();
+    deferred_electron.erase();
+
+    deferred_router.advanceOneWavefrontAndReturn(
+        deferred_stack);
+    require(
+        deferred_sink.handled.empty() &&
+            deferred_router.deferredFallbackCount() == 1 &&
+            deferred_router.pending(),
+        "selected-loss fallback interrupted an active CUDA EM front");
+    std::size_t deferred_drain_wavefronts = 0;
+    while (deferred_sink.handled.empty() &&
+           deferred_drain_wavefronts < 32) {
+      deferred_router.advanceOneWavefrontAndReturn(
+          deferred_stack);
+      ++deferred_drain_wavefronts;
+      require(
+          deferred_stack.isEmpty() &&
+              deferred_router.statistics()
+                      .deferred_fallback_scalar_expansion_rounds ==
+                  0,
+          "deferred CUDA tail escaped into scalar expansion");
+    }
+    auto const deferred_tail_drained =
+        !deferred_sink.handled.empty() &&
+        deferred_router.deferredFallbackCount() == 0 &&
+        deferred_stack.isEmpty() &&
+        deferred_router.pending() &&
+        deferred_router.statistics()
+                .deferred_front_gpu_flushes > 0 &&
+        deferred_router.statistics()
+                .deferred_fallback_scalar_expansion_rounds ==
+            0;
+    if (!deferred_tail_drained) {
+      std::cerr
+          << "deferred tail diagnostic: handled="
+          << deferred_sink.handled.size()
+          << ", queued="
+          << deferred_router.deferredFallbackCount()
+          << ", stack_empty=" << deferred_stack.isEmpty()
+          << ", pending=" << deferred_router.pending()
+          << ", front_gpu_flushes="
+          << deferred_router.statistics()
+                 .deferred_front_gpu_flushes
+          << ", scalar_rounds="
+          << deferred_router.statistics()
+                 .deferred_fallback_scalar_expansion_rounds
+          << ", drain_wavefronts="
+          << deferred_drain_wavefronts << '\n';
+    }
+    require(
+        deferred_tail_drained,
+        "selected-loss fallback did not wait for a GPU-resident tail drain");
+    auto const completed_deferred_fallbacks =
+        deferred_sink.handled.size();
+    deferred_router.advanceOneWavefrontAndReturn(
+        deferred_stack);
+    auto const& deferred_statistics =
+        deferred_router.statistics();
+    require(
+        deferred_sink.handled.size() ==
+            completed_deferred_fallbacks &&
+            deferred_router.deferredFallbackCount() == 0 &&
+            !deferred_router.pending() &&
+            deferred_statistics.deferred_cpu_fallbacks_queued ==
+                completed_deferred_fallbacks &&
+            deferred_statistics.deferred_cpu_fallbacks_flushed ==
+                completed_deferred_fallbacks &&
+            deferred_statistics.deferred_cpu_fallback_flushes == 1 &&
+            deferred_statistics.maximum_deferred_cpu_fallback_batch ==
+                completed_deferred_fallbacks &&
+            deferred_statistics
+                    .deferred_fallback_scalar_expansion_rounds ==
+                0 &&
+            deferred_statistics.deferred_front_gpu_flushes > 0 &&
+            deferred_statistics.deferred_product_gpu_flushes == 0 &&
+            deferred_statistics.small_batch_expansions == 0,
+        "deferred selected-loss fallbacks did not flush as one drain-boundary batch");
+    std::filesystem::remove(deferred_table_path);
     std::filesystem::remove(table_path);
     std::cout
         << "Physical GPU hybrid route passed: "

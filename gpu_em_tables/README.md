@@ -1,6 +1,7 @@
 # GPU 物理表获取、自动准备与介质配置
 
-此目录只保存说明和校验值，不把大型二进制 `.c8emrt` 提交进 Git 历史。
+此目录只保存说明，不把大型二进制 `.c8emrt` 提交进 Git 历史。每个自动准备的
+表及其 manifest 都包含内容哈希，应用在加载时再次校验。
 
 ## 1. 两类缓存
 
@@ -65,7 +66,7 @@ export C8_TABLE="$(
 
 ## 3. \(10^{19}\) eV 为什么需要新表
 
-Release 中的标准表上限是 \(10^{12}\) MeV，即 \(10^{18}\) eV。表查询禁止在
+假设缓存中的兼容表上限是 \(10^{12}\) MeV，即 \(10^{18}\) eV。表查询禁止在
 能区外外推，因此 \(10^{19}\) eV 质子不能复用它。以下命令准备上限
 \(1.05\times10^{13}\) MeV 的新表：
 
@@ -121,31 +122,30 @@ components:
 规范化会排序组分、归一化分数并统一浮点表示。注释、空白和输入顺序不会改变
 SHA-256，任何实际材料参数改变都会进入新缓存目录。
 
-## 5. 已验证的标准干空气 Release 表
+## 5. 标准干空气表合同
 
-不需要更高能区或新介质时，优先下载已经验收的表：
-
-```bash
-mkdir -p gpu_em_tables
-
-gh release download gpu-table-dry-air-v10 \
-  --repo BossL668/corsika8-gpu-hybrid \
-  --pattern 'production_v10_muons_1e-3_1EeV.c8emrt' \
-  --dir gpu_em_tables
-
-(cd gpu_em_tables && sha256sum --check SHA256SUMS)
-```
-
-合同为：
+旧 Release 表把用户 EM cut 和 PROPOSAL stochastic cut 都设为 0.5 MeV，
+不符合当前标量后端的 cut 选择规则，当前应用会明确拒绝。请使用第 3 节的
+`gpu_em_table_prepare` 自动查找或生成表。合同为：
 
 - 标准 `AirDry1Atm` 干空气；
 - \(\gamma,e^-,e^+,\mu^-,\mu^+\)；
-- EM stochastic/transport cut 0.5 MeV；
+- CORSIKA EM transport cut 0.5 MeV；
+- 由标量缓存规则解析出的 PROPOSAL stochastic cut 0.4 MeV；
 - muon transport cut 300 MeV；
 - 最大总能量 \(10^{12}\) MeV，即 \(10^{18}\) eV；
-- rate 和 inverse-CDF 最大容许误差 \(10^{-3}\)。
+- rate 和 inverse-CDF 最大容许误差 \(10^{-3}\)；
+- 与当前制表器合同版本一致。
 
-私有仓库协作者需先执行 `gh auth login`。
+PROPOSAL 7.6.2 的缓存插值/逆求解在电子或正电子对氩靶组分的轫致辐射逆 CDF
+上可能局部非单调。`--nonmonotonic-loss-policy proposal-monotone`（默认）保留
+原插值参考，只把局部下降投影成累计最大值，得到紧凑的
+`proposal_interpolated_monotone` 表。`proposal-direct` 则关闭插值并用直接积分/
+求根重建整列；它更适合诊断，但 (10^{-3}) 测试中单列曾提出超过五万个能量点。
+其独立上限由 `--direct-loss-max-energy-points` 控制，默认 65536。两种策略都在
+制表期完成，运行期不为氩组分回退 CPU；策略和预算都会进入缓存请求哈希。
+105 GeV 的紧凑验收表为 3.69 MB；日志记录最大单调投影 0.924% 和被忽略的原始
+移动分支偏差 9.90%，因此该策略不能宣称逐点复刻原 PROPOSAL 异常分支。
 
 ## 6. 直接使用底层生成器
 
@@ -156,9 +156,9 @@ gh release download gpu-table-dry-air-v10 \
   /path/to/output.c8emrt \
   --medium-yaml "$C8_SOURCE/configs/media/air_dry_1_atm.yaml" \
   --proposal-cache /path/to/proposal-cache \
-  --energy-min-MeV 0.5 \
+  --energy-min-MeV 0.4 \
   --energy-max-MeV 1e12 \
-  --cut-MeV 0.5 \
+  --cut-MeV 0.4 \
   --transport-cut-MeV 0.5 \
   --muon-transport-cut-MeV 300 \
   --tolerance 1e-3 \
@@ -166,8 +166,9 @@ gh release download gpu-table-dry-air-v10 \
   --include-muons
 ```
 
-省略 `--medium-yaml` 会保留历史标准干空气合同。直接生成器不负责内容寻址查找
-和跨进程锁，日常准备流程应优先用 `gpu_em_table_prepare`。
+省略 `--medium-yaml` 会保留历史标准干空气合同。直接生成器不负责把用户 cut
+解析成标量 PROPOSAL 的标准 stochastic cut，也不负责内容寻址查找和跨进程锁；
+日常准备流程应优先用 `gpu_em_table_prepare`。
 
 ## 7. 改变介质后的运行边界
 
