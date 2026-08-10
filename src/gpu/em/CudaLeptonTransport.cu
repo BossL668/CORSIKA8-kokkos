@@ -272,10 +272,22 @@ namespace corsika::gpu::em {
         fallback_flags[index] = 1;
         return;
       }
+      auto const transport_cut_MeV =
+          (minimum_energy.value - mass.value) /
+          tables::ContinuousCutSafetyFactor;
+      if (!::isfinite(transport_cut_MeV) ||
+          !(transport_cut_MeV > 0.)) {
+        raw_fallbacks[index] = makeLeptonFallback(
+            interaction,
+            ProposalFallbackReason::InvalidTableQuery);
+        fallback_flags[index] = 1;
+        return;
+      }
 
       if (interaction.status ==
               EmInteractionStatus::ParticleCut ||
-          initial_energy_MeV <= minimum_energy.value) {
+          initial_energy_MeV - mass.value <
+              transport_cut_MeV) {
         auto const layer = queryAtmosphereLayer(
             environment, start.position_m, start.direction);
         if (layer.status != AtmosphereStatus::Success) {
@@ -385,50 +397,39 @@ namespace corsika::gpu::em {
       auto geometry_distance_m = CUDART_INF;
       auto limiting_radius_m = 0.;
       auto magnetic_step_wins = false;
-      // Volume-boundary solvers intentionally ignore roots within 0.1 mm,
-      // but the observation sphere is terminal.  Reuse the atmosphere
-      // primitive's guarded observation result before the curved solver can
-      // select the far-side intersection of the same sphere.  Over this
-      // sub-0.1-mm path, advancing with the normal leapfrog below still
-      // retains the magnetic bend and massive-particle flight time.
-      auto const guarded_observation =
-          distanceToAtmosphereBoundary(
-              environment, start.position_m, start.direction);
-      auto const guarded_observation_wins =
-          guarded_observation.status ==
-                  AtmosphereStatus::Success &&
-          closeRadius(
-              guarded_observation.radius_m,
-              environment.observation_radius_m) &&
-          guarded_observation.distance_m <=
-              AtmosphereBoundaryGuardM;
-      if (guarded_observation_wins) {
-        geometry_distance_m =
-            guarded_observation.distance_m;
-        limiting_radius_m =
-            environment.observation_radius_m;
-      } else if (magnetic_limit.status ==
+      auto observation_plane_wins = false;
+      if (magnetic_limit.status ==
           MagneticStepStatus::Linear) {
-        auto const boundary = distanceToAtmosphereBoundary(
+        auto const atmosphere_boundary = distanceToAtmosphereBoundary(
             environment, start.position_m, start.direction);
-        if (boundary.status != AtmosphereStatus::Success) {
+        auto const observation = intersectObservationPlaneStraight(
+            environment, start.position_m, start.direction);
+        auto const has_atmosphere_boundary =
+            atmosphere_boundary.status == AtmosphereStatus::Success;
+        auto const has_observation =
+            observation.status == ObservationPlaneStatus::Success;
+        if (!has_atmosphere_boundary && !has_observation) {
           raw_fallbacks[index] = makeLeptonFallback(
               interaction,
               ProposalFallbackReason::UnsupportedGeometry);
           fallback_flags[index] = 1;
           return;
         }
-        geometry_distance_m = boundary.distance_m;
-        limiting_radius_m = boundary.radius_m;
+        observation_plane_wins =
+            has_observation &&
+            (!has_atmosphere_boundary ||
+             observation.distance_m < atmosphere_boundary.distance_m);
+        geometry_distance_m =
+            observation_plane_wins
+                ? observation.distance_m
+                : atmosphere_boundary.distance_m;
+        limiting_radius_m =
+            observation_plane_wins ? 0.
+                                   : atmosphere_boundary.radius_m;
       } else {
         auto const& current_layer =
             environment.atmosphere_layers[layer.layer_index];
-        auto const inner_radius_m =
-            layer.layer_index == 0 &&
-                    environment.observation_radius_m >
-                        current_layer.inner_radius_m
-                ? environment.observation_radius_m
-                : current_layer.inner_radius_m;
+        auto const inner_radius_m = current_layer.inner_radius_m;
         auto const inner =
             intersectUniformMagneticSphere(
                 start, mass.value / 1000., charge_number,
@@ -444,6 +445,12 @@ namespace corsika::gpu::em {
                 current_layer.outer_radius_m,
                 magnetic_limit.distance_m,
                 environment.maximum_magnetic_deflection_rad);
+        auto const observation =
+            intersectUniformMagneticPlane(
+                start, mass.value / 1000., charge_number,
+                environment.magnetic_field_T, environment,
+                magnetic_limit.distance_m,
+                environment.maximum_magnetic_deflection_rad);
         if (inner.status ==
                 MagneticIntersectionStatus::InvalidInput ||
             inner.status ==
@@ -451,6 +458,10 @@ namespace corsika::gpu::em {
             outer.status ==
                 MagneticIntersectionStatus::InvalidInput ||
             outer.status ==
+                MagneticIntersectionStatus::NonFiniteResult ||
+            observation.status ==
+                MagneticIntersectionStatus::InvalidInput ||
+            observation.status ==
                 MagneticIntersectionStatus::NonFiniteResult) {
           raw_fallbacks[index] = makeLeptonFallback(
               interaction,
@@ -458,22 +469,36 @@ namespace corsika::gpu::em {
           fallback_flags[index] = 1;
           return;
         }
-        auto const use_inner =
+        auto const use_inner_sphere =
             inner.status ==
                 MagneticIntersectionStatus::Success &&
             (outer.status !=
                  MagneticIntersectionStatus::Success ||
              inner.distance_m < outer.distance_m);
-        auto const has_boundary =
-            use_inner ||
+        auto const has_sphere_boundary =
+            use_inner_sphere ||
             outer.status ==
                 MagneticIntersectionStatus::Success;
-        if (has_boundary) {
+        auto const sphere_distance_m =
+            has_sphere_boundary
+                ? (use_inner_sphere ? inner.distance_m
+                                    : outer.distance_m)
+                : CUDART_INF;
+        auto const has_observation =
+            observation.status ==
+                MagneticIntersectionStatus::Success;
+        observation_plane_wins =
+            has_observation &&
+            observation.distance_m < sphere_distance_m;
+        if (observation_plane_wins) {
+          geometry_distance_m = observation.distance_m;
+          limiting_radius_m = 0.;
+        } else if (has_sphere_boundary) {
           geometry_distance_m =
-              use_inner ? inner.distance_m : outer.distance_m;
+              sphere_distance_m;
           limiting_radius_m =
-              use_inner ? inner_radius_m
-                        : current_layer.outer_radius_m;
+              use_inner_sphere ? inner_radius_m
+                               : current_layer.outer_radius_m;
         } else {
           geometry_distance_m =
               magnetic_limit.distance_m;
@@ -591,6 +616,10 @@ namespace corsika::gpu::em {
         }
         traversed_grammage = decay_grammage.value;
       }
+      auto const observation_reached =
+          observation_plane_wins && !continuous_wins &&
+          !interaction_wins && !decay_wins &&
+          !magnetic_step_wins;
 
       auto const magnetic_advance =
           advanceUniformMagneticField(
@@ -607,6 +636,12 @@ namespace corsika::gpu::em {
         return;
       }
       record.end = magnetic_advance.particle;
+      if (observation_reached) {
+        double radial[3]{};
+        record.limiting_radius_m =
+            atmosphere_detail::radiusVector(
+                environment, record.end.position_m, radial);
+      }
       record.magnetic_bending_applied =
           magnetic_advance.status ==
                   MagneticStepStatus::Success &&
@@ -618,26 +653,142 @@ namespace corsika::gpu::em {
       record.magnetic_chord_length_m =
           magnetic_advance.chord_length_m;
       record.distance_m = distance_m;
+
+      // Scalar CORSIKA uses the original leapfrog trajectory when it turns a
+      // sampled grammage into the competing step length.  Once the endpoint
+      // has been selected, however, Step retains only the displacement and
+      // ContinuousProcess integrates the medium along
+      // Step::getStraightTrack(): the chord between the two endpoints.  Keep
+      // the start-tangent grammage above for distance competition, then match
+      // the scalar continuous-process semantics here after magnetic advance.
+      double chord_direction[3]{
+          start.direction[0], start.direction[1],
+          start.direction[2]};
+      auto continuous_chord_length_squared = 0.;
+      for (int axis = 0; axis < 3; ++axis) {
+        auto const displacement =
+            record.end.position_m[axis] - start.position_m[axis];
+        chord_direction[axis] = displacement;
+        continuous_chord_length_squared += displacement * displacement;
+      }
+      auto const continuous_chord_length_m =
+          ::sqrt(continuous_chord_length_squared);
+      if (continuous_chord_length_m > 0.) {
+        for (int axis = 0; axis < 3; ++axis) {
+          chord_direction[axis] /= continuous_chord_length_m;
+        }
+      } else {
+        for (int axis = 0; axis < 3; ++axis) {
+          chord_direction[axis] = start.direction[axis];
+        }
+      }
+      auto const chord_grammage = atmosphereGrammage(
+          environment, layer.layer_index, start.position_m,
+          chord_direction, continuous_chord_length_m);
+      if (chord_grammage.status != AtmosphereStatus::Success) {
+        auto fallback = makeLeptonFallback(
+            interaction,
+            ProposalFallbackReason::AtmosphereGrammageFailed);
+        fallback.diagnostic_status =
+            static_cast<std::int32_t>(chord_grammage.status);
+        fallback.diagnostic_value0 =
+            continuous_chord_length_m;
+        fallback.diagnostic_value1 = distance_m;
+        fallback.diagnostic_value2 = traversed_grammage;
+        raw_fallbacks[index] = fallback;
+        fallback_flags[index] = 1;
+        return;
+      }
+      traversed_grammage = chord_grammage.value;
       record.traversed_grammage_g_per_cm2 =
           traversed_grammage;
-      double final_energy_MeV = target_energy_MeV;
-      if (!continuous_wins) {
-        auto const final_energy =
-            tables::queryEnergyAfterContinuousLoss(
-                table, start.pid, initial_energy_MeV,
-                traversed_grammage);
-        if (final_energy.status !=
-            tables::TableLookupStatus::Success) {
-          raw_fallbacks[index] =
-              makeTableFallback(interaction, final_energy.status);
-          fallback_flags[index] = 1;
-          return;
-        }
+      auto const final_energy =
+          tables::queryEnergyAfterContinuousLoss(
+              table, start.pid, initial_energy_MeV,
+              traversed_grammage);
+      auto transport_cut_reached = false;
+      double final_energy_MeV{};
+      if (final_energy.status ==
+          tables::TableLookupStatus::Success) {
         final_energy_MeV = final_energy.value;
+      } else if (final_energy.status ==
+                 tables::TableLookupStatus::TransportCutReached) {
+        // The scalar sequence applies ParticleCut after continuous loss and
+        // before any candidate discrete interaction.  The table stops just
+        // below that cut, so clamp to its minimum represented energy and
+        // deposit the remaining kinetic energy through the ordinary cut
+        // record below.
+        final_energy_MeV = minimum_energy.value;
+        transport_cut_reached = true;
+      } else {
+        raw_fallbacks[index] =
+            makeTableFallback(interaction, final_energy.status);
+        fallback_flags[index] = 1;
+        return;
+      }
+      auto const actual_continuous_loss_MeV =
+          initial_energy_MeV - final_energy_MeV;
+      if (continuous_wins &&
+          !(actual_continuous_loss_MeV > 0.)) {
+        auto fallback = makeLeptonFallback(
+            interaction,
+            ProposalFallbackReason::InvalidTableQuery);
+        fallback.diagnostic_value0 = initial_energy_MeV;
+        fallback.diagnostic_value1 = final_energy_MeV;
+        fallback.diagnostic_value2 = traversed_grammage;
+        raw_fallbacks[index] = fallback;
+        fallback_flags[index] = 1;
+        return;
       }
       record.end.energy_GeV = final_energy_MeV / 1000.;
       record.continuous_deposited_energy_GeV =
           (initial_energy_MeV - final_energy_MeV) / 1000.;
+
+      // In the scalar sequence, continuous loss, multiple scattering,
+      // profile/radio projection and ObservationPlane all see this completed
+      // step before the final ParticleCut check.  Terminate at the endpoint
+      // (rather than truncating at exactly 10 ms), suppress any pending
+      // interaction/decay, and retain the dual observation+cut outcome when
+      // the observation plane was the limiting process.
+      if (exceedsParticleCutTime(record.end.time_s)) {
+        record.end.step_id++;
+        record.limit = LeptonTransportLimit::ParticleCut;
+        record.end_layer_index = layer.layer_index;
+        record.end_density_g_per_cm3 =
+            layer.density_g_per_cm3;
+        record.cut_deposited_energy_GeV =
+            (final_energy_MeV - mass.value) / 1000.;
+        record.observation_surface_reached_before_cut =
+            observation_reached ? 1U : 0U;
+        fallback_flags[index] = 0;
+        return;
+      }
+
+      auto const reaches_cut =
+          transport_cut_reached ||
+          final_energy_MeV - mass.value <
+              transport_cut_MeV;
+      if (reaches_cut && !observation_reached) {
+        auto const end_layer = queryAtmosphereLayer(
+            environment, record.end.position_m,
+            record.end.direction);
+        if (end_layer.status != AtmosphereStatus::Success) {
+          raw_fallbacks[index] = makeLeptonFallback(
+              interaction,
+              ProposalFallbackReason::UnsupportedGeometry);
+          fallback_flags[index] = 1;
+          return;
+        }
+        record.end.step_id++;
+        record.limit = LeptonTransportLimit::ParticleCut;
+        record.end_layer_index = end_layer.layer_index;
+        record.end_density_g_per_cm3 =
+            end_layer.density_g_per_cm3;
+        record.cut_deposited_energy_GeV =
+            (final_energy_MeV - mass.value) / 1000.;
+        fallback_flags[index] = 0;
+        return;
+      }
 
       if (decay_wins) {
         auto const vertex = queryAtmosphereLayer(
@@ -714,19 +865,11 @@ namespace corsika::gpu::em {
           fallback_flags[index] = 1;
           return;
         }
-        auto const reaches_cut =
-            target_energy_MeV == minimum_energy.value;
         record.limit =
-            reaches_cut
-                ? LeptonTransportLimit::ParticleCut
-                : LeptonTransportLimit::ContinuousStep;
+            LeptonTransportLimit::ContinuousStep;
         record.end_layer_index = end_layer.layer_index;
         record.end_density_g_per_cm3 =
             end_layer.density_g_per_cm3;
-        if (reaches_cut) {
-          record.cut_deposited_energy_GeV =
-              (final_energy_MeV - mass.value) / 1000.;
-        }
         fallback_flags[index] = 0;
         return;
       }
@@ -812,9 +955,7 @@ namespace corsika::gpu::em {
         return;
       }
 
-      if (closeRadius(
-              limiting_radius_m,
-              environment.observation_radius_m)) {
+      if (observation_reached) {
         record.limit =
             LeptonTransportLimit::ObservationSurface;
         record.end_layer_index = -1;

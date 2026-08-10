@@ -357,6 +357,8 @@ def direct_batch_command(
         "--gpu-memory-fraction", f"{args.gpu_memory_fraction:.17g}",
         "--gpu-table-cache", str(args.table.resolve()),
         "--gpu-table-tolerance", f"{args.gpu_table_tolerance:.17g}",
+        "--gpu-deterministic", "true",
+        "--gpu-resident-cross-species", "true",
         "--gpu-radio-field-limit", f"{args.gpu_radio_field_limit:.17g}",
         "--hadronic-backend", "fluka-process",
         "--hadronic-workers", str(args.cuda_hadronic_workers),

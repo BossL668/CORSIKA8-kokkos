@@ -4,10 +4,12 @@
 > 官方发布版，也尚未经过 CORSIKA 8 上游评审。默认 CPU 路径仍是原来的
 > `Cascade + PROPOSAL`；CUDA、CUDA 射电和 FLUKA 进程池都必须显式启用。
 
-> **当前分支建议（2026-08-06）：**beta2 是目前推荐的本地生产分支。独立的
-> beta3 分支加入了实验性的同步强子多核调度，但当前会增加单 shower 时间，而且
-> 尚未完成同等级的物理与射电验收；在该调度器完成异步重构和重新验收前，正式
-> 生产继续使用 beta2。
+> **当前分支建议（2026-08-09）：**beta4 是从 beta2 派生的维护与验收分支。
+> 它保留 beta2 的调度和性能模型，同时修复代码审计确认的 CPU/GPU 语义差异：
+> 端点弦 grammage 与逐粒子 transport cut、局部水平观测平面、GPU 首相互作用
+> 输出、原版 10 ms 物理时间 cut，以及强制初级相互作用/衰变。CUDA 启动时还会
+> 对六类过程执行 fail-closed 兼容性门禁。beta3 的实验性强子多核调度不属于
+> 本次修补。
 
 文档导航：
 
@@ -28,6 +30,27 @@
 [英文主 README](README.md#build-from-source)；物理覆盖、表格、
 fallback 和输出字段见
 [CUDA 后端生产指南](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md)。
+
+## beta4 修复与验收状态
+
+beta4 从 beta2 复制出来，是为了保留已经验证过的 beta2 wavefront 调度器，同时
+逐项修补标量 CPU 与 CUDA 之间的语义合同；默认 `proposal` 标量路径没有被这些
+修复改写。
+
+| 检查项 | beta4 处理 | 证据 |
+|---|---|---|
+| 磁场步的连续 grammage 和不同粒子的 cut | 连续能损/散射使用保存端点之间的弦；电子和 μ 子分别解析自己的 cut | [Phase 97](documentation/cuda_em_refactor/phase_97_beta4_cpu_step_chord_grammage.md) |
+| 观测几何 | GPU 与 CPU 使用通过 shower core 的同一局部水平面；球面只用于大气边界 | [Phase 98](documentation/cuda_em_refactor/phase_98_beta4_cpu_observation_plane_alignment.md) |
+| 首物理相互作用输出 | 在薄化之前保存 generation-zero GPU 快照，并交给原 `InteractionWriter` | [Phase 99](documentation/cuda_em_refactor/phase_99_beta4_gpu_first_interaction_writer_alignment.md) |
+| 迟发粒子 | 严格实现原版 `timePost > 10 ms` 的事件内物理时间条件 | [Phase 100](documentation/cuda_em_refactor/phase_100_beta4_particle_cut_time_alignment.md) |
+| 强制初级与自定义过程 | 指定的初级顶点在 GPU 路由前执行一次；六类过程必须全部登记 | [Phase 101](documentation/cuda_em_refactor/phase_101_beta4_forced_primary_and_process_compatibility_gate.md) |
+| 性能回归 | 同机三对 10 PeV 质子表明 beta4 与 beta2 的时间差约为 1--3% | [Phase 102](documentation/cuda_em_refactor/phase_102_beta4_beta2_10pev_performance.md) |
+| 最终代码路径复核与 100 TeV 门禁 | 未发现新的生产阻断型遗漏/重排；已确认新版 beta2 CPU500 参考，并启动匹配的 beta4 CUDA500 | [Phase 103](documentation/cuda_em_refactor/phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md) |
+
+当前自动测试为 C++/CUDA `34/34`、Python validation `241/241` 通过。修复后的
+10 GeV 电子 `500 vs 500` 诊断已经完成，shower 曲线统计相容；但其射电信号接近
+数值底噪，不能替代高能射电验收。正式 100 TeV 质子 beta4 CUDA500 仍在运行，
+完成前不能把部分样本写成 beta4 的最终生产结论。
 
 ## 1. 项目定位
 
@@ -157,7 +180,8 @@ PROPOSAL 数值制表。表格保存：
 - positron annihilation；
 - Molière multiple scattering；
 - pair/brems/epair 的 LPM 抑制；
-- ParticleCut 和 EMThinning。
+- ParticleCut（包括原版严格的 `timePost > 10 ms` 迟发粒子条件）和
+  EMThinning。
 
 当前 GPU μ 子覆盖：
 
@@ -402,7 +426,7 @@ $10^6$ GeV、`emthin=1e-6` 对应的 `maxWeight=0.5`，同样如此。若确实�
 - 球面边界求交；
 - grammage 积分和逆积分；
 - 均匀磁场 leapfrog；
-- 球形观测面。
+- 与球形大气层边界独立、并与 `c8_air_shower` CPU 路径一致的局部水平观测面。
 
 当前 `c8_air_shower` 默认从 `GeoMag/IGRF14.COF` 读取模型，默认配置为：
 
@@ -444,6 +468,17 @@ CUDA 模式写出：
 
 只有预先声明的稀有指定末态、能力边界和受控低能显存 spill 可以回 CPU。禁止
 自动切换成 CPU 后把输出伪装成完整 CUDA shower。
+
+CUDA 模式下的 `--force-interaction` 和 `--force-decay` 保持标量
+`Cascade` 的接口语义：调度器下一次取出的初级粒子先执行且只执行一次强制
+标量顶点，随后它的次级粒子再走正常混合路由。两个请求互斥；实际执行次数写入
+`gpu_em/summary.yaml` 的 `forced_primary`。
+
+CUDA 启动门禁会递归检查过程序列中的 `ContinuousProcess`、
+`SecondariesProcess`、`InteractionProcess`、`DecayProcess`、
+`BoundaryCrossingProcess` 和 `StackProcess`。每个类型必须声明为设备替代、记录
+回放、CPU 延迟、对 routed EM 不适用或仅诊断；未登记类型会使启动失败，不会被
+静默跳过。五类策略计数和六类未登记计数写入 `process_registry`。
 
 ## 7. 新服务器构建和运行
 
@@ -633,8 +668,13 @@ esac
 └── corsika8_gpu_refactor_install_cuda/ # 安装后的程序和资源
 ```
 
-先创建总目录，并明确 clone `cuda-em-icrc2025-beta2` 分支。私有仓库推荐使用
+先创建总目录，并明确 clone `cuda-em-icrc2025-beta4` 分支。私有仓库推荐使用
 已经加入 GitHub 账户的 SSH key：
+
+> **部署状态：**`cuda-em-icrc2025-beta4` 当前仍是本地工作分支，尚未发布到
+> 私有 GitHub remote。下面的 clone 命令需等代码审查并 push 后才会生效；在此
+> 之前应使用这份完整 checkout，或完整传输 beta4 源码树。仅 clone beta2 不会
+> 包含上文列出的修复。
 
 ```bash
 export C8_WORKSPACE=~/corsika-21cma-cuda
@@ -644,7 +684,7 @@ cd "$C8_WORKSPACE"
 ssh -T git@github.com
 
 git clone \
-  --branch cuda-em-icrc2025-beta2 \
+  --branch cuda-em-icrc2025-beta4 \
   --single-branch \
   git@github.com:BossL668/corsika8-gpu-hybrid.git \
   corsika8_gpu_refactor
@@ -661,7 +701,7 @@ gh auth status
 cd "$C8_WORKSPACE"
 gh repo clone BossL668/corsika8-gpu-hybrid \
   corsika8_gpu_refactor \
-  -- --branch cuda-em-icrc2025-beta2 --single-branch
+  -- --branch cuda-em-icrc2025-beta4 --single-branch
 ```
 
 这里不要给 GitHub clone 增加 `--recursive`。上游 `.gitmodules` 使用针对 KIT
@@ -684,7 +724,7 @@ git -C "$C8_SOURCE" submodule status --recursive
 test -f "$C8_SOURCE/modules/data/CMakeLists.txt"
 test -f "$C8_SOURCE/modules/conex/cxroot/CMakeLists.txt"
 test "$(git -C "$C8_SOURCE" branch --show-current)" = \
-  cuda-em-icrc2025-beta2
+  cuda-em-icrc2025-beta4
 ```
 
 随后统一定义三个目录：
@@ -843,8 +883,8 @@ export C8_SMOKE_TABLE="$(
     --em-cut-MeV 0.5 \
     --electron-transport-cut-MeV 0.5 \
     --muon-transport-cut-MeV 300 \
-    --tolerance 1e-3 \
-    --loss-tolerance 1e-3 \
+    --tolerance 5e-4 \
+    --loss-tolerance 5e-4 \
     --nonmonotonic-loss-policy proposal-monotone \
     --print-path-only
 )"
@@ -873,7 +913,7 @@ export C8_SMOKE_OUTPUT="$C8_WORKSPACE/smoke_$(date +%Y%m%d_%H%M%S)"
   --gpu-min-batch 128 \
   --gpu-memory-fraction 0.70 \
   --gpu-table-cache "$C8_SMOKE_TABLE" \
-  --gpu-table-tolerance 1e-3 \
+  --gpu-table-tolerance 5e-4 \
   --gpu-deterministic true \
   --gpu-resident-cross-species true
 
@@ -959,8 +999,8 @@ export C8_TABLE="$(
     --em-cut-MeV 0.5 \
     --electron-transport-cut-MeV 0.5 \
     --muon-transport-cut-MeV 300 \
-    --tolerance 1e-3 \
-    --loss-tolerance 1e-3 \
+    --tolerance 5e-4 \
+    --loss-tolerance 5e-4 \
     --print-path-only
 )"
 ```
@@ -988,7 +1028,7 @@ PROPOSAL 7.6.2 的缓存插值与逆求解器，在干空气中电子/正电子�
 反转约 0.119%；相同两点的非插值直接计算则从 0.8592897295 单调增加到
 0.8593004245。这些数值用于记录数值问题，不应解释成对氩物理过程的新修正。
 
-beta2 和 beta3 通过 `--nonmonotonic-loss-policy` 提供两种离线策略：
+beta2、beta3 和 beta4 通过 `--nonmonotonic-loss-policy` 提供两种离线策略：
 
 - `proposal-monotone`（默认）仍从原标量程序使用的 PROPOSAL 缓存插值出发，只把
   局部下降投影到此前的累计最大值；发现随能量移动的反转后，该高分位分支不再
@@ -1008,9 +1048,9 @@ rate 与“修复后参考”的 inverse-CDF 实测误差分别为
 单调投影 0.924%、最大原始移动分支偏差 9.90%。后两个数描述被拒绝的 PROPOSAL
 数值分支，不属于插值误差声明；正式使用仍需继续做 CPU/CUDA shower 统计验收。
 
-同一张表已在 beta2 和 beta3 中分别完成 100 GeV 电子初级的 CUDA EM + CUDA
-射电 smoke test；两次运行都没有轫致辐射/氩 selected-loss 回退。剩余 CPU 返回
-属于既定物理路径（光致强子，以及 beta3 中一次电离分位边界返回），不是本节的
+同一制表合同已在 beta2、beta3 和 beta4 中完成 100 GeV 电子初级的 CUDA EM +
+CUDA 射电 smoke test；这些运行均未出现轫致辐射/氩 selected-loss 回退。已记录
+的少量 CPU 返回属于既定物理路径（例如光致强子和分位边界返回），不是本节的
 PROPOSAL 氩插值问题。
 
 修复后的性能复查使用 12 个配对随机种子：100 GeV 垂直电子初级、
@@ -1054,12 +1094,13 @@ c8_air_shower \
   --geomagnetic-year 2027 \
   --emcut 0.0005 \
   --emthin 1e-6 \
+  --max-weight 100 \
   --em-backend cuda \
   --gpu-device 0 \
   --gpu-min-batch 4096 \
   --gpu-memory-fraction 0.70 \
   --gpu-table-cache "$C8_TABLE" \
-  --gpu-table-tolerance 1e-3 \
+  --gpu-table-tolerance 5e-4 \
   --gpu-deterministic true \
   --gpu-resident-cross-species true \
   --radio-backend cuda \

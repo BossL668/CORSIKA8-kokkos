@@ -89,6 +89,8 @@ namespace corsika {
     double init_cascade_equations_time_ms{};
     double cascade_equations_time_ms{};
     double output_end_time_ms{};
+    std::uint64_t forced_primary_interactions{};
+    std::uint64_t forced_primary_decays{};
     std::map<std::int32_t, std::uint64_t>
         scalar_steps_by_pdg{};
     std::map<std::int32_t, double>
@@ -186,6 +188,12 @@ namespace corsika {
     }
 
   private:
+    enum class PendingForcedAction {
+      None,
+      Interaction,
+      Decay,
+    };
+
     struct PendingHadronicInteraction {
       PendingHadronicInteraction(
           std::uint64_t const sequence,
@@ -222,6 +230,8 @@ namespace corsika {
     std::uint64_t count_ = 0;
     bool scalar_detailed_phase_timing_enabled_ =
         false;
+    PendingForcedAction pending_forced_action_{
+        PendingForcedAction::None};
     HadronicWorkClassifierConfig hadronic_work_classifier_{};
     HadronicProcessPool* hadronic_process_pool_ =
         nullptr;

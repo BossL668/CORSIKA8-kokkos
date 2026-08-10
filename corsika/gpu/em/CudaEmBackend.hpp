@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <corsika/gpu/em/Types.hpp>
@@ -54,6 +55,8 @@ namespace corsika::gpu::em {
     radio::GpuRadioWaveforms downloadRadioWaveforms();
     bool gpuProfileEnabled() const noexcept;
     GpuProfileResult downloadProfile();
+    std::optional<GpuFirstInteractionSnapshot>
+    downloadFirstInteractionSnapshot();
 
     /**
      * Development bridge for the physical interaction-selection kernel.

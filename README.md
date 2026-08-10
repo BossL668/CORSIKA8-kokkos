@@ -15,12 +15,17 @@ FLUKA pool are explicit opt-in features.
 > production only within the supported and validated configurations described
 > below.
 
-> **Current branch recommendation (2026-08-06):** this beta2 branch is the
-> recommended local production branch. The separate beta3 branch adds
-> experimental synchronous hadronic multiprocessing, which currently increases
-> single-shower latency and has not completed the same physics/radio acceptance
-> gates. Keep beta2 for production until that scheduler is redesigned and
-> revalidated.
+> **Current branch recommendation (2026-08-09):** beta4 is the maintained
+> beta2-derived validation branch. It preserves the beta2 scheduler and GPU
+> performance model while repairing the audited CPU/GPU semantic differences:
+> charged-particle endpoint-chord grammage and per-PID cuts, the locally flat
+> observation plane, native-GPU first-interaction output, the scalar 10 ms
+> physical-time cut, and forced-primary interaction/decay handling. CUDA
+> startup now also rejects any unregistered process category before a shower
+> begins.
+> The separate beta3 branch adds experimental hadronic multiprocessing and is
+> not the reference for this repair. The complete beta4 change and evidence
+> index is given below.
 
 [Chinese README](README_CN.md) ·
 [GPU production guide](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md) ·
@@ -75,16 +80,43 @@ The `fluka-process` backend does not move hadronic physics to the GPU. It runs
 the same low-energy FLUKA final-state calculation in persistent worker
 processes and batches homogeneous requests through binary IPC.
 
+## Beta4 repair and validation status
+
+Beta4 was copied from beta2 so that the proven beta2 wavefront scheduler could
+be retained while the scalar/CUDA physics contracts were audited independently.
+The following changes are specific to beta4; none changes the default scalar
+backend.
+
+| Contract audited in beta4 | Resolution | Evidence |
+|---|---|---|
+| Continuous grammage in a magnetic step and particle-dependent transport cuts | Continuous loss and scattering now use the chord between the stored step endpoints, as scalar `Step::getStraightTrack()` does; electron and muon cuts are resolved independently | [Phase 97](documentation/cuda_em_refactor/phase_97_beta4_cpu_step_chord_grammage.md) |
+| Observation geometry | GPU transport now intersects the same locally flat plane through the shower core as the scalar application; spherical surfaces remain atmosphere boundaries only | [Phase 98](documentation/cuda_em_refactor/phase_98_beta4_cpu_observation_plane_alignment.md) |
+| First physical interaction output | An unthinned generation-zero GPU snapshot is replayed through the ordinary `InteractionWriter` | [Phase 99](documentation/cuda_em_refactor/phase_99_beta4_gpu_first_interaction_writer_alignment.md) |
+| Delayed-particle cut | Photon and charged-lepton paths implement the scalar strict `timePost > 10 ms` physical-time condition without truncating the crossing step | [Phase 100](documentation/cuda_em_refactor/phase_100_beta4_particle_cut_time_alignment.md) |
+| Forced primary and custom process semantics | A requested primary interaction or decay executes once before GPU routing; all six process categories are checked by a fail-closed compatibility registry | [Phase 101](documentation/cuda_em_refactor/phase_101_beta4_forced_primary_and_process_compatibility_gate.md) |
+| Performance regression | Three paired 10 PeV proton runs put beta4 within about 1--3% of beta2 on the same RTX 4060 Laptop GPU | [Phase 102](documentation/cuda_em_refactor/phase_102_beta4_beta2_10pev_performance.md) |
+| Final code-path audit and 100 TeV gate | No further production-blocking omitted or reordered contract was found; the canonical beta2 CPU 500-event reference was verified and the matching beta4 CUDA campaign was started | [Phase 103](documentation/cuda_em_refactor/phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md) |
+
+The completed automated gate is 34/34 C++/CUDA tests and 241/241 Python
+validation tests with the FLUKA runtime environment present. A 500-versus-500
+10 GeV electron diagnostic also completed; its shower curves were statistically
+consistent, while the radio signal was too close to the numerical floor to be
+a sufficient high-energy radio-shape acceptance sample. The canonical 100 TeV
+proton beta4 campaign is still in progress, so its partial sample must not be
+reported as a final beta4 production result.
+
 ## Supported production contract
 
 The current CUDA application is intended for the following configuration:
 
 - NVIDIA CUDA 12.x on Linux or WSL2;
 - a five-layer spherical dry-air atmosphere;
-- the spherical observation surface used by `c8_air_shower`;
+- the locally flat observation plane used by `c8_air_shower`, independent of
+  the spherical atmosphere-layer boundaries;
 - a uniform magnetic-field vector calculated by the host application;
 - photon, electron, positron, and table-enabled muon transport;
-- electromagnetic cuts and the existing CORSIKA 8 EM thinning algorithm;
+- electromagnetic cuts, including the scalar `timePost > 10 ms` delayed-particle
+  condition, and the existing CORSIKA 8 EM thinning algorithm;
 - CPU or CUDA CoREAS/ZHS projection;
 - CPU high-energy hadronic physics and FLUKA 2025 low-energy interactions;
 - double-precision particle state, geometry, and physics-table calculations;
@@ -301,9 +333,16 @@ corsika-21cma-cuda/
 └── corsika8_gpu_refactor_install_cuda/ # Installed programs and resources
 ```
 
-Create the parent first and clone the beta2 branch explicitly. The GitHub fork
+Create the parent first and clone the beta4 branch explicitly. The GitHub fork
 is private, so the recommended command assumes that an SSH key with repository
 access has already been added to the user's GitHub account:
+
+> **Deployment note:** `cuda-em-icrc2025-beta4` currently exists as a local
+> working branch and has not yet been published to the private GitHub remote.
+> The clone commands below become valid after that branch and its reviewed
+> changes are pushed. Until then, use this complete checkout or transfer the
+> complete beta4 source tree; cloning beta2 does not include the repairs listed
+> above.
 
 ```bash
 export C8_WORKSPACE=~/corsika-21cma-cuda
@@ -313,7 +352,7 @@ cd "$C8_WORKSPACE"
 ssh -T git@github.com
 
 git clone \
-  --branch cuda-em-icrc2025-beta2 \
+  --branch cuda-em-icrc2025-beta4 \
   --single-branch \
   git@github.com:BossL668/corsika8-gpu-hybrid.git \
   corsika8_gpu_refactor
@@ -331,7 +370,7 @@ gh auth status
 cd "$C8_WORKSPACE"
 gh repo clone BossL668/corsika8-gpu-hybrid \
   corsika8_gpu_refactor \
-  -- --branch cuda-em-icrc2025-beta2 --single-branch
+  -- --branch cuda-em-icrc2025-beta4 --single-branch
 ```
 
 Do not add `--recursive` to either GitHub clone command. The upstream project
@@ -355,7 +394,7 @@ git -C "$C8_SOURCE" submodule status --recursive
 test -f "$C8_SOURCE/modules/data/CMakeLists.txt"
 test -f "$C8_SOURCE/modules/conex/cxroot/CMakeLists.txt"
 test "$(git -C "$C8_SOURCE" branch --show-current)" = \
-  cuda-em-icrc2025-beta2
+  cuda-em-icrc2025-beta4
 ```
 
 Define all three paths once and keep them unchanged throughout configuration,
@@ -560,8 +599,8 @@ export C8_SMOKE_TABLE="$(
     --em-cut-MeV 0.5 \
     --electron-transport-cut-MeV 0.5 \
     --muon-transport-cut-MeV 300 \
-    --tolerance 1e-3 \
-    --loss-tolerance 1e-3 \
+    --tolerance 5e-4 \
+    --loss-tolerance 5e-4 \
     --nonmonotonic-loss-policy proposal-monotone \
     --print-path-only
 )"
@@ -590,7 +629,7 @@ export C8_SMOKE_OUTPUT="$C8_WORKSPACE/smoke_$(date +%Y%m%d_%H%M%S)"
   --gpu-min-batch 128 \
   --gpu-memory-fraction 0.70 \
   --gpu-table-cache "$C8_SMOKE_TABLE" \
-  --gpu-table-tolerance 1e-3 \
+  --gpu-table-tolerance 5e-4 \
   --gpu-deterministic true \
   --gpu-resident-cross-species true
 
@@ -706,8 +745,8 @@ export C8_TABLE="$(
     --em-cut-MeV 0.5 \
     --electron-transport-cut-MeV 0.5 \
     --muon-transport-cut-MeV 300 \
-    --tolerance 1e-3 \
-    --loss-tolerance 1e-3 \
+    --tolerance 5e-4 \
+    --loss-tolerance 5e-4 \
     --print-path-only
 )"
 
@@ -738,8 +777,8 @@ export C8_TABLE_1E19="$(
     --em-cut-MeV 0.5 \
     --electron-transport-cut-MeV 0.5 \
     --muon-transport-cut-MeV 300 \
-    --tolerance 1e-3 \
-    --loss-tolerance 1e-3 \
+    --tolerance 5e-4 \
+    --loss-tolerance 5e-4 \
     --print-path-only
 )"
 ```
@@ -780,7 +819,9 @@ The validated table contract is:
   electromagnetic transport cut;
 - 300 MeV muon transport cut;
 - total particle energies through \(10^{18}\) eV;
-- maximum rate and inverse-CDF interpolation tolerance of \(10^{-3}\).
+- maximum rate and inverse-CDF interpolation tolerance of \(5\times10^{-4}\)
+  for the beta4 production-validation table. Tables at \(10^{-3}\) remain a
+  supported lower-cost option, but they are not the same validation artifact.
 
 The content-addressed lookup also checks the table-generator contract version.
 A table created by an older generator is regenerated instead of being silently
@@ -804,7 +845,7 @@ non-interpolated calculation changed monotonically from 0.8592897295 to
 0.8593004245 at the same two points. These numbers are recorded as a numerical
 diagnostic, not as a new physical correction to argon.
 
-Beta2 and beta3 expose two offline policies through
+Beta2, beta3, and beta4 expose two offline policies through
 `--nonmonotonic-loss-policy`:
 
 - `proposal-monotone` (default) starts from the same cached PROPOSAL
@@ -912,6 +953,7 @@ export C8_CPU_OUTPUT=/absolute/path/to/proton_100TeV_cpu
   -f "$C8_CPU_OUTPUT" \
   --emcut 0.0005 \
   --emthin 1e-6 \
+  --max-weight 100 \
   --ring 0 \
   --antenna-file "$C8_ANTENNAS"
 ```
@@ -938,6 +980,7 @@ export C8_CUDA_OUTPUT=/absolute/path/to/proton_100TeV_cuda
   -f "$C8_CUDA_OUTPUT" \
   --emcut 0.0005 \
   --emthin 1e-6 \
+  --max-weight 100 \
   --ring 0 \
   --antenna-file "$C8_ANTENNAS" \
   --em-backend cuda \
@@ -969,6 +1012,7 @@ export C8_FULL_OUTPUT=/absolute/path/to/proton_100TeV_cuda_full
   --mucut 0.3 \
   --taucut 0.3 \
   --emthin 1e-6 \
+  --max-weight 100 \
   --ring 0 \
   --antenna-file "$C8_ANTENNAS" \
   --em-backend cuda \
@@ -976,7 +1020,7 @@ export C8_FULL_OUTPUT=/absolute/path/to/proton_100TeV_cuda_full
   --gpu-min-batch 4096 \
   --gpu-memory-fraction 0.70 \
   --gpu-table-cache "$C8_TABLE" \
-  --gpu-table-tolerance 1e-3 \
+  --gpu-table-tolerance 5e-4 \
   --gpu-deterministic true \
   --gpu-resident-cross-species true \
   --radio-backend cuda \
@@ -994,6 +1038,15 @@ direction while retaining the same cuts and thinning:
 ```text
 -E 1e8 -z 47 -a 180 --emcut 0.0005 --emthin 1e-6
 ```
+
+The explicit `--max-weight 100` in these examples is intentional. With a
+100 TeV primary and `emthin=1e-6`, omitting the option selects the application
+value `0.5 * emthin * E_primary[GeV] = 0.05`. Because the scalar `EMThinning`
+guard returns when `parentWeight >= maxWeight`, a unit-weight history cannot
+start thinning in that configuration. CPU/CUDA comparison commands must use
+the same explicit value. The value `100` is an example production setting, not
+a universal optimum; it controls the variance/speed trade-off and must be
+recorded as part of the physics configuration.
 
 ### Antenna file
 
@@ -1136,6 +1189,20 @@ Declared rare final states and bounded low-energy memory spill are the only
 normal CPU returns. Every fallback category and spill count is written to the
 GPU summary.
 
+`--force-interaction` and `--force-decay` retain the scalar `Cascade`
+contract in CUDA mode. The next scheduled primary executes exactly one forced
+scalar vertex before it is eligible for GPU routing; its secondaries then use
+the normal hybrid route. The two requests are mutually exclusive. Executed
+counts are recorded under `forced_primary` in `gpu_em/summary.yaml`.
+
+The CUDA startup gate recursively checks every `ContinuousProcess`,
+`SecondariesProcess`, `InteractionProcess`, `DecayProcess`,
+`BoundaryCrossingProcess`, and `StackProcess` in the application sequence.
+Each type must declare whether it is device-replaced, record-replayed,
+CPU-deferred, inapplicable to routed EM, or diagnostic-only. An unregistered
+type aborts startup instead of being silently skipped. The policy counts and
+all six unregistered counts are written under `process_registry`.
+
 Before accepting an output, check at least:
 
 ```text
@@ -1190,8 +1257,8 @@ The validation suite compares:
 - deterministic repetition, table identity, fallbacks, and failure behavior;
 - cold-cache and warm-cache end-to-end timing.
 
-The largest completed reference comparison contains 500 original scalar and
-500 CUDA proton showers with the following configuration:
+The largest completed production-scale reference comparison currently remains
+the beta2-era 500 scalar versus 500 CUDA proton ensemble:
 
 ```text
 primary: proton
@@ -1199,16 +1266,21 @@ energy: 100 TeV (1e5 GeV)
 zenith: 0 degrees
 azimuth: 0 degrees (irrelevant for vertical incidence)
 EM cut: 0.5 MeV
-EM thinning: 1e-6
+emthin argument: 1e-6
+max-weight argument: omitted (automatic value 0.05)
+effective thinning from unit-weight histories: inactive
 ```
 
 The main shower-component profiles and radio-pulse features show overall
 statistical consistency with the public scalar CORSIKA 8 implementation at the
 precision of the current samples. Detailed reports retain the status of each
 individual acceptance gate rather than replacing them with a single pass/fail
-claim.
+claim. The `emthin=1e-6` label in this historical data set must not be
+interpreted as proof that thinning activated: at 100 TeV the automatic maximum
+weight is 0.05, so the scalar guard prevents a unit-weight history from entering
+the thinning branch. Both comparison arms used the same behavior.
 
-In the completed production datasets:
+The historical turnaround measurements were:
 
 - the 500 scalar showers had a mean wall time of 9,955 s per event;
 - the 500 CUDA showers on an RTX 4060 Laptop GPU had a mean wall time of
@@ -1223,6 +1295,25 @@ The CPU and GPU production campaigns used different host computers. These
 numbers document observed scientific turnaround and are not a controlled
 same-host hardware benchmark.
 
+Beta4-specific acceptance is tracked separately:
+
+- phase 97 completed a 500-versus-500, 10 GeV electron diagnostic after the
+  chord-grammage and per-PID-cut repair. Longitudinal curves were statistically
+  consistent. Its near-floor radio pulses are retained as a numerical
+  diagnostic, not as the final high-energy radio acceptance sample;
+- phase 98 used an 80-degree geometry and same-track CPU/CUDA radio projection
+  to verify the corrected observation plane. CoREAS and ZHS track-replay
+  differences remained at about `1e-4` or below;
+- phases 99--101 passed the first-interaction, 10 ms physical-time cut,
+  forced-primary, and six-category process-registry gates;
+- phase 102 found mean beta4/beta2 wall time `1.014` in three paired 10 PeV
+  proton runs, with both versions sustaining the same high-utilization GPU
+  regime;
+- phase 103 accepted a new IGRF14/2027 beta2 scalar 500-event reference on the
+  server and started the exactly matched beta4 CUDA 500-event campaign. This
+  comparison remains **in progress**; partial-event statistics are not a final
+  validation result.
+
 Run the maintained acceptance drivers rather than comparing only one shower:
 
 ```bash
@@ -1236,9 +1327,14 @@ python "$C8_SOURCE/validation/gpu_em/run_physics_acceptance.py" \
   --azimuth-deg 0 \
   --em-cut-gev 5e-4 \
   --em-thinning 1e-6 \
-  --maximum-weight 0 \
-  --events 100
+  --maximum-weight 100 \
+  --events 500
 ```
+
+Use `--maximum-weight 0` only when deliberately reproducing the historical
+automatic-weight configuration, and record that thinning cannot activate at
+100 TeV. For an active-thinning study, set the same explicit value greater than
+one in both scalar and CUDA ensembles.
 
 See [`validation/gpu_em/README.md`](validation/gpu_em/README.md) for replay,
 energy-closure, ensemble, radio, scaling-law, and performance workflows.
@@ -1283,7 +1379,8 @@ run a competing scalar campaign while measuring CUDA performance.
 - NVIDIA CUDA is the only accelerator backend; HIP and SYCL are not supported.
 - A single shower uses one GPU.
 - The device environment is limited to the validated five-layer dry-air
-  atmosphere and spherical observation geometry.
+  atmosphere and the locally flat observation-plane geometry used by
+  `c8_air_shower`.
 - Custom material tables do not by themselves add custom runtime geometry.
 - High-energy hadronic interactions remain on the CPU.
 - `fluka-process` is CPU multiprocessing, not GPU hadronic transport.

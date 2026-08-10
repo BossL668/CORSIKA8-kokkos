@@ -38,6 +38,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-legacy-provenance",
+        action="store_true",
+        help=(
+            "Allow archived timing sources without validation_provenance.json. "
+            "Their source stratum is recorded explicitly as legacy/unrecorded."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -118,9 +126,11 @@ def pooled_sources(
     return unique
 
 
-def provenance_stratum(root: Path) -> str:
+def provenance_stratum(root: Path, *, allow_legacy: bool = False) -> str:
     provenance_path = root / "validation_provenance.json"
     if not provenance_path.is_file():
+        if allow_legacy:
+            return "legacy:unrecorded"
         raise FileNotFoundError(provenance_path)
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     backend = str(provenance.get("backend", "unknown"))
@@ -137,13 +147,18 @@ def provenance_stratum(root: Path) -> str:
 
 
 def load_cpu(
-    dataset: Path, manifest_path: Path | None = None
+    dataset: Path,
+    manifest_path: Path | None = None,
+    *,
+    allow_legacy_provenance: bool = False,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     event_offset = 0
     for shard in pooled_sources(dataset, "proposal", manifest_path):
         timing_path = shard / "simulation_timing" / "summary.yaml"
-        source_stratum = provenance_stratum(shard)
+        source_stratum = provenance_stratum(
+            shard, allow_legacy=allow_legacy_provenance
+        )
         records = extract_closed_showers(timing_path)
         local_indices = [index for index, _ in records]
         if local_indices != list(range(len(records))):
@@ -167,13 +182,18 @@ def load_cpu(
 
 
 def load_gpu(
-    dataset: Path, manifest_path: Path | None = None
+    dataset: Path,
+    manifest_path: Path | None = None,
+    *,
+    allow_legacy_provenance: bool = False,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     event_offset = 0
     for root in pooled_sources(dataset, "cuda", manifest_path):
         timing_path = root / "simulation_timing" / "summary.yaml"
-        source_stratum = provenance_stratum(root)
+        source_stratum = provenance_stratum(
+            root, allow_legacy=allow_legacy_provenance
+        )
         records = extract_closed_showers(timing_path)
         local_indices = [index for index, _ in records]
         if local_indices != list(range(len(records))):
@@ -421,8 +441,16 @@ def main() -> int:
     )
     output.mkdir(parents=True, exist_ok=False)
 
-    cpu_rows = load_cpu(dataset, manifest_path)
-    gpu_rows = load_gpu(dataset, manifest_path)
+    cpu_rows = load_cpu(
+        dataset,
+        manifest_path,
+        allow_legacy_provenance=args.allow_legacy_provenance,
+    )
+    gpu_rows = load_gpu(
+        dataset,
+        manifest_path,
+        allow_legacy_provenance=args.allow_legacy_provenance,
+    )
     if len(cpu_rows) != expected_cpu or len(gpu_rows) != expected_gpu:
         raise ValueError(
             f"expected {expected_cpu}+{expected_gpu} events, observed "

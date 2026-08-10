@@ -12,6 +12,7 @@
 #include <stdexcept>
 
 #include <corsika/framework/core/PhysicalUnits.hpp>
+#include <corsika/gpu/em/ObservationPlane.hpp>
 #include <corsika/gpu/em/SphericalAtmosphere.hpp>
 #include <corsika/media/CORSIKA7Atmospheres.hpp>
 
@@ -47,7 +48,13 @@ namespace corsika::gpu::em {
     for (std::size_t axis = 0; axis < 3; ++axis) {
       snapshot.earth_center_m[axis] = earth_center_m[axis];
       snapshot.magnetic_field_T[axis] = magnetic_field_T[axis];
+      snapshot.observation_plane_point_m[axis] =
+          earth_center_m[axis];
+      snapshot.observation_plane_normal[axis] =
+          axis == 2 ? 1. : 0.;
     }
+    snapshot.observation_plane_point_m[2] +=
+        observation_radius_m;
 
     auto const earth_radius_m =
         constants::EarthRadius::Mean / 1_m;
@@ -81,6 +88,20 @@ namespace corsika::gpu::em {
           "CORSIKA-7 parameters produced an invalid GPU environment snapshot");
     }
     return snapshot;
+  }
+
+  inline void setObservationPlane(
+      EnvironmentSnapshot& snapshot,
+      std::array<double, 3> const& point_m,
+      std::array<double, 3> const& normal) {
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      snapshot.observation_plane_point_m[axis] = point_m[axis];
+      snapshot.observation_plane_normal[axis] = normal[axis];
+    }
+    if (!observation_plane_detail::validObservationPlane(snapshot)) {
+      throw std::invalid_argument(
+          "invalid GPU observation plane point or normal");
+    }
   }
 
 } // namespace corsika::gpu::em

@@ -213,6 +213,40 @@ public:
   }
 };
 
+class RoutePrimaryProbe {
+public:
+  template <typename TParticle, typename TStepId>
+  bool canRoute(TParticle const& particle, TStepId const&) {
+    ++can_route_calls_;
+    return particle.getHistoryId() == 1;
+  }
+
+  template <typename TParticle, typename THistoryId,
+            typename TParentHistoryId, typename TGeneration,
+            typename TStepId>
+  void stage(TParticle const&, THistoryId const&,
+             TParentHistoryId const&, TGeneration const&,
+             TStepId const&) {
+    ++staged_;
+  }
+
+  bool pending() const { return false; }
+
+  template <typename TStack>
+  std::size_t advanceOneWavefrontAndReturn(TStack&) {
+    return 0;
+  }
+
+  void endOfShower() {}
+
+  std::uint64_t canRouteCalls() const { return can_route_calls_; }
+  std::uint64_t staged() const { return staged_; }
+
+private:
+  std::uint64_t can_route_calls_{};
+  std::uint64_t staged_{};
+};
+
 TEST_CASE("Cascade", "[Cascade]") {
 
   logging::set_level(logging::level::info);
@@ -652,4 +686,95 @@ TEST_CASE("HybridCascade scalar compatibility is RNG-equivalent", "[HybridCascad
   CHECK(hybrid.scheduler.acquired_particle_steps == 2047);
   CHECK(hybrid.scheduler.completed_particle_steps == 2047);
   CHECK(hybrid.scheduler.max_wavefront_size == 1);
+}
+
+TEST_CASE("HybridCascade forced primary actions precede GPU routing",
+          "[HybridCascade]") {
+  auto& rmng = RNGManager<>::getInstance();
+  rmng.registerRandomStream("cascade");
+  rmng.setSeed(0x46524345);
+  rmng.getRandomStream("cascade").reset();
+
+  auto env = make_dummy_env();
+  auto const& rootCS = env.getCoordinateSystem();
+  auto const direction = DirectionVector(rootCS, {0, 0, -1});
+
+  SECTION("forced interaction") {
+    ProcessSplit split;
+    ProcessCut cut(200_GeV);
+    auto sequence = make_sequence(split, cut);
+    TestCascadeIdentityStack stack;
+    stack.addParticle(std::make_tuple(
+        Code::Electron, 100_GeV - get_mass(Code::Electron),
+        direction, Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+    DummyTracking tracking;
+    DummyOutputManager output;
+    RoutePrimaryProbe router;
+    HybridCascade<DummyTracking, decltype(sequence),
+                  DummyOutputManager, TestCascadeIdentityStack,
+                  RoutePrimaryProbe>
+        cascade(env, tracking, sequence, output, stack, router);
+    cascade.forceInteraction();
+    cascade.run();
+
+    CHECK(router.canRouteCalls() == 0);
+    CHECK(router.staged() == 0);
+    CHECK(tracking.getCalls() == 0);
+    CHECK(split.getCalls() == 1);
+    CHECK(cut.getCalls() == 1);
+    CHECK(cut.getCount() == 2);
+    CHECK(stack.getEntries() == 0);
+    CHECK(cascade.timingStatistics().forced_primary_interactions == 1);
+    CHECK(cascade.timingStatistics().forced_primary_decays == 0);
+  }
+
+  SECTION("forced decay") {
+    ProcessZero zero;
+    DummyDecay decay(Code::Electron, 10_GeV, direction);
+    ProcessCut cut(200_GeV);
+    auto sequence = make_sequence(zero, decay, cut);
+    TestCascadeIdentityStack stack;
+    stack.addParticle(std::make_tuple(
+        Code::MuMinus, 100_GeV - get_mass(Code::MuMinus),
+        direction, Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+
+    DummyTracking tracking;
+    DummyOutputManager output;
+    RoutePrimaryProbe router;
+    HybridCascade<DummyTracking, decltype(sequence),
+                  DummyOutputManager, TestCascadeIdentityStack,
+                  RoutePrimaryProbe>
+        cascade(env, tracking, sequence, output, stack, router);
+    cascade.forceDecay();
+    cascade.run();
+
+    CHECK(router.canRouteCalls() == 0);
+    CHECK(router.staged() == 0);
+    CHECK(tracking.getCalls() == 0);
+    CHECK(cut.getCalls() == 1);
+    CHECK(cut.getCount() == 1);
+    CHECK(stack.getEntries() == 0);
+    CHECK(cascade.timingStatistics().forced_primary_interactions == 0);
+    CHECK(cascade.timingStatistics().forced_primary_decays == 1);
+  }
+
+  SECTION("mutually exclusive actions") {
+    ProcessZero zero;
+    ContinuousCounter counter{1};
+    auto sequence = make_sequence(zero, counter);
+    TestCascadeIdentityStack stack;
+    stack.addParticle(std::make_tuple(
+        Code::Electron, 10_GeV - get_mass(Code::Electron),
+        direction, Point(rootCS, {0_m, 0_m, 10_km}), 0_ns));
+    DummyTracking tracking;
+    DummyOutputManager output;
+    RoutePrimaryProbe router;
+    HybridCascade<DummyTracking, decltype(sequence),
+                  DummyOutputManager, TestCascadeIdentityStack,
+                  RoutePrimaryProbe>
+        cascade(env, tracking, sequence, output, stack, router);
+    cascade.forceInteraction();
+    CHECK_THROWS(cascade.forceDecay());
+  }
 }

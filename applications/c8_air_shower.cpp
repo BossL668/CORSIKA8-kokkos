@@ -918,6 +918,17 @@ int main(int argc, char** argv) {
         cma21_field.getZ(rootCS) / 1_T;
     configuration["environment"]["maximum_magnetic_deflection_rad"] =
         app["--max-deflection-angle"]->as<double>();
+    configuration["environment"]["observation_geometry"] =
+        "plane";
+    configuration["environment"]["observation_plane_point_m"]["x"] =
+        showerCoreX / 1_m;
+    configuration["environment"]["observation_plane_point_m"]["y"] =
+        showerCoreY / 1_m;
+    configuration["environment"]["observation_plane_point_m"]["z"] =
+        observationHeight / 1_m;
+    configuration["environment"]["observation_plane_normal"]["x"] = 0.;
+    configuration["environment"]["observation_plane_normal"]["y"] = 0.;
+    configuration["environment"]["observation_plane_normal"]["z"] = 1.;
     configuration["environment"]["antenna_file"] =
         app["--antenna-file"]->as<std::string>();
     configuration["table"]["path"] =
@@ -1501,13 +1512,18 @@ int main(int argc, char** argv) {
       ProposalTableSet descriptor{};
       descriptor.process_count = rateTableProcessCount(table);
       descriptor.content_hash = table.content_hash;
-      auto const environment_snapshot = makeCorsika7AtmosphereSnapshot(
+      auto environment_snapshot = makeCorsika7AtmosphereSnapshot(
           AtmosphereId::USStdBK, {0., 0., 0.}, 17,
           observationHeight / 1_m,
           {cma21_field.getX(rootCS) / 1_T,
            cma21_field.getY(rootCS) / 1_T,
            cma21_field.getZ(rootCS) / 1_T},
           app["--max-deflection-angle"]->as<double>());
+      setObservationPlane(
+          environment_snapshot,
+          {showerCoreX / 1_m, showerCoreY / 1_m,
+           observationHeight / 1_m},
+          {0., 0., 1.});
       GpuEmConfig gpu_config{};
       gpu_config.device = gpu_device;
       gpu_config.min_batch_size = gpu_min_batch;
@@ -1592,6 +1608,21 @@ int main(int argc, char** argv) {
       using Sequence = decltype(sequence);
       using GpuEmStepRegistry = GpuEmStepProcessRegistry<
           GpuEmStepProcessRegistration<
+              decltype(stackInspect),
+              GpuEmStepProcessPolicy::DiagnosticOnly>,
+          GpuEmStepProcessRegistration<
+              decltype(neutrinoPrimaryPythia),
+              GpuEmStepProcessPolicy::InapplicableToRoutedEm>,
+          GpuEmStepProcessRegistration<
+              decltype(hadronSequence),
+              GpuEmStepProcessPolicy::InapplicableToRoutedEm>,
+          GpuEmStepProcessRegistration<
+              decltype(decaySequence),
+              GpuEmStepProcessPolicy::DeferredToCpu>,
+          GpuEmStepProcessRegistration<
+              decltype(emCascade),
+              GpuEmStepProcessPolicy::ReplacedOnDevice>,
+          GpuEmStepProcessRegistration<
               decltype(emContinuous),
               GpuEmStepProcessPolicy::ReplacedOnDevice>,
           GpuEmStepProcessRegistration<
@@ -1607,15 +1638,28 @@ int main(int argc, char** argv) {
               decltype(observationLevel),
               GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>,
           GpuEmStepProcessRegistration<
+              decltype(prodprof),
+              GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>,
+          GpuEmStepProcessRegistration<
+              decltype(inter_writer),
+              GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>,
+          GpuEmStepProcessRegistration<
+              decltype(thinning),
+              GpuEmStepProcessPolicy::ReplacedOnDevice>,
+          GpuEmStepProcessRegistration<
               decltype(cut),
               GpuEmStepProcessPolicy::ReplacedOnDevice>>;
       GpuEmStepRegistry::template validateOrThrow<Sequence>();
       CORSIKA_LOG_INFO(
-          "CUDA EM process registry accepted {} ContinuousProcess types "
-          "({} device-replaced, {} record-replayed)",
+          "CUDA EM process registry accepted {} process contracts "
+          "({} device-replaced, {} record-replayed, {} deferred-to-CPU, "
+          "{} inapplicable-to-routed-EM, {} diagnostic-only)",
           GpuEmStepRegistry::registrationCount(),
           GpuEmStepRegistry::replacedOnDeviceCount(),
-          GpuEmStepRegistry::replayedFromDeviceRecordCount());
+          GpuEmStepRegistry::replayedFromDeviceRecordCount(),
+          GpuEmStepRegistry::deferredToCpuCount(),
+          GpuEmStepRegistry::inapplicableToRoutedEmCount(),
+          GpuEmStepRegistry::diagnosticOnlyCount());
 
       auto const backend_reused_for_shower =
           reusable_gpu_em_backend != nullptr;
@@ -1638,7 +1682,8 @@ int main(int argc, char** argv) {
           proposal_stochastic_cut};
 
       CorsikaOutputSink output_sink{
-          rootCS, dEdX, profile, prod_profile, observationLevel, coreas, zhs,
+          rootCS, dEdX, profile, prod_profile, observationLevel,
+          inter_writer, coreas, zhs,
           detectorCoREAS.size() != 0, gpu_radio_enabled};
       using OutputSink = decltype(output_sink);
       using Router = PhysicalCudaEmRouter<StackType, FallbackHandler, OutputSink>;
@@ -1897,11 +1942,43 @@ int main(int argc, char** argv) {
       shower_metadata["process_registry"]["record_replayed"] =
           GpuEmStepRegistry::
               replayedFromDeviceRecordCount();
+      shower_metadata["process_registry"]["deferred_to_cpu"] =
+          GpuEmStepRegistry::deferredToCpuCount();
+      shower_metadata["process_registry"]
+                     ["inapplicable_to_routed_em"] =
+          GpuEmStepRegistry::inapplicableToRoutedEmCount();
+      shower_metadata["process_registry"]["diagnostic_only"] =
+          GpuEmStepRegistry::diagnosticOnlyCount();
       shower_metadata["process_registry"]
                      ["unregistered_continuous_processes"] =
           GpuEmStepRegistry::template
               unregisteredContinuousProcessCount<Sequence>();
+      shower_metadata["process_registry"]
+                     ["unregistered_secondaries_processes"] =
+          GpuEmStepRegistry::template
+              unregisteredSecondariesProcessCount<Sequence>();
+      shower_metadata["process_registry"]
+                     ["unregistered_interaction_processes"] =
+          GpuEmStepRegistry::template
+              unregisteredInteractionProcessCount<Sequence>();
+      shower_metadata["process_registry"]
+                     ["unregistered_decay_processes"] =
+          GpuEmStepRegistry::template
+              unregisteredDecayProcessCount<Sequence>();
+      shower_metadata["process_registry"]
+                     ["unregistered_boundary_processes"] =
+          GpuEmStepRegistry::template
+              unregisteredBoundaryProcessCount<Sequence>();
+      shower_metadata["process_registry"]
+                     ["unregistered_stack_processes"] =
+          GpuEmStepRegistry::template
+              unregisteredStackProcessCount<Sequence>();
       shower_metadata["process_registry"]["accepted"] = true;
+      shower_metadata["forced_primary"]
+                     ["interaction_executed"] =
+          hybrid_timing.forced_primary_interactions;
+      shower_metadata["forced_primary"]["decay_executed"] =
+          hybrid_timing.forced_primary_decays;
       shower_metadata["gpu_particles"] =
           router_stats.photons_advanced +
           router_stats.leptons_advanced;
@@ -1940,6 +2017,10 @@ int main(int argc, char** argv) {
               router_stats.maximum_input_batch);
       shower_metadata["gpu_final_states"] =
           backend_stats.gpu_final_states;
+      shower_metadata["first_interaction_candidates"] =
+          backend_stats.first_interaction_candidates;
+      shower_metadata["first_interactions_written"] =
+          output_sink.statistics().first_interactions;
       shower_metadata["physical_secondaries"] =
           backend_stats.physical_secondaries_generated;
       shower_metadata["cpu_generic_fallbacks"] =

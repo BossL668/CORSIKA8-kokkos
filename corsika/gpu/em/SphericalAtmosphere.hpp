@@ -13,6 +13,7 @@
 #include <limits>
 #include <type_traits>
 
+#include <corsika/gpu/em/ObservationPlane.hpp>
 #include <corsika/gpu/em/Types.hpp>
 
 #if defined(__CUDACC__)
@@ -158,6 +159,7 @@ namespace corsika::gpu::em {
           environment.number_of_layers > MaxAtmosphereLayers ||
           !finite(environment.observation_radius_m) ||
           !(environment.observation_radius_m > 0.) ||
+          !observation_plane_detail::validObservationPlane(environment) ||
           !finite(environment.maximum_magnetic_deflection_rad) ||
           !(environment.maximum_magnetic_deflection_rad > 0.) ||
           !(environment.maximum_magnetic_deflection_rad <
@@ -250,66 +252,6 @@ namespace corsika::gpu::em {
       return infinity();
     }
 
-    /**
-     * Return the near crossing of the observation sphere inside the shared
-     * volume-boundary guard.
-     *
-     * Ordinary atmosphere boundaries deliberately ignore intersections
-     * closer than AtmosphereBoundaryGuardM: a particle that has just crossed
-     * a layer must continue in the new layer instead of immediately
-     * re-crossing the same numerical surface.  The observation sphere is a
-     * terminal surface, not a volume transition.  Ignoring its near root
-     * would select the second intersection on the far side of Earth.
-     *
-     * This helper is therefore intentionally restricted to states no more
-     * than one guard width above the observation surface and moving inward.
-     * The cancellation-resistant quadratic form retains sub-millimetre roots
-     * next to an Earth-sized sphere.
-     */
-    CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline double
-    guardedObservationDistance(
-        EnvironmentSnapshot const& environment,
-        double const direction[3], double radius_m,
-        double const radial[3]) {
-      auto const observation_radius_m =
-          environment.observation_radius_m;
-      auto const altitude_m = radius_m - observation_radius_m;
-      auto const projection = dot(radial, direction);
-      if (altitude_m < 0. ||
-          altitude_m > AtmosphereBoundaryGuardM ||
-          !(projection < 0.)) {
-        return infinity();
-      }
-      auto const radial_squared = dot(radial, radial);
-      auto const discriminant =
-          projection * projection -
-          (radial_squared -
-           observation_radius_m * observation_radius_m);
-      if (!(discriminant > 0.) || !finite(discriminant)) {
-        return infinity();
-      }
-      auto const root = squareRoot(discriminant);
-      auto const denominator = -projection + root;
-      auto const numerator =
-          radial_squared -
-          observation_radius_m * observation_radius_m;
-      auto const distance =
-          denominator > 0. ? numerator / denominator
-                           : -projection - root;
-      auto const floating_tolerance =
-          64. * 2.22044604925031308085e-16 *
-          (observation_radius_m > 1.
-               ? observation_radius_m
-               : 1.);
-      if (distance >= -floating_tolerance &&
-          distance <=
-              AtmosphereBoundaryGuardM +
-                  floating_tolerance) {
-        return distance > 0. ? distance : 0.;
-      }
-      return infinity();
-    }
-
   } // namespace atmosphere_detail
 
   CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline AtmosphereLayerQuery
@@ -335,7 +277,9 @@ namespace corsika::gpu::em {
     if (!finite(radius_m)) {
       return {AtmosphereStatus::NonFiniteInput, -1, 0., 0.};
     }
-    if (radius_m < environment.observation_radius_m) {
+    auto const atmosphere_inner_radius_m =
+        environment.atmosphere_layers[0].inner_radius_m;
+    if (radius_m < atmosphere_inner_radius_m) {
       return {AtmosphereStatus::BelowObservationSurface, -1,
               radius_m, 0.};
     }
@@ -401,27 +345,7 @@ namespace corsika::gpu::em {
     }
     auto const& layer =
         environment.atmosphere_layers[layer_query.layer_index];
-    auto const inner_radius_m =
-        layer_query.layer_index == 0 &&
-                environment.observation_radius_m >
-                    layer.inner_radius_m
-            ? environment.observation_radius_m
-            : layer.inner_radius_m;
-    if (layer_query.layer_index == 0 &&
-        inner_radius_m == environment.observation_radius_m) {
-      double radial[3]{};
-      auto const radius_m =
-          radiusVector(environment, position_m, radial);
-      auto const observation_distance =
-          guardedObservationDistance(
-              environment, direction, radius_m, radial);
-      if (finite(observation_distance)) {
-        return {
-            AtmosphereStatus::Success, layer_query.layer_index,
-            observation_distance,
-            environment.observation_radius_m};
-      }
-    }
+    auto const inner_radius_m = layer.inner_radius_m;
     auto const inner_distance = forwardSphereDistance(
         environment, position_m, direction, inner_radius_m);
     auto const outer_distance = forwardSphereDistance(

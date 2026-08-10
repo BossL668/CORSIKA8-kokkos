@@ -1422,9 +1422,11 @@ def curve_comparison(
     gpu_mean = np.mean(gpu, axis=0)
     cpu_std = np.std(cpu, axis=0, ddof=1) if cpu.shape[0] > 1 else np.zeros_like(cpu_mean)
     gpu_std = np.std(gpu, axis=0, ddof=1) if gpu.shape[0] > 1 else np.zeros_like(gpu_mean)
+    cpu_se = cpu_std / math.sqrt(cpu.shape[0])
+    gpu_se = gpu_std / math.sqrt(gpu.shape[0])
     combined_se = np.sqrt(
-        cpu_std * cpu_std / cpu.shape[0]
-        + gpu_std * gpu_std / gpu.shape[0]
+        cpu_se * cpu_se
+        + gpu_se * gpu_se
     )
     difference = gpu_mean - cpu_mean
     scale = float(np.max(np.abs(cpu_mean))) if cpu_mean.size else 0.0
@@ -1477,6 +1479,10 @@ def curve_comparison(
                 "coordinate": float(x),
                 "proposal_mean": float(cpu_mean[index]),
                 "cuda_mean": float(gpu_mean[index]),
+                "proposal_standard_error": float(cpu_se[index]),
+                "cuda_standard_error": float(gpu_se[index]),
+                "proposal_events": int(cpu.shape[0]),
+                "cuda_events": int(gpu.shape[0]),
                 "difference": float(difference[index]),
                 "relative_difference": relative,
                 "combined_standard_error": float(combined_se[index]),

@@ -294,6 +294,18 @@ namespace corsika::gpu::em {
         throw std::logic_error(
             "CUDA EM router cannot finalize with an unconsumed host or device wavefront");
       }
+      auto const first_interaction =
+          backend_.downloadFirstInteractionSnapshot();
+      if (first_interaction.has_value()) {
+        if constexpr (
+            !std::is_same_v<TOutputSink, NullCorsikaOutputSink>) {
+          if (output_sink_ == nullptr) {
+            throw std::logic_error(
+                "CUDA first-interaction output requires a production output sink");
+          }
+          output_sink_->onFirstInteraction(*first_interaction);
+        }
+      }
       if (backend_.gpuProfileEnabled()) {
         if constexpr (
             !std::is_same_v<TOutputSink, NullCorsikaOutputSink>) {

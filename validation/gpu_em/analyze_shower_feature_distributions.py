@@ -438,6 +438,31 @@ def plot_longitudinal_grid(
         squeeze=False,
         gridspec_kw={"height_ratios": height_ratios},
     )
+    active_coordinates = []
+    for observable, _ in selected_features:
+        selected = curves.loc[
+            (curves["family"] == "longitudinal")
+            & (curves["observable"] == observable)
+            & curves["active"]
+        ]
+        if not selected.empty:
+            active_coordinates.append(
+                selected["coordinate"].to_numpy(dtype=np.float64)
+            )
+    if active_coordinates:
+        support = np.concatenate(active_coordinates)
+        support_low = max(0.0, float(np.min(support)))
+        support_high = float(np.max(support))
+        margin = max(
+            10.0,
+            0.04 * max(support_high - support_low, 1.0),
+        )
+        x_limits = (
+            max(0.0, support_low - margin),
+            support_high + margin,
+        )
+    else:
+        x_limits = None
     for panel, (observable, label) in enumerate(selected_features):
         panel_row, panel_column = divmod(panel, columns)
         selected = curves.loc[
@@ -451,7 +476,80 @@ def plot_longitudinal_grid(
         combined_error = selected[
             "combined_standard_error"
         ].to_numpy(dtype=np.float64)
+        has_backend_errors = {
+            "proposal_standard_error",
+            "cuda_standard_error",
+            "proposal_events",
+            "cuda_events",
+        }.issubset(selected.columns)
+        if has_backend_errors:
+            proposal_error = selected[
+                "proposal_standard_error"
+            ].to_numpy(dtype=np.float64)
+            cuda_error = selected[
+                "cuda_standard_error"
+            ].to_numpy(dtype=np.float64)
+            proposal_events = selected[
+                "proposal_events"
+            ].to_numpy(dtype=np.int64)
+            cuda_events = selected[
+                "cuda_events"
+            ].to_numpy(dtype=np.int64)
+            proposal_half_width = stats.t.ppf(
+                0.975, np.maximum(proposal_events - 1, 1)
+            ) * proposal_error
+            cuda_half_width = stats.t.ppf(
+                0.975, np.maximum(cuda_events - 1, 1)
+            ) * cuda_error
+            mean_variance_sum = (
+                proposal_error * proposal_error
+                + cuda_error * cuda_error
+            )
+            welch_denominator = (
+                np.divide(
+                    proposal_error**4,
+                    np.maximum(proposal_events - 1, 1),
+                )
+                + np.divide(
+                    cuda_error**4,
+                    np.maximum(cuda_events - 1, 1),
+                )
+            )
+            welch_degrees = np.full_like(
+                mean_variance_sum, np.inf
+            )
+            nonzero_welch = welch_denominator > 0.0
+            welch_degrees[nonzero_welch] = (
+                mean_variance_sum[nonzero_welch] ** 2
+                / welch_denominator[nonzero_welch]
+            )
+            difference_half_width = stats.t.ppf(
+                0.975, welch_degrees
+            ) * combined_error
+        else:
+            proposal_half_width = None
+            cuda_half_width = None
+            difference_half_width = (
+                stats.norm.ppf(0.975) * combined_error
+            )
         upper = axes[2 * panel_row, panel_column]
+        if proposal_half_width is not None:
+            upper.fill_between(
+                coordinate,
+                np.maximum(proposal - proposal_half_width, 0.0),
+                proposal + proposal_half_width,
+                color=COLORS["proposal"],
+                alpha=0.18,
+                linewidth=0.0,
+            )
+            upper.fill_between(
+                coordinate,
+                np.maximum(cuda - cuda_half_width, 0.0),
+                cuda + cuda_half_width,
+                color=COLORS["cuda"],
+                alpha=0.16,
+                linewidth=0.0,
+            )
         upper.plot(
             coordinate,
             proposal,
@@ -468,6 +566,8 @@ def plot_longitudinal_grid(
             label=LABELS["cuda"],
         )
         upper.set_ylabel(label)
+        if x_limits is not None:
+            upper.set_xlim(*x_limits)
         upper.grid(alpha=0.2)
 
         lower = axes[2 * panel_row + 1, panel_column]
@@ -478,7 +578,8 @@ def plot_longitudinal_grid(
             cuda[nonzero] - proposal[nonzero]
         ) / proposal[nonzero]
         uncertainty[nonzero] = (
-            combined_error[nonzero] / np.abs(proposal[nonzero])
+            difference_half_width[nonzero]
+            / np.abs(proposal[nonzero])
         )
         lower.axhline(0.0, color="0.35", linewidth=1.0)
         lower.plot(
@@ -497,6 +598,8 @@ def plot_longitudinal_grid(
         )
         lower.set_xlabel(r"slant depth [g cm$^{-2}$]")
         lower.set_ylabel(r"$\Delta/\mathrm{CPU}$ [%]")
+        if x_limits is not None:
+            lower.set_xlim(*x_limits)
         lower.grid(alpha=0.2)
     for panel in range(len(selected_features), rows * columns):
         panel_row, panel_column = divmod(panel, columns)
@@ -505,9 +608,10 @@ def plot_longitudinal_grid(
     axes[0, 0].legend(frameon=False)
     figure.suptitle(
         title
-        + "\n(relative panel band: $\\pm1$ combined standard error)"
+        + "\n(shading: pointwise 95% confidence interval of each mean; "
+        + "relative panel: Welch 95% interval)"
     )
-    figure.tight_layout()
+    figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.955))
     figure.savefig(output, dpi=200, bbox_inches="tight")
     plt.close(figure)
 

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <corsika/framework/core/EnergyMomentumOperations.hpp>
 #include <corsika/framework/core/Logging.hpp>
 
 namespace corsika {
@@ -22,78 +23,100 @@ namespace corsika {
   template <typename TTracking, typename TOutput>
   template <typename TStackView>
   inline void InteractionWriter<TTracking, TOutput>::doSecondaries(TStackView& vS) {
-    // Dumps the stack to the output parquet stream
-    // The primary and secondaries are all written along with the slant depth
+    if (interactionCounter_ != 0) {
+      ++interactionCounter_;
+      return;
+    }
 
-    if (interactionCounter_++) { return; } // Only run on the first interaction
+    auto const primary = vS.getProjectile();
+    FirstInteractionSnapshot snapshot{
+        primary.getPID(), primary.getKineticEnergy(),
+        primary.getPosition(), primary.getDirection(),
+        primary.getTime(), {}};
+    for (auto particle = vS.begin(); particle != vS.end(); ++particle) {
+      snapshot.secondaries.push_back(
+          InteractionSecondarySnapshot{
+              particle.getPID(),
+              particle.getKineticEnergy() + get_mass(particle.getPID()),
+              particle.getDirection()});
+    }
+    recordFirstInteraction(snapshot);
+  }
 
-    auto primary = vS.getProjectile();
-    auto dX = showerAxis_.getProjectedX(primary.getPosition());
+  template <typename TTracking, typename TOutput>
+  inline bool InteractionWriter<TTracking, TOutput>::recordFirstInteraction(
+      FirstInteractionSnapshot const& snapshot) {
+    if (interactionCounter_++) {
+      return false;
+    }
+    writeFirstInteraction(snapshot);
+    return true;
+  }
+
+  template <typename TTracking, typename TOutput>
+  inline void InteractionWriter<TTracking, TOutput>::writeFirstInteraction(
+      FirstInteractionSnapshot const& snapshot) {
+    auto const dX = showerAxis_.getProjectedX(snapshot.position);
     CORSIKA_LOG_INFO("First interaction at dX {}", dX);
-    CORSIKA_LOG_INFO("Primary: {}, E_kin {}", primary.getPID(),
-                     primary.getKineticEnergy());
+    CORSIKA_LOG_INFO("Primary: {}, E_kin {}", snapshot.parent_pid,
+                     snapshot.parent_kinetic_energy);
 
-    // get the location of the primary w.r.t. observation plane
-    Vector const displacement = primary.getPosition() - obsPlane_.getPlane().getCenter();
-
+    Vector const displacement =
+        snapshot.position - obsPlane_.getPlane().getCenter();
     auto const x = displacement.dot(obsPlane_.getXAxis());
     auto const y = displacement.dot(obsPlane_.getYAxis());
     auto const z = displacement.dot(obsPlane_.getPlane().getNormal());
-    auto const nx = primary.getDirection().dot(obsPlane_.getXAxis());
-    auto const ny = primary.getDirection().dot(obsPlane_.getYAxis());
-    auto const nz = primary.getDirection().dot(obsPlane_.getPlane().getNormal());
+    auto const nx = snapshot.direction.dot(obsPlane_.getXAxis());
+    auto const ny = snapshot.direction.dot(obsPlane_.getYAxis());
+    auto const nz = snapshot.direction.dot(obsPlane_.getPlane().getNormal());
+    auto const parent_total_energy =
+        snapshot.parent_kinetic_energy + get_mass(snapshot.parent_pid);
+    auto const parent_momentum =
+        snapshot.direction *
+        calculate_momentum(parent_total_energy, get_mass(snapshot.parent_pid));
+    auto const px = parent_momentum.dot(obsPlane_.getXAxis());
+    auto const py = parent_momentum.dot(obsPlane_.getYAxis());
+    auto const pz = parent_momentum.dot(obsPlane_.getPlane().getNormal());
 
-    auto const px = primary.getMomentum().dot(obsPlane_.getXAxis());
-    auto const py = primary.getMomentum().dot(obsPlane_.getYAxis());
-    auto const pz = primary.getMomentum().dot(obsPlane_.getPlane().getNormal());
+    auto const key = "shower_" + std::to_string(showerId_);
+    summary_[key]["pdg"] =
+        static_cast<int>(get_PDG(snapshot.parent_pid));
+    summary_[key]["name"] =
+        static_cast<std::string>(get_name(snapshot.parent_pid));
+    summary_[key]["total_energy"] = parent_total_energy / 1_GeV;
+    summary_[key]["kinetic_energy"] =
+        snapshot.parent_kinetic_energy / 1_GeV;
+    summary_[key]["x"] = x / 1_m;
+    summary_[key]["y"] = y / 1_m;
+    summary_[key]["z"] = z / 1_m;
+    summary_[key]["nx"] = static_cast<double>(nx);
+    summary_[key]["ny"] = static_cast<double>(ny);
+    summary_[key]["nz"] = static_cast<double>(nz);
+    summary_[key]["px"] = static_cast<double>(px / 1_GeV);
+    summary_[key]["py"] = static_cast<double>(py / 1_GeV);
+    summary_[key]["pz"] = static_cast<double>(pz / 1_GeV);
+    summary_[key]["time"] = snapshot.time / 1_s;
+    summary_[key]["slant_depth"] = dX / (1_g / 1_cm / 1_cm);
 
-    summary_["shower_" + std::to_string(showerId_)]["pdg"] =
-        static_cast<int>(get_PDG(primary.getPID()));
-    summary_["shower_" + std::to_string(showerId_)]["name"] =
-        static_cast<std::string>(get_name(primary.getPID()));
-    summary_["shower_" + std::to_string(showerId_)]["total_energy"] =
-        (primary.getKineticEnergy() + get_mass(primary.getPID())) / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["kinetic_energy"] =
-        primary.getKineticEnergy() / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["x"] = x / 1_m;
-    summary_["shower_" + std::to_string(showerId_)]["y"] = y / 1_m;
-    summary_["shower_" + std::to_string(showerId_)]["z"] = z / 1_m;
-    summary_["shower_" + std::to_string(showerId_)]["nx"] = static_cast<double>(nx);
-    summary_["shower_" + std::to_string(showerId_)]["ny"] = static_cast<double>(ny);
-    summary_["shower_" + std::to_string(showerId_)]["nz"] = static_cast<double>(nz);
-    summary_["shower_" + std::to_string(showerId_)]["px"] =
-        static_cast<double>(px / 1_GeV);
-    summary_["shower_" + std::to_string(showerId_)]["py"] =
-        static_cast<double>(py / 1_GeV);
-    summary_["shower_" + std::to_string(showerId_)]["pz"] =
-        static_cast<double>(pz / 1_GeV);
-    summary_["shower_" + std::to_string(showerId_)]["time"] = primary.getTime() / 1_s;
-    summary_["shower_" + std::to_string(showerId_)]["slant_depth"] =
-        dX / (1_g / 1_cm / 1_cm);
-
-    uint nSecondaries = 0;
-
-    // Loop through secondaries
-    auto particle = vS.begin();
-    while (particle != vS.end()) {
-
-      // Get the momentum of the secondary, write w.r.t. observation plane
-      auto const p_2nd = particle.getMomentum();
-
+    for (auto const& secondary : snapshot.secondaries) {
+      if (secondary.total_energy < get_mass(secondary.pid)) {
+        throw std::runtime_error(
+            "first-interaction secondary total energy is below rest mass");
+      }
+      auto const momentum =
+          secondary.direction *
+          calculate_momentum(secondary.total_energy, get_mass(secondary.pid));
       *(output_.getWriter())
-          << showerId_ << static_cast<int>(get_PDG(particle.getPID()))
-          << static_cast<float>(p_2nd.dot(obsPlane_.getXAxis()) / 1_GeV)
-          << static_cast<float>(p_2nd.dot(obsPlane_.getYAxis()) / 1_GeV)
-          << static_cast<float>(p_2nd.dot(obsPlane_.getPlane().getNormal()) / 1_GeV)
+          << showerId_ << static_cast<int>(get_PDG(secondary.pid))
+          << static_cast<float>(momentum.dot(obsPlane_.getXAxis()) / 1_GeV)
+          << static_cast<float>(momentum.dot(obsPlane_.getYAxis()) / 1_GeV)
+          << static_cast<float>(
+                 momentum.dot(obsPlane_.getPlane().getNormal()) / 1_GeV)
           << parquet::EndRow;
-
-      CORSIKA_LOG_INFO(" 2ndary: {}, E_kin {}", particle.getPID(),
-                       particle.getKineticEnergy());
-      ++particle;
-      ++nSecondaries;
+      CORSIKA_LOG_INFO(" 2ndary: {}, E_tot {}", secondary.pid,
+                       secondary.total_energy);
     }
-
-    summary_["shower_" + std::to_string(showerId_)]["n_secondaries"] = nSecondaries;
+    summary_[key]["n_secondaries"] = snapshot.secondaries.size();
   }
 
   template <typename TTracking, typename TOutput>

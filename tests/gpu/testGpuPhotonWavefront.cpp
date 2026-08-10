@@ -152,7 +152,9 @@ namespace {
                   a.limit == b.limit &&
                   a.distance_m == b.distance_m &&
                   a.traversed_grammage_g_per_cm2 ==
-                      b.traversed_grammage_g_per_cm2,
+                      b.traversed_grammage_g_per_cm2 &&
+                  a.observation_surface_reached_before_cut ==
+                      b.observation_surface_reached_before_cut,
               "physical transport is not repeatable");
     }
     for (std::size_t index = 0;
@@ -504,6 +506,40 @@ int main() {
               record.end.step_id ==
                   record.start.step_id + 1,
           "sub-cut photon terminal record differs");
+    }
+    {
+      auto late_at_observation = makePhotons(1, earth_radius_m);
+      auto& particle = late_at_observation.front();
+      particle.energy_GeV = 0.05;
+      particle.position_m[2] = earth_radius_m + 100.0001;
+      particle.time_s =
+          ParticleCutMaximumTimeS - 0.00005 / 299792458.;
+      particle.history_id = 88000001;
+      particle.step_id = 3;
+      auto const late_wave =
+          cut_backend.runPhotonDevicePipelineForValidation(
+              late_at_observation, 9050000);
+      require(
+          late_wave.selection_fallback_events.empty() &&
+              late_wave.transport_fallback_events.empty() &&
+              late_wave.final_states.fallback_events.empty() &&
+              late_wave.transport_records.size() == 1 &&
+              late_wave.transport_records[0].limit ==
+                  PhotonTransportLimit::ParticleCut &&
+              late_wave.transport_records[0]
+                      .observation_surface_reached_before_cut ==
+                  1U &&
+              late_wave.transport_records[0].end.time_s >
+                  ParticleCutMaximumTimeS &&
+              late_wave.transport_records[0]
+                      .cut_deposited_energy_GeV ==
+                  particle.energy_GeV &&
+              late_wave.observations.size() == 1 &&
+              late_wave.observations[0].status ==
+                  ObservationStatus::ReachedObservationSurface &&
+              late_wave.next_photons.empty() &&
+              late_wave.final_states.gpu_interactions == 0,
+          "post-step photon time cut does not match scalar observation-before-cut order");
     }
     auto const resident_cut =
         cut_backend.runResidentPhotonCascadeForValidation(
@@ -1114,6 +1150,45 @@ int main() {
                       .weighted_escaped_total_energy_GeV ==
                   0.,
           "resident lepton ParticleCut energy ledger is incomplete");
+
+      auto late_terminal = makePhotons(1, earth_radius_m);
+      late_terminal[0].energy_GeV = 0.05;
+      late_terminal[0].position_m[2] =
+          earth_radius_m + 100.0001;
+      late_terminal[0].time_s =
+          ParticleCutMaximumTimeS - 0.00005 / 299792458.;
+      late_terminal[0].history_id = 9900001;
+      late_terminal[0].step_id = 3;
+      CudaEmBackend late_terminal_backend;
+      late_terminal_backend.initialize(
+          environment, descriptor, accumulator_config);
+      auto const late_terminal_cascade =
+          late_terminal_backend
+              .runResidentPhotonCascadeForValidation(
+                  late_terminal, 9900100, 4);
+      auto const late_terminal_profile =
+          late_terminal_backend.downloadProfile();
+      require(
+          late_terminal_cascade.completed &&
+              late_terminal_cascade.particle_cuts == 1 &&
+              late_terminal_cascade.observations.size() == 1 &&
+              late_terminal_cascade.observations[0].status ==
+                  ObservationStatus::ReachedObservationSurface &&
+              std::abs(
+                  late_terminal_profile
+                          .weighted_deposited_energy_GeV -
+                      late_terminal[0].energy_GeV) <
+                  ledger_tolerance_GeV &&
+              std::abs(
+                  late_terminal_profile
+                          .weighted_observed_total_energy_GeV -
+                      late_terminal[0].energy_GeV) <
+                  ledger_tolerance_GeV &&
+              late_terminal_profile
+                      .weighted_escaped_total_energy_GeV ==
+                  0.,
+          "resident observation-before-time-cut energy ledger is incomplete");
+
     }
 
     {

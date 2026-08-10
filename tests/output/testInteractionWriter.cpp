@@ -109,6 +109,26 @@ TEST_CASE("InteractionWriter", "process") {
   CHECK(2 == writer.getInteractionCounter());
 
   writer.endOfShower(0);
+
+  // The accelerator output adapter uses the format-independent snapshot
+  // entry point. It must share the scalar coordinate/momentum projection and
+  // preserve the one-record-per-shower arbitration.
+  writer.startOfShower(1);
+  FirstInteractionSnapshot snapshot{
+      projectile.getPID(), projectile.getKineticEnergy(),
+      projectile.getPosition(), projectile.getDirection(),
+      projectile.getTime(), {}};
+  for (auto const pid : particleList) {
+    snapshot.secondaries.push_back(
+        InteractionSecondarySnapshot{
+            pid, 1_GeV + get_mass(pid),
+            DirectionVector(rootCS, {1., 0., 0.})});
+  }
+  CHECK(writer.recordFirstInteraction(snapshot));
+  CHECK(1 == writer.getInteractionCounter());
+  CHECK_FALSE(writer.recordFirstInteraction(snapshot));
+  CHECK(2 == writer.getInteractionCounter());
+  writer.endOfShower(1);
   writer.endOfLibrary();
 
   CHECK(boost::filesystem::exists(outputDir + "/interactions.parquet"));
@@ -118,6 +138,13 @@ TEST_CASE("InteractionWriter", "process") {
 
   auto const summary = writer.getSummary();
   CHECK(summary["shower_0"]["n_secondaries"].as<int>() == 11);
+  CHECK(summary["shower_1"]["n_secondaries"].as<int>() == 11);
+  CHECK(summary["shower_1"]["pdg"].as<int>() ==
+        summary["shower_0"]["pdg"].as<int>());
+  CHECK(summary["shower_1"]["total_energy"].as<double>() ==
+        Approx(summary["shower_0"]["total_energy"].as<double>()));
+  CHECK(summary["shower_1"]["slant_depth"].as<double>() ==
+        Approx(summary["shower_0"]["slant_depth"].as<double>()));
 
   // clean up
   if (boost::filesystem::exists(outputDir)) { boost::filesystem::remove_all(outputDir); }

@@ -193,6 +193,16 @@ namespace corsika::gpu::em {
         }
         break;
       case LeptonTransportLimit::ParticleCut:
+        if (record.observation_surface_reached_before_cut != 0U &&
+            claimSlot(
+                observation_flags, source, error_flag, 3U)) {
+          ObservationRecord observation{};
+          observation.particle = record.end;
+          observation.status =
+              ObservationStatus::ReachedObservationSurface;
+          raw_observations[source] = observation;
+        }
+        break;
       case LeptonTransportLimit::InteractionCandidate:
         break;
       case LeptonTransportLimit::DecayCandidate:
@@ -883,7 +893,9 @@ namespace corsika::gpu::em {
         std::uint64_t shower_id,
         std::uint64_t first_secondary_history_id,
         DeviceWorkspace& workspace,
-        LeptonPipelineStageEvents const* stage_events) {
+        LeptonPipelineStageEvents const* stage_events,
+        DeviceFirstInteractionCapture const*
+            first_interaction) {
       DeviceLeptonPipelineBatch pipeline{};
       pipeline.selection = launchInteractionSelectionOnDevice(
           device_table, device_particles, count, random_seed,
@@ -957,7 +969,8 @@ namespace corsika::gpu::em {
               pipeline.vertex.input_count,
               random_seed, shower_id,
               first_secondary_history_id, workspace,
-              true, &pipeline.vertex, stage_events);
+              true, &pipeline.vertex, stage_events,
+              first_interaction);
       if (stage_events != nullptr) {
         checkCuda(
             cudaEventRecord(stage_events->final_state_done),

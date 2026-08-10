@@ -12,6 +12,7 @@
 #include <corsika/media/ShowerAxis.hpp>
 
 #include <corsika/modules/ObservationPlane.hpp>
+#include <corsika/modules/writers/FirstInteractionSnapshot.hpp>
 
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/output/ParquetStreamer.hpp>
@@ -39,6 +40,13 @@ namespace corsika {
     template <typename TStackView>
     void doSecondaries(TStackView&);
 
+    /**
+     * Record a pre-thinning first-interaction snapshot produced outside the
+     * scalar Stack path. Returns false when an earlier CPU/GPU interaction
+     * has already claimed the shower's single output record.
+     */
+    bool recordFirstInteraction(FirstInteractionSnapshot const&);
+
     void startOfLibrary(boost::filesystem::path const&) override;
     void endOfLibrary() override;
 
@@ -51,6 +59,8 @@ namespace corsika {
     auto getInteractionCounter() { return interactionCounter_; }
 
   private:
+    void writeFirstInteraction(FirstInteractionSnapshot const&);
+
     ObservationPlane<TTracking, TOutput> const obsPlane_;
     ShowerAxis const& showerAxis_;
 

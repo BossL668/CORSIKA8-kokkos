@@ -93,6 +93,12 @@ namespace {
     record.distance_draw_id = InteractionDistanceDrawId;
     record.process_draw_id = InteractionColumnDrawId;
     record.loss_draw_id = InteractionLossDrawId;
+    if (exceedsParticleCutTime(particle.time_s)) {
+      record.status = EmInteractionStatus::ParticleCut;
+      record.interaction_grammage_g_per_cm2 =
+          std::numeric_limits<double>::infinity();
+      return result;
+    }
     auto const charged_lepton =
         isChargedLeptonPid(particle.pid);
     auto const photon =
@@ -138,8 +144,11 @@ namespace {
       }
       auto const below_cut =
           mass.status == TableLookupStatus::Success &&
+          minimum_energy.status ==
+              TableLookupStatus::Success &&
           energy_MeV - mass.value <
-              flat_view.em_transport_cut_MeV;
+              (minimum_energy.value - mass.value) /
+                  ContinuousCutSafetyFactor;
       if (below_cut ||
           (minimum_energy.status ==
                TableLookupStatus::Success &&
@@ -536,6 +545,35 @@ int main(int argc, char** argv) {
         backend.selectInteractionsForValidation(particles);
     compareBatches(first, expected);
     compareBatches(second, first);
+    {
+      auto normal_time = particles.front();
+      normal_time.time_s = 0.;
+      auto time_boundary = normal_time;
+      time_boundary.history_id += 500000000ULL;
+      time_boundary.time_s = ParticleCutMaximumTimeS;
+      auto old_secondary = normal_time;
+      old_secondary.history_id += 1000000000ULL;
+      old_secondary.time_s =
+          std::nextafter(
+              ParticleCutMaximumTimeS,
+              std::numeric_limits<double>::infinity());
+      auto const time_selection =
+          backend.selectInteractionsForValidation(
+              {normal_time, time_boundary, old_secondary});
+      require(
+          time_selection.fallback_events.empty() &&
+              time_selection.interactions.size() == 3,
+          "ParticleCut time-boundary selection lost a particle");
+      require(
+          time_selection.interactions[1].status ==
+                  time_selection.interactions[0].status &&
+              time_selection.interactions[2].status ==
+                  EmInteractionStatus::ParticleCut &&
+              std::isinf(
+                  time_selection.interactions[2]
+                      .interaction_grammage_g_per_cm2),
+          "CUDA selector does not preserve scalar timePost > 10 ms semantics");
+    }
     if (fixture_mode) {
       auto const split_cut_history = particles.size();
       auto const split_cut_record = std::find_if(
@@ -591,10 +629,10 @@ int main(int argc, char** argv) {
                   first.fallback_events[i - 1].input_index,
               "fallback output is not stably ordered");
     }
-    require(backend.statistics().interaction_selection_batches == 3,
+    require(backend.statistics().interaction_selection_batches == 4,
             "backend interaction batch statistic differs");
     require(backend.statistics().interactions_selected ==
-                3 * first.interactions.size(),
+                3 * first.interactions.size() + 3,
             "backend selected-interaction statistic differs");
     require(backend.statistics().proposal_fallbacks ==
                 3 * first.fallback_events.size(),

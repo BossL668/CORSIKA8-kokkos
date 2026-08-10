@@ -457,6 +457,12 @@ namespace corsika::gpu::em::detail {
       if (record.limit == PhotonTransportLimit::ParticleCut) {
         atomicAdd(
             &accumulator.counters->photon_cuts, 1ULL);
+        if (record.observation_surface_reached_before_cut != 0U) {
+          accumulateTerminalEnergy(
+              accumulator,
+              record.end.energy_GeV * record.start.weight,
+              true);
+        }
       } else if (
           record.limit ==
           PhotonTransportLimit::ObservationSurface) {
@@ -616,6 +622,12 @@ namespace corsika::gpu::em::detail {
                 record.start.weight,
             accumulator.energy_scale,
             accumulator.counters);
+        if (record.observation_surface_reached_before_cut != 0U) {
+          accumulateTerminalEnergy(
+              accumulator,
+              record.end.energy_GeV * record.start.weight,
+              true);
+        }
       } else if (
           record.limit ==
           LeptonTransportLimit::ObservationSurface) {

@@ -139,3 +139,16 @@
 ### 阶段 92：介质配置和内容寻址制表
 
 - [阶段 92：介质 YAML、规范化哈希与自动物理表准备](phase_92_medium_yaml_content_addressed_table_preparation.md)
+
+### 阶段 93–102：边界、profile、cut 与 beta4 CPU/GPU 输出对齐
+
+- [阶段 93：磁场层边界和 500 例验收](phase_93_magnetic_layer_guard_and_500_event_acceptance.md)
+- [阶段 94：μ 子 parent production profile 修复](phase_94_muon_parent_production_profile_fix.md)
+- [阶段 95：FLUKA parent `SIGALRM` 修复](phase_95_fluka_parent_sigalrm_fix.md)
+- [阶段 96：PROPOSAL cut 拆分和 profile reset 修复](phase_96_split_proposal_cut_and_profile_reset_fix.md)
+- [阶段 97：beta4 连续输运与 CPU `Step` 弦轨迹对齐](phase_97_beta4_cpu_step_chord_grammage.md)
+- [阶段 98：CUDA 观测平面与 CPU 几何对齐](phase_98_beta4_cpu_observation_plane_alignment.md)
+- [阶段 99：GPU 首相互作用与 CPU `InteractionWriter` 对齐](phase_99_beta4_gpu_first_interaction_writer_alignment.md)
+- [阶段 100：GPU 10 ms `ParticleCut` 与 CPU 时间语义对齐](phase_100_beta4_particle_cut_time_alignment.md)
+- [阶段 101：强制初级顶点与全过程序列兼容性门禁](phase_101_beta4_forced_primary_and_process_compatibility_gate.md)
+- [阶段 102：beta4 与 beta2 的 10 PeV CUDA 性能对比](phase_102_beta4_beta2_10pev_performance.md)

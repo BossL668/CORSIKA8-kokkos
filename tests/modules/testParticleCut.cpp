@@ -177,7 +177,23 @@ TEST_CASE("ParticleCut", "process,continuous,secondary") {
 
   SECTION("cut on time") {
     ParticleCut cut(20_GeV, 20_GeV, 20_GeV, 20_GeV, 20_GeV, false);
-    const TimeType too_late = 1_s;
+
+    // The production condition is deliberately strict: exactly 10 ms is
+    // retained, while any later event time is removed.
+    {
+      auto on_boundary = stack.addParticle(std::make_tuple(
+          Code::Proton, Eabove, DirectionVector(rootCS, {1, 0, 0}), point0,
+          10_ms));
+      test::StackView boundary_view(on_boundary);
+      boundary_view.getProjectile().addSecondary(
+          std::make_tuple(Code::Photon, Eabove,
+                          DirectionVector(rootCS, {1, 0, 0})));
+      cut.doSecondaries(boundary_view);
+      CHECK(boundary_view.getEntries() == 1);
+    }
+
+    stack.clear();
+    const TimeType too_late = 10_ms + 1_ns;
 
     // add primary particle to stack
     auto particle = stack.addParticle(std::make_tuple(

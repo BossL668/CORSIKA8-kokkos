@@ -108,6 +108,8 @@ def test_direct_batch_command_preserves_full_acceleration_configuration() -> Non
     assert option(command, "--radio-backend") == "cuda"
     assert option(command, "--hadronic-backend") == "fluka-process"
     assert option(command, "--gpu-table-cache") == "/tmp/table"
+    assert option(command, "--gpu-deterministic") == "true"
+    assert option(command, "--gpu-resident-cross-species") == "true"
 
 
 def test_direct_provenance_fingerprints_antenna_and_fluka_inputs() -> None:

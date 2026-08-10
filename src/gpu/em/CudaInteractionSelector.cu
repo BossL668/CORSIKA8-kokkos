@@ -79,6 +79,17 @@ namespace corsika::gpu::em {
       record.process_draw_id = InteractionColumnDrawId;
       record.loss_draw_id = InteractionLossDrawId;
 
+      // ParticleCut is the final SecondariesProcess in c8_air_shower.  A
+      // device-generated secondary inherits its vertex time, so an already
+      // old state must be absorbed before any rate lookup or random draw.
+      if (exceedsParticleCutTime(particle.time_s)) {
+        record.status = EmInteractionStatus::ParticleCut;
+        record.interaction_grammage_g_per_cm2 = CUDART_INF;
+        raw_interactions[index] = record;
+        fallback_flags[index] = 0;
+        return;
+      }
+
       auto const charged_lepton =
           isChargedLeptonPid(particle.pid);
       auto const photon =
@@ -130,7 +141,11 @@ namespace corsika::gpu::em {
                 table, particle.pid);
         auto const below_cut =
             mass.status == tables::TableLookupStatus::Success &&
-            energy_MeV - mass.value < table.em_transport_cut_MeV;
+            minimum_energy.status ==
+                tables::TableLookupStatus::Success &&
+            energy_MeV - mass.value <
+                (minimum_energy.value - mass.value) /
+                    tables::ContinuousCutSafetyFactor;
         if (below_cut ||
             (minimum_energy.status ==
                 tables::TableLookupStatus::Success &&

@@ -115,8 +115,10 @@ CUDA/CPU 验收时还必须保持以下原参数一致：
 | `--zenith`, `--azimuth` | 初级方向，单位 degree。 |
 | `--geomagnetic-model IGRF13\|IGRF14` | 地磁系数文件版本；本分支默认 `IGRF14`。文件从已安装的 `GeoMag/` 数据目录读取。 |
 | `--geomagnetic-year` | IGRF 计算年份；默认 `2027`，必须位于 1900–2030。模型和年份都会写入 GPU 输出 metadata。 |
-| `--observation-level`, `--injection-height` | 球形环境的观测面和注入高度，单位 m。 |
+| `--observation-level`, `--injection-height` | 局部水平观测面的高度和球形环境的注入高度，单位 m。 |
 | `--shower-core-x`, `--shower-core-y` | NWU 平面中的 shower core，单位 m。 |
+| `--force-interaction` | 强制调度器下一次取出的初级粒子在注入位置立即相互作用。CUDA 模式先执行一个标量顶点，再正常路由次级。 |
+| `--force-decay` | 强制调度器下一次取出的初级粒子在注入位置立即衰变。与 `--force-interaction` 互斥。 |
 
 当 `--max-weight` 省略或为 0 时：
 

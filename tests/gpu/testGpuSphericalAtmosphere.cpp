@@ -216,70 +216,72 @@ int main() {
           "straight boundary lookup must ignore the same near root");
       requireClose(
           inward_boundary.radius_m,
-          snapshot.observation_radius_m, 1.e-15,
+          snapshot.atmosphere_layers[0].inner_radius_m, 1.e-15,
           "inward near-boundary state must advance to the next physical boundary");
     }
 
-    // A terminal observation surface is different from a layer transition:
-    // the sub-0.1-mm near root must be retained.  Otherwise the quadratic
-    // solver selects the second crossing on the far side of Earth and the
-    // one-layer grammage integral overflows.  These coordinates reproduce a
-    // production 1e17 eV ensemble failure down to the failing direction.
+    // The CORSIKA application uses a locally flat ObservationPlane even though
+    // its atmosphere layers remain spherical.  Check a sub-guard terminal
+    // root and a large-zenith off-axis crossing explicitly; neither endpoint
+    // is generally on the legacy observation sphere.
     {
-      auto const production_snapshot =
-          makeCorsika7AtmosphereSnapshot(
-              AtmosphereId::USStdBK, {0., 0., 0.}, 17,
-              earth_radius_m);
       double const near_observation_position[3]{
-          76.4524280117653, -39.517778763940704,
-          6370999.999478279};
-      double const inward[3]{
-          -0.46213010322832354, 0.1607580485828842,
-          -0.8721196119260258};
-      auto const radius = std::sqrt(
-          near_observation_position[0] *
-                  near_observation_position[0] +
-              near_observation_position[1] *
-                  near_observation_position[1] +
-              near_observation_position[2] *
-                  near_observation_position[2]);
+          600., 0., observation_radius_m + 1.e-5};
+      auto const theta = 80. * 3.141592653589793 / 180.;
+      double const inclined[3]{
+          std::sin(theta), 0., -std::cos(theta)};
+      auto const near_observation =
+          intersectObservationPlaneStraight(
+              snapshot, near_observation_position, inclined);
       require(
-          radius > production_snapshot.observation_radius_m &&
-              radius -
-                      production_snapshot.observation_radius_m <
+          near_observation.status ==
+                  ObservationPlaneStatus::Success &&
+              near_observation.distance_m > 0. &&
+              near_observation.distance_m <
                   AtmosphereBoundaryGuardM,
-          "observation regression state must lie inside the terminal guard");
-      auto const boundary = distanceToAtmosphereBoundary(
-          production_snapshot, near_observation_position,
-          inward);
-      require(
-          boundary.status == AtmosphereStatus::Success,
-          "near-observation boundary lookup must succeed");
+          "terminal plane must retain its positive sub-guard root");
       requireClose(
-          boundary.radius_m,
-          production_snapshot.observation_radius_m,
-          1.e-15,
-          "near-observation state must select the terminal sphere");
+          near_observation.distance_m,
+          (near_observation_position[2] -
+           snapshot.observation_plane_point_m[2]) /
+              std::cos(theta),
+          2.e-13,
+          "near-observation plane root differs");
+
+      double const off_axis_position[3]{
+          600., 0., earth_radius_m + 500.};
+      auto const off_axis = intersectObservationPlaneStraight(
+          snapshot, off_axis_position, inclined);
       require(
-          boundary.distance_m > 0. &&
-              boundary.distance_m <
-                  AtmosphereBoundaryGuardM,
-          "near-observation state must retain its sub-guard root");
+          off_axis.status == ObservationPlaneStatus::Success,
+          "inclined off-axis plane lookup must succeed");
       requireClose(
-          boundary.distance_m, 6.828736513853073e-5,
-          2.e-5,
-          "near-observation stable sphere root differs");
-      auto const layer = queryAtmosphereLayer(
-          production_snapshot, near_observation_position,
-          inward);
-      auto const grammage = atmosphereGrammage(
-          production_snapshot, layer.layer_index,
-          near_observation_position, inward,
-          boundary.distance_m);
+          off_axis.distance_m,
+          400. / std::cos(theta), 2.e-13,
+          "inclined off-axis plane distance differs from CPU geometry");
+      double endpoint[3]{};
+      for (std::size_t axis = 0; axis < 3; ++axis) {
+        endpoint[axis] =
+            off_axis_position[axis] +
+            off_axis.distance_m * inclined[axis];
+      }
+      auto const plane_residual =
+          (endpoint[0] - snapshot.observation_plane_point_m[0]) *
+                  snapshot.observation_plane_normal[0] +
+              (endpoint[1] - snapshot.observation_plane_point_m[1]) *
+                  snapshot.observation_plane_normal[1] +
+              (endpoint[2] - snapshot.observation_plane_point_m[2]) *
+                  snapshot.observation_plane_normal[2];
       require(
-          grammage.status == AtmosphereStatus::Success &&
-              grammage.value >= 0.,
-          "near-observation grammage must remain finite");
+          std::abs(plane_residual) < 1.e-9,
+          "inclined off-axis endpoint is not on the observation plane");
+      auto const endpoint_radius = std::sqrt(
+          endpoint[0] * endpoint[0] +
+          endpoint[1] * endpoint[1] +
+          endpoint[2] * endpoint[2]);
+      require(
+          endpoint_radius > snapshot.observation_radius_m + 0.1,
+          "off-axis plane test did not distinguish plane from sphere");
     }
 
     struct SegmentCase {
@@ -464,6 +466,30 @@ int main() {
             near_observation_transport.records[0].distance_m <
                 AtmosphereBoundaryGuardM,
         "near-observation photon must terminate at the sub-guard root");
+    auto off_axis_particle = makePhoton(
+        earth_radius_m, 500.,
+        normalized({std::sin(80. * 3.141592653589793 / 180.),
+                    0.,
+                    -std::cos(80. * 3.141592653589793 / 180.)}),
+        8);
+    off_axis_particle.position_m[0] = 600.;
+    auto const off_axis_transport =
+        near_observation_backend.transportPhotonsForValidation(
+            {noInteraction(off_axis_particle, 0)});
+    require(
+        off_axis_transport.fallback_events.empty() &&
+            off_axis_transport.records.size() == 1 &&
+            off_axis_transport.records[0].limit ==
+                PhotonTransportLimit::ObservationSurface,
+        "inclined off-axis photon did not terminate on the plane");
+    requireClose(
+        off_axis_transport.records[0].end.position_m[2],
+        observation_radius_m, 2.e-15,
+        "inclined off-axis photon endpoint is not on the plane");
+    require(
+        off_axis_transport.records[0].limiting_radius_m >
+            observation_radius_m + 0.1,
+        "inclined photon endpoint still uses the legacy sphere");
     auto const vertex = queryAtmosphereLayer(
         snapshot, transported.records[0].end.position_m,
         transported.records[0].end.direction);

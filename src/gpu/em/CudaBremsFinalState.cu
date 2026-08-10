@@ -526,6 +526,38 @@ namespace corsika::gpu::em {
       return true;
     }
 
+    __device__ void captureFirstInteraction(
+        detail::DeviceFirstInteractionCapture const& capture,
+        EmParticleState const& parent, std::int32_t process_id,
+        EmParticleState const& first,
+        EmParticleState const* second = nullptr,
+        EmParticleState const* third = nullptr) {
+      if (parent.generation != 0 || capture.snapshot == nullptr ||
+          capture.candidate_count == nullptr) {
+        return;
+      }
+      auto const candidate = atomicAdd(capture.candidate_count, 1U);
+      if (candidate != 0) {
+        return;
+      }
+      GpuFirstInteractionSnapshot snapshot{};
+      snapshot.parent_at_vertex = parent;
+      snapshot.process_id = process_id;
+      snapshot.secondary_count =
+          third != nullptr ? 3U : (second != nullptr ? 2U : 1U);
+      snapshot.secondaries[0] = first;
+      snapshot.secondaries[0].weight = parent.weight;
+      if (second != nullptr) {
+        snapshot.secondaries[1] = *second;
+        snapshot.secondaries[1].weight = parent.weight;
+      }
+      if (third != nullptr) {
+        snapshot.secondaries[2] = *third;
+        snapshot.secondaries[2].weight = parent.weight;
+      }
+      *capture.snapshot = snapshot;
+    }
+
     __global__ void classifyBremsFinalStatesKernel(
         BremsLpmSnapshot lpm_snapshot,
         BremsLpmPreparedSnapshot prepared_lpm_input,
@@ -958,7 +990,8 @@ namespace corsika::gpu::em {
         ProposalFallbackEvent* compact_fallbacks,
         EmInteractionRecord* compact_continuations,
         BremsLpmSuppressionRecord* compact_suppressions,
-        std::uint32_t* error_flag) {
+        std::uint32_t* error_flag,
+        detail::DeviceFirstInteractionCapture first_interaction) {
       auto const index =
           static_cast<std::size_t>(blockIdx.x) * blockDim.x +
           threadIdx.x;
@@ -1061,6 +1094,9 @@ namespace corsika::gpu::em {
           first.direction[axis] = first_direction[axis];
           second.direction[axis] = second_direction[axis];
         }
+        captureFirstInteraction(
+            first_interaction, parent, AnnihilationProcessId,
+            first, &second);
         std::uint32_t written = 0;
         if ((sample.thinning_keep_mask & 0x1U) != 0) {
           first.history_id =
@@ -1172,6 +1208,9 @@ namespace corsika::gpu::em {
               outgoing_direction[axis];
           delta.direction[axis] = delta_direction[axis];
         }
+        captureFirstInteraction(
+            first_interaction, parent, IonizationProcessId,
+            outgoing, &delta);
         std::uint32_t written = 0;
         if ((sample.thinning_keep_mask & 0x1U) != 0) {
           outgoing.history_id =
@@ -1260,6 +1299,9 @@ namespace corsika::gpu::em {
         positron.energy_GeV = positron_energy;
         positron.history_id =
             first_history_id + child_offset + 2;
+        captureFirstInteraction(
+            first_interaction, parent, ElectronPairProcessId,
+            surviving, &electron, &positron);
         compact_secondaries[child_offset] = surviving;
         compact_secondaries[child_offset + 1] = electron;
         compact_secondaries[child_offset + 2] = positron;
@@ -1332,6 +1374,10 @@ namespace corsika::gpu::em {
       for (int axis = 0; axis < 3; ++axis) {
         photon.direction[axis] = photon_direction[axis];
       }
+
+      captureFirstInteraction(
+          first_interaction, parent, BremsProcessId,
+          lepton, &photon);
 
       std::uint32_t written = 0;
       if ((sample.thinning_keep_mask & 0x1U) != 0) {
@@ -1597,7 +1643,9 @@ namespace corsika::gpu::em {
         bool defer_count_download,
         DeviceLeptonVertexSelectionBatch*
             deferred_vertex,
-        LeptonPipelineStageEvents const* stage_events) {
+        LeptonPipelineStageEvents const* stage_events,
+        DeviceFirstInteractionCapture const*
+            first_interaction) {
       if (count == 0 || device_interactions == nullptr) {
         throw std::invalid_argument(
             "device bremsstrahlung final-state stage requires interactions");
@@ -1740,7 +1788,10 @@ namespace corsika::gpu::em {
           compact_records,
           compact_secondaries, compact_fallbacks,
           compact_continuations, compact_suppressions,
-          error_flag);
+          error_flag,
+          first_interaction == nullptr
+              ? DeviceFirstInteractionCapture{}
+              : *first_interaction);
       checkCuda(
           cudaGetLastError(),
           "write bremsstrahlung final states launch");

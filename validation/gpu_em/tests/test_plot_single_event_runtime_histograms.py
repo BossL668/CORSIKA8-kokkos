@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 
 import numpy as np
@@ -40,6 +41,16 @@ class RuntimeSourceStatisticsTests(unittest.TestCase):
         self.assertEqual(strata[0]["mean_seconds"], 12.0)
         self.assertEqual(strata[1]["count"], 1)
         self.assertIsNone(strata[1]["std_seconds"])
+
+    def test_legacy_provenance_requires_explicit_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with self.assertRaises(FileNotFoundError):
+                MODULE.provenance_stratum(root)
+            self.assertEqual(
+                MODULE.provenance_stratum(root, allow_legacy=True),
+                "legacy:unrecorded",
+            )
 
 
 if __name__ == "__main__":

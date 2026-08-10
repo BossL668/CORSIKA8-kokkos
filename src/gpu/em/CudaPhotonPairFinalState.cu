@@ -247,6 +247,32 @@ namespace corsika::gpu::em {
       return true;
     }
 
+    __device__ void captureFirstInteraction(
+        detail::DeviceFirstInteractionCapture const& capture,
+        EmParticleState const& parent, std::int32_t process_id,
+        EmParticleState const& first,
+        EmParticleState const* second = nullptr) {
+      if (parent.generation != 0 || capture.snapshot == nullptr ||
+          capture.candidate_count == nullptr) {
+        return;
+      }
+      auto const candidate = atomicAdd(capture.candidate_count, 1U);
+      if (candidate != 0) {
+        return;
+      }
+      GpuFirstInteractionSnapshot snapshot{};
+      snapshot.parent_at_vertex = parent;
+      snapshot.process_id = process_id;
+      snapshot.secondary_count = second == nullptr ? 1U : 2U;
+      snapshot.secondaries[0] = first;
+      snapshot.secondaries[0].weight = parent.weight;
+      if (second != nullptr) {
+        snapshot.secondaries[1] = *second;
+        snapshot.secondaries[1].weight = parent.weight;
+      }
+      *capture.snapshot = snapshot;
+    }
+
     __global__ void classifyPhotonPairFinalStatesKernel(
         tables::FlatRateTableView table,
         PhotonPairLpmSnapshot lpm_snapshot,
@@ -563,7 +589,8 @@ namespace corsika::gpu::em {
         EmInteractionRecord* compact_continuations,
         PhotonPairLpmSuppressionRecord*
             compact_suppressions,
-        std::uint32_t* error_flag) {
+        std::uint32_t* error_flag,
+        detail::DeviceFirstInteractionCapture first_interaction) {
       auto const index =
           static_cast<std::size_t>(blockIdx.x) * blockDim.x +
           threadIdx.x;
@@ -645,6 +672,10 @@ namespace corsika::gpu::em {
                 6.283185307179586476925286766559),
             electron.direction);
 
+        captureFirstInteraction(
+            first_interaction, parent, ComptonProcessId,
+            photon, &electron);
+
         std::uint32_t written = 0;
         if ((sample.thinning_keep_mask & 0x1U) != 0) {
           photon.history_id =
@@ -706,6 +737,9 @@ namespace corsika::gpu::em {
         electron.generation = parent.generation + 1;
         electron.step_id = 0;
         electron.reserved = 0;
+        captureFirstInteraction(
+            first_interaction, parent, PhotoelectricProcessId,
+            electron);
         compact_secondaries[child_offset] = electron;
         compact_records[record_offset] =
             PhotonPairFinalStateRecord{
@@ -761,6 +795,10 @@ namespace corsika::gpu::em {
               ::fmod(azimuth + 3.1415926535897932384626433832795,
                      6.283185307179586476925286766559),
               positron.direction);
+
+      captureFirstInteraction(
+          first_interaction, parent, PhotonPairProcessId,
+          electron, &positron);
 
       std::uint32_t written = 0;
       if ((sample.thinning_keep_mask & 0x1U) != 0) {
@@ -967,7 +1005,9 @@ namespace corsika::gpu::em {
         DeviceWorkspace& workspace,
         bool defer_count_download,
         DeviceTransportInteractionBatch*
-            deferred_interactions) {
+            deferred_interactions,
+        DeviceFirstInteractionCapture const*
+            first_interaction) {
       if (count == 0 || device_interactions == nullptr) {
         throw std::invalid_argument(
             "device final-state stage requires interactions");
@@ -1136,7 +1176,10 @@ namespace corsika::gpu::em {
           suppression_offsets, count, first_secondary_history_id,
           compact_records, compact_secondaries, compact_fallbacks,
           compact_continuations, compact_suppressions,
-          error_flag);
+          error_flag,
+          first_interaction == nullptr
+              ? DeviceFirstInteractionCapture{}
+              : *first_interaction);
       checkCuda(cudaGetLastError(),
                 "write photon-pair final states launch");
 

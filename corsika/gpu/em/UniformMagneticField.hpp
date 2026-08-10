@@ -12,6 +12,7 @@
 #include <limits>
 #include <type_traits>
 
+#include <corsika/gpu/em/ObservationPlane.hpp>
 #include <corsika/gpu/em/Types.hpp>
 
 #if defined(__CUDACC__)
@@ -66,6 +67,14 @@ namespace corsika::gpu::em {
     double radius_residual_m2{};
   };
 
+  struct MagneticPlaneIntersectionResult {
+    MagneticIntersectionStatus status{
+        MagneticIntersectionStatus::InvalidInput};
+    std::uint32_t reserved{};
+    double distance_m{};
+    double plane_residual_m{};
+  };
+
   static_assert(std::is_standard_layout_v<MagneticStepLimitResult>);
   static_assert(std::is_trivially_copyable_v<MagneticStepLimitResult>);
   static_assert(std::is_standard_layout_v<MagneticAdvanceResult>);
@@ -74,6 +83,9 @@ namespace corsika::gpu::em {
       std::is_standard_layout_v<MagneticSphereIntersectionResult>);
   static_assert(
       std::is_trivially_copyable_v<MagneticSphereIntersectionResult>);
+  static_assert(std::is_standard_layout_v<MagneticPlaneIntersectionResult>);
+  static_assert(
+      std::is_trivially_copyable_v<MagneticPlaneIntersectionResult>);
 
   namespace magnetic_detail {
 
@@ -630,6 +642,149 @@ namespace corsika::gpu::em {
     return {
         MagneticIntersectionStatus::NoForwardIntersection,
         0, infinity(), 0.};
+  }
+
+  /**
+   * Find the first crossing of the configured observation plane by one
+   * bounded leapfrog trajectory.
+   *
+   * TrackingLeapFrogCurved advances position as
+   *   x(l) = x0 + l*u + 0.5*l^2*(q*0.299792458/p)*(u x B).
+   * Substitution in n.(x-plane_point)=0 gives the same quadratic solved by
+   * the scalar Plane intersection.  Unlike volume boundaries, a terminal
+   * plane does not discard positive roots below the 0.1 mm layer guard.
+   */
+  CORSIKA_GPU_MAGNETIC_HOST_DEVICE inline
+  MagneticPlaneIntersectionResult intersectUniformMagneticPlane(
+      EmParticleState const& start, double mass_GeV,
+      double charge_number, double const field_T[3],
+      EnvironmentSnapshot const& environment,
+      double maximum_distance_m,
+      double maximum_deflection =
+          DefaultMaximumMagneticDeflection) {
+    using namespace magnetic_detail;
+    if (!validParticle(start, mass_GeV, charge_number) ||
+        !validField(field_T) ||
+        !observation_plane_detail::validObservationPlane(environment) ||
+        !(maximum_distance_m > 0.)) {
+      return {};
+    }
+    auto const step_limit = maximumUniformMagneticStep(
+        start, mass_GeV, charge_number, field_T,
+        maximum_deflection);
+    if (step_limit.status == MagneticStepStatus::InvalidInput ||
+        step_limit.status == MagneticStepStatus::NonFiniteResult) {
+      return {};
+    }
+    if (step_limit.status == MagneticStepStatus::Linear) {
+      auto const intersection = intersectObservationPlaneStraight(
+          environment, start.position_m, start.direction,
+          maximum_distance_m);
+      if (intersection.status == ObservationPlaneStatus::Success) {
+        return {MagneticIntersectionStatus::Success, 0,
+                intersection.distance_m, intersection.residual_m};
+      }
+      if (intersection.status ==
+          ObservationPlaneStatus::NonFiniteResult) {
+        return {MagneticIntersectionStatus::NonFiniteResult, 0, 0., 0.};
+      }
+      if (intersection.status == ObservationPlaneStatus::InvalidInput) {
+        return {};
+      }
+      return {MagneticIntersectionStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
+    if (!finite(maximum_distance_m)) {
+      return {};
+    }
+    auto const bounded_distance =
+        maximum_distance_m < step_limit.distance_m
+            ? maximum_distance_m
+            : step_limit.distance_m;
+    if (!(bounded_distance > 0.) || !finite(bounded_distance)) {
+      return {MagneticIntersectionStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
+
+    auto const momentum_GeV = squareRoot(
+        (start.energy_GeV - mass_GeV) *
+        (start.energy_GeV + mass_GeV));
+    auto const curvature =
+        charge_number * GeVPerCToTeslaMeter / momentum_GeV;
+    double direction_cross_field[3]{};
+    cross(start.direction, field_T, direction_cross_field);
+    double relative[3]{};
+    double quadratic[3]{};
+    for (int axis = 0; axis < 3; ++axis) {
+      relative[axis] =
+          start.position_m[axis] -
+          environment.observation_plane_point_m[axis];
+      quadratic[axis] =
+          0.5 * curvature * direction_cross_field[axis];
+    }
+    auto const a =
+        dot(environment.observation_plane_normal, quadratic);
+    auto const b =
+        dot(environment.observation_plane_normal, start.direction);
+    auto const c =
+        dot(environment.observation_plane_normal, relative);
+    if (!finite(a) || !finite(b) || !finite(c)) {
+      return {MagneticIntersectionStatus::NonFiniteResult, 0, 0., 0.};
+    }
+
+    // If the magnetic quadratic is numerically absent, use the exact straight
+    // expression rather than dividing by a tiny coefficient.
+    auto const coefficient_scale =
+        absolute(b) / bounded_distance +
+        absolute(c) / (bounded_distance * bounded_distance);
+    if (absolute(a) <=
+        64. * 2.22044604925031308085e-16 *
+            (coefficient_scale > 1.e-300 ? coefficient_scale : 1.e-300)) {
+      auto const intersection = intersectObservationPlaneStraight(
+          environment, start.position_m, start.direction,
+          bounded_distance);
+      if (intersection.status == ObservationPlaneStatus::Success) {
+        return {MagneticIntersectionStatus::Success, 0,
+                intersection.distance_m, intersection.residual_m};
+      }
+      return {MagneticIntersectionStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
+
+    auto discriminant = b * b - 4. * a * c;
+    auto const discriminant_scale =
+        b * b + absolute(4. * a * c);
+    if (discriminant < 0. &&
+        discriminant >=
+            -64. * 2.22044604925031308085e-16 *
+                (discriminant_scale > 1. ? discriminant_scale : 1.)) {
+      discriminant = 0.;
+    }
+    if (discriminant < 0. || !finite(discriminant)) {
+      return {MagneticIntersectionStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
+    auto const root = squareRoot(discriminant);
+    auto const q = -0.5 * (b + (b >= 0. ? root : -root));
+    auto first = q / a;
+    auto second = q != 0. ? c / q : infinity();
+    auto distance = infinity();
+    if (first > 0. && first <= bounded_distance) {
+      distance = first;
+    }
+    if (second > 0. && second <= bounded_distance &&
+        second < distance) {
+      distance = second;
+    }
+    if (!finite(distance)) {
+      return {MagneticIntersectionStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
+    auto const residual = a * distance * distance + b * distance + c;
+    if (!finite(residual)) {
+      return {MagneticIntersectionStatus::NonFiniteResult, 0, 0., 0.};
+    }
+    return {MagneticIntersectionStatus::Success, 0, distance, residual};
   }
 
 } // namespace corsika::gpu::em

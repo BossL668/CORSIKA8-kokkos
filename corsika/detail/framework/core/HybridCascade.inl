@@ -165,9 +165,29 @@ namespace corsika {
           auto scheduled = scheduler_.acquireNext();
           ++count_;
 
+          // forceInteraction()/forceDecay() apply to the next particle selected
+          // by the scalar scheduler.  Resolve that one-shot control before CUDA
+          // routing so an immediately routable gamma/e/mu primary cannot bypass
+          // the requested scalar vertex.  Its secondaries remain eligible for
+          // normal GPU routing on subsequent scheduler iterations.
+          auto const forced_scalar_action =
+              pending_forced_action_ != PendingForcedAction::None;
+          if (forced_scalar_action) {
+            if (pending_forced_action_ ==
+                PendingForcedAction::Interaction) {
+              stepper_.forceInteraction();
+              ++timing_statistics_.forced_primary_interactions;
+            } else {
+              stepper_.forceDecay();
+              ++timing_statistics_.forced_primary_decays;
+            }
+            pending_forced_action_ = PendingForcedAction::None;
+          }
+
           if constexpr (!std::is_same_v<TEmRouter, DisabledHybridEmRouter>) {
             phase_start = Clock::now();
             auto const route =
+                !forced_scalar_action &&
                 em_router_ != nullptr &&
                 em_router_->canRoute(
                     scheduled.particle, scheduled.step_id);
@@ -397,14 +417,28 @@ namespace corsika {
   inline void
   HybridCascade<TTracking, TProcessList, TOutput, TStack,
                 TEmRouter>::forceInteraction() {
-    stepper_.forceInteraction();
+    if (pending_forced_action_ ==
+        PendingForcedAction::Decay) {
+      CORSIKA_LOG_ERROR(
+          "Cannot set forceInteraction when forceDecay is already set");
+      throw std::runtime_error(
+          "Cannot set forceInteraction when forceDecay is already set");
+    }
+    pending_forced_action_ = PendingForcedAction::Interaction;
   }
 
   template <typename TTracking, typename TProcessList, typename TOutput, typename TStack,
             typename TEmRouter>
   inline void
   HybridCascade<TTracking, TProcessList, TOutput, TStack, TEmRouter>::forceDecay() {
-    stepper_.forceDecay();
+    if (pending_forced_action_ ==
+        PendingForcedAction::Interaction) {
+      CORSIKA_LOG_ERROR(
+          "Cannot set forceDecay when forceInteraction is already set");
+      throw std::runtime_error(
+          "Cannot set forceDecay when forceInteraction is already set");
+    }
+    pending_forced_action_ = PendingForcedAction::Decay;
   }
 
   template <typename TTracking, typename TProcessList, typename TOutput, typename TStack,

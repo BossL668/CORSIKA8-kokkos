@@ -31,6 +31,7 @@
 
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/framework/geometry/RootCoordinateSystem.hpp>
+#include <corsika/framework/utility/QuadraticSolver.hpp>
 #include <corsika/gpu/em/CudaEmBackend.hpp>
 #include <corsika/gpu/em/CudaInteractionSelector.hpp>
 #include <corsika/gpu/em/CudaLeptonTransport.hpp>
@@ -274,7 +275,9 @@ namespace {
               a.traversed_grammage_g_per_cm2 ==
                   b.traversed_grammage_g_per_cm2 &&
               a.continuous_deposited_energy_GeV ==
-                  b.continuous_deposited_energy_GeV,
+                  b.continuous_deposited_energy_GeV &&
+              a.observation_surface_reached_before_cut ==
+                  b.observation_surface_reached_before_cut,
           "straight lepton transport is not deterministic");
     }
   }
@@ -487,6 +490,15 @@ namespace {
                 0});
         break;
       case LeptonTransportLimit::ParticleCut:
+        if (record.observation_surface_reached_before_cut != 0U) {
+          observations.emplace_back(
+              source,
+              ObservationRecord{
+                  record.end,
+                  ObservationStatus::ReachedObservationSurface,
+                  0});
+        }
+        break;
       case LeptonTransportLimit::InteractionCandidate:
         break;
       case LeptonTransportLimit::DecayCandidate:
@@ -600,6 +612,69 @@ namespace {
     capability_probe.energy_GeV = 100.;
     require(backend.canTransport(capability_probe),
             "validated muon table did not enable the production capability gate");
+
+    // The continuous table anchor is deliberately 0.9999 times the
+    // configured kinetic cut.  Exercise the narrow interval between that
+    // anchor and the true per-PID ParticleCut: beta2 incorrectly compared
+    // muons against the electron cut here and could create a zero-progress
+    // resident wavefront at the 300 MeV muon threshold.
+    std::vector<EmParticleState> muons_inside_cut_safety_interval;
+    for (auto const pdg : {13, -13}) {
+      auto const& continuous =
+          findContinuousEnergyTable(source, pdg);
+      auto const kinetic_anchor =
+          continuous.minimum_total_energy_MeV -
+          continuous.mass_MeV;
+      auto const kinetic_cut =
+          kinetic_anchor / ContinuousCutSafetyFactor;
+      EmParticleState particle{};
+      particle.pid = pdg;
+      particle.medium_id = 17;
+      particle.energy_GeV =
+          (continuous.mass_MeV +
+           0.5 * (kinetic_anchor + kinetic_cut)) /
+          1000.;
+      particle.position_m[2] = earth_radius_m + 50000.;
+      particle.direction[2] = -1.;
+      particle.weight = 1.;
+      particle.history_id =
+          900000 + muons_inside_cut_safety_interval.size();
+      particle.step_id = 4;
+      muons_inside_cut_safety_interval.push_back(particle);
+    }
+    auto const cut_interval_selection =
+        backend.selectInteractionsForValidation(
+            muons_inside_cut_safety_interval);
+    require(
+        cut_interval_selection.fallback_events.empty() &&
+            cut_interval_selection.interactions.size() == 2,
+        "per-PID muon cut selection lost a safety-interval particle");
+    for (auto const& interaction :
+         cut_interval_selection.interactions) {
+      require(
+          interaction.status ==
+                  EmInteractionStatus::ParticleCut &&
+              std::isinf(
+                  interaction.interaction_grammage_g_per_cm2),
+          "muon inside its ParticleCut safety interval entered transport");
+    }
+    auto const cut_interval_pipeline =
+        backend.runLeptonDevicePipelineForValidation(
+            muons_inside_cut_safety_interval, 9050000);
+    require(
+        cut_interval_pipeline.selection_fallback_events.empty() &&
+            cut_interval_pipeline.transport_fallback_events.empty() &&
+            cut_interval_pipeline.transport_records.size() == 2 &&
+            cut_interval_pipeline.next_leptons.empty(),
+        "per-PID muon cut did not terminate on the GPU");
+    for (auto const& record :
+         cut_interval_pipeline.transport_records) {
+      require(
+          record.limit == LeptonTransportLimit::ParticleCut &&
+              record.distance_m == 0. &&
+              record.traversed_grammage_g_per_cm2 == 0.,
+          "per-PID muon cut produced a nonzero transport step");
+    }
 
     constexpr std::size_t ParticleCount = 8192;
     std::vector<EmParticleState> particles;
@@ -1117,6 +1192,20 @@ int main(int argc, char** argv) {
         backend.transportLeptonsStraightForValidation(interactions);
     require(first.input_interactions == interactions.size(),
             "lepton transport input count differs");
+    if (first.records.size() != 6) {
+      std::cerr << "diagnostic: straight transport records="
+                << first.records.size() << " fallbacks="
+                << first.fallback_events.size() << '\n';
+      for (auto const& fallback : first.fallback_events) {
+        std::cerr << "  input=" << fallback.input_index
+                  << " reason="
+                  << static_cast<std::uint32_t>(fallback.reason)
+                  << " status=" << fallback.diagnostic_status
+                  << " values=" << fallback.diagnostic_value0 << ','
+                  << fallback.diagnostic_value1 << ','
+                  << fallback.diagnostic_value2 << '\n';
+      }
+    }
     require(first.records.size() == 6,
             "six charged inputs must produce transport records");
     require(first.fallback_events.size() == 1,
@@ -1152,6 +1241,130 @@ int main(int argc, char** argv) {
             near_observation_straight.records[0].distance_m <
                 AtmosphereBoundaryGuardM,
         "near-observation straight lepton must retain its terminal root");
+    auto late_at_observation = makeCandidate(
+        11, 100., earth_radius_m, 100.1,
+        {0., 0., -1.}, 70000001, 0);
+    late_at_observation.particle.time_s =
+        ParticleCutMaximumTimeS - 0.05 / 299792458.;
+    auto const late_observation_straight =
+        near_observation_backend
+            .transportLeptonsStraightForValidation(
+                {late_at_observation});
+    require(
+        late_observation_straight.fallback_events.empty() &&
+            late_observation_straight.records.size() == 1 &&
+            late_observation_straight.records[0].limit ==
+                LeptonTransportLimit::ParticleCut &&
+            late_observation_straight.records[0]
+                    .observation_surface_reached_before_cut ==
+                1U &&
+            late_observation_straight.records[0].end.time_s >
+                ParticleCutMaximumTimeS &&
+            late_observation_straight.records[0]
+                    .cut_deposited_energy_GeV >
+                0.,
+        "post-step lepton time cut does not retain the scalar observation order");
+    auto const late_observation_pipeline =
+        near_observation_backend
+            .runLeptonDevicePipelineForValidation(
+                {late_at_observation.particle}, 70000100);
+    require(
+        late_observation_pipeline.selection_fallback_events.empty() &&
+            late_observation_pipeline.transport_fallback_events.empty() &&
+            late_observation_pipeline.vertex_fallback_events.empty() &&
+            late_observation_pipeline.final_states.fallback_events.empty() &&
+            late_observation_pipeline.transport_records.size() == 1 &&
+            late_observation_pipeline.transport_records[0].limit ==
+                LeptonTransportLimit::ParticleCut &&
+            late_observation_pipeline.next_leptons.empty() &&
+            late_observation_pipeline.observations.size() == 1 &&
+            late_observation_pipeline.observations[0].status ==
+                ObservationStatus::ReachedObservationSurface,
+        "lepton endpoint compaction lost observation-before-time-cut semantics");
+    auto late_profile_config = config;
+    auto& late_projection =
+        late_profile_config.profile_projection;
+    late_projection.enabled = true;
+    late_projection.accumulate_on_device = true;
+    late_projection.axis_start_position_m[2] =
+        earth_radius_m + 120000.;
+    late_projection.axis_direction[2] = -1.;
+    late_projection.axis_step_length_m = 1000.;
+    late_projection.axis_grammage_g_per_cm2.resize(130);
+    for (std::size_t index = 0;
+         index <
+         late_projection.axis_grammage_g_per_cm2.size();
+         ++index) {
+      late_projection.axis_grammage_g_per_cm2[index] =
+          10. * static_cast<double>(index);
+    }
+    late_projection.output_bin_count = 130;
+    late_projection.output_bin_width_g_per_cm2 = 10.;
+    late_projection.energy_loss_threshold_g_per_cm2 =
+        1.e-4;
+    late_projection.fixed_point_weight_limit = 1.e6;
+    late_projection.fixed_point_energy_limit_GeV = 1.e6;
+    CudaEmBackend late_profile_backend;
+    late_profile_backend.initialize(
+        environment, descriptor, late_profile_config);
+    auto const late_profile_cascade =
+        late_profile_backend
+            .runResidentLeptonCascadeForValidation(
+                {late_at_observation.particle}, 70000200,
+                4,
+                std::numeric_limits<std::uint64_t>::max(),
+                1);
+    auto const late_profile =
+        late_profile_backend.downloadProfile();
+    auto const late_ledger_tolerance_GeV = 2.e-6;
+    require(
+        late_profile_cascade.completed &&
+            late_profile_cascade.observations.size() == 1 &&
+            late_profile_cascade.observations[0].status ==
+                ObservationStatus::ReachedObservationSurface &&
+            late_profile.particle_cuts == 1 &&
+            std::abs(
+                late_profile.weighted_deposited_energy_GeV -
+                (late_at_observation.particle.energy_GeV -
+                 ElectronMassGeV)) <
+                late_ledger_tolerance_GeV &&
+            std::abs(
+                late_profile
+                        .weighted_cut_rest_mass_energy_GeV -
+                    ElectronMassGeV) <
+                late_ledger_tolerance_GeV &&
+            std::abs(
+                late_profile
+                        .weighted_observed_total_energy_GeV -
+                    late_profile_cascade.observations[0]
+                        .particle.energy_GeV) <
+                late_ledger_tolerance_GeV,
+        "resident lepton observation-before-time-cut ledger is incomplete");
+    auto off_axis_inclined = makeCandidate(
+        11, 100., earth_radius_m, 100.1,
+        {std::sin(80. * 3.141592653589793 / 180.),
+         0.,
+         -std::cos(80. * 3.141592653589793 / 180.)},
+        71, 0);
+    off_axis_inclined.particle.position_m[0] = 600.;
+    auto const off_axis_straight =
+        near_observation_backend
+            .transportLeptonsStraightForValidation(
+                {off_axis_inclined});
+    require(
+        off_axis_straight.fallback_events.empty() &&
+            off_axis_straight.records.size() == 1 &&
+            off_axis_straight.records[0].limit ==
+                LeptonTransportLimit::ObservationSurface,
+        "inclined off-axis straight lepton did not reach the plane");
+    requireNear(
+        off_axis_straight.records[0].end.position_m[2],
+        environment.observation_plane_point_m[2], 2.e-15,
+        "inclined straight lepton endpoint is not on the plane");
+    require(
+        off_axis_straight.records[0].limiting_radius_m >
+            environment.observation_radius_m + 0.01,
+        "inclined straight lepton still terminated on the legacy sphere");
 
     std::array<LeptonTransportLimit, 6> const expected_limits{
         LeptonTransportLimit::InteractionCandidate,
@@ -1958,6 +2171,8 @@ int main(int argc, char** argv) {
         magnetic_repeat.transport_records.size() ==
             magnetic_pipeline.transport_records.size(),
         "uniform-field repeat changed the transport count");
+    std::size_t chord_grammage_checks = 0;
+    std::size_t tangent_grammage_differences = 0;
     for (std::size_t index = 0;
          index < magnetic_pipeline.transport_records.size();
          ++index) {
@@ -1988,6 +2203,60 @@ int main(int argc, char** argv) {
           record.magnetic_step_limit_m,
           expected_limit.distance_m, 2.e-13,
           "uniform-field pipeline ignored configured magnetic deflection");
+      double chord_direction[3]{};
+      auto chord_length_squared = 0.;
+      for (std::size_t axis = 0; axis < 3; ++axis) {
+        chord_direction[axis] =
+            record.end.position_m[axis] -
+            record.start.position_m[axis];
+        chord_length_squared +=
+            chord_direction[axis] * chord_direction[axis];
+      }
+      auto const chord_length =
+          std::sqrt(chord_length_squared);
+      require(chord_length > 0.,
+              "uniform-field pipeline produced a zero chord");
+      for (auto& component : chord_direction) {
+        component /= chord_length;
+      }
+      auto const chord_grammage = atmosphereGrammage(
+          environment, record.start_layer_index,
+          record.start.position_m, chord_direction,
+          chord_length);
+      auto const tangent_grammage = atmosphereGrammage(
+          environment, record.start_layer_index,
+          record.start.position_m, record.start.direction,
+          record.distance_m);
+      require(
+          chord_grammage.status == AtmosphereStatus::Success &&
+              tangent_grammage.status ==
+                  AtmosphereStatus::Success,
+          "uniform-field grammage oracle failed");
+      requireNear(
+          record.traversed_grammage_g_per_cm2,
+          chord_grammage.value, 3.e-13,
+          "uniform-field transport did not use the CPU Step chord grammage");
+      if (record.limit != LeptonTransportLimit::ParticleCut) {
+        requireNear(
+            record.end.energy_GeV * 1000.,
+            energyAfterContinuousLoss(
+                findContinuousEnergyTable(
+                    source, record.start.pid),
+                record.start.energy_GeV * 1000.,
+                chord_grammage.value),
+            3.e-13,
+            "uniform-field continuous loss did not use the CPU Step chord");
+      }
+      ++chord_grammage_checks;
+      auto const grammage_scale = std::max(
+          {1.e-300, std::abs(chord_grammage.value),
+           std::abs(tangent_grammage.value)});
+      if (std::abs(
+              chord_grammage.value -
+              tangent_grammage.value) >
+          1.e-12 * grammage_scale) {
+        ++tangent_grammage_differences;
+      }
       for (std::size_t axis = 0; axis < 3; ++axis) {
         requireNear(
             record.end.position_m[axis],
@@ -2018,16 +2287,32 @@ int main(int argc, char** argv) {
                   environment.earth_center_m[2],
               2));
       if (record.limit ==
-              LeptonTransportLimit::LayerBoundary ||
-          record.limit ==
-              LeptonTransportLimit::ObservationSurface ||
-          record.limit ==
-              LeptonTransportLimit::EscapedEnvironment) {
+          LeptonTransportLimit::ObservationSurface) {
+        auto plane_residual = 0.;
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+          plane_residual +=
+              (record.end.position_m[axis] -
+               environment.observation_plane_point_m[axis]) *
+              environment.observation_plane_normal[axis];
+        }
+        require(
+            std::abs(plane_residual) < 1.e-8,
+            "curved lepton endpoint is off the observation plane");
+      } else if (record.limit ==
+                     LeptonTransportLimit::LayerBoundary ||
+                 record.limit ==
+                     LeptonTransportLimit::EscapedEnvironment) {
         requireNear(
             radius, record.limiting_radius_m, 2.e-12,
             "curved lepton endpoint is off its spherical boundary");
       }
     }
+    require(
+        chord_grammage_checks ==
+                magnetic_pipeline.transport_records.size() &&
+            tangent_grammage_differences > 0,
+        "uniform-field test did not distinguish the CPU Step chord from the "
+        "legacy start-tangent grammage");
     auto near_observation_magnetic =
         near_observation.particle;
     near_observation_magnetic.history_id = 10020;
@@ -2051,6 +2336,122 @@ int main(int argc, char** argv) {
             magnetic_near_observation
                     .observations.size() == 1,
         "near-observation magnetic lepton must terminate on the GPU");
+
+    auto inclined_magnetic_environment = environment;
+    inclined_magnetic_environment.magnetic_field_T[0] = 0.;
+    inclined_magnetic_environment.magnetic_field_T[1] = 2.e-5;
+    inclined_magnetic_environment.magnetic_field_T[2] = 0.;
+    CudaEmBackend inclined_magnetic_backend;
+    inclined_magnetic_backend.initialize(
+        inclined_magnetic_environment, descriptor, config);
+    auto inclined_magnetic_particle = off_axis_inclined.particle;
+    inclined_magnetic_particle.history_id = 10021;
+    inclined_magnetic_particle.step_id = 9;
+    auto const inclined_magnetic_step = maximumUniformMagneticStep(
+        inclined_magnetic_particle, electron.mass_MeV / 1000.,
+        -1., inclined_magnetic_environment.magnetic_field_T,
+        inclined_magnetic_environment.maximum_magnetic_deflection_rad);
+    auto const plane_limit = intersectUniformMagneticPlane(
+        inclined_magnetic_particle, electron.mass_MeV / 1000.,
+        -1., inclined_magnetic_environment.magnetic_field_T,
+        inclined_magnetic_environment,
+        inclined_magnetic_step.distance_m,
+        inclined_magnetic_environment.maximum_magnetic_deflection_rad);
+    require(
+        plane_limit.status == MagneticIntersectionStatus::Success,
+        "inclined magnetic plane oracle found no crossing");
+    auto const momentum_GeV = std::sqrt(
+        (inclined_magnetic_particle.energy_GeV -
+         electron.mass_MeV / 1000.) *
+        (inclined_magnetic_particle.energy_GeV +
+         electron.mass_MeV / 1000.));
+    std::array<double, 3> direction_cross_field{
+        inclined_magnetic_particle.direction[1] *
+                inclined_magnetic_environment.magnetic_field_T[2] -
+            inclined_magnetic_particle.direction[2] *
+                inclined_magnetic_environment.magnetic_field_T[1],
+        inclined_magnetic_particle.direction[2] *
+                inclined_magnetic_environment.magnetic_field_T[0] -
+            inclined_magnetic_particle.direction[0] *
+                inclined_magnetic_environment.magnetic_field_T[2],
+        inclined_magnetic_particle.direction[0] *
+                inclined_magnetic_environment.magnetic_field_T[1] -
+            inclined_magnetic_particle.direction[1] *
+                inclined_magnetic_environment.magnetic_field_T[0]};
+    auto scalar_a = 0.;
+    auto scalar_b = 0.;
+    auto scalar_c = 0.;
+    auto const scalar_curvature =
+        -GeVPerCToTeslaMeter / momentum_GeV;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      auto const normal = inclined_magnetic_environment
+                              .observation_plane_normal[axis];
+      scalar_a += 0.5 * scalar_curvature * normal *
+                  direction_cross_field[axis];
+      scalar_b += normal * inclined_magnetic_particle.direction[axis];
+      scalar_c +=
+          normal *
+          (inclined_magnetic_particle.position_m[axis] -
+           inclined_magnetic_environment
+               .observation_plane_point_m[axis]);
+    }
+    auto const scalar_roots =
+        solve_quadratic_real(scalar_a, scalar_b, scalar_c);
+    auto scalar_distance =
+        std::numeric_limits<double>::infinity();
+    for (auto const root : scalar_roots) {
+      if (root > 0. && root < scalar_distance) {
+        scalar_distance = root;
+      }
+    }
+    requireNear(
+        plane_limit.distance_m, scalar_distance, 2.e-13,
+        "CUDA magnetic plane root differs from the scalar quadratic solver");
+    auto const plane_endpoint = advanceUniformMagneticField(
+        inclined_magnetic_particle, electron.mass_MeV / 1000.,
+        -1., inclined_magnetic_environment.magnetic_field_T,
+        plane_limit.distance_m);
+    auto plane_residual = 0.;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      plane_residual +=
+          (plane_endpoint.particle.position_m[axis] -
+           inclined_magnetic_environment
+               .observation_plane_point_m[axis]) *
+          inclined_magnetic_environment
+              .observation_plane_normal[axis];
+    }
+    require(
+        plane_endpoint.status == MagneticStepStatus::Success &&
+            std::abs(plane_residual) < 1.e-8,
+        "curved plane root does not land on the CPU observation plane");
+    auto const inclined_magnetic_pipeline =
+        inclined_magnetic_backend
+            .runLeptonDevicePipelineForValidation(
+                {inclined_magnetic_particle}, 20040);
+    require(
+        inclined_magnetic_pipeline.transport_fallback_events.empty() &&
+            inclined_magnetic_pipeline.transport_records.size() == 1 &&
+            inclined_magnetic_pipeline.transport_records[0].limit ==
+                LeptonTransportLimit::ObservationSurface &&
+            inclined_magnetic_pipeline.observations.size() == 1,
+        "inclined off-axis magnetic lepton did not terminate on the plane");
+    auto const& inclined_record =
+        inclined_magnetic_pipeline.transport_records[0];
+    auto inclined_residual = 0.;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      inclined_residual +=
+          (inclined_record.end.position_m[axis] -
+           inclined_magnetic_environment
+               .observation_plane_point_m[axis]) *
+          inclined_magnetic_environment
+              .observation_plane_normal[axis];
+    }
+    require(
+        std::abs(inclined_residual) < 1.e-8 &&
+            inclined_record.limiting_radius_m >
+                inclined_magnetic_environment.observation_radius_m +
+                    0.01,
+        "inclined magnetic transport still terminated on the sphere");
 
     // Production regression from proton seed 10200251, shower 22.  The
     // maximum-deflection step ends about 43 micrometres inside the USStdBK

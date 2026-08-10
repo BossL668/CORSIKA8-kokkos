@@ -29,6 +29,9 @@ namespace corsika::gpu::em {
   };
 
   inline constexpr double MuonMassGeV = 0.1056583755;
+  // Keep the device transport cut bit-for-bit aligned with the hard-coded
+  // scalar ParticleCut condition `timePost > 10_ms`.
+  inline constexpr double ParticleCutMaximumTimeS = 10.e-3;
 
 #if defined(__CUDACC__)
 #define CORSIKA_GPU_EM_PID_HOST_DEVICE __host__ __device__
@@ -51,6 +54,11 @@ namespace corsika::gpu::em {
   CORSIKA_GPU_EM_PID_HOST_DEVICE inline constexpr bool
   isChargedLeptonPid(std::int32_t const pid) {
     return isElectronOrPositronPid(pid) || isMuonPid(pid);
+  }
+
+  CORSIKA_GPU_EM_PID_HOST_DEVICE inline constexpr bool
+  exceedsParticleCutTime(double const time_s) {
+    return time_s > ParticleCutMaximumTimeS;
   }
 
 #undef CORSIKA_GPU_EM_PID_HOST_DEVICE
@@ -77,6 +85,24 @@ namespace corsika::gpu::em {
     std::uint64_t history_id{};
     std::uint64_t parent_history_id{};
     std::uint64_t step_id{};
+  };
+
+  /**
+   * The unthinned physical final state of the generation-zero projectile.
+   *
+   * InteractionWriter runs before EMThinning on the scalar process sequence.
+   * The device transport queue, on the other hand, contains only children
+   * retained by thinning.  Keeping this one fixed-size snapshot at the final
+   * state kernel therefore preserves the scalar writer semantics without
+   * downloading every GPU interaction or re-inserting children into Stack.
+   * All currently device-native electromagnetic final states have at most
+   * three children.
+   */
+  struct GpuFirstInteractionSnapshot {
+    EmParticleState parent_at_vertex{};
+    EmParticleState secondaries[3]{};
+    std::int32_t process_id{};
+    std::uint32_t secondary_count{};
   };
 
   struct EmStepRecord {
@@ -293,7 +319,12 @@ namespace corsika::gpu::em {
     std::uint32_t number_of_layers{};
     std::uint32_t reserved{};
     double magnetic_field_T[3]{};
+    // The atmosphere remains spherical, but c8_air_shower terminates tracks
+    // on an independent (locally flat) ObservationPlane.  Keep the former
+    // radius as configuration metadata and store the actual plane explicitly.
     double observation_radius_m{};
+    double observation_plane_point_m[3]{};
+    double observation_plane_normal[3]{};
     double maximum_magnetic_deflection_rad{0.2};
   };
 
@@ -474,6 +505,7 @@ namespace corsika::gpu::em {
     std::uint64_t interactions_selected{};
     std::uint64_t final_state_batches{};
     std::uint64_t gpu_final_states{};
+    std::uint64_t first_interaction_candidates{};
     std::uint64_t physical_secondaries_generated{};
     std::uint64_t photon_pair_lpm_trials{};
     std::uint64_t photon_pair_lpm_suppressions{};
@@ -619,6 +651,10 @@ namespace corsika::gpu::em {
     double end_density_g_per_cm3{};
     double limiting_radius_m{};
     double cut_deposited_energy_GeV{};
+    // ObservationPlane precedes ParticleCut in c8_air_shower's scalar
+    // process sequence.  A step that reaches the plane after 10 ms must
+    // therefore both publish the observation and terminate at ParticleCut.
+    std::uint32_t observation_surface_reached_before_cut{};
   };
 
   struct PhotonTransportBatchResult {
@@ -664,6 +700,7 @@ namespace corsika::gpu::em {
     double limiting_radius_m{};
     double continuous_deposited_energy_GeV{};
     double cut_deposited_energy_GeV{};
+    std::uint32_t observation_surface_reached_before_cut{};
     // Two 16-bit flags plus the iteration counter retain the former
     // eight-byte layout while exposing the dominant Moliere work per step.
     std::uint16_t multiple_scattering_applied{};
@@ -928,6 +965,8 @@ namespace corsika::gpu::em {
   static_assert(std::is_trivially_copyable_v<ProposalFallbackEvent>);
   static_assert(std::is_standard_layout_v<EmInteractionRecord>);
   static_assert(std::is_trivially_copyable_v<EmInteractionRecord>);
+  static_assert(std::is_standard_layout_v<GpuFirstInteractionSnapshot>);
+  static_assert(std::is_trivially_copyable_v<GpuFirstInteractionSnapshot>);
   static_assert(std::is_standard_layout_v<PhotonPairFinalStateRecord>);
   static_assert(std::is_trivially_copyable_v<PhotonPairFinalStateRecord>);
   static_assert(std::is_standard_layout_v<PhotonPairLpmSuppressionRecord>);

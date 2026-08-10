@@ -83,6 +83,29 @@ if (CORSIKA_ENABLE_CUDA)
     CORSIKA8
     CORSIKA8GpuEm
     )
+
+  # Validation-only probe.  This executable compares the original scalar
+  # PROPOSAL interaction contract with the CUDA table contract while feeding
+  # both sides the same process-selection uniforms.  It is deliberately
+  # excluded from the default build and is never installed with production
+  # applications.
+  add_executable (
+    gpu_em_same_random_process_oracle EXCLUDE_FROM_ALL
+    ../validation/gpu_em/compare_same_random_processes.cpp
+    )
+  target_link_libraries (
+    gpu_em_same_random_process_oracle
+    PRIVATE
+    CORSIKA8GpuEm
+    PROPOSAL::PROPOSAL
+    spdlog::spdlog
+    yaml-cpp::yaml-cpp
+    )
+  add_dependencies (
+    gpu_em_same_random_process_oracle
+    GenParticlesHeaders
+    GenMediaProperties
+    )
 endif ()
 
 add_executable (gpu_em_tablegen gpu_em_tablegen.cpp)
@@ -95,6 +118,21 @@ target_link_libraries (
   spdlog::spdlog
   )
 add_dependencies (gpu_em_tablegen GenParticlesHeaders GenMediaProperties)
+
+# Numerical diagnostic used to compare the production flat table with both
+# cached/interpolated and direct PROPOSAL electron loss queries.
+add_executable (
+  gpu_em_curve_dump
+  ../validation/gpu_em/dump_proposal_table_curves.cpp
+  )
+target_link_libraries (
+  gpu_em_curve_dump
+  PRIVATE
+  CORSIKA8GpuEmTables
+  PROPOSAL::PROPOSAL
+  spdlog::spdlog
+  )
+add_dependencies (gpu_em_curve_dump GenParticlesHeaders GenMediaProperties)
 
 add_executable (gpu_em_table_prepare gpu_em_table_prepare.cpp)
 target_link_libraries (

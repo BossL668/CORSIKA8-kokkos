@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <corsika/gpu/em/CudaPhotonTransport.hpp>
+#include <corsika/gpu/em/ObservationPlane.hpp>
 #include <corsika/gpu/em/SphericalAtmosphere.hpp>
 #include <corsika/gpu/em/detail/DeviceBatchStages.hpp>
 
@@ -143,27 +144,42 @@ namespace corsika::gpu::em {
         fallback_flags[index] = 0;
         return;
       }
-      auto const boundary = distanceToAtmosphereBoundary(
+      auto const atmosphere_boundary = distanceToAtmosphereBoundary(
           environment, start.position_m, start.direction);
-      if (boundary.status != AtmosphereStatus::Success) {
+      auto const observation = intersectObservationPlaneStraight(
+          environment, start.position_m, start.direction);
+      auto const has_atmosphere_boundary =
+          atmosphere_boundary.status == AtmosphereStatus::Success;
+      auto const has_observation =
+          observation.status == ObservationPlaneStatus::Success;
+      if (!has_atmosphere_boundary && !has_observation) {
         raw_fallbacks[index] = makeTransportFallback(
             interaction,
             ProposalFallbackReason::UnsupportedGeometry);
         fallback_flags[index] = 1;
         return;
       }
+      auto const observation_wins =
+          has_observation &&
+          (!has_atmosphere_boundary ||
+           observation.distance_m < atmosphere_boundary.distance_m);
+      auto const boundary_distance_m =
+          observation_wins ? observation.distance_m
+                           : atmosphere_boundary.distance_m;
+      auto const limiting_radius_m =
+          observation_wins ? 0. : atmosphere_boundary.radius_m;
       auto const boundary_grammage = atmosphereGrammage(
           environment, layer.layer_index, start.position_m,
-          start.direction, boundary.distance_m);
+          start.direction, boundary_distance_m);
       if (boundary_grammage.status != AtmosphereStatus::Success) {
         auto fallback = makeTransportFallback(
             interaction,
             ProposalFallbackReason::AtmosphereGrammageFailed);
         fallback.diagnostic_status =
             static_cast<std::int32_t>(boundary_grammage.status);
-        fallback.diagnostic_value0 = boundary.distance_m;
+        fallback.diagnostic_value0 = boundary_distance_m;
         fallback.diagnostic_value1 = layer.density_g_per_cm3;
-        fallback.diagnostic_value2 = boundary.radius_m;
+        fallback.diagnostic_value2 = limiting_radius_m;
         raw_fallbacks[index] = fallback;
         fallback_flags[index] = 1;
         return;
@@ -176,7 +192,7 @@ namespace corsika::gpu::em {
       record.start_layer_index = layer.layer_index;
       record.start_density_g_per_cm3 =
           layer.density_g_per_cm3;
-      record.limiting_radius_m = boundary.radius_m;
+      record.limiting_radius_m = limiting_radius_m;
 
       auto const reaches_interaction =
           interaction.status == EmInteractionStatus::Selected &&
@@ -190,7 +206,7 @@ namespace corsika::gpu::em {
             start.direction,
             interaction.interaction_grammage_g_per_cm2);
         if (distance.status != AtmosphereStatus::Success ||
-            distance.value > boundary.distance_m *
+            distance.value > boundary_distance_m *
                                  (1. + 1.e-12)) {
           auto fallback = makeTransportFallback(
               interaction,
@@ -198,7 +214,7 @@ namespace corsika::gpu::em {
           fallback.diagnostic_status =
               static_cast<std::int32_t>(distance.status);
           fallback.diagnostic_value0 = distance.value;
-          fallback.diagnostic_value1 = boundary.distance_m;
+          fallback.diagnostic_value1 = boundary_distance_m;
           fallback.diagnostic_value2 =
               interaction.interaction_grammage_g_per_cm2;
           raw_fallbacks[index] = fallback;
@@ -234,19 +250,30 @@ namespace corsika::gpu::em {
         record.interaction.particle = record.end;
         record.interaction.mass_density_g_per_cm3 =
             vertex.density_g_per_cm3;
+        // Scalar ParticleCut runs after every completed continuous step and
+        // before the selected discrete interaction is generated.  Preserve
+        // the full step, but suppress the interaction when its post-step
+        // event time is beyond 10 ms.
+        if (exceedsParticleCutTime(record.end.time_s)) {
+          record.end.step_id++;
+          record.limit = PhotonTransportLimit::ParticleCut;
+          record.cut_deposited_energy_GeV = start.energy_GeV;
+        }
         raw_records[index] = record;
         fallback_flags[index] = 0;
         return;
       }
 
-      advancePhotonState(start, boundary.distance_m, record.end);
+      advancePhotonState(start, boundary_distance_m, record.end);
       record.end.step_id++;
-      record.distance_m = boundary.distance_m;
+      record.distance_m = boundary_distance_m;
       record.traversed_grammage_g_per_cm2 =
           boundary_grammage.value;
-      if (closeRadius(
-              boundary.radius_m,
-              environment.observation_radius_m)) {
+      if (observation_wins) {
+        double radial[3]{};
+        record.limiting_radius_m =
+            atmosphere_detail::radiusVector(
+                environment, record.end.position_m, radial);
         record.limit =
             PhotonTransportLimit::ObservationSurface;
         record.end_layer_index = -1;
@@ -257,7 +284,8 @@ namespace corsika::gpu::em {
             environment.atmosphere_layers[
                 environment.number_of_layers - 1]
                 .outer_radius_m;
-        if (closeRadius(boundary.radius_m, outermost)) {
+        if (closeRadius(
+                atmosphere_boundary.radius_m, outermost)) {
           record.limit =
               PhotonTransportLimit::EscapedEnvironment;
           record.end_layer_index = -1;
@@ -283,6 +311,15 @@ namespace corsika::gpu::em {
           record.end_density_g_per_cm3 =
               next.density_g_per_cm3;
         }
+      }
+      if (exceedsParticleCutTime(record.end.time_s)) {
+        record.observation_surface_reached_before_cut =
+            record.limit ==
+                    PhotonTransportLimit::ObservationSurface
+                ? 1U
+                : 0U;
+        record.limit = PhotonTransportLimit::ParticleCut;
+        record.cut_deposited_energy_GeV = start.energy_GeV;
       }
       raw_records[index] = record;
       fallback_flags[index] = 0;

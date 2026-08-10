@@ -19,6 +19,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
@@ -496,6 +497,29 @@ namespace corsika::gpu::em {
 
       initialized_ = true;
       try {
+        first_interaction_device_bytes_ =
+            sizeof(GpuFirstInteractionSnapshot) +
+            sizeof(std::uint32_t);
+        checkCuda(
+            cudaMalloc(
+                reinterpret_cast<void**>(
+                    &device_first_interaction_snapshot_),
+                sizeof(GpuFirstInteractionSnapshot)),
+            "allocate GPU first-interaction snapshot");
+        checkCuda(
+            cudaMalloc(
+                reinterpret_cast<void**>(
+                    &device_first_interaction_candidate_count_),
+                sizeof(std::uint32_t)),
+            "allocate GPU first-interaction candidate count");
+        checkCuda(
+            cudaMemset(
+                device_first_interaction_candidate_count_, 0,
+                sizeof(std::uint32_t)),
+            "clear GPU first-interaction candidate count");
+        first_interaction_capture_ = {
+            device_first_interaction_snapshot_,
+            device_first_interaction_candidate_count_};
         checkCuda(
             cudaEventCreate(&physical_pipeline_start_),
             "cudaEventCreate(physical pipeline start)");
@@ -1051,6 +1075,11 @@ namespace corsika::gpu::em {
       pending_photon_head_ = 0;
       pending_lepton_head_ = 0;
       next_history_id_ = 1;
+      checkCuda(
+          cudaMemset(
+              device_first_interaction_candidate_count_, 0,
+              sizeof(std::uint32_t)),
+          "reset GPU first-interaction candidate count");
       ++shower_ordinal_;
       resetStatisticsForShower(true);
     }
@@ -1388,6 +1417,63 @@ namespace corsika::gpu::em {
           device_profile_accumulator_.inverse_energy_scale;
       profile_downloaded_ = true;
       return result;
+    }
+
+    std::optional<GpuFirstInteractionSnapshot>
+    downloadFirstInteractionSnapshot() {
+      requireInitialized();
+      if (device_first_interaction_snapshot_ == nullptr ||
+          device_first_interaction_candidate_count_ == nullptr) {
+        throw std::logic_error(
+            "CUDA first-interaction capture is not initialized");
+      }
+      auto const transfer_start =
+          std::chrono::steady_clock::now();
+      std::uint32_t candidate_count = 0;
+      checkCuda(
+          cudaMemcpy(
+              &candidate_count,
+              device_first_interaction_candidate_count_,
+              sizeof(candidate_count), cudaMemcpyDeviceToHost),
+          "download GPU first-interaction candidate count");
+      statistics_.first_interaction_candidates = candidate_count;
+      statistics_.physical_device_to_host_bytes +=
+          sizeof(candidate_count);
+      if (candidate_count > 1) {
+        throw std::runtime_error(
+            "CUDA EM transport produced more than one generation-zero "
+            "interaction candidate");
+      }
+      if (candidate_count == 0) {
+        auto const transfer_stop =
+            std::chrono::steady_clock::now();
+        statistics_.transfer_time_ms +=
+            std::chrono::duration<double, std::milli>(
+                transfer_stop - transfer_start)
+                .count();
+        return std::nullopt;
+      }
+      GpuFirstInteractionSnapshot snapshot{};
+      checkCuda(
+          cudaMemcpy(
+              &snapshot, device_first_interaction_snapshot_,
+              sizeof(snapshot), cudaMemcpyDeviceToHost),
+          "download GPU first-interaction snapshot");
+      statistics_.physical_device_to_host_bytes +=
+          sizeof(snapshot);
+      auto const transfer_stop =
+          std::chrono::steady_clock::now();
+      statistics_.transfer_time_ms +=
+          std::chrono::duration<double, std::milli>(
+              transfer_stop - transfer_start)
+              .count();
+      if (snapshot.parent_at_vertex.generation != 0 ||
+          snapshot.secondary_count == 0 ||
+          snapshot.secondary_count > 3) {
+        throw std::runtime_error(
+            "CUDA first-interaction snapshot is structurally invalid");
+      }
+      return snapshot;
     }
 
     EmInteractionBatchResult selectInteractionsForValidation(
@@ -2440,7 +2526,8 @@ namespace corsika::gpu::em {
                       config_.shower_id,
                       next_secondary_history_id,
                       *output_workspace,
-                      charged_secondary_sink_ptr);
+                      charged_secondary_sink_ptr,
+                      &first_interaction_capture_);
             },
             statistics_.kernel_time_ms,
             physical_pipeline_start_,
@@ -2568,10 +2655,18 @@ namespace corsika::gpu::em {
             pipeline.at_interaction.interaction_count;
         result.lpm_suppressions +=
             pipeline.final_state.suppression_count;
+        if (pipeline.endpoints.observation_before_cut_count >
+                pipeline.endpoints.observation_count ||
+            pipeline.endpoints.observation_before_cut_count >
+                particle_cuts) {
+          throw std::runtime_error(
+              "resident photon dual observation/cut endpoint count is invalid");
+        }
         auto const terminal_transport_count =
             pipeline.at_interaction.interaction_count +
             pipeline.endpoints.observation_count +
-            particle_cuts;
+            particle_cuts -
+            pipeline.endpoints.observation_before_cut_count;
         if (pipeline.transport.record_count <
             terminal_transport_count) {
           throw std::runtime_error(
@@ -3043,7 +3138,8 @@ namespace corsika::gpu::em {
                       *output_workspace,
                       config_.detailed_stage_timing
                           ? &stage_events
-                          : nullptr);
+                          : nullptr,
+                      &first_interaction_capture_);
               radio_accumulator_.accumulateLeptonTracksOnDevice(
                   launched.transport.records,
                   launched.transport.record_count,
@@ -4253,8 +4349,13 @@ namespace corsika::gpu::em {
           queue_table_profile_and_cross_bytes,
           radio_device_bytes_,
           "GPU radio allocation size overflow");
+      auto const queue_table_radio_and_interaction_bytes =
+          checkedAdd(
+              queue_table_and_radio_bytes,
+              first_interaction_device_bytes_,
+              "GPU first-interaction allocation size overflow");
       auto const total_required_bytes = checkedAdd(
-          queue_table_and_radio_bytes,
+          queue_table_radio_and_interaction_bytes,
           checkedAdd(
               physical_workspace_.capacityBytes(),
               physical_workspace_next_.capacityBytes(),
@@ -4316,7 +4417,8 @@ namespace corsika::gpu::em {
       device_scan_temporary_ = new_scan_temporary;
       scan_temporary_bytes_ = required_scan_bytes;
       capacity_ = new_capacity;
-      resident_allocation_bytes_ = queue_table_and_radio_bytes;
+      resident_allocation_bytes_ =
+          queue_table_radio_and_interaction_bytes;
       statistics_.reserved_particles = capacity_;
       statistics_.peak_device_bytes =
           std::max(statistics_.peak_device_bytes,
@@ -4428,6 +4530,12 @@ namespace corsika::gpu::em {
       if (device_staging_ != nullptr) {
         cudaFree(device_staging_);
       }
+      if (device_first_interaction_candidate_count_ != nullptr) {
+        cudaFree(device_first_interaction_candidate_count_);
+      }
+      if (device_first_interaction_snapshot_ != nullptr) {
+        cudaFree(device_first_interaction_snapshot_);
+      }
       freeQueue(device_next_);
       freeQueue(device_current_);
       physical_workspace_.release();
@@ -4497,6 +4605,10 @@ namespace corsika::gpu::em {
       device_child_offsets_ = nullptr;
       device_child_counts_ = nullptr;
       device_staging_ = nullptr;
+      device_first_interaction_snapshot_ = nullptr;
+      device_first_interaction_candidate_count_ = nullptr;
+      first_interaction_capture_ = {};
+      first_interaction_device_bytes_ = 0;
       device_profile_axis_grammage_ = nullptr;
       device_moliere_interpolation_ = nullptr;
       device_profile_projection_ = {};
@@ -4558,6 +4670,13 @@ namespace corsika::gpu::em {
     DeviceParticleSoA device_current_{};
     DeviceParticleSoA device_next_{};
     EmParticleState* device_staging_{};
+    GpuFirstInteractionSnapshot*
+        device_first_interaction_snapshot_{};
+    std::uint32_t*
+        device_first_interaction_candidate_count_{};
+    detail::DeviceFirstInteractionCapture
+        first_interaction_capture_{};
+    std::size_t first_interaction_device_bytes_{};
     std::uint32_t* device_child_counts_{};
     std::size_t* device_child_offsets_{};
     void* device_scan_temporary_{};
@@ -4717,6 +4836,11 @@ namespace corsika::gpu::em {
 
   GpuProfileResult CudaEmBackend::downloadProfile() {
     return impl_->downloadProfile();
+  }
+
+  std::optional<GpuFirstInteractionSnapshot>
+  CudaEmBackend::downloadFirstInteractionSnapshot() {
+    return impl_->downloadFirstInteractionSnapshot();
   }
 
   EmInteractionBatchResult

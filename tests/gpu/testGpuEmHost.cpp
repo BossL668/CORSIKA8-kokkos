@@ -18,6 +18,11 @@
 #include <corsika/gpu/em/ProposalFallback.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
+#include <corsika/framework/process/BoundaryCrossingProcess.hpp>
+#include <corsika/framework/process/DecayProcess.hpp>
+#include <corsika/framework/process/InteractionProcess.hpp>
+#include <corsika/framework/process/SecondariesProcess.hpp>
+#include <corsika/framework/process/StackProcess.hpp>
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
 
 namespace {
@@ -275,6 +280,44 @@ namespace {
   class UnknownContinuous final
       : public corsika::ContinuousProcess<UnknownContinuous> {};
 
+  class RegisteredSecondaries final
+      : public corsika::SecondariesProcess<RegisteredSecondaries> {};
+
+  class UnknownSecondaries final
+      : public corsika::SecondariesProcess<UnknownSecondaries> {};
+
+  class RegisteredInteraction final
+      : public corsika::InteractionProcess<RegisteredInteraction> {};
+
+  class UnknownInteraction final
+      : public corsika::InteractionProcess<UnknownInteraction> {};
+
+  class RegisteredDecay final
+      : public corsika::DecayProcess<RegisteredDecay> {};
+
+  class UnknownDecay final
+      : public corsika::DecayProcess<UnknownDecay> {};
+
+  class RegisteredBoundary final
+      : public corsika::BoundaryCrossingProcess<RegisteredBoundary> {};
+
+  class UnknownBoundary final
+      : public corsika::BoundaryCrossingProcess<UnknownBoundary> {};
+
+  class RegisteredStack final
+      : public corsika::StackProcess<RegisteredStack> {
+  public:
+    RegisteredStack()
+        : corsika::StackProcess<RegisteredStack>(1) {}
+  };
+
+  class UnknownStack final
+      : public corsika::StackProcess<UnknownStack> {
+  public:
+    UnknownStack()
+        : corsika::StackProcess<UnknownStack>(1) {}
+  };
+
   void testProcessSequenceCompatibility() {
     using ReplacedRegistration =
         GpuEmStepProcessRegistration<
@@ -360,6 +403,126 @@ namespace {
         switchedRejected,
         "unknown continuous process inside SwitchProcessSequence did not "
         "cause a CUDA startup rejection");
+
+    using RegisteredSecondariesRegistration =
+        GpuEmStepProcessRegistration<
+            RegisteredSecondaries,
+            GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>;
+    using SecondariesRegistry =
+        GpuEmStepProcessRegistry<RegisteredSecondariesRegistration>;
+    RegisteredSecondaries registered_secondaries;
+    UnknownSecondaries unknown_secondaries;
+    auto secondary_sequence = corsika::make_sequence(
+        registered_secondaries, unknown_secondaries);
+    using SecondarySequence = decltype(secondary_sequence);
+    static_assert(
+        SecondariesRegistry::
+            unregisteredSecondariesProcessCount<SecondarySequence>() == 1);
+    static_assert(!SecondariesRegistry::compatible<SecondarySequence>());
+    bool secondaries_rejected = false;
+    try {
+      SecondariesRegistry::validateOrThrow<SecondarySequence>();
+    } catch (std::runtime_error const& error) {
+      secondaries_rejected =
+          std::string(error.what()).find(
+              "1 SecondariesProcess") != std::string::npos;
+    }
+    require(
+        secondaries_rejected,
+        "unknown secondaries process did not cause a CUDA startup rejection");
+
+    using RegisteredInteractionRegistration =
+        GpuEmStepProcessRegistration<
+            RegisteredInteraction,
+            GpuEmStepProcessPolicy::ReplacedOnDevice>;
+    using RegisteredDecayRegistration =
+        GpuEmStepProcessRegistration<
+            RegisteredDecay,
+            GpuEmStepProcessPolicy::DeferredToCpu>;
+    using RegisteredBoundaryRegistration =
+        GpuEmStepProcessRegistration<
+            RegisteredBoundary,
+            GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>;
+    using RegisteredStackRegistration =
+        GpuEmStepProcessRegistration<
+            RegisteredStack,
+            GpuEmStepProcessPolicy::DiagnosticOnly>;
+    using CategoryRegistry = GpuEmStepProcessRegistry<
+        RegisteredInteractionRegistration,
+        RegisteredDecayRegistration,
+        RegisteredBoundaryRegistration,
+        RegisteredStackRegistration>;
+
+    RegisteredInteraction registered_interaction;
+    UnknownInteraction unknown_interaction;
+    RegisteredDecay registered_decay;
+    UnknownDecay unknown_decay;
+    RegisteredBoundary registered_boundary;
+    UnknownBoundary unknown_boundary;
+    RegisteredStack registered_stack;
+    UnknownStack unknown_stack;
+    auto category_sequence = corsika::make_sequence(
+        registered_interaction, unknown_interaction,
+        registered_decay, unknown_decay,
+        registered_boundary, unknown_boundary,
+        registered_stack, unknown_stack);
+    using CategorySequence = decltype(category_sequence);
+    static_assert(
+        CategoryRegistry::
+            unregisteredInteractionProcessCount<CategorySequence>() == 1);
+    static_assert(
+        CategoryRegistry::
+            unregisteredDecayProcessCount<CategorySequence>() == 1);
+    static_assert(
+        CategoryRegistry::
+            unregisteredBoundaryProcessCount<CategorySequence>() == 1);
+    static_assert(
+        CategoryRegistry::
+            unregisteredStackProcessCount<CategorySequence>() == 1);
+    static_assert(!CategoryRegistry::compatible<CategorySequence>());
+    bool categories_rejected = false;
+    try {
+      CategoryRegistry::validateOrThrow<CategorySequence>();
+    } catch (std::runtime_error const& error) {
+      auto const message = std::string{error.what()};
+      categories_rejected =
+          message.find("1 InteractionProcess") != std::string::npos &&
+          message.find("1 DecayProcess") != std::string::npos &&
+          message.find("1 BoundaryCrossingProcess") != std::string::npos &&
+          message.find("1 StackProcess") != std::string::npos;
+    }
+    require(
+        categories_rejected,
+        "unknown interaction/decay/boundary/stack processes did not cause "
+        "a CUDA startup rejection");
+
+    using CompleteCategoryRegistry = GpuEmStepProcessRegistry<
+        RegisteredInteractionRegistration,
+        GpuEmStepProcessRegistration<
+            UnknownInteraction,
+            GpuEmStepProcessPolicy::InapplicableToRoutedEm>,
+        RegisteredDecayRegistration,
+        GpuEmStepProcessRegistration<
+            UnknownDecay,
+            GpuEmStepProcessPolicy::DeferredToCpu>,
+        RegisteredBoundaryRegistration,
+        GpuEmStepProcessRegistration<
+            UnknownBoundary,
+            GpuEmStepProcessPolicy::ReplayedFromDeviceRecord>,
+        RegisteredStackRegistration,
+        GpuEmStepProcessRegistration<
+            UnknownStack,
+            GpuEmStepProcessPolicy::DiagnosticOnly>>;
+    static_assert(
+        CompleteCategoryRegistry::compatible<CategorySequence>());
+    CompleteCategoryRegistry::validateOrThrow<CategorySequence>();
+    require(
+        CompleteCategoryRegistry::replacedOnDeviceCount() == 1 &&
+            CompleteCategoryRegistry::replayedFromDeviceRecordCount() == 2 &&
+            CompleteCategoryRegistry::deferredToCpuCount() == 2 &&
+            CompleteCategoryRegistry::inapplicableToRoutedEmCount() == 1 &&
+            CompleteCategoryRegistry::diagnosticOnlyCount() == 2,
+        "extended process registry policy counts differ");
   }
 
 } // namespace

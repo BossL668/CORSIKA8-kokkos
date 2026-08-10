@@ -31,7 +31,7 @@ namespace corsika::gpu::em {
 
     constexpr unsigned int ThreadsPerBlock = 256;
     constexpr std::size_t PhotonEndpointSummarySize =
-        6 + detail::PhotonFinalStateSummaryLayout::Size;
+        7 + detail::PhotonFinalStateSummaryLayout::Size;
 
     struct IsChargedEmParticle {
       __host__ __device__ bool operator()(
@@ -78,7 +78,8 @@ namespace corsika::gpu::em {
         ObservationRecord* raw_observations,
         std::uint32_t* observation_flags,
         std::uint32_t* error_flag,
-        std::uint32_t* particle_cut_count) {
+        std::uint32_t* particle_cut_count,
+        std::uint32_t* observation_before_cut_count) {
       auto const index =
           static_cast<std::size_t>(blockIdx.x) * blockDim.x +
           threadIdx.x;
@@ -119,6 +120,19 @@ namespace corsika::gpu::em {
       } else if (
           record.limit ==
           PhotonTransportLimit::ParticleCut) {
+        if (record.observation_surface_reached_before_cut != 0U) {
+          if (atomicCAS(
+                  observation_flags + source, 0U, 1U) != 0U) {
+            atomicExch(error_flag, 3U);
+            return;
+          }
+          ObservationRecord observation{};
+          observation.particle = record.end;
+          observation.status =
+              ObservationStatus::ReachedObservationSurface;
+          raw_observations[source] = observation;
+          atomicAdd(observation_before_cut_count, 1U);
+        }
         atomicAdd(particle_cut_count, 1U);
       }
     }
@@ -268,7 +282,7 @@ namespace corsika::gpu::em {
            index <
            detail::PhotonFinalStateSummaryLayout::Size;
            ++index) {
-        summary[6 + index] =
+        summary[7 + index] =
             final_state_summary == nullptr
                 ? 0U
                 : final_state_summary[index];
@@ -365,7 +379,7 @@ namespace corsika::gpu::em {
             transport_records, transport_count, source_count,
             raw_next, next_flags, raw_observations,
             observation_flags, error_flag,
-            device_summary + 3);
+            device_summary + 3, device_summary + 6);
         checkCuda(cudaGetLastError(),
                   "scatter transport endpoints launch");
       }
@@ -534,9 +548,11 @@ namespace corsika::gpu::em {
           static_cast<std::size_t>(host_summary[4]);
       auto const selection_succeeded =
           host_summary[5] != 0;
+      auto const observation_before_cut_count =
+          static_cast<std::size_t>(host_summary[6]);
       auto final_count = [&](std::size_t index) {
         return static_cast<std::size_t>(
-            host_summary[6 + index]);
+            host_summary[7 + index]);
       };
       if (deferred_final_state) {
         final_state.input_count =
@@ -577,7 +593,7 @@ namespace corsika::gpu::em {
       }
       auto const final_state_error =
           host_summary[
-              6 + PhotonFinalStateSummaryLayout::Error];
+              7 + PhotonFinalStateSummaryLayout::Error];
       if (final_state_error == 2U) {
         throw std::runtime_error(
             "photon final-state classification lost or duplicated an interaction");
@@ -608,6 +624,8 @@ namespace corsika::gpu::em {
       result.next_photon_count = next_count;
       result.observation_count = observation_count;
       result.particle_cut_count = particle_cut_count;
+      result.observation_before_cut_count =
+          observation_before_cut_count;
       result.generated_lepton_count =
           generated_lepton_count;
       result.generated_leptons_compacted =
@@ -637,7 +655,9 @@ namespace corsika::gpu::em {
         std::uint64_t first_secondary_history_id,
         DeviceWorkspace& workspace,
         DeviceChargedSecondarySink const*
-            charged_secondary_sink) {
+            charged_secondary_sink,
+        DeviceFirstInteractionCapture const*
+            first_interaction) {
       DevicePhotonPipelineBatch pipeline{};
       pipeline.selection = launchInteractionSelectionOnDevice(
           device_table, device_particles, count, random_seed,
@@ -662,7 +682,8 @@ namespace corsika::gpu::em {
               pipeline.at_interaction.input_count,
               random_seed, shower_id,
               first_secondary_history_id, workspace,
-              true, &pipeline.at_interaction);
+              true, &pipeline.at_interaction,
+              first_interaction);
       pipeline.endpoints = compactPhotonEndpointsOnDevice(
           pipeline.transport.records,
           pipeline.transport.record_count,

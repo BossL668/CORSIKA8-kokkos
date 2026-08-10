@@ -533,6 +533,16 @@ class EnsembleComparisonTest(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertTrue(report["acceptance"]["passed"])
         self.assertFalse(curve_rows.empty)
+        self.assertIn("proposal_standard_error", curve_rows.columns)
+        self.assertIn("cuda_standard_error", curve_rows.columns)
+        self.assertIn("proposal_events", curve_rows.columns)
+        self.assertIn("cuda_events", curve_rows.columns)
+        self.assertTrue(
+            (curve_rows["proposal_events"] == len(proposal.showers)).all()
+        )
+        self.assertTrue(
+            (curve_rows["cuda_events"] == len(cuda.showers)).all()
+        )
 
     def test_identical_zero_metric_passes(self) -> None:
         result = compare_scalar(

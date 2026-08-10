@@ -19,6 +19,16 @@
 
 namespace corsika::gpu::em::detail {
 
+  /**
+   * Persistent one-record destination owned by CudaEmBackend.  Candidate
+   * count is deliberately separate from the snapshot: a value greater than
+   * one is a hard causal-identity error, never a last-writer-wins result.
+   */
+  struct DeviceFirstInteractionCapture {
+    GpuFirstInteractionSnapshot* snapshot{};
+    std::uint32_t* candidate_count{};
+  };
+
   struct PhotonFinalStateSummaryLayout {
     static constexpr std::size_t SecondaryCount = 0;
     static constexpr std::size_t GpuCount = 1;
@@ -163,6 +173,7 @@ namespace corsika::gpu::em::detail {
     std::size_t next_photon_count{};
     std::size_t observation_count{};
     std::size_t particle_cut_count{};
+    std::size_t observation_before_cut_count{};
     std::size_t generated_lepton_count{};
     bool generated_leptons_compacted{};
     EmParticleState* next_photons{};
@@ -325,7 +336,9 @@ namespace corsika::gpu::em::detail {
       std::uint64_t first_secondary_history_id,
       DeviceWorkspace&, bool defer_count_download = false,
       DeviceTransportInteractionBatch*
-          deferred_interactions = nullptr);
+          deferred_interactions = nullptr,
+      DeviceFirstInteractionCapture const* first_interaction =
+          nullptr);
 
   void appendBremsFinalStateWorkspace(
       WorkspaceSize&, std::size_t count);
@@ -341,7 +354,9 @@ namespace corsika::gpu::em::detail {
       DeviceWorkspace&, bool defer_count_download = false,
       DeviceLeptonVertexSelectionBatch*
           deferred_vertex = nullptr,
-      LeptonPipelineStageEvents const* stage_events = nullptr);
+      LeptonPipelineStageEvents const* stage_events = nullptr,
+      DeviceFirstInteractionCapture const* first_interaction =
+          nullptr);
 
   void appendLeptonEndpointWorkspace(
       WorkspaceSize&, std::size_t source_count);
@@ -379,6 +394,8 @@ namespace corsika::gpu::em::detail {
       std::uint64_t first_secondary_history_id,
       DeviceWorkspace&,
       DeviceChargedSecondarySink const* charged_secondary_sink =
+          nullptr,
+      DeviceFirstInteractionCapture const* first_interaction =
           nullptr);
 
   void appendLeptonDevicePipelineWorkspace(
@@ -399,6 +416,8 @@ namespace corsika::gpu::em::detail {
       std::uint64_t shower_id,
       std::uint64_t first_secondary_history_id,
       DeviceWorkspace&,
-      LeptonPipelineStageEvents const* stage_events = nullptr);
+      LeptonPipelineStageEvents const* stage_events = nullptr,
+      DeviceFirstInteractionCapture const* first_interaction =
+          nullptr);
 
 } // namespace corsika::gpu::em::detail

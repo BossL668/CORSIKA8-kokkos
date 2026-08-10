@@ -34,7 +34,7 @@ radio process 不观察 μ 轨迹，CUDA μ 轨迹同样不作为额外射电源
 - CORSIKA 五层球形大气；
 - 每层干空气组成及唯一 medium ID；
 - 均匀磁场；
-- 球形观测面；
+- 与 CPU `ObservationPlane` 一致的局部平面观测面；
 - 0.5、5、50 MeV 已生成并验证的 EM cut 表。
 
 山体、月壤、冰和一般三维介质尚不属于当前 snapshot 能力，不能仅更换输入几何就

@@ -21,6 +21,7 @@
 #include <corsika/framework/process/ProcessReturn.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/radio/Types.hpp>
+#include <corsika/modules/writers/FirstInteractionSnapshot.hpp>
 
 namespace corsika::gpu::em {
 
@@ -35,6 +36,7 @@ namespace corsika::gpu::em {
     std::uint64_t deposited_steps{};
     std::uint64_t radio_tracks{};
     std::uint64_t observations{};
+    std::uint64_t first_interactions{};
     double weighted_deposited_energy_GeV{};
     double weighted_muon_parent_productions{};
   };
@@ -109,20 +111,23 @@ namespace corsika::gpu::em {
    */
   template <typename TEnergyLossWriter, typename TLongitudinalWriter,
             typename TProductionWriter, typename TObservationPlane,
-            typename TCoreas, typename TZhs>
+            typename TInteractionWriter, typename TCoreas, typename TZhs>
   class CorsikaOutputSink {
   public:
     CorsikaOutputSink(CoordinateSystemPtr coordinate_system,
                       TEnergyLossWriter& energy_loss,
                       TLongitudinalWriter& longitudinal,
                       TProductionWriter& production,
-                      TObservationPlane& observation, TCoreas& coreas, TZhs& zhs,
+                      TObservationPlane& observation,
+                      TInteractionWriter& interaction,
+                      TCoreas& coreas, TZhs& zhs,
                       bool radio_enabled, bool gpu_radio_enabled = false)
         : coordinate_system_(std::move(coordinate_system))
         , energy_loss_(energy_loss)
         , longitudinal_(longitudinal)
         , production_(production)
         , observation_(observation)
+        , interaction_(interaction)
         , coreas_(coreas)
         , zhs_(zhs)
         , radio_enabled_(radio_enabled)
@@ -394,6 +399,56 @@ namespace corsika::gpu::em {
       ++statistics_.observations;
     }
 
+    void onFirstInteraction(
+        GpuFirstInteractionSnapshot const& record) {
+      if (record.parent_at_vertex.generation != 0 ||
+          record.secondary_count == 0 ||
+          record.secondary_count > 3) {
+        throw std::runtime_error(
+            "CUDA EM first-interaction record is structurally invalid");
+      }
+      auto const parent_pid = output_detail::codeFromDevicePid(
+          record.parent_at_vertex.pid);
+      auto const parent_total_energy =
+          record.parent_at_vertex.energy_GeV * 1_GeV;
+      auto const parent_kinetic_energy =
+          parent_total_energy - get_mass(parent_pid);
+      if (parent_kinetic_energy < HEPEnergyType::zero()) {
+        throw std::runtime_error(
+            "CUDA first-interaction parent energy is below rest mass");
+      }
+      FirstInteractionSnapshot snapshot{
+          parent_pid,
+          parent_kinetic_energy,
+          output_detail::pointFromArray(
+              coordinate_system_,
+              record.parent_at_vertex.position_m),
+          output_detail::directionFromArray(
+              coordinate_system_,
+              record.parent_at_vertex.direction),
+          record.parent_at_vertex.time_s * second,
+          {}};
+      snapshot.secondaries.reserve(record.secondary_count);
+      for (std::uint32_t index = 0;
+           index < record.secondary_count; ++index) {
+        auto const& child = record.secondaries[index];
+        auto const pid = output_detail::codeFromDevicePid(child.pid);
+        auto const total_energy = child.energy_GeV * 1_GeV;
+        if (total_energy < get_mass(pid)) {
+          throw std::runtime_error(
+              "CUDA first-interaction child energy is below rest mass");
+        }
+        snapshot.secondaries.push_back(
+            InteractionSecondarySnapshot{
+                pid, total_energy,
+                output_detail::directionFromArray(
+                    coordinate_system_, child.direction)});
+      }
+      if (interaction_.recordFirstInteraction(snapshot)) {
+        ++statistics_.first_interactions;
+      }
+    }
+
     CorsikaOutputSinkStatistics const& statistics() const noexcept {
       return statistics_;
     }
@@ -443,6 +498,7 @@ namespace corsika::gpu::em {
     TLongitudinalWriter& longitudinal_;
     TProductionWriter& production_;
     TObservationPlane& observation_;
+    TInteractionWriter& interaction_;
     TCoreas& coreas_;
     TZhs& zhs_;
     bool radio_enabled_{};
