@@ -1106,6 +1106,15 @@ layouts, and one canonical physics configuration.  Independent scalar builds
 from the output-writer repair are retained as explicit provenance strata;
 CUDA executable and table hashes may not vary.
 
+The proposal ensemble normally uses the contiguous
+`--proposal-seed-start` contract. For a quota-stopped distributed campaign,
+`--proposal-seed-file PATH` may be supplied instead, with exactly one selected
+seed per non-comment line. The finalizer audits every selected source, rejects
+duplicates, missing seeds and partial selection of a multi-shower output, and
+ignores only whole valid records outside the explicit schedule. The seed file
+path and SHA-256 are recorded in the immutable analysis manifest; this option
+does not permit incomplete or failed outputs to enter the ensemble.
+
 Use `--maximum-weight VALUE` to state the thinning contract explicitly. A
 positive value requires every source command to contain the same
 `--max-weight`; zero requires the option to be absent and therefore audits the

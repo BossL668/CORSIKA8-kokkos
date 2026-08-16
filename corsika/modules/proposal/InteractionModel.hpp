@@ -21,6 +21,7 @@
 #include <corsika/modules/proposal/ProposalRateProvider.hpp>
 
 #include <map>
+#include <cstdint>
 #include <tuple>
 
 namespace corsika::proposal {
@@ -59,6 +60,8 @@ namespace corsika::proposal {
 
     ProposalRateProvider rate_provider_;
     ProposalFinalStateGenerator final_state_generator_;
+    std::uint64_t atomic_electron_target_interactions_{};
+    double weighted_atomic_electron_rest_mass_input_GeV_{};
 
     //!
     //! Build the secondaries and interaction calculators and add it to calc.
@@ -172,6 +175,14 @@ namespace corsika::proposal {
 
     ProposalFinalState generateFinalState(
         ProposalInteractionRecord const&, std::vector<double> random_numbers);
+
+    std::uint64_t atomicElectronTargetInteractions() const noexcept {
+      return atomic_electron_target_interactions_;
+    }
+
+    double weightedAtomicElectronRestMassInputGeV() const noexcept {
+      return weighted_atomic_electron_rest_mass_input_GeV_;
+    }
 
     /**
      * Resolve v for a GPU-selected process/component whose inverse-CDF query

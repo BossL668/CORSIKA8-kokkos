@@ -14,8 +14,12 @@ from finalize_distributed_campaign import (  # noqa: E402
     command_option,
     discover_sources,
     exact_seed_audit,
+    file_sha256,
+    read_explicit_seed_schedule,
     require_cuda_geomagnetic_configuration,
     require_maximum_weight,
+    select_records_for_seed_schedule,
+    validate_cuda_build_equivalence_attestation,
 )
 
 
@@ -49,6 +53,31 @@ class DistributedCampaignFinalizerTest(unittest.TestCase):
                 6,
                 "CUDA",
             )
+
+    def test_explicit_seed_schedule_selects_only_requested_records(self) -> None:
+        records = [record(10, 1, "proposal"), record(11, 1, "proposal"),
+                   record(20, 1, "proposal")]
+        selected = select_records_for_seed_schedule(
+            records, (10, 20), "proposal"
+        )
+        self.assertEqual([item.seed for item in selected], [10, 20])
+
+    def test_explicit_seed_schedule_rejects_partial_multi_event_record(self) -> None:
+        with self.assertRaisesRegex(ValueError, "partially selects"):
+            select_records_for_seed_schedule(
+                [record(10, 3, "proposal")], (10, 11), "proposal"
+            )
+
+    def test_read_explicit_seed_schedule_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "seeds.txt"
+            path.write_text("# selected\n10\n\n20\n", encoding="utf-8")
+            self.assertEqual(
+                read_explicit_seed_schedule(path, 2, "proposal"), (10, 20)
+            )
+            path.write_text("10\n10\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate seeds"):
+                read_explicit_seed_schedule(path, 2, "proposal")
         with self.assertRaisesRegex(ValueError, "seed set is incomplete"):
             exact_seed_audit(
                 [record(10, 2), record(13, 2)],
@@ -105,6 +134,87 @@ class DistributedCampaignFinalizerTest(unittest.TestCase):
             require_cuda_geomagnetic_configuration(root, ["c8"], "IGRF14", 2027.0)
             with self.assertRaisesRegex(ValueError, "geomagnetic model differs"):
                 require_cuda_geomagnetic_configuration(root, ["c8"], "IGRF13", 2027.0)
+
+    def test_single_cuda_build_needs_no_equivalence_attestation(self) -> None:
+        self.assertIsNone(
+            validate_cuda_build_equivalence_attestation(
+                None,
+                {"a" * 64},
+                {"b" * 64},
+            )
+        )
+
+    def test_mixed_cuda_builds_require_verified_replay_evidence(self) -> None:
+        builds = {"a" * 64, "c" * 64}
+        table = "b" * 64
+        with self.assertRaisesRegex(ValueError, "attestation is required"):
+            validate_cuda_build_equivalence_attestation(None, builds, {table})
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report_path = root / "replay_report.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "passed": True,
+                        "reference": {
+                            "executable_sha256": "a" * 64,
+                            "table_sha256": table,
+                        },
+                        "candidate": {
+                            "executable_sha256": "c" * 64,
+                            "table_sha256": table,
+                        },
+                        "identity_checks": {"seed_equal": True},
+                        "yaml_artifacts": {
+                            "gpu_em/config.yaml": {"equal": True}
+                        },
+                        "parquet_artifacts": {
+                            "profile/profile.parquet": {
+                                "logical_values_equal": True
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            attestation_path = root / "attestation.json"
+            attestation_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "status": "verified",
+                        "allowed_executable_sha256": sorted(builds),
+                        "table_sha256": table,
+                        "replay_report": {
+                            "path": report_path.name,
+                            "sha256": file_sha256(report_path),
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            evidence = validate_cuda_build_equivalence_attestation(
+                attestation_path,
+                builds,
+                {table},
+            )
+            self.assertIsNotNone(evidence)
+            assert evidence is not None
+            self.assertEqual(evidence["replay_report"], str(report_path.resolve()))
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["parquet_artifacts"]["profile/profile.parquet"][
+                "logical_values_equal"
+            ] = False
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "missing or has changed"):
+                validate_cuda_build_equivalence_attestation(
+                    attestation_path,
+                    builds,
+                    {table},
+                )
 
 
 if __name__ == "__main__":

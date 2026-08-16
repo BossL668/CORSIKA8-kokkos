@@ -215,8 +215,8 @@ def common_bins(arrays: dict[str, np.ndarray], log_x: bool) -> np.ndarray:
     support = np.concatenate(tuple(arrays.values()))
     if log_x:
         positive = support[support > 0.0]
-        if positive.size != support.size:
-            raise ValueError("logarithmic feature contains non-positive values")
+        if positive.size == 0:
+            raise ValueError("logarithmic feature contains no positive values")
         return np.geomspace(
             float(np.min(positive)),
             float(np.max(positive)),
@@ -260,12 +260,33 @@ def plot_feature_distributions(
             for backend in BACKENDS
         }
         bins = common_bins(arrays, log_x)
+        nonpositive_fractions: dict[str, float] = {}
         for backend in BACKENDS:
+            values = arrays[backend]
+            histogram_values = values
+            normalization_values = values
+            if log_x:
+                # A shower may legitimately deliver zero particles of a
+                # selected class to ground.  Zero has no coordinate on a log
+                # axis, so omit it from the visible bins while retaining its
+                # probability mass in the normalization and reporting that
+                # mass explicitly in the panel annotation.
+                histogram_values = values[values > 0.0]
+                nonpositive_fractions[backend] = float(
+                    np.count_nonzero(values <= 0.0) / values.size
+                )
             density, weights = histogram_normalization(
-                arrays[backend], log_x
+                normalization_values, log_x
             )
+            if log_x:
+                assert weights is not None
+                weights = np.full(
+                    histogram_values.shape,
+                    1.0 / normalization_values.size,
+                    dtype=np.float64,
+                )
             axis.hist(
-                arrays[backend],
+                histogram_values,
                 bins=bins,
                 density=density,
                 weights=weights,
@@ -282,6 +303,17 @@ def plot_feature_distributions(
             if result["KS_below_95pct_critical_value"]
             else r"\geq"
         )
+        zero_note = ""
+        if log_x and any(
+            fraction > 0.0 for fraction in nonpositive_fractions.values()
+        ):
+            zero_note = (
+                "\n"
+                + r"$P(x\leq0)$: CPU="
+                + f"{100.0 * nonpositive_fractions['proposal']:.3f}%"
+                + ", CUDA="
+                + f"{100.0 * nonpositive_fractions['cuda']:.3f}%"
+            )
         axis.text(
             0.03,
             0.96,
@@ -290,6 +322,7 @@ def plot_feature_distributions(
                 "\n"
                 rf"$D_{{KS}}={result['empirical_KS_distance']:.3f}"
                 rf"{ks_relation}{result['KS_95pct_critical_value']:.3f}$"
+                + zero_note
             ),
             transform=axis.transAxes,
             ha="left",

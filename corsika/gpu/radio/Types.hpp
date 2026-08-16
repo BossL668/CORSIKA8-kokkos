@@ -62,6 +62,13 @@ namespace corsika::gpu::radio {
      * therefore disabled for production runs unless explicitly requested.
      */
     bool track_diagnostics{};
+    /**
+     * Split every stock ZHS Fraunhofer subtrack into this many equal pieces.
+     * The default preserves the released scalar/CUDA projection exactly.
+     * Values above one are a validation control: they refine radio projection
+     * without changing the transported shower or consuming random numbers.
+     */
+    std::uint32_t zhs_subtrack_refinement{1};
     FlatAtmosphereRadioSnapshot propagation{};
     std::vector<RadioObserverSnapshot> coreas_observers{};
     std::vector<RadioObserverSnapshot> zhs_observers{};

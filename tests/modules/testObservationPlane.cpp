@@ -62,6 +62,10 @@ TEST_CASE("ObservationPlane", "interface") {
 
     CHECK(length / 10_m == Approx(1).margin(1e-4));
     CHECK(ret == ProcessReturn::ParticleAbsorbed);
+    CHECK(obs.statistics().particles == 1);
+    CHECK(
+        obs.statistics().weighted_total_energy_GeV ==
+        Approx(1.));
 
     // particle does not reach plane:
     {

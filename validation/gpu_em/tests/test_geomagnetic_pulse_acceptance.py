@@ -211,6 +211,31 @@ class GeomagneticPulseAcceptanceTest(unittest.TestCase):
             ]
         )
 
+    def test_width_count_uses_registered_valid_fraction(self):
+        comparisons = {
+            algorithm: {
+                "amplitude": comparison(cpu_count=1000, cuda_count=1000),
+                "width": comparison(cpu_count=994, cuda_count=993),
+            }
+            for algorithm in ("CoREAS", "ZHS")
+        }
+        result = build_acceptance(
+            comparisons=comparisons,
+            shower_rows=shower_rows(count=1000),
+            band_MHz=None,
+            relative_tolerance=0.1,
+            minimum_ks_p_value=0.05,
+            minimum_count=1000,
+            minimum_width_shower_fraction=0.8,
+        )
+        self.assertTrue(result["passed"])
+        self.assertEqual(
+            result["minimum_width_valid_count_per_backend"], 800
+        )
+        width = result["algorithms"]["CoREAS"]["width"]
+        self.assertTrue(width["count_pass"])
+        self.assertTrue(width["coverage_pass"])
+
     def test_ideal_bandpass_is_diagnostic_only_for_square_width(self):
         comparisons = {
             algorithm: {

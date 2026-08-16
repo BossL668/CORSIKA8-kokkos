@@ -106,6 +106,12 @@ TEST_CASE("InteractionCounter captures worker-capable final state",
   CHECK(
       counted.getTimingSamples().front()
           .final_state_time_ms == 0.);
+  CHECK(
+      counted.getEnergyLedgerStatistics()
+          .deferred_interactions == 1);
+  CHECK(
+      counted.getEnergyLedgerStatistics()
+          .audited_interactions == 0);
 }
 
 TEST_CASE("InteractionCounter", "process") {
@@ -117,6 +123,9 @@ TEST_CASE("InteractionCounter", "process") {
   CHECK(countedProcess.getCount() == 0);
   CHECK(countedProcess.getTimingSamples().empty());
   CHECK(countedProcess.getTotalFinalStateTimeMs() == 0.);
+  CHECK(
+      countedProcess.getEnergyLedgerStatistics()
+          .audited_interactions == 0);
 
   auto const rootCS = get_root_CoordinateSystem();
   DummyOutput output;

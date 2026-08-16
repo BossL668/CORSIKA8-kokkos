@@ -13,6 +13,7 @@
 #include <corsika/framework/geometry/FourVector.hpp>
 
 #include <tuple>
+#include <vector>
 
 namespace corsika::sophia {
 

@@ -42,6 +42,27 @@ class PrimaryLabelTests(unittest.TestCase):
 
 
 class HistogramNormalizationTests(unittest.TestCase):
+    def test_log_bins_ignore_zero_but_cover_positive_support(self) -> None:
+        bins = MODULE.common_bins(
+            {
+                "proposal": np.asarray([1.0, 2.0, 4.0]),
+                "cuda": np.asarray([0.0, 3.0, 8.0]),
+            },
+            True,
+        )
+        self.assertEqual(float(bins[0]), 1.0)
+        self.assertEqual(float(bins[-1]), 8.0)
+
+    def test_log_bins_reject_all_nonpositive_support(self) -> None:
+        with self.assertRaisesRegex(ValueError, "no positive values"):
+            MODULE.common_bins(
+                {
+                    "proposal": np.asarray([0.0]),
+                    "cuda": np.asarray([-1.0, 0.0]),
+                },
+                True,
+            )
+
     def test_linear_histogram_uses_density(self) -> None:
         density, weights = MODULE.histogram_normalization(
             np.asarray([1.0, 2.0]), False

@@ -12,6 +12,7 @@ audit; ``--execute`` runs the complete comparison and plotting suite.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -125,6 +126,123 @@ def require_sha256(value: Any, label: str) -> str:
     return text
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def validate_cuda_build_equivalence_attestation(
+    attestation_path: Path | None,
+    cuda_builds: set[str],
+    cuda_tables: set[str | None],
+) -> dict[str, Any] | None:
+    """Validate explicit replay evidence before accepting mixed CUDA builds.
+
+    A single executable hash needs no attestation.  More than one hash is
+    accepted only when a fail-closed attestation names exactly those builds,
+    the one physics table used by the campaign, and a content-addressed replay
+    report whose own status is ``pass``.
+    """
+
+    if len(cuda_tables) != 1 or None in cuda_tables:
+        raise ValueError("CUDA batches mix physics-table builds")
+    table_sha256 = require_sha256(next(iter(cuda_tables)), "CUDA table")
+    if len(cuda_builds) == 1:
+        return None
+    if attestation_path is None:
+        raise ValueError(
+            "CUDA batches mix executable builds; "
+            "--cuda-build-equivalence-attestation is required"
+        )
+
+    path = attestation_path.resolve()
+    attestation = read_mapping(path)
+    if attestation.get("schema_version") != 1:
+        raise ValueError(f"unsupported CUDA build attestation schema: {path}")
+    if attestation.get("status") != "verified":
+        raise ValueError(f"CUDA build attestation is not verified: {path}")
+    allowed = attestation.get("allowed_executable_sha256")
+    if not isinstance(allowed, list):
+        raise ValueError(f"CUDA build attestation lacks allowed hashes: {path}")
+    attested_builds = {
+        require_sha256(value, "attested CUDA executable") for value in allowed
+    }
+    if len(attested_builds) != len(allowed):
+        raise ValueError(f"CUDA build attestation repeats executable hashes: {path}")
+    if attested_builds != cuda_builds:
+        raise ValueError(
+            "CUDA build attestation hash set differs from campaign builds: "
+            f"attested={sorted(attested_builds)}, observed={sorted(cuda_builds)}"
+        )
+    if require_sha256(attestation.get("table_sha256"), "attested CUDA table") != table_sha256:
+        raise ValueError("CUDA build attestation physics-table hash differs")
+
+    replay = attestation.get("replay_report")
+    if not isinstance(replay, dict):
+        raise ValueError(f"CUDA build attestation lacks replay report: {path}")
+    report_path_value = replay.get("path")
+    if not isinstance(report_path_value, str) or not report_path_value:
+        raise ValueError(f"CUDA build attestation has invalid replay path: {path}")
+    report_path = Path(report_path_value)
+    if not report_path.is_absolute():
+        report_path = path.parent / report_path
+    report_path = report_path.resolve()
+    expected_report_hash = require_sha256(
+        replay.get("sha256"), "CUDA replay report"
+    )
+    if not report_path.is_file() or file_sha256(report_path) != expected_report_hash:
+        raise ValueError(f"CUDA replay report is missing or has changed: {report_path}")
+    report = read_mapping(report_path)
+    if report.get("schema_version") != 1 or report.get("passed") is not True:
+        raise ValueError(f"CUDA replay report did not pass: {report_path}")
+    reference = report.get("reference")
+    candidate = report.get("candidate")
+    if not isinstance(reference, dict) or not isinstance(candidate, dict):
+        raise ValueError("CUDA replay report lacks reference/candidate metadata")
+    report_builds = {
+        require_sha256(reference.get("executable_sha256"), "replay reference executable"),
+        require_sha256(candidate.get("executable_sha256"), "replay candidate executable"),
+    }
+    if report_builds != cuda_builds:
+        raise ValueError("CUDA replay report executable hashes differ")
+    report_tables = {
+        require_sha256(reference.get("table_sha256"), "replay reference table"),
+        require_sha256(candidate.get("table_sha256"), "replay candidate table"),
+    }
+    if report_tables != {table_sha256}:
+        raise ValueError("CUDA replay report physics-table hash differs")
+    identity_checks = report.get("identity_checks")
+    yaml_artifacts = report.get("yaml_artifacts")
+    parquet_artifacts = report.get("parquet_artifacts")
+    if not isinstance(identity_checks, dict) or not identity_checks:
+        raise ValueError("CUDA replay report contains no identity checks")
+    if not isinstance(yaml_artifacts, dict) or not yaml_artifacts:
+        raise ValueError("CUDA replay report contains no YAML comparisons")
+    if not isinstance(parquet_artifacts, dict) or not parquet_artifacts:
+        raise ValueError("CUDA replay report contains no Parquet comparisons")
+    if not all(value is True for value in identity_checks.values()):
+        raise ValueError("CUDA replay report contains a failed identity check")
+    if not all(
+        isinstance(item, dict) and item.get("equal") is True
+        for item in yaml_artifacts.values()
+    ):
+        raise ValueError("CUDA replay report contains a non-identical YAML output")
+    if not all(
+        isinstance(item, dict) and item.get("logical_values_equal") is True
+        for item in parquet_artifacts.values()
+    ):
+        raise ValueError("CUDA replay report contains a non-identical Parquet output")
+    return {
+        "path": str(path),
+        "sha256": file_sha256(path),
+        "replay_report": str(report_path),
+        "replay_report_sha256": expected_report_hash,
+    }
+
+
 def command_option(command: list[str], *names: str) -> str | None:
     result: str | None = None
     for index, token in enumerate(command):
@@ -229,8 +347,6 @@ def audit_source(
         antenna_path = command_option([str(item) for item in command], "--antenna-file")
         if antenna_path is None or not Path(antenna_path).is_file():
             raise ValueError(f"missing antenna provenance for {root}")
-        import hashlib
-
         antenna_hash = hashlib.sha256(Path(antenna_path).read_bytes()).hexdigest()
     else:
         antenna_hash = require_sha256(antenna.get("sha256"), "antenna")
@@ -316,6 +432,92 @@ def exact_seed_audit(
         )
 
 
+def read_explicit_seed_schedule(
+    path: Path, expected_events: int, label: str
+) -> tuple[int, ...]:
+    """Read a fail-closed, non-contiguous seed schedule.
+
+    This is intended for distributed campaigns whose scheduler deliberately
+    stopped after reaching a valid-event quota.  Blank lines and comments are
+    accepted, but duplicate, negative, or incorrectly sized schedules are not.
+    """
+
+    source = path.resolve()
+    if not source.is_file():
+        raise ValueError(f"{label} seed schedule is missing: {source}")
+    seeds: list[int] = []
+    for line_number, line in enumerate(
+        source.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        field = line.strip()
+        if not field or field.startswith("#"):
+            continue
+        try:
+            seed = int(field)
+        except ValueError as error:
+            raise ValueError(
+                f"invalid {label} seed at {source}:{line_number}: {field!r}"
+            ) from error
+        if seed < 0:
+            raise ValueError(
+                f"negative {label} seed at {source}:{line_number}: {seed}"
+            )
+        seeds.append(seed)
+    duplicates = sorted(seed for seed in set(seeds) if seeds.count(seed) > 1)
+    if duplicates:
+        raise ValueError(
+            f"{label} explicit schedule contains duplicate seeds: {duplicates[:20]}"
+        )
+    if len(seeds) != expected_events:
+        raise ValueError(
+            f"{label} explicit schedule has {len(seeds)} seeds; "
+            f"expected {expected_events}"
+        )
+    return tuple(seeds)
+
+
+def select_records_for_seed_schedule(
+    records: list[SourceRecord], expected_seeds: tuple[int, ...], label: str
+) -> list[SourceRecord]:
+    """Select complete source records matching an explicit seed schedule.
+
+    Whole records outside the schedule are ignored.  A multi-event record that
+    only partly overlaps the requested set is rejected because silently
+    splitting one output library would make provenance ambiguous.
+    """
+
+    expected = set(expected_seeds)
+    selected: list[SourceRecord] = []
+    for record in records:
+        record_seeds = set(record.seeds)
+        overlap = record_seeds.intersection(expected)
+        if not overlap:
+            continue
+        if overlap != record_seeds:
+            raise ValueError(
+                f"{label} explicit schedule partially selects source record "
+                f"{record.root}: selected={sorted(overlap)[:20]}, "
+                f"record_seed={record.seed}, record_events={record.events}"
+            )
+        selected.append(record)
+
+    observed: list[int] = []
+    for record in selected:
+        observed.extend(record.seeds)
+    duplicates = sorted(seed for seed in set(observed) if observed.count(seed) > 1)
+    if duplicates:
+        raise ValueError(f"{label} contains duplicate seeds: {duplicates[:20]}")
+    if set(observed) != expected or len(observed) != len(expected_seeds):
+        missing = sorted(expected.difference(observed))
+        unexpected = sorted(set(observed).difference(expected))
+        raise ValueError(
+            f"{label} explicit seed set is incomplete: observed={len(observed)}, "
+            f"expected={len(expected_seeds)}, missing={missing[:20]}, "
+            f"unexpected={unexpected[:20]}"
+        )
+    return selected
+
+
 def audit_configuration(
     proposal_roots: list[Path], cuda_roots: list[Path], model: str, year: float
 ) -> tuple[str, ...]:
@@ -349,7 +551,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--proposal-root", type=Path, action="append", required=True)
     parser.add_argument("--cuda-root", type=Path, action="append", required=True)
     parser.add_argument("--expected-events", type=int, default=500)
-    parser.add_argument("--proposal-seed-start", type=int, required=True)
+    proposal_seed_group = parser.add_mutually_exclusive_group(required=True)
+    proposal_seed_group.add_argument("--proposal-seed-start", type=int)
+    proposal_seed_group.add_argument(
+        "--proposal-seed-file",
+        type=Path,
+        help=(
+            "Explicit proposal seed schedule, one seed per line. This permits "
+            "fail-closed selection from quota-stopped distributed campaigns."
+        ),
+    )
     parser.add_argument("--cuda-seed-start", type=int, required=True)
     parser.add_argument("--primary-pdg", type=int, default=2212)
     parser.add_argument("--energy-gev", type=float, default=1.0e8)
@@ -377,6 +588,14 @@ def parse_args() -> argparse.Namespace:
         help="Path to the pulse_analysis_modular reference implementation.",
     )
     parser.add_argument("--bootstrap-repetitions", type=int, default=10000)
+    parser.add_argument(
+        "--cuda-build-equivalence-attestation",
+        type=Path,
+        help=(
+            "Required when the accepted CUDA sources contain more than one "
+            "executable hash; must reference a passing same-seed replay report."
+        ),
+    )
     parser.add_argument("--execute", action="store_true")
     return parser.parse_args()
 
@@ -427,10 +646,24 @@ def main() -> int:
             audit_source(root, "proposal", expected=args) for root in proposal_roots
         ]
         cuda_records = [audit_source(root, "cuda", expected=args) for root in cuda_roots]
-        exact_seed_audit(
-            proposal_records, args.proposal_seed_start, args.expected_events, "proposal"
-        )
+        proposal_seed_schedule: tuple[int, ...] | None = None
+        if args.proposal_seed_file is not None:
+            proposal_seed_schedule = read_explicit_seed_schedule(
+                args.proposal_seed_file, args.expected_events, "proposal"
+            )
+            proposal_records = select_records_for_seed_schedule(
+                proposal_records, proposal_seed_schedule, "proposal"
+            )
+        else:
+            exact_seed_audit(
+                proposal_records,
+                args.proposal_seed_start,
+                args.expected_events,
+                "proposal",
+            )
         exact_seed_audit(cuda_records, args.cuda_seed_start, args.expected_events, "CUDA")
+        proposal_roots = [Path(record.root) for record in proposal_records]
+        cuda_roots = [Path(record.root) for record in cuda_records]
         canonical = audit_configuration(
             proposal_roots, cuda_roots, args.geomagnetic_model, args.geomagnetic_year
         )
@@ -442,8 +675,11 @@ def main() -> int:
             raise ValueError(f"CPU/CUDA observer layouts differ: {sorted(layouts)}")
         cuda_tables = {record.table_sha256 for record in cuda_records}
         cuda_builds = {record.executable_sha256 for record in cuda_records}
-        if len(cuda_tables) != 1 or len(cuda_builds) != 1:
-            raise ValueError("CUDA batches mix executable or physics-table builds")
+        build_equivalence = validate_cuda_build_equivalence_attestation(
+            args.cuda_build_equivalence_attestation,
+            cuda_builds,
+            cuda_tables,
+        )
     except Exception as error:
         report.update(
             {
@@ -455,7 +691,10 @@ def main() -> int:
         atomic_json(readiness_path, report)
         raise
 
-    analysis_manifest = final_root / "final_cpu500_cuda500_analysis_manifest.json"
+    event_count_label = str(args.expected_events)
+    analysis_manifest = final_root / (
+        f"final_cpu{event_count_label}_cuda{event_count_label}_analysis_manifest.json"
+    )
     manifest_payload = {
         "schema_version": 1,
         "label": (
@@ -471,6 +710,16 @@ def main() -> int:
             "combined_proposal_events": args.expected_events,
             "combined_cuda_events": args.expected_events,
             "proposal_seed": args.proposal_seed_start,
+            "proposal_seed_file": (
+                {
+                    "path": str(args.proposal_seed_file.resolve()),
+                    "sha256": file_sha256(args.proposal_seed_file.resolve()),
+                    "count": len(proposal_seed_schedule),
+                }
+                if args.proposal_seed_file is not None
+                and proposal_seed_schedule is not None
+                else None
+            ),
             "cuda_seed": args.cuda_seed_start,
             "paired_seed_control": False,
             "primary_pdg": args.primary_pdg,
@@ -502,6 +751,7 @@ def main() -> int:
             "cuda_executable_sha256": sorted(cuda_builds),
             "cuda_table_sha256": sorted(str(value) for value in cuda_tables),
             "observer_layout_sha256": next(iter(layouts)),
+            "cuda_build_equivalence_attestation": build_equivalence,
         },
     }
     atomic_json(analysis_manifest, manifest_payload)
@@ -522,7 +772,7 @@ def main() -> int:
         return 0
 
     python = sys.executable
-    comparison = final_root / "ensemble_comparison_500"
+    comparison = final_root / f"ensemble_comparison_{event_count_label}"
     compare_command = [python, str(SCRIPT_DIR / "compare_ensembles.py")]
     for root in proposal_roots:
         compare_command.extend(("--proposal", str(root)))
@@ -540,6 +790,8 @@ def main() -> int:
             "--cuda-implicit-geomagnetic-year", f"{args.geomagnetic_year:.17g}",
         )
     )
+    if build_equivalence is not None:
+        compare_command.append("--allow-mixed-cuda-builds")
 
     commands = [
         compare_command,
@@ -555,7 +807,8 @@ def main() -> int:
             str(SCRIPT_DIR / "analyze_post_xmax_em_profiles.py"),
             "--ensemble-root", str(comparison),
             "--manifest", str(analysis_manifest),
-            "--output-dir", str(final_root / "post_xmax_em_profile_analysis_500"),
+            "--output-dir",
+            str(final_root / f"post_xmax_em_profile_analysis_{event_count_label}"),
             "--resamples", str(args.bootstrap_repetitions),
         ],
         [
@@ -563,7 +816,8 @@ def main() -> int:
             str(SCRIPT_DIR / "diagnose_longitudinal_mean_difference.py"),
             "--ensemble-root", str(comparison),
             "--manifest", str(analysis_manifest),
-            "--output-dir", str(final_root / "fixed_depth_profile_diagnosis_500"),
+            "--output-dir",
+            str(final_root / f"fixed_depth_profile_diagnosis_{event_count_label}"),
             "--resamples", str(args.bootstrap_repetitions),
             "--proposal-implicit-geomagnetic-model", args.geomagnetic_model,
             "--proposal-implicit-geomagnetic-year", f"{args.geomagnetic_year:.17g}",
@@ -625,7 +879,8 @@ def main() -> int:
             str(SCRIPT_DIR / "plot_single_event_runtime_histograms.py"),
             str(comparison),
             "--manifest", str(analysis_manifest),
-            "--output", str(final_root / "runtime_distribution_analysis_500"),
+            "--output",
+            str(final_root / f"runtime_distribution_analysis_{event_count_label}"),
         ],
     ]
     command_records: list[dict[str, Any]] = []

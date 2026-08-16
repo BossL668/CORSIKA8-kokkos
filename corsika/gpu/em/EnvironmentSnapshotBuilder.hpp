@@ -8,6 +8,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <stdexcept>
 
@@ -86,6 +87,63 @@ namespace corsika::gpu::em {
     if (!atmosphere_detail::validEnvironment(snapshot)) {
       throw std::invalid_argument(
           "CORSIKA-7 parameters produced an invalid GPU environment snapshot");
+    }
+    return snapshot;
+  }
+
+  /**
+   * Build the device geometry for one homogeneous spherical shell.
+   *
+   * This is the minimal dense-medium contract needed by a bounded, uniform
+   * ice validation shower.  The host Environment must use the same density,
+   * shell limits and medium identity; this helper deliberately does not infer
+   * any of them from a rate-table filename.
+   */
+  inline EnvironmentSnapshot makeHomogeneousSphericalSnapshot(
+      double density_g_per_cm3, double inner_radius_m,
+      double outer_radius_m, double observation_radius_m,
+      std::array<double, 3> const& earth_center_m = {0., 0., 0.},
+      std::int32_t medium_id = 0,
+      std::array<double, 3> const& magnetic_field_T = {0., 0., 0.},
+      double maximum_magnetic_deflection_rad = 0.2) {
+    if (!std::isfinite(density_g_per_cm3) ||
+        !(density_g_per_cm3 > 0.) ||
+        !std::isfinite(inner_radius_m) || !(inner_radius_m > 0.) ||
+        !std::isfinite(outer_radius_m) ||
+        !(outer_radius_m > inner_radius_m) ||
+        !std::isfinite(observation_radius_m) ||
+        observation_radius_m < inner_radius_m ||
+        !(observation_radius_m < outer_radius_m)) {
+      throw std::invalid_argument(
+          "invalid homogeneous GPU environment geometry or density");
+    }
+
+    EnvironmentSnapshot snapshot{};
+    snapshot.number_of_layers = 1;
+    snapshot.observation_radius_m = observation_radius_m;
+    snapshot.maximum_magnetic_deflection_rad =
+        maximum_magnetic_deflection_rad;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      snapshot.earth_center_m[axis] = earth_center_m[axis];
+      snapshot.magnetic_field_T[axis] = magnetic_field_T[axis];
+      snapshot.observation_plane_point_m[axis] =
+          earth_center_m[axis];
+      snapshot.observation_plane_normal[axis] =
+          axis == 2 ? 1. : 0.;
+    }
+    snapshot.observation_plane_point_m[2] +=
+        observation_radius_m;
+
+    auto& layer = snapshot.atmosphere_layers[0];
+    layer.inner_radius_m = inner_radius_m;
+    layer.outer_radius_m = outer_radius_m;
+    layer.density_parameter_a = density_g_per_cm3;
+    layer.medium_id = medium_id;
+    layer.density_model = DensityModel::Homogeneous;
+
+    if (!atmosphere_detail::validEnvironment(snapshot)) {
+      throw std::invalid_argument(
+          "homogeneous parameters produced an invalid GPU environment snapshot");
     }
     return snapshot;
   }

@@ -145,6 +145,39 @@ int main() {
         !atmosphere_detail::validEnvironment(short_track_snapshot),
         "GPU atmosphere accepted a zero magnetic deflection limit");
 
+    auto const homogeneous_snapshot = makeHomogeneousSphericalSnapshot(
+        0.919, earth_radius_m - 1000., earth_radius_m + 2000.,
+        observation_radius_m, {0., 0., 0.}, 324);
+    require(atmosphere_detail::validEnvironment(homogeneous_snapshot),
+            "homogeneous GPU environment snapshot must be valid");
+    require(homogeneous_snapshot.number_of_layers == 1,
+            "homogeneous GPU environment must contain exactly one layer");
+    require(homogeneous_snapshot.atmosphere_layers[0].density_model ==
+                DensityModel::Homogeneous,
+            "homogeneous GPU environment has the wrong density model");
+    double const homogeneous_position[3]{
+        0., 0., earth_radius_m + 500.};
+    double const downward[3]{0., 0., -1.};
+    auto const homogeneous_layer = queryAtmosphereLayer(
+        homogeneous_snapshot, homogeneous_position, downward);
+    require(homogeneous_layer.status == AtmosphereStatus::Success &&
+                homogeneous_layer.layer_index == 0,
+            "homogeneous GPU layer lookup failed");
+    requireClose(homogeneous_layer.density_g_per_cm3, 0.919, 1.e-15,
+                 "homogeneous GPU density changed");
+    auto const homogeneous_grammage = atmosphereGrammage(
+        homogeneous_snapshot, 0, homogeneous_position, downward, 10.);
+    require(homogeneous_grammage.status == AtmosphereStatus::Success,
+            "homogeneous GPU grammage integration failed");
+    requireClose(homogeneous_grammage.value, 919., 1.e-15,
+                 "homogeneous GPU grammage differs from rho times length");
+    auto const homogeneous_distance = atmosphereDistanceFromGrammage(
+        homogeneous_snapshot, 0, homogeneous_position, downward, 919.);
+    require(homogeneous_distance.status == AtmosphereStatus::Success,
+            "homogeneous GPU inverse grammage failed");
+    requireClose(homogeneous_distance.value, 10., 1.e-15,
+                 "homogeneous GPU inverse grammage is not closed");
+
     auto const& coordinate_system =
         get_root_CoordinateSystem();
     Point const center(

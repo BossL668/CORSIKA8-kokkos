@@ -22,19 +22,6 @@
 
 namespace corsika::gpu::em {
 
-  /**
-   * Below this energy the uncorrected Koch--Motz differential expression can
-   * become negative near the kinematic endpoints.  PROPOSAL's sub-50-MeV
-   * Storm--Israel multiplier fixes the total rate but, being independent of
-   * rho, cannot turn a sign-changing expression into a conditional
-   * probability.  The sampler therefore subtracts a negative endpoint value
-   * below this boundary.  This preserves symmetry and phase space, is
-   * continuous when the endpoint becomes positive, and leaves the original
-   * Koch--Motz expression unchanged throughout its positive domain.
-   */
-  inline constexpr double
-      PhotonPairEndpointRegularizationBoundaryMeV = 4.;
-
   enum class PhotonPairFinalStateStatus : std::uint32_t {
     Success = 0,
     ComponentNotFound = 1,
@@ -188,20 +175,26 @@ namespace corsika::gpu::em {
       };
 
       auto weight = evaluate(rho);
-      if (energy_MeV <
-          PhotonPairEndpointRegularizationBoundaryMeV) {
-        auto const lower = ElectronMassMeV / energy_MeV;
-        auto const endpoint_weight = evaluate(lower);
+      auto const lower = ElectronMassMeV / energy_MeV;
+      auto const endpoint_weight = evaluate(lower);
+      if (endpoint_weight < 0.) {
+        // The uncorrected low-energy Koch--Motz expression can be negative
+        // at the phase-space endpoints.  The zero crossing is component
+        // dependent: for hydrogen it is about 4.22 MeV, whereas the former
+        // fixed 4 MeV boundary was sufficient only for the heavier dry-air
+        // components.  PROPOSAL's sub-50-MeV Storm--Israel multiplier is
+        // rho-independent and cannot repair a sign-changing conditional
+        // density.  Shift by the actual component endpoint value whenever it
+        // is negative.  This is continuous at the component-specific zero,
+        // preserves symmetry and phase space, and leaves the original
+        // expression exactly unchanged everywhere it is non-negative.
         auto const center_weight = evaluate(0.5);
-        auto const shift =
-            endpoint_weight < 0. ? -endpoint_weight : 0.;
+        auto const shift = -endpoint_weight;
         weight += shift;
         envelope = center_weight + shift;
         auto const scale = maximum(
             1., maximum(
-                    endpoint_weight < 0.
-                        ? -endpoint_weight
-                        : endpoint_weight,
+                    -endpoint_weight,
                     center_weight < 0.
                         ? -center_weight
                         : center_weight));

@@ -84,6 +84,13 @@ auto sumMomentum(TStackView const& view, CoordinateSystemPtr const& vCS) {
   return sum;
 }
 
+template <typename TStackView>
+auto sumEnergy(TStackView const& view) {
+  HEPEnergyType sum = 0_GeV;
+  for (auto const& p : view) { sum += p.getEnergy(); }
+  return sum;
+}
+
 TEST_CASE("SophiaInterface", "modules") {
 
   logging::set_level(logging::level::debug);
@@ -162,9 +169,11 @@ TEST_CASE("SophiaInterface", "modules") {
     view.clear();
     model.doInteraction(view, Code::Photon, Code::Proton, projectileP4, nucleonP4);
 
+    auto const eSum = sumEnergy(view);
     auto const pSum = sumMomentum(view, cs);
-    CHECK(pSum.getComponents(cs).getX() / P0 == Approx(1).margin(0.05));
-    CHECK(pSum.getComponents(cs).getY() / 1_GeV == Approx(0).margin(1e-3));
-    CHECK(pSum.getComponents(cs).getZ() / 1_GeV == Approx(0).margin(1e-3));
+    CHECK(eSum / (Elab + Proton::mass) == Approx(1.).epsilon(1.e-10));
+    CHECK(pSum.getComponents(cs).getX() / P0 == Approx(1.).epsilon(1.e-10));
+    CHECK(pSum.getComponents(cs).getY() / 1_GeV == Approx(0).margin(1.e-10));
+    CHECK(pSum.getComponents(cs).getZ() / 1_GeV == Approx(0).margin(1.e-10));
   }
 }

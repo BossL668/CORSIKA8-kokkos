@@ -248,6 +248,12 @@ TEST_CASE("ProposalInterface", "modules") {
     CHECK(emModel.doHadronicPhotonInteraction(view, cs, P4, Code::Oxygen) ==
           ProcessReturn::Ok);
     CHECK(stack.getEntries() == 6);
+    auto const& photonLedger =
+        emModel.energyLedgerStatistics();
+    CHECK(photonLedger.interactions == 1);
+    CHECK(photonLedger.low_energy_interactions == 1);
+    CHECK(photonLedger.high_energy_interactions == 0);
+    CHECK(photonLedger.weighted_target_total_energy_GeV > 0.);
     CORSIKA_LOG_INFO("Number of particles produced in hadronic photon interaction: {}",
                      stack.getEntries() - 1);
   }

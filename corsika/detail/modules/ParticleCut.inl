@@ -114,6 +114,33 @@ namespace corsika {
   }
 
   template <typename TOutput>
+  inline void ParticleCut<TOutput>::recordCut(
+      Code const pid, HEPEnergyType const kinetic_energy,
+      double const weight) {
+    auto const weighted_kinetic_GeV =
+        weight * kinetic_energy / 1_GeV;
+    auto const weighted_rest_GeV =
+        weight * get_mass(pid) / 1_GeV;
+    ++statistics_.particles;
+    statistics_.weighted_kinetic_energy_GeV +=
+        weighted_kinetic_GeV;
+    statistics_.weighted_rest_mass_energy_GeV +=
+        weighted_rest_GeV;
+    if (is_neutrino(pid)) {
+      ++statistics_.invisible_particles;
+      statistics_.weighted_invisible_kinetic_energy_GeV +=
+          weighted_kinetic_GeV;
+    }
+    auto& species = statistics_.by_pdg[
+        static_cast<std::int32_t>(get_PDG(pid))];
+    ++species.particles;
+    species.weighted_kinetic_energy_GeV +=
+        weighted_kinetic_GeV;
+    species.weighted_rest_mass_energy_GeV +=
+        weighted_rest_GeV;
+  }
+
+  template <typename TOutput>
   template <typename TStackView>
   inline void ParticleCut<TOutput>::doSecondaries(TStackView& vS) {
     HEPEnergyType energy_event = 0_GeV; // per event counting for printout
@@ -122,6 +149,7 @@ namespace corsika {
       Code pid = particle.getPID();
       HEPEnergyType Ekin = particle.getKineticEnergy();
       if (checkCutParticle(pid, Ekin, particle.getTime())) {
+        recordCut(pid, Ekin, particle.getWeight());
         this->write(particle.getPosition(), pid, particle.getWeight() * Ekin);
         particle.erase();
       }
@@ -136,6 +164,9 @@ namespace corsika {
                                                           bool const) {
     if (checkCutParticle(step.getParticlePre().getPID(), step.getEkinPost(),
                          step.getTimePost())) {
+      recordCut(
+          step.getParticlePre().getPID(), step.getEkinPost(),
+          step.getParticlePre().getWeight());
       this->write(
           step.getPositionPost(), step.getParticlePre().getPID(),
           step.getParticlePre().getWeight() *

@@ -460,14 +460,31 @@ int main() {
                          sizeof(counters),
                          cudaMemcpyDeviceToHost) == cudaSuccess,
           "could not download synthetic muon production profile fixture");
+      auto const electron_begin = histograms + Bins;
+      auto const muon_minus_begin = histograms + 3 * Bins;
       auto const parent_begin = histograms + 5 * Bins;
       require(
-          parent_begin[2] == 3 &&
+          electron_begin[0] == 0 &&
+              electron_begin[1] == 7 &&
+              electron_begin[5] == 7 &&
+              electron_begin[6] == 0 &&
+              std::accumulate(
+                  electron_begin, electron_begin + Bins,
+                  0LL) == 35 &&
+              muon_minus_begin[0] == 0 &&
+              muon_minus_begin[1] == 14 &&
+              muon_minus_begin[2] == 14 &&
+              muon_minus_begin[3] == 11 &&
+              muon_minus_begin[Bins - 1] == 11 &&
+              std::accumulate(
+                  muon_minus_begin,
+                  muon_minus_begin + Bins, 0LL) == 83 &&
+              parent_begin[2] == 3 &&
               parent_begin[Bins - 1] == 11 &&
               std::accumulate(parent_begin,
                               parent_begin + Bins, 0LL) == 14 &&
               counters.invalid_records == 0,
-          "device muon-parent production bin differs from icrc2025-beta2 scalar semantics");
+          "device lepton or muon-parent profile bin differs from icrc2025-beta2 scalar semantics");
 
       cudaFree(device_final_states);
       cudaFree(device_transports);
@@ -970,6 +987,83 @@ int main() {
                   profile.energy_loss_GeV.begin(),
                   profile.energy_loss_GeV.end(), 0.) > 0.,
           "resident photon profile did not accumulate tracks and deposits");
+
+      // The resident path used to be checked only for determinism, valid
+      // counters, and non-zero output.  Reconstruct the exact fixed-point
+      // histogram from the host-projected records of an otherwise identical
+      // deterministic cascade so a bin-boundary or track-weight semantic
+      // change cannot pass unnoticed.
+      require(
+          projected.projected_step_records.size() ==
+              profile.steps,
+          "resident photon profile step count differs from the host-projected oracle");
+      constexpr double FixedPointHeadroom = 0x1p62;
+      auto const weight_scale =
+          FixedPointHeadroom /
+          projection.fixed_point_weight_limit;
+      auto const inverse_weight_scale = 1. / weight_scale;
+      std::vector<long long> expected_photons(
+          projection.output_bin_count, 0);
+      std::vector<long long> expected_electrons(
+          projection.output_bin_count, 0);
+      std::vector<long long> expected_positrons(
+          projection.output_bin_count, 0);
+      for (auto const& record :
+           projected.projected_step_records) {
+        if (record.start_grammage_g_per_cm2 ==
+            record.end_grammage_g_per_cm2) {
+          continue;
+        }
+        auto const first_value = std::ceil(
+            record.start_grammage_g_per_cm2 /
+            projection.output_bin_width_g_per_cm2);
+        auto const last_value = std::floor(
+            record.end_grammage_g_per_cm2 /
+            projection.output_bin_width_g_per_cm2);
+        if (!(first_value >= 0.) ||
+            !(last_value >= first_value) ||
+            first_value >= static_cast<double>(
+                               projection.output_bin_count)) {
+          continue;
+        }
+        auto* expected =
+            record.pid ==
+                    static_cast<std::int32_t>(EmPid::Photon)
+                ? &expected_photons
+                : record.pid == static_cast<std::int32_t>(
+                                      EmPid::Electron)
+                      ? &expected_electrons
+                      : record.pid == static_cast<std::int32_t>(
+                                            EmPid::Positron)
+                            ? &expected_positrons
+                            : nullptr;
+        require(
+            expected != nullptr,
+            "host-projected profile oracle contains an invalid EM PID");
+        auto const increment = static_cast<long long>(
+            std::nearbyint(record.weight * weight_scale));
+        auto const first = static_cast<std::size_t>(first_value);
+        auto const last = std::min(
+            static_cast<std::size_t>(last_value),
+            projection.output_bin_count - 1);
+        for (auto bin = first; bin <= last; ++bin) {
+          expected->at(bin) += increment;
+        }
+      }
+      for (std::size_t bin = 0;
+           bin < projection.output_bin_count; ++bin) {
+        require(
+            profile.photons[bin] ==
+                    static_cast<double>(expected_photons[bin]) *
+                        inverse_weight_scale &&
+                profile.electrons[bin] ==
+                    static_cast<double>(expected_electrons[bin]) *
+                        inverse_weight_scale &&
+                profile.positrons[bin] ==
+                    static_cast<double>(expected_positrons[bin]) *
+                        inverse_weight_scale,
+            "resident particle profile bin differs from the host-projected oracle");
+      }
       auto expected_medium_input_GeV = 0.;
       for (auto const& final_state :
            projected.final_state_records) {

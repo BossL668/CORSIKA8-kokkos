@@ -105,6 +105,7 @@ namespace corsika::gpu::radio {
       double const* refractivity{};
       double const* integrated_refractivity{};
       std::size_t table_size{};
+      std::uint32_t zhs_subtrack_refinement{1};
     };
 
     struct DeviceWaveforms {
@@ -714,17 +715,32 @@ namespace corsika::gpu::radio {
       auto const time_step =
           track.duration_s /
           subtrack_divisor;
+      auto const refinement =
+          static_cast<int>(propagation.zhs_subtrack_refinement);
+      auto const refined_spatial_step =
+          spatial_step / static_cast<double>(refinement);
+      auto const refined_time_step =
+          time_step / static_cast<double>(refinement);
       auto point1 = track.start;
       auto time1 = track.start_time_s;
       for (int index = 0; index < number_of_subtracks; ++index) {
-        auto const point2 = point1 + spatial_step;
-        auto const time2 = time1 + time_step;
-        accumulateZhsSegment(
-            point1, point2, time1, time2, track.beta,
-            track.constant, propagation, observer, waveforms, counters,
-            number_of_subtracks > 1);
-        point1 = point2;
-        time1 = time2;
+        for (int refined_index = 0;
+             refined_index < refinement; ++refined_index) {
+          auto const point2 = point1 + refined_spatial_step;
+          auto const time2 = time1 + refined_time_step;
+          accumulateZhsSegment(
+              point1, point2, time1, time2, track.beta,
+              track.constant, propagation, observer, waveforms, counters,
+              number_of_subtracks > 1 || refinement > 1);
+          point1 = point2;
+          time1 = time2;
+        }
+      }
+      if (refinement > 1) {
+        atomicAdd(
+            &counters->zhs_subtracks,
+            static_cast<unsigned long long>(
+                number_of_subtracks * (refinement - 1)));
       }
     }
 
@@ -1463,6 +1479,11 @@ namespace corsika::gpu::radio {
         throw std::invalid_argument(
             "invalid CUDA radio fixed-point field limit");
       }
+      if (config.zhs_subtrack_refinement < 1 ||
+          config.zhs_subtrack_refinement > 64) {
+        throw std::invalid_argument(
+            "CUDA ZHS subtrack refinement must be in [1,64]");
+      }
       if (propagation.refractivity.size() < 11 ||
           propagation.refractivity.size() !=
               propagation.integrated_refractivity.size() ||
@@ -1584,6 +1605,8 @@ namespace corsika::gpu::radio {
           device_integrated_refractivity_;
       device_propagation_.table_size =
           source.refractivity.size();
+      device_propagation_.zhs_subtrack_refinement =
+          config_.zhs_subtrack_refinement;
     }
 
     void uploadObservers(

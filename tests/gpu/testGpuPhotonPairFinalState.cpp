@@ -1248,6 +1248,36 @@ namespace {
         }
       }
     }
+
+    // Water ice contains hydrogen.  Its uncorrected Koch--Motz endpoint stays
+    // negative above the old fixed 4 MeV regularization boundary (the zero is
+    // near 4.22 MeV).  This exact energy reproduces the fail-closed event seen
+    // in the 1 EeV homogeneous-ice shower with seed 62001.
+    PhotonPairLpmSnapshot hydrogen_snapshot{};
+    hydrogen_snapshot.fine_structure_constant = PROPOSAL::ALPHA;
+    hydrogen_snapshot.component_count = 1;
+    constexpr std::uint64_t HydrogenComponentHash =
+        0x485944524f47454eULL;
+    hydrogen_snapshot.components[0] = {
+        HydrogenComponentHash, 1., 0.};
+    for (double const energy_MeV :
+         {4., 4.141017661051024, 4.22, 4.3}) {
+      for (std::size_t index = 0; index <= 2048; ++index) {
+        auto const coordinate =
+            (static_cast<double>(index) + 0.5) / 2049.;
+        auto const trial = photonPairFinalStateTrial(
+            hydrogen_snapshot, HydrogenComponentHash,
+            energy_MeV, coordinate, 0.5);
+        require(
+            trial.status ==
+                    PhotonPairFinalStateStatus::Success &&
+                trial.differential_weight >= 0. &&
+                trial.envelope_weight > 0. &&
+                trial.differential_weight <=
+                    trial.envelope_weight * (1. + 1.e-13),
+            "hydrogen endpoint-regularized Koch--Motz trial is invalid");
+      }
+    }
     auto const threshold = photonPairFinalStateTrial(
         snapshot,
         static_cast<std::uint64_t>(components.front().GetHash()),

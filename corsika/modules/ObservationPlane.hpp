@@ -14,7 +14,14 @@
 #include <corsika/modules/writers/WriterOff.hpp>
 #include <corsika/framework/core/Step.hpp>
 
+#include <cstdint>
+
 namespace corsika {
+
+  struct ObservationPlaneStatistics {
+    std::uint64_t particles{};
+    double weighted_total_energy_GeV{};
+  };
 
   /**
    * @ingroup Modules
@@ -79,6 +86,10 @@ namespace corsika {
     DirectionVector getXAxis() const { return xAxis_; }
     DirectionVector getYAxis() const { return yAxis_; }
 
+    ObservationPlaneStatistics const& statistics() const noexcept {
+      return statistics_;
+    }
+
     YAML::Node getConfig() const;
 
   private:
@@ -86,6 +97,7 @@ namespace corsika {
     DirectionVector const xAxis_;
     DirectionVector const yAxis_;
     bool const deleteOnHit_;
+    ObservationPlaneStatistics statistics_{};
   };
   //! @}
 } // namespace corsika

@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <map>
 #include <unordered_map>
 
 #include <corsika/framework/core/ParticleProperties.hpp>
@@ -18,6 +20,21 @@
 #include <corsika/modules/writers/WriterOff.hpp>
 
 namespace corsika {
+
+  struct ParticleCutSpeciesStatistics {
+    std::uint64_t particles{};
+    double weighted_kinetic_energy_GeV{};
+    double weighted_rest_mass_energy_GeV{};
+  };
+
+  struct ParticleCutStatistics {
+    std::uint64_t particles{};
+    std::uint64_t invisible_particles{};
+    double weighted_kinetic_energy_GeV{};
+    double weighted_rest_mass_energy_GeV{};
+    double weighted_invisible_kinetic_energy_GeV{};
+    std::map<std::int32_t, ParticleCutSpeciesStatistics> by_pdg{};
+  };
   /**
    * ParticleCut process to kill particles.
    *
@@ -105,6 +122,10 @@ namespace corsika {
     HEPEnergyType getTauKineticECut() const { return cut_tau_; }
     HEPEnergyType getHadronKineticECut() const { return cut_hadrons_; }
 
+    ParticleCutStatistics const& statistics() const noexcept {
+      return statistics_;
+    }
+
     //! get configuration of this node, for output
     YAML::Node getConfig() const override;
 
@@ -112,6 +133,8 @@ namespace corsika {
     bool checkCutParticle(Code const, HEPEnergyType const, TimeType const) const;
 
     bool isBelowEnergyCut(Code const, HEPEnergyType const) const;
+
+    void recordCut(Code, HEPEnergyType, double);
 
   private:
     HEPEnergyType cut_electrons_;
@@ -121,6 +144,7 @@ namespace corsika {
     HEPEnergyType cut_tau_;
     bool doCutInv_;
     std::unordered_map<Code const, HEPEnergyType const> cuts_;
+    ParticleCutStatistics statistics_{};
   }; // namespace corsika
 
 } // namespace corsika

@@ -69,8 +69,20 @@ PARENT_FEATURES = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cpu-root", type=Path, required=True)
-    parser.add_argument("--cuda-root", type=Path, required=True)
+    parser.add_argument(
+        "--cpu-root",
+        type=Path,
+        action="append",
+        required=True,
+        help="CPU campaign root; repeat for a split campaign",
+    )
+    parser.add_argument(
+        "--cuda-root",
+        type=Path,
+        action="append",
+        required=True,
+        help="CUDA campaign root; repeat for a split campaign",
+    )
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--sample-size", type=int, action="append", required=True)
     parser.add_argument("--selection-seed", type=int, default=20260810)
@@ -146,20 +158,27 @@ def read_source(root: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     return curves
 
 
-def source_roots(root: Path, backend: str) -> list[Path]:
-    if backend == "cpu":
-        sources = sorted(path for path in root.glob("proposal_shard_*") if path.is_dir())
-    else:
-        sources = sorted(path for path in root.glob("batch_*/cuda") if path.is_dir())
+def source_roots(roots: list[Path], backend: str) -> list[Path]:
+    sources: list[Path] = []
+    for root in roots:
+        if backend == "cpu":
+            discovered = root.glob("proposal_shard_*")
+        else:
+            discovered = root.glob("batch_*/cuda")
+        sources.extend(path for path in discovered if path.is_dir())
+    sources = sorted(set(path.resolve() for path in sources))
     if not sources:
-        raise ValueError(f"no {backend} sources found under {root}")
+        joined = ", ".join(str(root) for root in roots)
+        raise ValueError(f"no {backend} sources found under {joined}")
     return sources
 
 
-def load_backend(root: Path, backend: str) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], list[str]]:
+def load_backend(
+    roots: list[Path], backend: str
+) -> tuple[dict[str, tuple[np.ndarray, np.ndarray]], list[str]]:
     combined: dict[str, tuple[np.ndarray, list[np.ndarray]]] = {}
     labels: list[str] = []
-    for source in source_roots(root, backend):
+    for source in source_roots(roots, backend):
         curves = read_source(source)
         count = next(iter(curves.values()))[1].shape[0]
         labels.extend(f"{source}:{index}" for index in range(count))
@@ -348,8 +367,10 @@ def main() -> int:
     output = args.output_root.resolve()
     output.mkdir(parents=True, exist_ok=True)
 
-    cpu_curves, cpu_labels = load_backend(args.cpu_root.resolve(), "cpu")
-    cuda_curves, cuda_labels = load_backend(args.cuda_root.resolve(), "cuda")
+    cpu_roots = [root.resolve() for root in args.cpu_root]
+    cuda_roots = [root.resolve() for root in args.cuda_root]
+    cpu_curves, cpu_labels = load_backend(cpu_roots, "cpu")
+    cuda_curves, cuda_labels = load_backend(cuda_roots, "cuda")
     if set(cpu_curves) != set(cuda_curves):
         raise ValueError("CPU/CUDA observable sets differ")
     cpu_events, cuda_events = len(cpu_labels), len(cuda_labels)
@@ -370,6 +391,8 @@ def main() -> int:
         {
             "selection_seed_cpu": args.selection_seed,
             "selection_seed_cuda": args.selection_seed + 1,
+            "cpu_roots": [str(root) for root in cpu_roots],
+            "cuda_roots": [str(root) for root in cuda_roots],
             "sample_sizes": sample_sizes,
             "cpu_order": [cpu_labels[index] for index in cpu_order],
             "cuda_order": [cuda_labels[index] for index in cuda_order],

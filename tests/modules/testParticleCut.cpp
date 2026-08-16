@@ -78,6 +78,18 @@ TEST_CASE("ParticleCut", "process,continuous,secondary") {
     cut.doSecondaries(view);
 
     CHECK(view.getEntries() == 9);
+    auto const& statistics = cut.statistics();
+    CHECK(statistics.particles == 2);
+    CHECK(statistics.invisible_particles == 2);
+    CHECK(
+        statistics.weighted_kinetic_energy_GeV ==
+        Catch::Approx(2000.));
+    CHECK(
+        statistics.weighted_invisible_kinetic_energy_GeV ==
+        Catch::Approx(2000.));
+    CHECK(statistics.weighted_rest_mass_energy_GeV == 0.);
+    CHECK(statistics.by_pdg.at(12).particles == 1);
+    CHECK(statistics.by_pdg.at(14).particles == 1);
   }
 
   SECTION("cut on particle type: em") {

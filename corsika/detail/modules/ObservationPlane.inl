@@ -77,6 +77,9 @@ namespace corsika {
   inline void ObservationPlane<TTracking, TOutput>::writeParticle(
       Code const pid, HEPEnergyType const kineticEnergy, Point const& position,
       DirectionVector const& direction, TimeType const time, double const weight) {
+    ++statistics_.particles;
+    statistics_.weighted_total_energy_GeV +=
+        weight * (kineticEnergy + get_mass(pid)) / 1_GeV;
     Vector const displacement = position - plane_.getCenter();
     this->write(pid, kineticEnergy, displacement.dot(xAxis_),
                 displacement.dot(yAxis_), 0_m, direction.dot(xAxis_),

@@ -614,6 +614,10 @@ def build_acceptance(
     formal gate.
     """
     algorithms: dict[str, Any] = {}
+    minimum_width_count = max(
+        2,
+        math.ceil(minimum_count * minimum_width_shower_fraction),
+    )
     for algorithm in ALGORITHMS:
         backend_shower_counts = {
             backend: sum(
@@ -657,7 +661,7 @@ def build_acceptance(
             comparisons[algorithm]["width"],
             relative_tolerance=relative_tolerance,
             minimum_ks_p_value=minimum_ks_p_value,
-            minimum_count=minimum_count,
+            minimum_count=minimum_width_count,
         )
         width.update(
             {
@@ -732,6 +736,7 @@ def build_acceptance(
         "shape_test_family_size": len(metric_paths),
         "shape_test_familywise_alpha": minimum_ks_p_value,
         "minimum_count_per_backend": minimum_count,
+        "minimum_width_valid_count_per_backend": minimum_width_count,
         "minimum_width_valid_shower_fraction": (
             minimum_width_shower_fraction
         ),
@@ -959,8 +964,13 @@ def write_markdown(
             f"四个 KS 形状检验以 "
             f"{acceptance['shape_test_correction']} 控制 family-wise "
             f"$\\alpha={acceptance['shape_test_familywise_alpha']:.3g}$，"
-            f"且每个后端至少有 {acceptance['minimum_count_per_backend']} "
-            "场有效 shower。"
+            f"振幅要求每个后端至少有 "
+            f"{acceptance['minimum_count_per_backend']} 场有效 shower；"
+            f"宽度要求至少有 "
+            f"{acceptance['minimum_width_valid_count_per_backend']} 场，"
+            f"并覆盖不少于 "
+            f"{acceptance['minimum_width_valid_shower_fraction']:.0%} "
+            "的输入 shower。"
         ),
         "",
         "## 结果",

@@ -280,6 +280,22 @@ namespace corsika::proposal {
       }
     }
 
+    // PROPOSAL's final-state energies for interactions on an atomic electron
+    // include that initially stationary target electron.  Its rest energy is
+    // therefore a genuine medium source term in a whole-shower total-energy
+    // ledger.  Count it here so both the ordinary scalar path and explicitly
+    // completed CUDA fallbacks follow the same convention.  Do this only
+    // after a possible LPM rejection, since a rejected vertex does not consume
+    // a target electron.
+    if (record.type == PROPOSAL::InteractionType::Ioniz ||
+        record.type == PROPOSAL::InteractionType::Compton ||
+        record.type == PROPOSAL::InteractionType::Annihilation ||
+        record.type == PROPOSAL::InteractionType::Photoeffect) {
+      ++atomic_electron_target_interactions_;
+      weighted_atomic_electron_rest_mass_input_GeV_ +=
+          projectile.getWeight() * PROPOSAL::ME / 1000.;
+    }
+
     for (auto& secondary : sec) {
       auto const energy = secondary.energy * 1_MeV;
       auto const proposal_direction =

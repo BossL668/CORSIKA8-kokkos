@@ -3,7 +3,17 @@ SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 add_executable (c8_air_shower c8_air_shower.cpp)
 target_link_libraries (c8_air_shower PRIVATE CORSIKA8)
 
+# The homogeneous-ice application has a complete scalar PROPOSAL path and must
+# remain buildable on CPU-only validation hosts.  CUDA support is attached
+# below when available; it is not a prerequisite for the executable itself.
+add_executable (c8_ice_cascade c8_ice_cascade.cpp)
+target_link_libraries (c8_ice_cascade PRIVATE CORSIKA8)
+
 set_target_properties(c8_air_shower PROPERTIES
+  INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
+)
+
+set_target_properties(c8_ice_cascade PROPERTIES
   INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
 )
 
@@ -44,11 +54,22 @@ if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
     c8_air_shower PRIVATE
     "-L${_c8_host_multiarch_libdir}"
     )
+  target_link_options (
+    c8_ice_cascade PRIVATE
+    "-L${_c8_host_multiarch_libdir}"
+    )
 endif ()
 
 if (CORSIKA_ENABLE_CUDA)
   target_link_libraries (c8_air_shower PRIVATE CORSIKA8GpuEm)
   target_compile_definitions (c8_air_shower PRIVATE CORSIKA8_WITH_CUDA_EM=1)
+
+  # Attach the optional CUDA transport/radio implementation to the otherwise
+  # CPU-capable ice executable.  Keep the ice environment and CLI in this
+  # separate translation unit so c8_air_shower remains an air-only program.
+  target_link_libraries (c8_ice_cascade PRIVATE CORSIKA8GpuEm)
+  target_compile_definitions (
+    c8_ice_cascade PRIVATE CORSIKA8_WITH_CUDA_EM=1)
 
   # Explicit, opt-in validation binary.  It is excluded from the default
   # build so a long campaign can continue using its already-linked
@@ -147,6 +168,9 @@ target_link_libraries (
 if(WITH_FLUKA)
   message("compiling c8_air_shower.cpp with FLUKA")
   target_compile_definitions(c8_air_shower PRIVATE WITH_FLUKA)
+  if (TARGET c8_ice_cascade)
+    target_compile_definitions(c8_ice_cascade PRIVATE WITH_FLUKA)
+  endif ()
   if (TARGET c8_air_shower_parent_profile_validation)
     target_compile_definitions(
       c8_air_shower_parent_profile_validation PRIVATE WITH_FLUKA)
@@ -166,6 +190,9 @@ endif()
 install (
   TARGETS c8_air_shower gpu_em_tablegen gpu_em_table_prepare DESTINATION bin
 )
+if (TARGET c8_ice_cascade)
+  install (TARGETS c8_ice_cascade DESTINATION bin)
+endif ()
 install (
   DIRECTORY "${CMAKE_SOURCE_DIR}/configs/media"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/corsika"

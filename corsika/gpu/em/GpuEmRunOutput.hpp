@@ -73,6 +73,21 @@ namespace corsika::gpu::em {
       shower_recorded_ = true;
     }
 
+    void recordIncomplete(
+        unsigned int shower_id,
+        std::string const& reason,
+        YAML::Node metadata) {
+      auto shower =
+          summary_["shower_" +
+                   std::to_string(shower_id)];
+      shower["complete"] = false;
+      shower["status"] = "incomplete";
+      shower["failure_reason"] = reason;
+      shower["statistics"] = std::move(metadata);
+      active_shower_ = shower_id;
+      shower_recorded_ = true;
+    }
+
     void endOfShower(
         unsigned int const shower_id) final {
       // HybridCascade closes OutputManager before the application has access

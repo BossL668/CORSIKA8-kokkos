@@ -656,6 +656,7 @@ def plot_alignment_diagnostic(
 def plot_sample_size_scaling(
     reference: dict[str, Any],
     observed_shift: float,
+    observed_events_per_backend: int,
     output: Path,
 ) -> None:
     frame = pd.DataFrame(reference["sample_size_scaling"])
@@ -693,7 +694,10 @@ def plot_sample_size_scaling(
         100.0 * observed_shift,
         color=COLORS["cuda"],
         linestyle="--",
-        label="observed 100 TeV N=50 peak shift",
+        label=(
+            "observed 100 TeV "
+            f"N={observed_events_per_backend} peak shift"
+        ),
     )
     axis.set_xscale("log")
     axis.set(
@@ -723,15 +727,20 @@ def write_markdown(
     bootstrap = report[
         "fixed_depth_peak_bootstrap_relative_shift_95pct"
     ]
+    proposal_events = int(report["events"]["proposal"])
+    cuda_events = int(report["events"]["cuda"])
     lines = [
         "# 100 TeV 纵向平均 profile 峰值差异诊断",
         "",
         "## 结论",
         "",
         (
-            "当前证据更支持“每侧只有 50 个独立 shower 导致的 "
-            "$X_{\\max}$ 相位展宽差异”，而不是 CUDA 在单个 shower "
-            "中系统性地产生约 12% 更多的电磁粒子。"
+            f"本次比较使用 {proposal_events} 个 CPU 和 "
+            f"{cuda_events} 个 CUDA 独立 shower。固定深度系综均值的"
+            "差异主要伴随两组 $X_{\\max}$ 位置与展宽的差异；"
+            "按单 shower 的 $X_{\\max}$ 对齐后，峰值和峰后形状接近。"
+            "现有检验没有证明 CUDA 在单 shower 中存在系统性的电磁"
+            "粒子增益或损失。"
         ),
         "",
         (
@@ -756,6 +765,12 @@ def write_markdown(
             f"{xmax['cuda_standard_deviation_gcm2']:.1f} g cm⁻²。"
         ),
         (
+            f"- $X_{{\\max}}$ 均值 Welch 检验 p="
+            f"{xmax['welch_mean_pvalue']:.3f}，展宽 Brown--Forsythe "
+            f"检验 p={xmax['brown_forsythe_scale_pvalue']:.3f}，"
+            f"两样本 KS 检验 p={xmax['KS_pvalue']:.3f}。"
+        ),
+        (
             f"- 全曲线最大偏差置换检验 p="
             f"{permutation['global_supremum_permutation_pvalue']:.3f}，"
             f"相对 L1 置换检验 p="
@@ -765,9 +780,8 @@ def write_markdown(
             f"- 只针对已经看到的平均峰高做检验时，置换 p="
             f"{permutation['ensemble_mean_peak_height_permutation_pvalue']:.3f}，"
             f"bootstrap 95% 区间为 [{100 * bootstrap[0]:+.1f}%, "
-            f"{100 * bootstrap[2]:+.1f}%]。这是一个需要增样本复核的"
-            "边缘信号；由于指标是在看图后选出的，不能把它单独当成"
-            "已经证实的系统偏差。"
+            f"{100 * bootstrap[2]:+.1f}%]。区间包含 0；由于峰高指标"
+            "是在看图后选出的，也不能把它单独当成已经证实的系统偏差。"
         ),
         "",
         "## 配置与 thinning 核查",
@@ -801,9 +815,9 @@ def write_markdown(
         "## 下一步验收",
         "",
         (
-            "1. 将同一配置补到至少 200 个 CPU 和 200 个 CUDA shower，"
-            "同时保留固定深度平均、逐 shower 标量和按 $X_{\\max}$ 对齐"
-            "的三种比较。"
+            "1. 用独立种子再复制一组同规模系综，继续同时保留固定深度"
+            "平均、逐 shower 标量和按 $X_{\\max}$ 对齐的三种比较；"
+            "也可用 decision-tape replay 做相同决策树的逐过程检查。"
         ),
         (
             "2. 若要专门验收 thinning，应在两侧显式给出同一个 "
@@ -816,11 +830,9 @@ def write_markdown(
             "$e^-+e^+$。"
         ),
         (
-            "4. 新增图还暴露了一个独立的输出钩子问题：CUDA resident μ "
-            "输运没有完整回放 `ProductionProfile`，因此 μ-parent 和 all-parent "
-            "的“μ 产生顶点计数”严重偏低。实际 μ 输运纵向 profile 已经"
-            "一致，所以这不是 μ 粒子丢失，但在修复前 production profile "
-            "不能作为已验收输出。"
+            "4. `ProductionProfile` 的 parent 分类由独立的 "
+            "`muon_production_parent_alignment_summary.json` 验收；"
+            "本诊断不从纵向粒子 profile 推断 parent 输出是否正确。"
         ),
         "",
         "对应图：",
@@ -855,7 +867,8 @@ def write_markdown(
                 ),
                 (
                     "该交叉检查的能量、天顶角和 thinning 设置不同，只能"
-                    "用于说明 50 个质子 shower 的平均峰具有很大的抽样噪声，"
+                    f"用于说明 {proposal_events} 个质子 shower 的平均峰"
+                    "仍可能具有抽样噪声，"
                     "不能替代同一 100 TeV 配置的增样本验收。"
                 ),
                 "- 对应图：`reference_sample_size_scaling.png`。",
@@ -1117,6 +1130,7 @@ def main() -> int:
             summaries["electron_positron"][
                 "fixed_depth_peak_relative_shift"
             ],
+            int(report["events"]["proposal"]),
             output / "reference_sample_size_scaling.png",
         )
     write_markdown(output / "diagnosis.md", report)
