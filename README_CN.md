@@ -217,10 +217,14 @@ CPU 指定末态包括：
 `--gpu-radio-field-limit` 会终止 shower，而不是产生未标记的环绕误差。
 
 P1 射电优化先为每条轨迹预计算一次与天线无关的运动学量，再以
-`4 tracks × 64 observers` 的二维 tile 在 shared memory 中复用轨迹和天线元数据。
+`8 tracks × 32 observers` 的二维 tile 在 shared memory 中复用轨迹和天线元数据。
 它自动用于 CUDA radio，不增加 CLI 参数；双缓冲 track workspace 计入统一显存
-预算。实现和 RTX 4060 paired benchmark 见
-[`phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md`](documentation/cuda_em_refactor/phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md)。
+预算。RTX 4060 上 10 个 paired 生产事件的 projection device time 缩短 5.52%，
+端到端 wall time 缩短 3.80%，所比较的 shower 与射电文件逐字节一致。P1 预计算和
+P2 tile 优化分别见
+[`phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md`](documentation/cuda_em_refactor/phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md)
+与
+[`phase_112_beta4_p2_radio_8x32_tiling_CN.md`](documentation/cuda_em_refactor/phase_112_beta4_p2_radio_8x32_tiling_CN.md)。
 
 原始 CPU 射电路径仍可用：
 

@@ -558,7 +558,7 @@ kernel 用 continuous range 表把 grammage 转成末能量，累计沉积能量
 - `propagate()` 查询折射率和积分折射率，计算到 observer 的传播时间；
 - `accumulateCoREAS()` 写端点形式的电场贡献，并保留近 Cherenkov 奇点处的标量近似分支；
 - `accumulateZHS()` 根据 Fraunhofer 条件细分轨迹，累计 vector potential；
-- `coreasZhsTiledKernel` 用 `4 tracks × 64 observers` 二维 tile，在 shared memory
+- `coreasZhsTiledKernel` 用 `8 tracks × 32 observers` 二维 tile，在 shared memory
   中复用预计算 track 和 observer，并在一次遍历中同时算两种算法；
 - `addFixedPoint()` 使用 checked integer atomic，保证调度顺序不改变累计结果。
 

@@ -153,7 +153,7 @@
 - [阶段 101：强制初级顶点与全过程序列兼容性门禁](phase_101_beta4_forced_primary_and_process_compatibility_gate.md)
 - [阶段 102：beta4 与 beta2 的 10 PeV CUDA 性能对比](phase_102_beta4_beta2_10pev_performance.md)
 
-### 阶段 103–110：beta4 再审计、replay、系综与 P0 profiling
+### 阶段 103–112：beta4 再审计、replay、系综与 CUDA profiling/优化
 
 - [阶段 103：GPU/CPU 路径再审计和 100 TeV campaign](phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md)
 - [阶段 104：CPU 500 / CUDA 500 验收](phase_104_beta4_cpu500_cuda500_acceptance_CN.md)
@@ -164,3 +164,4 @@
 - [阶段 109：EM profile 不确定度预算](phase_109_em_profile_uncertainty_budget_CN.md)
 - [阶段 110：P0 CUDA 计时语义与等待分解](phase_110_beta4_p0_cuda_timing_semantics_CN.md)
 - [阶段 111：P1 radio track 预计算与 observer tiling](phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md)
+- [阶段 112：P2 radio 8×32 tile 优化](phase_112_beta4_p2_radio_8x32_tiling_CN.md)

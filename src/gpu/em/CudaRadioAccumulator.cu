@@ -28,8 +28,8 @@ namespace corsika::gpu::radio {
   namespace {
 
     constexpr unsigned int ThreadsPerBlock = 256;
-    constexpr unsigned int RadioTrackTileSize = 4;
-    constexpr unsigned int RadioObserverTileSize = 64;
+    constexpr unsigned int RadioTrackTileSize = 8;
+    constexpr unsigned int RadioObserverTileSize = 32;
     static_assert(
         RadioTrackTileSize * RadioObserverTileSize ==
         ThreadsPerBlock);

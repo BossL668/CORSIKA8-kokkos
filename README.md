@@ -1130,10 +1130,15 @@ electromagnetic tracks are produced; neither backend waits to reconstruct the
 particle tree after the complete shower.
 
 The CUDA radio path automatically precomputes observer-independent track
-kinematics once per input record and projects `4 tracks x 64 observers` per
+kinematics once per input record and projects `8 tracks x 32 observers` per
 two-dimensional shared-memory tile. The double-buffered track workspaces count
 against the configured GPU memory budget. This optimization requires no extra
-CLI option and preserves deterministic waveform output.
+CLI option and preserves deterministic waveform output. On an RTX 4060 Laptop
+GPU, a 10-event paired production benchmark reduced radio projection device
+time by 5.52% and end-to-end wall time by 3.80%; all compared shower and radio
+artifacts remained byte-identical. The implementation and rejected alternatives
+are documented in
+[`phase_112_beta4_p2_radio_8x32_tiling_CN.md`](documentation/cuda_em_refactor/phase_112_beta4_p2_radio_8x32_tiling_CN.md).
 
 ### FLUKA scheduling
 

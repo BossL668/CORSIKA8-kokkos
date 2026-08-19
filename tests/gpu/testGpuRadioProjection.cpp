@@ -359,11 +359,11 @@ int main() {
               "CUDA CoREAS/ZHS shared-geometry kernel was not exercised");
       require(
           statistics.track_precompute_enabled &&
-              statistics.track_tile_size == 4 &&
-              statistics.observer_tile_size == 64 &&
+              statistics.track_tile_size == 8 &&
+              statistics.observer_tile_size == 32 &&
               statistics.track_precompute_batches == 1 &&
               statistics.track_precomputed_records == records.size() &&
-              statistics.projection_tiles == 2 &&
+              statistics.projection_tiles == 3 &&
               statistics.track_workspace_bytes != 0 &&
               statistics.maximum_track_batch == records.size() &&
               statistics.track_precompute_device_time_ms >= 0. &&
@@ -416,7 +416,7 @@ int main() {
               accumulator.statistics().fused_track_observer_pairs ==
                   records.size() * ObserverCount &&
               accumulator.statistics().track_precompute_batches == 1 &&
-              accumulator.statistics().projection_tiles == 2,
+              accumulator.statistics().projection_tiles == 3,
           "CUDA radio reset retained preceding-shower statistics");
       require(
           repeated.coreas.size() == ObserverCount &&
