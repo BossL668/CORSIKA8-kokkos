@@ -1034,6 +1034,37 @@ namespace corsika::gpu::em {
           "cudaSetDevice(begin CUDA EM shower)");
       drainProfileStream();
       radio_accumulator_.drain();
+      // A very large preceding shower can force radio onto the direct
+      // device-projection fallback after the two physical arenas retain
+      // their high-water capacities.  Those capacities are caches, not
+      // cross-shower physics state.  Rebalance only after such a fallback so
+      // later showers regain the P1/P2 precompute fast path instead of
+      // inheriting a permanent memory-pressure penalty.
+      if (radio_accumulator_.statistics()
+              .direct_projection_batches != 0) {
+        auto const first_workspace_limit =
+            physical_workspace_.byteLimit();
+        auto const second_workspace_limit =
+            physical_workspace_next_.byteLimit();
+        if (config_.min_batch_size >
+            (std::numeric_limits<std::size_t>::max() - 4096) /
+                4096) {
+          throw std::overflow_error(
+              "GPU minimum batch workspace size overflow at shower reset");
+        }
+        auto const minimum_workspace_bytes =
+            4096 + 4096 * config_.min_batch_size;
+        physical_workspace_.release();
+        physical_workspace_next_.release();
+        physical_workspace_.configure(
+            config_.device, first_workspace_limit);
+        physical_workspace_next_.configure(
+            config_.device, second_workspace_limit);
+        physical_workspace_.prepare(minimum_workspace_bytes);
+        physical_workspace_next_.prepare(
+            minimum_workspace_bytes);
+        updateWorkspaceStatistics();
+      }
       if (gpuProfileEnabled()) {
         auto const histogram_bytes =
             detail::deviceProfileHistogramBytes(

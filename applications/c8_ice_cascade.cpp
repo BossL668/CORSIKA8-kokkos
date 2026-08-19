@@ -3211,6 +3211,10 @@ int main(int argc, char** argv) {
           backend_stats.radio.track_precompute_batches;
       shower_metadata["radio"]["track_precomputed_records"] =
           backend_stats.radio.track_precomputed_records;
+      shower_metadata["radio"]["direct_projection_batches"] =
+          backend_stats.radio.direct_projection_batches;
+      shower_metadata["radio"]["direct_projection_records"] =
+          backend_stats.radio.direct_projection_records;
       shower_metadata["radio"]["projection_tiles"] =
           backend_stats.radio.projection_tiles;
       shower_metadata["radio"]["track_workspace_bytes"] =

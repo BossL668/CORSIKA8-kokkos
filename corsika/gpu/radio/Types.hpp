@@ -130,6 +130,8 @@ namespace corsika::gpu::radio {
     std::uint32_t observer_tile_size{};
     std::uint64_t track_precompute_batches{};
     std::uint64_t track_precomputed_records{};
+    std::uint64_t direct_projection_batches{};
+    std::uint64_t direct_projection_records{};
     std::uint64_t projection_tiles{};
     std::size_t track_workspace_bytes{};
     std::size_t maximum_track_batch{};

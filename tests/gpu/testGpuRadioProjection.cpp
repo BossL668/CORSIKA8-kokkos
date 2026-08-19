@@ -451,6 +451,46 @@ int main() {
       require(
           zhs_repeatable,
           "deterministic ZHS waveform is not bitwise repeatable");
+
+      auto const static_radio_bytes =
+          accumulator.deviceBytes() -
+          accumulator.statistics().track_workspace_bytes;
+      accumulator.reset();
+      accumulator.setMemoryBudgetBytes(static_radio_bytes);
+      accumulator.accumulateLeptonTracksOnDevice(
+          device_record, records.size());
+      auto const direct = accumulator.downloadWaveforms();
+      auto direct_matches_tiled =
+          direct.coreas.size() == waveforms.coreas.size() &&
+          direct.zhs.size() == waveforms.zhs.size();
+      for (std::size_t observer = 0;
+           observer < ObserverCount; ++observer) {
+        direct_matches_tiled =
+            direct_matches_tiled &&
+            direct.coreas[observer].x ==
+                waveforms.coreas[observer].x &&
+            direct.coreas[observer].y ==
+                waveforms.coreas[observer].y &&
+            direct.coreas[observer].z ==
+                waveforms.coreas[observer].z &&
+            direct.zhs[observer].x ==
+                waveforms.zhs[observer].x &&
+            direct.zhs[observer].y ==
+                waveforms.zhs[observer].y &&
+            direct.zhs[observer].z ==
+                waveforms.zhs[observer].z;
+      }
+      require(
+          direct_matches_tiled,
+          "memory-bounded direct CUDA radio projection changed waveforms");
+      require(
+          accumulator.statistics().direct_projection_batches == 1 &&
+              accumulator.statistics().direct_projection_records ==
+                  records.size() &&
+              accumulator.statistics().track_precompute_batches == 0 &&
+              accumulator.statistics().track_precomputed_records == 0 &&
+              accumulator.statistics().track_workspace_bytes == 0,
+          "memory-bounded direct CUDA radio projection was not reported");
     } catch (...) {
       cudaFree(device_record);
       throw;
