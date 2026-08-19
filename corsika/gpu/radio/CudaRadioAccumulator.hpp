@@ -36,6 +36,13 @@ namespace corsika::gpu::radio {
 
     void initialize(GpuRadioConfig const&, int device,
                     std::size_t memory_budget_bytes);
+    /**
+     * Update the maximum total allocation owned by the radio accumulator.
+     * The hybrid backend calls this before a dynamic track-workspace growth
+     * so radio, EM queues, tables and physical workspaces share one hard
+     * device-memory budget.
+     */
+    void setMemoryBudgetBytes(std::size_t memory_budget_bytes);
     bool enabled() const noexcept;
     void accumulateLeptonTracksOnDevice(
         em::LeptonTransportRecord const* device_records,

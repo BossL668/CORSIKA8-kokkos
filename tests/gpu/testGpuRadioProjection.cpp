@@ -253,9 +253,29 @@ int main() {
         sample_rate,
         coreas_detector.at(0).getWaveformX().size(),
         RefractiveIndex);
+    constexpr std::size_t ObserverCount = 70;
+    auto const coreas_observer =
+        config.coreas_observers.front();
+    auto const zhs_observer =
+        config.zhs_observers.front();
+    while (config.coreas_observers.size() < ObserverCount) {
+      config.coreas_observers.push_back(coreas_observer);
+      config.zhs_observers.push_back(zhs_observer);
+    }
     config.track_diagnostics = true;
     radio::CudaRadioAccumulator accumulator;
     accumulator.initialize(config, 0, 64 * 1024 * 1024);
+    auto rejected_small_budget = false;
+    try {
+      accumulator.setMemoryBudgetBytes(
+          accumulator.deviceBytes() - 1);
+    } catch (std::runtime_error const&) {
+      rejected_small_budget = true;
+    }
+    require(
+        rejected_small_budget,
+        "CUDA radio accepted a budget below its current allocation");
+    accumulator.setMemoryBudgetBytes(64 * 1024 * 1024);
 
     em::LeptonTransportRecord record{};
     record.start.pid =
@@ -314,22 +334,41 @@ int main() {
       accumulator.accumulateLeptonTracksOnDevice(
           device_record, records.size());
       auto const waveforms = accumulator.downloadWaveforms();
-      require(waveforms.coreas.size() == 1 &&
-                  waveforms.zhs.size() == 1,
+      require(waveforms.coreas.size() == ObserverCount &&
+                  waveforms.zhs.size() == ObserverCount,
               "CUDA radio did not return both algorithms");
-      compareWaveform(
-          waveforms.coreas.front(), coreas_detector.at(0),
-          1.e-9, "CoREAS");
-      compareWaveform(
-          waveforms.zhs.front(), zhs_detector.at(0),
-          1.e-9, "ZHS");
+      for (std::size_t observer = 0;
+           observer < ObserverCount; ++observer) {
+        compareWaveform(
+            waveforms.coreas[observer], coreas_detector.at(0),
+            1.e-9, "CoREAS");
+        compareWaveform(
+            waveforms.zhs[observer], zhs_detector.at(0),
+            1.e-9, "ZHS");
+      }
       auto const& statistics = accumulator.statistics();
       require(statistics.lepton_tracks == 1,
               "CUDA radio electron/positron track count is incorrect");
-      require(statistics.track_observer_pairs == 6,
+      require(
+          statistics.track_observer_pairs ==
+              2 * records.size() * ObserverCount,
               "CUDA radio track-observer pair count is incorrect");
-      require(statistics.fused_track_observer_pairs == 3,
+      require(
+          statistics.fused_track_observer_pairs ==
+              records.size() * ObserverCount,
               "CUDA CoREAS/ZHS shared-geometry kernel was not exercised");
+      require(
+          statistics.track_precompute_enabled &&
+              statistics.track_tile_size == 4 &&
+              statistics.observer_tile_size == 64 &&
+              statistics.track_precompute_batches == 1 &&
+              statistics.track_precomputed_records == records.size() &&
+              statistics.projection_tiles == 2 &&
+              statistics.track_workspace_bytes != 0 &&
+              statistics.maximum_track_batch == records.size() &&
+              statistics.track_precompute_device_time_ms >= 0. &&
+              statistics.projection_device_time_ms >= 0.,
+          "CUDA radio track precompute/observer tiling was not exercised");
       auto const expected_length_m =
           (end - start).getNorm() / 1_m;
       require(
@@ -372,23 +411,46 @@ int main() {
       auto const repeated = accumulator.downloadWaveforms();
       require(
           accumulator.statistics().lepton_tracks == 1 &&
-              accumulator.statistics().track_observer_pairs == 6 &&
-              accumulator.statistics().fused_track_observer_pairs == 3,
+              accumulator.statistics().track_observer_pairs ==
+                  2 * records.size() * ObserverCount &&
+              accumulator.statistics().fused_track_observer_pairs ==
+                  records.size() * ObserverCount &&
+              accumulator.statistics().track_precompute_batches == 1 &&
+              accumulator.statistics().projection_tiles == 2,
           "CUDA radio reset retained preceding-shower statistics");
-      require(repeated.coreas.front().x ==
-                      waveforms.coreas.front().x &&
-                  repeated.coreas.front().y ==
-                      waveforms.coreas.front().y &&
-                  repeated.coreas.front().z ==
-                      waveforms.coreas.front().z,
-              "deterministic CoREAS waveform is not bitwise repeatable");
-      require(repeated.zhs.front().x ==
-                      waveforms.zhs.front().x &&
-                  repeated.zhs.front().y ==
-                      waveforms.zhs.front().y &&
-                  repeated.zhs.front().z ==
-                      waveforms.zhs.front().z,
-              "deterministic ZHS waveform is not bitwise repeatable");
+      require(
+          repeated.coreas.size() == ObserverCount &&
+              repeated.zhs.size() == ObserverCount,
+          "CUDA radio reset changed the observer count");
+      auto coreas_repeatable =
+          repeated.coreas.size() == waveforms.coreas.size();
+      auto zhs_repeatable =
+          repeated.zhs.size() == waveforms.zhs.size();
+      for (std::size_t observer = 0;
+           observer < ObserverCount; ++observer) {
+        coreas_repeatable =
+            coreas_repeatable &&
+            repeated.coreas[observer].x ==
+                waveforms.coreas[observer].x &&
+            repeated.coreas[observer].y ==
+                waveforms.coreas[observer].y &&
+            repeated.coreas[observer].z ==
+                waveforms.coreas[observer].z;
+        zhs_repeatable =
+            zhs_repeatable &&
+            repeated.zhs[observer].x ==
+                waveforms.zhs[observer].x &&
+            repeated.zhs[observer].y ==
+                waveforms.zhs[observer].y &&
+            repeated.zhs[observer].z ==
+                waveforms.zhs[observer].z;
+      }
+      require(
+          coreas_repeatable,
+          "deterministic CoREAS waveform is not bitwise repeatable");
+      require(
+          zhs_repeatable,
+          "deterministic ZHS waveform is not bitwise repeatable");
     } catch (...) {
       cudaFree(device_record);
       throw;

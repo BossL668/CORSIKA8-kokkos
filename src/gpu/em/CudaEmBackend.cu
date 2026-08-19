@@ -3074,10 +3074,48 @@ namespace corsika::gpu::em {
                           ? &stage_events
                           : nullptr,
                       &first_interaction_capture_);
+              if (radio_accumulator_.enabled()) {
+                if (radio_device_bytes_ >
+                    resident_allocation_bytes_) {
+                  throw std::logic_error(
+                      "CUDA radio allocation accounting is inconsistent");
+                }
+                auto const non_radio_resident_bytes =
+                    resident_allocation_bytes_ -
+                    radio_device_bytes_;
+                auto const physical_workspace_bytes =
+                    checkedAdd(
+                        physical_workspace_.capacityBytes(),
+                        physical_workspace_next_.capacityBytes(),
+                        "CUDA physical workspace accounting overflow");
+                auto const non_radio_total = checkedAdd(
+                    non_radio_resident_bytes,
+                    physical_workspace_bytes,
+                    "CUDA non-radio allocation accounting overflow");
+                if (non_radio_total >= memory_budget_bytes_) {
+                  throw std::runtime_error(
+                      "no CUDA memory remains for the radio track "
+                      "workspace");
+                }
+                radio_accumulator_.setMemoryBudgetBytes(
+                    memory_budget_bytes_ - non_radio_total);
+              }
               radio_accumulator_.accumulateLeptonTracksOnDevice(
                   launched.transport.records,
                   launched.transport.record_count,
                   radio_input_slot);
+              if (radio_accumulator_.enabled()) {
+                auto const non_radio_resident_bytes =
+                    resident_allocation_bytes_ -
+                    radio_device_bytes_;
+                radio_device_bytes_ =
+                    radio_accumulator_.deviceBytes();
+                resident_allocation_bytes_ = checkedAdd(
+                    non_radio_resident_bytes,
+                    radio_device_bytes_,
+                    "CUDA resident radio allocation accounting overflow");
+                updateWorkspaceStatistics();
+              }
               return launched;
             },
             statistics_.kernel_time_ms,

@@ -553,14 +553,19 @@ kernel 用 continuous range 表把 grammage 转成末能量，累计沉积能量
 
 该文件包含实际 CoREAS/ZHS 设备算法：
 
-- `makeRadioTrackKinematics()` 从 e± step 得到位置、时间、β、charge×weight；
+- `precomputeRadioTracksKernel()` 对每条 e± step 只调用一次
+  `makeRadioTrackKinematics()`，得到位置、时间、β、长度和 charge×weight；
 - `propagate()` 查询折射率和积分折射率，计算到 observer 的传播时间；
 - `accumulateCoREAS()` 写端点形式的电场贡献，并保留近 Cherenkov 奇点处的标量近似分支；
 - `accumulateZHS()` 根据 Fraunhofer 条件细分轨迹，累计 vector potential；
-- `coreasZhsKernel` 可在一次 track-observer 遍历中同时算两种算法；
+- `coreasZhsTiledKernel` 用 `4 tracks × 64 observers` 二维 tile，在 shared memory
+  中复用预计算 track 和 observer，并在一次遍历中同时算两种算法；
 - `addFixedPoint()` 使用 checked integer atomic，保证调度顺序不改变累计结果。
 
-每个 thread 的基本工作单位是一个有效的“轨迹段 × observer”组合。波形留在显存中，shower 末尾才下载，因此不会为每条 e± 轨迹产生 PCIe 往返。
+每个 thread 的基本工作单位仍是一个有效的“轨迹段 × observer”组合，但与 observer
+无关的运动学量不会在每个天线线程中重复计算。每个双缓冲输入槽拥有独立、受统一
+显存预算约束的预计算 workspace。波形留在显存中，shower 末尾才下载，因此不会
+为每条 e± 轨迹产生 PCIe 往返。
 
 ## 13. CPU fallback 和兼容性门禁
 

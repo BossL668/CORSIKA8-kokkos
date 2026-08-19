@@ -1129,6 +1129,12 @@ waveform comparisons. CPU and CUDA radio projection are accumulated while the
 electromagnetic tracks are produced; neither backend waits to reconstruct the
 particle tree after the complete shower.
 
+The CUDA radio path automatically precomputes observer-independent track
+kinematics once per input record and projects `4 tracks x 64 observers` per
+two-dimensional shared-memory tile. The double-buffered track workspaces count
+against the configured GPU memory budget. This optimization requires no extra
+CLI option and preserves deterministic waveform output.
+
 ### FLUKA scheduling
 
 | Option | Default | Meaning |

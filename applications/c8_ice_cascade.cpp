@@ -3201,6 +3201,29 @@ int main(int argc, char** argv) {
           backend_stats.radio.input_slot_waits;
       shower_metadata["radio"]["input_slot_host_wait_time_ms"] =
           backend_stats.radio.input_slot_host_wait_time_ms;
+      shower_metadata["radio"]["track_precompute_enabled"] =
+          backend_stats.radio.track_precompute_enabled;
+      shower_metadata["radio"]["track_tile_size"] =
+          backend_stats.radio.track_tile_size;
+      shower_metadata["radio"]["observer_tile_size"] =
+          backend_stats.radio.observer_tile_size;
+      shower_metadata["radio"]["track_precompute_batches"] =
+          backend_stats.radio.track_precompute_batches;
+      shower_metadata["radio"]["track_precomputed_records"] =
+          backend_stats.radio.track_precomputed_records;
+      shower_metadata["radio"]["projection_tiles"] =
+          backend_stats.radio.projection_tiles;
+      shower_metadata["radio"]["track_workspace_bytes"] =
+          static_cast<std::uint64_t>(
+              backend_stats.radio.track_workspace_bytes);
+      shower_metadata["radio"]["maximum_track_batch"] =
+          static_cast<std::uint64_t>(
+              backend_stats.radio.maximum_track_batch);
+      shower_metadata["radio"]
+                     ["track_precompute_device_time_ms"] =
+          backend_stats.radio.track_precompute_device_time_ms;
+      shower_metadata["radio"]["projection_device_time_ms"] =
+          backend_stats.radio.projection_device_time_ms;
       shower_metadata["profile"]["backend"] =
           backend_stats.profile.enabled ? "cuda" : "host";
       shower_metadata["profile"]["deterministic"] =

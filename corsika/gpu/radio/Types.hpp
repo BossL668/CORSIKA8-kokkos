@@ -125,6 +125,16 @@ namespace corsika::gpu::radio {
     double transfer_time_ms{};
     std::uint64_t input_slot_waits{};
     double input_slot_host_wait_time_ms{};
+    bool track_precompute_enabled{};
+    std::uint32_t track_tile_size{};
+    std::uint32_t observer_tile_size{};
+    std::uint64_t track_precompute_batches{};
+    std::uint64_t track_precomputed_records{};
+    std::uint64_t projection_tiles{};
+    std::size_t track_workspace_bytes{};
+    std::size_t maximum_track_batch{};
+    double track_precompute_device_time_ms{};
+    double projection_device_time_ms{};
   };
 
 } // namespace corsika::gpu::radio

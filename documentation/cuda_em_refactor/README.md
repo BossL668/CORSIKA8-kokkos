@@ -163,3 +163,4 @@
 - [阶段 108：CPU 1000 / CUDA 1000 验收](phase_108_beta4_cpu1000_cuda1000_acceptance_CN.md)
 - [阶段 109：EM profile 不确定度预算](phase_109_em_profile_uncertainty_budget_CN.md)
 - [阶段 110：P0 CUDA 计时语义与等待分解](phase_110_beta4_p0_cuda_timing_semantics_CN.md)
+- [阶段 111：P1 radio track 预计算与 observer tiling](phase_111_beta4_p1_radio_track_precompute_observer_tiling_CN.md)

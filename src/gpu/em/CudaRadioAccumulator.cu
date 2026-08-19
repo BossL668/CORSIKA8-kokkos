@@ -28,6 +28,11 @@ namespace corsika::gpu::radio {
   namespace {
 
     constexpr unsigned int ThreadsPerBlock = 256;
+    constexpr unsigned int RadioTrackTileSize = 4;
+    constexpr unsigned int RadioObserverTileSize = 64;
+    static_assert(
+        RadioTrackTileSize * RadioObserverTileSize ==
+        ThreadsPerBlock);
     constexpr std::size_t RadioInputSlotCount = 2;
     constexpr double SpeedOfLightMPerS = 299792458.;
     constexpr double VacuumPermittivityFPerM =
@@ -140,10 +145,15 @@ namespace corsika::gpu::radio {
       double weighted_track_length_by_kinetic_energy_m[15]{};
     };
 
+    struct RadioTrackKinematics;
+
     struct RadioInputSlot {
       cudaEvent_t input_ready{};
       cudaEvent_t radio_start{};
+      cudaEvent_t track_precompute_done{};
       cudaEvent_t radio_done{};
+      RadioTrackKinematics* precomputed_tracks{};
+      std::size_t track_capacity{};
       bool active{};
     };
 
@@ -172,6 +182,7 @@ namespace corsika::gpu::radio {
       double track_length_m{};
       double beta_module{};
       double constant{};
+      std::uint32_t valid{};
     };
 
     __host__ __device__ Vec3 operator+(Vec3 a, Vec3 b) {
@@ -242,6 +253,7 @@ namespace corsika::gpu::radio {
               : ElementaryChargeC;
       track.constant =
           charge * EmConstant * record.start.weight;
+      track.valid = 1;
       return true;
     }
 
@@ -744,26 +756,6 @@ namespace corsika::gpu::radio {
       }
     }
 
-    __device__ bool validRadioTrack(
-        em::LeptonTransportRecord const& record) {
-      if (!em::isElectronOrPositronPid(record.start.pid)) {
-        return false;
-      }
-      auto const duration =
-          record.end.time_s - record.start.time_s;
-      auto const dx =
-          record.end.position_m[0] -
-          record.start.position_m[0];
-      auto const dy =
-          record.end.position_m[1] -
-          record.start.position_m[1];
-      auto const dz =
-          record.end.position_m[2] -
-          record.start.position_m[2];
-      return duration > 0. &&
-             (dx * dx + dy * dy + dz * dz) > 0.;
-    }
-
     __device__ void atomicMaxPositiveDouble(
         double* address, double value) {
       // IEEE-754 bit order is monotonic for finite non-negative doubles.
@@ -786,9 +778,10 @@ namespace corsika::gpu::radio {
       return index;
     }
 
-    __global__ void countValidTracksKernel(
+    __global__ void precomputeRadioTracksKernel(
         em::LeptonTransportRecord const* records,
         std::size_t record_count,
+        RadioTrackKinematics* tracks,
         DeviceRadioCounters* counters,
         bool collect_diagnostics) {
       auto const record_index =
@@ -798,25 +791,18 @@ namespace corsika::gpu::radio {
         return;
       }
       auto const& record = records[record_index];
-      if (!validRadioTrack(record)) {
+      RadioTrackKinematics track{};
+      if (!makeRadioTrackKinematics(record, track)) {
+        tracks[record_index] = {};
         return;
       }
+      tracks[record_index] = track;
       atomicAdd(&counters->valid_tracks, 1ULL);
       if (!collect_diagnostics) {
         return;
       }
 
-      auto const dx =
-          record.end.position_m[0] -
-          record.start.position_m[0];
-      auto const dy =
-          record.end.position_m[1] -
-          record.start.position_m[1];
-      auto const dz =
-          record.end.position_m[2] -
-          record.start.position_m[2];
-      auto const length_m =
-          sqrt(dx * dx + dy * dy + dz * dz);
+      auto const length_m = track.track_length_m;
       auto const weight = record.start.weight;
       auto const kinetic_energy_GeV =
           record.start.energy_GeV - em::ElectronMassGeV;
@@ -871,10 +857,8 @@ namespace corsika::gpu::radio {
       }
       auto const direction_change_rad =
           acos(fmin(1., fmax(-1., direction_dot)));
-      auto const duration_s =
-          record.end.time_s - record.start.time_s;
-      auto const beta_module =
-          length_m / (SpeedOfLightMPerS * duration_s);
+      auto const duration_s = track.duration_s;
+      auto const beta_module = track.beta_module;
       auto const time_residual_s =
           duration_s - length_m / SpeedOfLightMPerS;
       atomicAdd(
@@ -905,61 +889,109 @@ namespace corsika::gpu::radio {
       }
     }
 
-    __global__ void coreasKernel(
-        em::LeptonTransportRecord const* records,
-        std::size_t record_count,
+    __global__ void coreasTiledKernel(
+        RadioTrackKinematics const* tracks,
+        std::size_t track_count,
         DevicePropagation propagation,
         DeviceObserver const* observers,
         std::size_t observer_count, DeviceWaveforms waveforms,
         DeviceRadioCounters* counters) {
-      auto const pair_index =
-          static_cast<std::size_t>(blockIdx.x) * blockDim.x +
-          threadIdx.x;
-      auto const pair_count = record_count * observer_count;
-      if (pair_index >= pair_count) {
-        return;
+      __shared__ RadioTrackKinematics
+          track_tile[RadioTrackTileSize];
+      __shared__ DeviceObserver
+          observer_tile[RadioObserverTileSize];
+      auto const observer_lane =
+          threadIdx.x % RadioObserverTileSize;
+      auto const track_lane =
+          threadIdx.x / RadioObserverTileSize;
+      auto const track_base =
+          static_cast<std::size_t>(blockIdx.x) *
+          RadioTrackTileSize;
+      auto const observer_base =
+          static_cast<std::size_t>(blockIdx.y) *
+          RadioObserverTileSize;
+      if (threadIdx.x < RadioTrackTileSize) {
+        auto const track_index = track_base + threadIdx.x;
+        track_tile[threadIdx.x] =
+            track_index < track_count
+                ? tracks[track_index]
+                : RadioTrackKinematics{};
       }
-      auto const record_index = pair_index / observer_count;
-      auto const observer_index = pair_index % observer_count;
-      RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
-              records[record_index], track)) {
+      if (threadIdx.x < RadioObserverTileSize) {
+        auto const observer_index =
+            observer_base + threadIdx.x;
+        if (observer_index < observer_count) {
+          observer_tile[threadIdx.x] =
+              observers[observer_index];
+        }
+      }
+      __syncthreads();
+      auto const track_index = track_base + track_lane;
+      auto const observer_index =
+          observer_base + observer_lane;
+      if (track_index >= track_count ||
+          observer_index >= observer_count ||
+          track_tile[track_lane].valid == 0) {
         return;
       }
       accumulateCoREAS(
-          track, propagation,
-          observers[observer_index], waveforms, counters);
+          track_tile[track_lane], propagation,
+          observer_tile[observer_lane], waveforms, counters);
     }
 
-    __global__ void zhsKernel(
-        em::LeptonTransportRecord const* records,
-        std::size_t record_count,
+    __global__ void zhsTiledKernel(
+        RadioTrackKinematics const* tracks,
+        std::size_t track_count,
         DevicePropagation propagation,
         DeviceObserver const* observers,
         std::size_t observer_count, DeviceWaveforms waveforms,
         DeviceRadioCounters* counters) {
-      auto const pair_index =
-          static_cast<std::size_t>(blockIdx.x) * blockDim.x +
-          threadIdx.x;
-      auto const pair_count = record_count * observer_count;
-      if (pair_index >= pair_count) {
-        return;
+      __shared__ RadioTrackKinematics
+          track_tile[RadioTrackTileSize];
+      __shared__ DeviceObserver
+          observer_tile[RadioObserverTileSize];
+      auto const observer_lane =
+          threadIdx.x % RadioObserverTileSize;
+      auto const track_lane =
+          threadIdx.x / RadioObserverTileSize;
+      auto const track_base =
+          static_cast<std::size_t>(blockIdx.x) *
+          RadioTrackTileSize;
+      auto const observer_base =
+          static_cast<std::size_t>(blockIdx.y) *
+          RadioObserverTileSize;
+      if (threadIdx.x < RadioTrackTileSize) {
+        auto const track_index = track_base + threadIdx.x;
+        track_tile[threadIdx.x] =
+            track_index < track_count
+                ? tracks[track_index]
+                : RadioTrackKinematics{};
       }
-      auto const record_index = pair_index / observer_count;
-      auto const observer_index = pair_index % observer_count;
-      RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
-              records[record_index], track)) {
+      if (threadIdx.x < RadioObserverTileSize) {
+        auto const observer_index =
+            observer_base + threadIdx.x;
+        if (observer_index < observer_count) {
+          observer_tile[threadIdx.x] =
+              observers[observer_index];
+        }
+      }
+      __syncthreads();
+      auto const track_index = track_base + track_lane;
+      auto const observer_index =
+          observer_base + observer_lane;
+      if (track_index >= track_count ||
+          observer_index >= observer_count ||
+          track_tile[track_lane].valid == 0) {
         return;
       }
       accumulateZHS(
-          track, propagation,
-          observers[observer_index], waveforms, counters);
+          track_tile[track_lane], propagation,
+          observer_tile[observer_lane], waveforms, counters);
     }
 
-    __global__ void coreasZhsKernel(
-        em::LeptonTransportRecord const* records,
-        std::size_t record_count,
+    __global__ void coreasZhsTiledKernel(
+        RadioTrackKinematics const* tracks,
+        std::size_t track_count,
         DevicePropagation propagation,
         DeviceObserver const* coreas_observers,
         DeviceObserver const* zhs_observers,
@@ -967,27 +999,55 @@ namespace corsika::gpu::radio {
         DeviceWaveforms coreas_waveforms,
         DeviceWaveforms zhs_waveforms,
         DeviceRadioCounters* counters) {
-      auto const pair_index =
-          static_cast<std::size_t>(blockIdx.x) * blockDim.x +
-          threadIdx.x;
-      auto const pair_count = record_count * observer_count;
-      if (pair_index >= pair_count) {
-        return;
+      __shared__ RadioTrackKinematics
+          track_tile[RadioTrackTileSize];
+      __shared__ DeviceObserver
+          coreas_observer_tile[RadioObserverTileSize];
+      __shared__ DeviceObserver
+          zhs_observer_tile[RadioObserverTileSize];
+      auto const observer_lane =
+          threadIdx.x % RadioObserverTileSize;
+      auto const track_lane =
+          threadIdx.x / RadioObserverTileSize;
+      auto const track_base =
+          static_cast<std::size_t>(blockIdx.x) *
+          RadioTrackTileSize;
+      auto const observer_base =
+          static_cast<std::size_t>(blockIdx.y) *
+          RadioObserverTileSize;
+      if (threadIdx.x < RadioTrackTileSize) {
+        auto const track_index = track_base + threadIdx.x;
+        track_tile[threadIdx.x] =
+            track_index < track_count
+                ? tracks[track_index]
+                : RadioTrackKinematics{};
       }
-      auto const record_index = pair_index / observer_count;
-      auto const observer_index = pair_index % observer_count;
-      RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
-              records[record_index], track)) {
+      if (threadIdx.x < RadioObserverTileSize) {
+        auto const observer_index =
+            observer_base + threadIdx.x;
+        if (observer_index < observer_count) {
+          coreas_observer_tile[threadIdx.x] =
+              coreas_observers[observer_index];
+          zhs_observer_tile[threadIdx.x] =
+              zhs_observers[observer_index];
+        }
+      }
+      __syncthreads();
+      auto const track_index = track_base + track_lane;
+      auto const observer_index =
+          observer_base + observer_lane;
+      if (track_index >= track_count ||
+          observer_index >= observer_count ||
+          track_tile[track_lane].valid == 0) {
         return;
       }
       accumulateCoREAS(
-          track, propagation,
-          coreas_observers[observer_index],
+          track_tile[track_lane], propagation,
+          coreas_observer_tile[observer_lane],
           coreas_waveforms, counters);
       accumulateZHS(
-          track, propagation,
-          zhs_observers[observer_index],
+          track_tile[track_lane], propagation,
+          zhs_observer_tile[observer_lane],
           zhs_waveforms, counters);
     }
 
@@ -1073,6 +1133,7 @@ namespace corsika::gpu::radio {
       validate(requested);
       config_ = requested;
       device_ = device;
+      memory_budget_bytes_ = memory_budget_bytes;
       checkCuda(cudaSetDevice(device_), "set CUDA radio device");
 
       auto const coreas_host = makeDeviceObservers(
@@ -1126,6 +1187,9 @@ namespace corsika::gpu::radio {
         allocateAndUpload(
             coreas_host, zhs_host, table_bytes, waveform_bytes);
         statistics_.device_bytes = device_bytes_;
+        statistics_.track_precompute_enabled = true;
+        statistics_.track_tile_size = RadioTrackTileSize;
+        statistics_.observer_tile_size = RadioObserverTileSize;
       } catch (...) {
         release();
         throw;
@@ -1134,6 +1198,18 @@ namespace corsika::gpu::radio {
 
     bool enabled() const noexcept {
       return initialized_ && config_.enabled;
+    }
+
+    void setMemoryBudgetBytes(std::size_t memory_budget_bytes) {
+      if (!enabled()) {
+        return;
+      }
+      if (memory_budget_bytes < device_bytes_) {
+        throw std::runtime_error(
+            "current CUDA radio allocation exceeds the updated device "
+            "memory budget");
+      }
+      memory_budget_bytes_ = memory_budget_bytes;
     }
 
     void waitForInputSlot(std::size_t input_slot) {
@@ -1165,6 +1241,22 @@ namespace corsika::gpu::radio {
               slot.radio_done),
           "measure CUDA radio device time");
       statistics_.device_time_ms += elapsed_ms;
+      float precompute_ms = 0.;
+      checkCuda(
+          cudaEventElapsedTime(
+              &precompute_ms, slot.radio_start,
+              slot.track_precompute_done),
+          "measure CUDA radio track precompute time");
+      statistics_.track_precompute_device_time_ms +=
+          precompute_ms;
+      float projection_ms = 0.;
+      checkCuda(
+          cudaEventElapsedTime(
+              &projection_ms, slot.track_precompute_done,
+              slot.radio_done),
+          "measure CUDA radio tiled projection time");
+      statistics_.projection_device_time_ms +=
+          projection_ms;
       slot.active = false;
     }
 
@@ -1194,6 +1286,7 @@ namespace corsika::gpu::radio {
       }
       waitForInputSlot(input_slot);
       auto& slot = input_slots_[input_slot];
+      ensureTrackCapacity(input_slot, count);
       auto const start = std::chrono::steady_clock::now();
       checkCuda(
           cudaEventRecord(slot.input_ready),
@@ -1209,12 +1302,43 @@ namespace corsika::gpu::radio {
       auto const track_blocks = static_cast<unsigned int>(
           (count + ThreadsPerBlock - 1) /
           ThreadsPerBlock);
-      countValidTracksKernel<<<track_blocks, ThreadsPerBlock, 0,
-                               radio_stream_>>>(
-          records, count, device_counters_,
+      precomputeRadioTracksKernel
+          <<<track_blocks, ThreadsPerBlock, 0,
+             radio_stream_>>>(
+          records, count, slot.precomputed_tracks,
+          device_counters_,
           config_.track_diagnostics);
       checkCuda(cudaGetLastError(),
-                "launch CUDA radio valid-track counter");
+                "launch CUDA radio track precomputation");
+      checkCuda(
+          cudaEventRecord(
+              slot.track_precompute_done, radio_stream_),
+          "record CUDA radio track precompute completion");
+      ++statistics_.track_precompute_batches;
+      statistics_.track_precomputed_records += count;
+      statistics_.maximum_track_batch =
+          std::max(statistics_.maximum_track_batch, count);
+      auto make_grid = [&](std::size_t observers) {
+        auto const track_tiles =
+            (count + RadioTrackTileSize - 1) /
+            RadioTrackTileSize;
+        auto const observer_tiles =
+            (observers + RadioObserverTileSize - 1) /
+            RadioObserverTileSize;
+        if (track_tiles >
+                std::numeric_limits<unsigned int>::max() ||
+            observer_tiles >
+                std::numeric_limits<unsigned int>::max()) {
+          throw std::overflow_error(
+              "GPU radio tile grid exceeds CUDA grid limits");
+        }
+        statistics_.projection_tiles += checkedMultiply(
+            track_tiles, observer_tiles,
+            "GPU radio projection tile count overflow");
+        return dim3{
+            static_cast<unsigned int>(track_tiles),
+            static_cast<unsigned int>(observer_tiles), 1};
+      };
       auto launch = [&](auto kernel, std::size_t observers,
                         DeviceObserver const* device_observers,
                         DeviceWaveforms waveforms,
@@ -1225,11 +1349,11 @@ namespace corsika::gpu::radio {
         auto const pairs = checkedMultiply(
             count, observers,
             "GPU radio track-observer pair count overflow");
-        auto const blocks = static_cast<unsigned int>(
-            (pairs + ThreadsPerBlock - 1) / ThreadsPerBlock);
-        kernel<<<blocks, ThreadsPerBlock, 0, radio_stream_>>>(
-            records, count, device_propagation_, device_observers,
-            observers, waveforms, device_counters_);
+        auto const grid = make_grid(observers);
+        kernel<<<grid, ThreadsPerBlock, 0, radio_stream_>>>(
+            slot.precomputed_tracks, count,
+            device_propagation_, device_observers, observers,
+            waveforms, device_counters_);
         checkCuda(cudaGetLastError(), operation);
         statistics_.track_observer_pairs += pairs;
       };
@@ -1239,12 +1363,11 @@ namespace corsika::gpu::radio {
         auto const pairs = checkedMultiply(
             count, observers,
             "GPU fused radio track-observer pair count overflow");
-        auto const blocks = static_cast<unsigned int>(
-            (pairs + ThreadsPerBlock - 1) /
-            ThreadsPerBlock);
-        coreasZhsKernel
-            <<<blocks, ThreadsPerBlock, 0, radio_stream_>>>(
-                records, count, device_propagation_,
+        auto const grid = make_grid(observers);
+        coreasZhsTiledKernel
+            <<<grid, ThreadsPerBlock, 0, radio_stream_>>>(
+                slot.precomputed_tracks, count,
+                device_propagation_,
                 device_coreas_observers_,
                 device_zhs_observers_, observers,
                 coreas_waveforms_, zhs_waveforms_,
@@ -1261,7 +1384,7 @@ namespace corsika::gpu::radio {
       } else {
         if (config_.coreas_enabled) {
           launch(
-              coreasKernel,
+              coreasTiledKernel,
               config_.coreas_observers.size(),
               device_coreas_observers_,
               coreas_waveforms_,
@@ -1269,7 +1392,7 @@ namespace corsika::gpu::radio {
         }
         if (config_.zhs_enabled) {
           launch(
-              zhsKernel,
+              zhsTiledKernel,
               config_.zhs_observers.size(),
               device_zhs_observers_,
               zhs_waveforms_,
@@ -1444,6 +1567,11 @@ namespace corsika::gpu::radio {
       // resident, while activity counters restart for the next event.
       statistics_ = {};
       statistics_.device_bytes = device_bytes_;
+      statistics_.track_precompute_enabled = true;
+      statistics_.track_tile_size = RadioTrackTileSize;
+      statistics_.observer_tile_size = RadioObserverTileSize;
+      statistics_.track_workspace_bytes =
+          trackWorkspaceBytes();
     }
 
     void shutdown() noexcept { release(); }
@@ -1455,6 +1583,68 @@ namespace corsika::gpu::radio {
     }
 
   private:
+    std::size_t trackWorkspaceBytes() const {
+      std::size_t result = 0;
+      for (auto const& slot : input_slots_) {
+        result = checkedAdd(
+            result,
+            checkedMultiply(
+                slot.track_capacity,
+                sizeof(RadioTrackKinematics),
+                "CUDA radio track workspace byte overflow"),
+            "CUDA radio track workspace total overflow");
+      }
+      return result;
+    }
+
+    void ensureTrackCapacity(
+        std::size_t input_slot, std::size_t count) {
+      auto& slot = input_slots_[input_slot];
+      if (slot.track_capacity >= count) {
+        return;
+      }
+      auto new_capacity = count;
+      if (slot.track_capacity != 0 &&
+          slot.track_capacity <=
+              std::numeric_limits<std::size_t>::max() / 2) {
+        new_capacity =
+            std::max(count, slot.track_capacity * 2);
+      }
+      auto const old_bytes = checkedMultiply(
+          slot.track_capacity, sizeof(RadioTrackKinematics),
+          "CUDA radio old track workspace overflow");
+      auto const new_bytes = checkedMultiply(
+          new_capacity, sizeof(RadioTrackKinematics),
+          "CUDA radio new track workspace overflow");
+      auto const without_old = device_bytes_ - old_bytes;
+      auto const projected_bytes = checkedAdd(
+          without_old, new_bytes,
+          "CUDA radio device allocation overflow");
+      if (projected_bytes > memory_budget_bytes_) {
+        throw std::runtime_error(
+            "GPU radio track workspace exceeds configured device "
+            "memory budget");
+      }
+      if (slot.precomputed_tracks != nullptr) {
+        checkCuda(
+            cudaFree(slot.precomputed_tracks),
+            "free previous CUDA radio track workspace");
+        slot.precomputed_tracks = nullptr;
+        slot.track_capacity = 0;
+      }
+      checkCuda(
+          cudaMalloc(
+              reinterpret_cast<void**>(
+                  &slot.precomputed_tracks),
+              new_bytes),
+          "allocate CUDA radio track workspace");
+      slot.track_capacity = new_capacity;
+      device_bytes_ = projected_bytes;
+      statistics_.device_bytes = device_bytes_;
+      statistics_.track_workspace_bytes =
+          trackWorkspaceBytes();
+    }
+
     void createAsyncInfrastructure() {
       checkCuda(
           cudaStreamCreateWithFlags(
@@ -1468,6 +1658,9 @@ namespace corsika::gpu::radio {
         checkCuda(
             cudaEventCreate(&slot.radio_start),
             "create CUDA radio start event");
+        checkCuda(
+            cudaEventCreate(&slot.track_precompute_done),
+            "create CUDA radio track precompute event");
         checkCuda(
             cudaEventCreate(&slot.radio_done),
             "create CUDA radio completion event");
@@ -1761,8 +1954,12 @@ namespace corsika::gpu::radio {
       cudaFree(device_integrated_refractivity_);
       cudaFree(device_refractivity_);
       for (auto& slot : input_slots_) {
+        cudaFree(slot.precomputed_tracks);
         if (slot.radio_done != nullptr) {
           cudaEventDestroy(slot.radio_done);
+        }
+        if (slot.track_precompute_done != nullptr) {
+          cudaEventDestroy(slot.track_precompute_done);
         }
         if (slot.radio_start != nullptr) {
           cudaEventDestroy(slot.radio_start);
@@ -1788,6 +1985,7 @@ namespace corsika::gpu::radio {
       coreas_bins_ = 0;
       zhs_bins_ = 0;
       device_bytes_ = 0;
+      memory_budget_bytes_ = 0;
       initialized_ = false;
     }
 
@@ -1798,6 +1996,7 @@ namespace corsika::gpu::radio {
     std::size_t coreas_bins_{};
     std::size_t zhs_bins_{};
     std::size_t device_bytes_{};
+    std::size_t memory_budget_bytes_{};
     double* device_refractivity_{};
     double* device_integrated_refractivity_{};
     DeviceObserver* device_coreas_observers_{};
@@ -1832,6 +2031,11 @@ namespace corsika::gpu::radio {
 
   bool CudaRadioAccumulator::enabled() const noexcept {
     return impl_->enabled();
+  }
+
+  void CudaRadioAccumulator::setMemoryBudgetBytes(
+      std::size_t memory_budget_bytes) {
+    impl_->setMemoryBudgetBytes(memory_budget_bytes);
   }
 
   void CudaRadioAccumulator::accumulateLeptonTracksOnDevice(
