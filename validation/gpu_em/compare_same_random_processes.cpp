@@ -1,4 +1,11 @@
 /*
+ * (c) Copyright 2026 CORSIKA Project, corsika-project@lists.kit.edu
+ *
+ * This software is distributed under the terms of the 3-clause BSD license.
+ * See file LICENSE for a full version of the license.
+ */
+
+/*
  * Validation-only scalar-PROPOSAL/CUDA random-contract oracle.
  *
  * This program is not part of the production cascade.  It asks the CUDA

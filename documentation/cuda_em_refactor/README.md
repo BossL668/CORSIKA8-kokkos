@@ -152,3 +152,14 @@
 - [阶段 100：GPU 10 ms `ParticleCut` 与 CPU 时间语义对齐](phase_100_beta4_particle_cut_time_alignment.md)
 - [阶段 101：强制初级顶点与全过程序列兼容性门禁](phase_101_beta4_forced_primary_and_process_compatibility_gate.md)
 - [阶段 102：beta4 与 beta2 的 10 PeV CUDA 性能对比](phase_102_beta4_beta2_10pev_performance.md)
+
+### 阶段 103–110：beta4 再审计、replay、系综与 P0 profiling
+
+- [阶段 103：GPU/CPU 路径再审计和 100 TeV campaign](phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md)
+- [阶段 104：CPU 500 / CUDA 500 验收](phase_104_beta4_cpu500_cuda500_acceptance_CN.md)
+- [阶段 105：逐过程 CPU/GPU 路径复验](phase_105_beta4_cpu_gpu_process_path_revalidation_CN.md)
+- [阶段 106：强制 CPU/CUDA shower replay](phase_106_beta4_forced_cpu_cuda_shower_replay_CN.md)
+- [阶段 107：相同随机数第一次分叉诊断](phase_107_beta4_same_random_first_divergence_CN.md)
+- [阶段 108：CPU 1000 / CUDA 1000 验收](phase_108_beta4_cpu1000_cuda1000_acceptance_CN.md)
+- [阶段 109：EM profile 不确定度预算](phase_109_em_profile_uncertainty_budget_CN.md)
+- [阶段 110：P0 CUDA 计时语义与等待分解](phase_110_beta4_p0_cuda_timing_semantics_CN.md)

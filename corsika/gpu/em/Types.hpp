@@ -466,6 +466,40 @@ namespace corsika::gpu::em {
     double transfer_time_ms{};
   };
 
+  /**
+   * Detailed timing for synchronous CUDA copies issued by the EM backend.
+   *
+   * `host_api_time_ms` is measured around the CUDA runtime call and can
+   * include time spent waiting for earlier work in the same stream.
+   * `device_copy_time_ms` is measured between CUDA events immediately around
+   * the copy and therefore excludes work queued before the first event.
+   * Their non-negative difference is reported as
+   * `host_wait_upper_bound_ms`; it is an upper bound on synchronization
+   * wait because it also contains CUDA API and host timer overhead.
+   *
+   * Event timing is populated only when `GpuEmConfig::detailed_stage_timing`
+   * is enabled. The operation counters and host API time are retained in
+   * normal production mode without adding a synchronization point.
+   */
+  struct GpuTransferTimingStatistics {
+    bool device_event_timing_enabled{};
+    std::uint64_t operations{};
+    std::uint64_t host_to_device_operations{};
+    std::uint64_t device_to_host_operations{};
+    std::uint64_t device_to_device_operations{};
+    double host_api_time_ms{};
+    double device_copy_time_ms{};
+    double host_wait_upper_bound_ms{};
+  };
+
+  /** Host time spent in explicit CUDA event synchronization calls. */
+  struct GpuSynchronizationTimingStatistics {
+    std::uint64_t physical_pipeline_waits{};
+    std::uint64_t profile_input_waits{};
+    double physical_pipeline_wait_time_ms{};
+    double profile_input_wait_time_ms{};
+  };
+
   struct GpuLeptonPipelineTimingStatistics {
     bool enabled{};
     std::uint64_t wavefronts{};
@@ -591,7 +625,14 @@ namespace corsika::gpu::em {
     std::uint64_t physical_host_to_device_bytes{};
     std::uint64_t physical_device_to_host_bytes{};
     double kernel_time_ms{};
+    /**
+     * Legacy host-wall measurement around synchronous CUDA copies. This field
+     * is kept for output compatibility; use `transfer_timing` to distinguish
+     * actual device copy time from synchronization wait.
+     */
     double transfer_time_ms{};
+    GpuTransferTimingStatistics transfer_timing{};
+    GpuSynchronizationTimingStatistics synchronization_timing{};
     GpuLeptonPipelineTimingStatistics lepton_pipeline_timing{};
     GpuProfileStatistics profile{};
     radio::GpuRadioStatistics radio{};

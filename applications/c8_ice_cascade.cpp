@@ -3197,6 +3197,10 @@ int main(int argc, char** argv) {
           backend_stats.radio.kernel_time_ms;
       shower_metadata["radio"]["transfer_time_ms"] =
           backend_stats.radio.transfer_time_ms;
+      shower_metadata["radio"]["input_slot_waits"] =
+          backend_stats.radio.input_slot_waits;
+      shower_metadata["radio"]["input_slot_host_wait_time_ms"] =
+          backend_stats.radio.input_slot_host_wait_time_ms;
       shower_metadata["profile"]["backend"] =
           backend_stats.profile.enabled ? "cuda" : "host";
       shower_metadata["profile"]["deterministic"] =
@@ -3451,6 +3455,45 @@ int main(int argc, char** argv) {
           backend_stats.kernel_time_ms;
       shower_metadata["transfer_time_ms"] =
           backend_stats.transfer_time_ms;
+      shower_metadata["timing_schema_version"] = 2;
+      shower_metadata["timing_semantics"]["kernel_time_ms"] =
+          "sum of CUDA-event durations across streams; overlapping streams "
+          "must not be added to shower wall time";
+      shower_metadata["timing_semantics"]["transfer_time_ms"] =
+          "legacy host API wall time around selected synchronous CUDA copies";
+      shower_metadata["transfer_timing"]
+                     ["device_event_timing_enabled"] =
+          backend_stats.transfer_timing.device_event_timing_enabled;
+      shower_metadata["transfer_timing"]["operations"] =
+          backend_stats.transfer_timing.operations;
+      shower_metadata["transfer_timing"]
+                     ["host_to_device_operations"] =
+          backend_stats.transfer_timing.host_to_device_operations;
+      shower_metadata["transfer_timing"]
+                     ["device_to_host_operations"] =
+          backend_stats.transfer_timing.device_to_host_operations;
+      shower_metadata["transfer_timing"]
+                     ["device_to_device_operations"] =
+          backend_stats.transfer_timing.device_to_device_operations;
+      shower_metadata["transfer_timing"]["host_api_time_ms"] =
+          backend_stats.transfer_timing.host_api_time_ms;
+      shower_metadata["transfer_timing"]["device_copy_time_ms"] =
+          backend_stats.transfer_timing.device_copy_time_ms;
+      shower_metadata["transfer_timing"]["host_wait_upper_bound_ms"] =
+          backend_stats.transfer_timing.host_wait_upper_bound_ms;
+      shower_metadata["synchronization_timing"]
+                     ["physical_pipeline_waits"] =
+          backend_stats.synchronization_timing.physical_pipeline_waits;
+      shower_metadata["synchronization_timing"]
+                     ["physical_pipeline_wait_time_ms"] =
+          backend_stats.synchronization_timing
+              .physical_pipeline_wait_time_ms;
+      shower_metadata["synchronization_timing"]
+                     ["profile_input_waits"] =
+          backend_stats.synchronization_timing.profile_input_waits;
+      shower_metadata["synchronization_timing"]
+                     ["profile_input_wait_time_ms"] =
+          backend_stats.synchronization_timing.profile_input_wait_time_ms;
       auto const particle_cut_statistics =
           subtractStatistics(
               cut.statistics(),

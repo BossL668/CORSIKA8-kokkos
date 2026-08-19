@@ -12,6 +12,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <corsika/gpu/em/CudaEmBackend.hpp>
@@ -20,12 +21,18 @@ namespace {
 
   using namespace corsika::gpu::em;
 
-  std::vector<EmParticleState> runOnce() {
+  struct ToyRunResult {
+    std::vector<EmParticleState> particles{};
+    GpuEmStatistics statistics{};
+  };
+
+  ToyRunResult runOnce() {
     EnvironmentSnapshot environment{};
     ProposalTableSet tables{};
     GpuEmConfig config{};
     config.min_batch_size = 16;
     config.memory_fraction = 0.01;
+    config.detailed_stage_timing = true;
 
     CudaEmBackend backend;
     backend.initialize(environment, tables, config);
@@ -44,7 +51,36 @@ namespace {
     if (batch.input_particles != 16) {
       throw std::runtime_error("toy wavefront consumed the wrong number of particles");
     }
-    return backend.downloadActiveParticles();
+    auto particles = backend.downloadActiveParticles();
+    auto const statistics = backend.statistics();
+    return {std::move(particles), statistics};
+  }
+
+  void validateTiming(GpuEmStatistics const& statistics) {
+    auto const& transfer = statistics.transfer_timing;
+    if (!transfer.device_event_timing_enabled) {
+      throw std::runtime_error(
+          "detailed CUDA transfer event timing was not enabled");
+    }
+    if (transfer.operations < 4 ||
+        transfer.host_to_device_operations == 0 ||
+        transfer.device_to_host_operations < 3 ||
+        transfer.operations !=
+            transfer.host_to_device_operations +
+                transfer.device_to_host_operations +
+                transfer.device_to_device_operations) {
+      throw std::runtime_error(
+          "CUDA transfer timing operation accounting is inconsistent");
+    }
+    if (!std::isfinite(transfer.host_api_time_ms) ||
+        transfer.host_api_time_ms < 0. ||
+        !std::isfinite(transfer.device_copy_time_ms) ||
+        transfer.device_copy_time_ms < 0. ||
+        !std::isfinite(transfer.host_wait_upper_bound_ms) ||
+        transfer.host_wait_upper_bound_ms < 0.) {
+      throw std::runtime_error(
+          "CUDA transfer timing contains an invalid duration");
+    }
   }
 
   bool equal(EmParticleState const& a, EmParticleState const& b) {
@@ -131,17 +167,19 @@ int main(int argc, char** argv) {
 
     auto const first = runOnce();
     auto const second = runOnce();
-    if (first.size() != second.size()) {
+    validateTiming(first.statistics);
+    validateTiming(second.statistics);
+    if (first.particles.size() != second.particles.size()) {
       std::cerr << "deterministic runs produced different queue sizes\n";
       return 1;
     }
-    for (std::size_t i = 0; i < first.size(); ++i) {
-      if (!equal(first[i], second[i])) {
+    for (std::size_t i = 0; i < first.particles.size(); ++i) {
+      if (!equal(first.particles[i], second.particles[i])) {
         std::cerr << "deterministic runs differ at output " << i << '\n';
         return 1;
       }
     }
-    std::cout << "CUDA toy wavefront produced " << first.size()
+    std::cout << "CUDA toy wavefront produced " << first.particles.size()
               << " deterministic particles\n";
   } catch (std::exception const& error) {
     std::cerr << error.what() << '\n';

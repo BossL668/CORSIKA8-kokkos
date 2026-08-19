@@ -48,7 +48,7 @@ fluka_batch_worker --help
 | `--gpu-table-cache PATH` | 空 | 版本化 `.c8emrt` 表。CUDA 后端必需；不是 PROPOSAL 自身 cache 目录。 |
 | `--gpu-table-tolerance FLOAT` | `1e-3` | 可接受的最大表格相对误差。表 metadata 超过此值会拒绝启动。 |
 | `--gpu-deterministic BOOL` | `true` | 启用按 history/step/process 寻址的 Philox 随机数。 |
-| `--gpu-detailed-stage-timing` | 关闭 | 记录融合 lepton pipeline 的逐 CUDA stage event 计时，仅用于 profiler。 |
+| `--gpu-detailed-stage-timing` | 关闭 | 记录融合 lepton pipeline、真实 device-copy 及 host-wait 分解；会增加 event/synchronization 开销，仅用于 profiler。 |
 | `--gpu-full-step-records` | 关闭 | 返回完整 GPU transport records，而不是紧凑 profile 投影，仅用于验证和调试。 |
 | `--gpu-resident-cross-species BOOL` | `true` | 让 photon→lepton 和 lepton→photon 次级粒子保留在常驻 device 队列。 |
 | `--cuda-replay-trace PATH` | 空 | 写出过程级 CSV trace，用于标量/CUDA 过程序列诊断。 |
@@ -57,6 +57,20 @@ fluka_batch_worker --help
 `--gpu-min-batch` 不是越小越快。过小会增加 kernel launch、同步和小批次尾部
 开销；过大则会让更多前沿留在 CPU。推荐在目标 GPU 上扫描
 `64, 256, 1024, 4096, 8192`，以相同物理表和热缓存的五次中位数选择。
+
+启用详细计时后，`gpu_em/summary.yaml` 使用 timing schema 2，并新增：
+
+- `transfer_timing.device_copy_time_ms`：紧贴 copy 前后的 CUDA event 时间；
+- `transfer_timing.host_api_time_ms`：主机调用 CUDA copy API 的 wall time；
+- `transfer_timing.host_wait_upper_bound_ms`：两者的非负差，包含同步等待和少量 API/计时开销；
+- `synchronization_timing.physical_pipeline_wait_time_ms`：主线程等待物理 pipeline 完成的时间；
+- `synchronization_timing.profile_input_wait_time_ms`：复用 profile 输入槽前的等待；
+- `radio.input_slot_host_wait_time_ms`：复用 radio 输入槽前的等待。
+
+旧 `transfer_time_ms` 为兼容既有分析脚本而保留，语义仍是选定同步 copy 外层的
+host wall time，不能解释为纯 PCIe 时间。`kernel_time_ms` 是多个 CUDA stream 的
+event duration 之和；profile、radio 与物理 pipeline 可以重叠，因而它也不能直接
+与 shower wall time相加比较。
 
 ### 2.2 射电计算
 

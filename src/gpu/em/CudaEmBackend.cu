@@ -90,7 +90,8 @@ namespace corsika::gpu::em {
     auto measureCudaPipeline(
         TCallable&& callable,
         double& elapsed_total_ms, cudaEvent_t start,
-        cudaEvent_t stop) {
+        cudaEvent_t stop,
+        GpuSynchronizationTimingStatistics& synchronization) {
       if (start == nullptr || stop == nullptr) {
         throw std::logic_error(
             "physical CUDA timing events are not initialized");
@@ -103,9 +104,16 @@ namespace corsika::gpu::em {
       checkCuda(
           cudaEventRecord(stop),
           "cudaEventRecord(physical pipeline stop)");
+      auto const wait_start = std::chrono::steady_clock::now();
       checkCuda(
           cudaEventSynchronize(stop),
           "cudaEventSynchronize(physical pipeline stop)");
+      auto const wait_stop = std::chrono::steady_clock::now();
+      ++synchronization.physical_pipeline_waits;
+      synchronization.physical_pipeline_wait_time_ms +=
+          std::chrono::duration<double, std::milli>(
+              wait_stop - wait_start)
+              .count();
       float elapsed_ms = 0;
       checkCuda(
           cudaEventElapsedTime(&elapsed_ms, start, stop),
@@ -527,6 +535,12 @@ namespace corsika::gpu::em {
             cudaEventCreate(&physical_pipeline_stop_),
             "cudaEventCreate(physical pipeline stop)");
         if (config_.detailed_stage_timing) {
+          checkCuda(
+              cudaEventCreate(&transfer_copy_start_),
+              "cudaEventCreate(transfer copy start)");
+          checkCuda(
+              cudaEventCreate(&transfer_copy_stop_),
+              "cudaEventCreate(transfer copy stop)");
           for (auto& event : lepton_pipeline_stage_events_) {
             checkCuda(
                 cudaEventCreate(&event),
@@ -1170,17 +1184,14 @@ namespace corsika::gpu::em {
         std::uint32_t last_count = 0;
         std::size_t last_offset = 0;
         auto const last = current_size_ - 1;
-        auto transfer_start = std::chrono::steady_clock::now();
-        checkCuda(cudaMemcpy(&last_count, device_child_counts_ + last,
-                             sizeof(last_count), cudaMemcpyDeviceToHost),
-                  "copy final child count");
-        checkCuda(cudaMemcpy(&last_offset, device_child_offsets_ + last,
-                             sizeof(last_offset), cudaMemcpyDeviceToHost),
-                  "copy final child offset");
-        auto transfer_stop = std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(transfer_stop - transfer_start)
-                .count();
+        copyWithTiming(
+            &last_count, device_child_counts_ + last,
+            sizeof(last_count), cudaMemcpyDeviceToHost,
+            "copy final child count");
+        copyWithTiming(
+            &last_offset, device_child_offsets_ + last,
+            sizeof(last_offset), cudaMemcpyDeviceToHost,
+            "copy final child offset");
 
         auto const output_size =
             checkedAdd(last_offset, last_count, "GPU child count overflow");
@@ -1323,20 +1334,10 @@ namespace corsika::gpu::em {
       std::vector<long long> fixed(
           detail::DeviceProfileHistogramCount * bins);
       auto const bytes = fixed.size() * sizeof(long long);
-      auto const transfer_start =
-          std::chrono::steady_clock::now();
-      checkCuda(
-          cudaMemcpy(
-              fixed.data(), device_profile_histograms_, bytes,
-              cudaMemcpyDeviceToHost),
+      auto const transfer_ms = copyWithTiming(
+          fixed.data(), device_profile_histograms_, bytes,
+          cudaMemcpyDeviceToHost,
           "download resident GPU profile histograms");
-      auto const transfer_stop =
-          std::chrono::steady_clock::now();
-      auto const transfer_ms =
-          std::chrono::duration<double, std::milli>(
-              transfer_stop - transfer_start)
-              .count();
-      statistics_.transfer_time_ms += transfer_ms;
       statistics_.profile.transfer_time_ms += transfer_ms;
       statistics_.physical_device_to_host_bytes += bytes;
       statistics_.profile.device_to_host_bytes += bytes;
@@ -1427,14 +1428,11 @@ namespace corsika::gpu::em {
         throw std::logic_error(
             "CUDA first-interaction capture is not initialized");
       }
-      auto const transfer_start =
-          std::chrono::steady_clock::now();
       std::uint32_t candidate_count = 0;
-      checkCuda(
-          cudaMemcpy(
-              &candidate_count,
-              device_first_interaction_candidate_count_,
-              sizeof(candidate_count), cudaMemcpyDeviceToHost),
+      copyWithTiming(
+          &candidate_count,
+          device_first_interaction_candidate_count_,
+          sizeof(candidate_count), cudaMemcpyDeviceToHost,
           "download GPU first-interaction candidate count");
       statistics_.first_interaction_candidates = candidate_count;
       statistics_.physical_device_to_host_bytes +=
@@ -1445,28 +1443,15 @@ namespace corsika::gpu::em {
             "interaction candidate");
       }
       if (candidate_count == 0) {
-        auto const transfer_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                transfer_stop - transfer_start)
-                .count();
         return std::nullopt;
       }
       GpuFirstInteractionSnapshot snapshot{};
-      checkCuda(
-          cudaMemcpy(
-              &snapshot, device_first_interaction_snapshot_,
-              sizeof(snapshot), cudaMemcpyDeviceToHost),
+      copyWithTiming(
+          &snapshot, device_first_interaction_snapshot_,
+          sizeof(snapshot), cudaMemcpyDeviceToHost,
           "download GPU first-interaction snapshot");
       statistics_.physical_device_to_host_bytes +=
           sizeof(snapshot);
-      auto const transfer_stop =
-          std::chrono::steady_clock::now();
-      statistics_.transfer_time_ms +=
-          std::chrono::duration<double, std::milli>(
-              transfer_stop - transfer_start)
-              .count();
       if (snapshot.parent_at_vertex.generation != 0 ||
           snapshot.secondary_count == 0 ||
           snapshot.secondary_count > 3) {
@@ -2390,18 +2375,10 @@ namespace corsika::gpu::em {
         destination.resize(
             checkedAdd(old_size, count,
                        "resident cascade host output size overflow"));
-        auto const transfer_start =
-            std::chrono::steady_clock::now();
-        checkCuda(cudaMemcpy(
-                      destination.data() + old_size, source,
-                      count * sizeof(Value), cudaMemcpyDeviceToHost),
-                  operation);
-        auto const transfer_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                transfer_stop - transfer_start)
-                .count();
+        copyWithTiming(
+            destination.data() + old_size, source,
+            count * sizeof(Value), cudaMemcpyDeviceToHost,
+            operation);
         statistics_.physical_device_to_host_bytes +=
             count * sizeof(Value);
       };
@@ -2418,16 +2395,12 @@ namespace corsika::gpu::em {
       auto* current_particles =
           current_workspace->acquire<EmParticleState>(
               total_input);
-      auto const input_transfer_start =
-          std::chrono::steady_clock::now();
       if (pending_input != 0) {
-        checkCuda(
-            cudaMemcpy(
-                current_particles,
-                device_pending_photons_ +
-                    pending_photon_head_,
-                pending_input * sizeof(EmParticleState),
-                cudaMemcpyDeviceToDevice),
+        copyWithTiming(
+            current_particles,
+            device_pending_photons_ + pending_photon_head_,
+            pending_input * sizeof(EmParticleState),
+            cudaMemcpyDeviceToDevice,
             "consume resident cross-species photons");
         pending_photon_head_ += pending_input;
         pending_photon_count_ -= pending_input;
@@ -2438,21 +2411,12 @@ namespace corsika::gpu::em {
             pending_input * sizeof(EmParticleState);
       }
       if (!particles.empty()) {
-        checkCuda(cudaMemcpy(
-                      current_particles + pending_input,
-                      particles.data(),
-                      particles.size() *
-                          sizeof(EmParticleState),
-                      cudaMemcpyHostToDevice),
-                  "upload resident photon cascade input");
+        copyWithTiming(
+            current_particles + pending_input, particles.data(),
+            particles.size() * sizeof(EmParticleState),
+            cudaMemcpyHostToDevice,
+            "upload resident photon cascade input");
       }
-      auto const input_transfer_stop =
-          std::chrono::steady_clock::now();
-      statistics_.transfer_time_ms +=
-          std::chrono::duration<double, std::milli>(
-              input_transfer_stop -
-              input_transfer_start)
-              .count();
       statistics_.physical_host_to_device_bytes +=
           particles.size() * sizeof(EmParticleState);
 
@@ -2531,7 +2495,8 @@ namespace corsika::gpu::em {
             },
             statistics_.kernel_time_ms,
             physical_pipeline_start_,
-            physical_pipeline_stop_);
+            physical_pipeline_stop_,
+            statistics_.synchronization_timing);
         if (current_count >=
             detail::MinimumWavefrontRadixSortSize) {
           ++statistics_.wavefront_bucketing_batches;
@@ -2600,7 +2565,8 @@ namespace corsika::gpu::em {
               },
               statistics_.kernel_time_ms,
               physical_pipeline_start_,
-              physical_pipeline_stop_);
+              physical_pipeline_stop_,
+              statistics_.synchronization_timing);
           auto const projected_begin =
               result.projected_step_records.size();
           appendDevice(
@@ -2859,21 +2825,11 @@ namespace corsika::gpu::em {
       result.completed = current_count == 0;
       if (!result.completed) {
         result.remaining_photons.resize(current_count);
-        auto const checkpoint_transfer_start =
-            std::chrono::steady_clock::now();
-        checkCuda(cudaMemcpy(
-                      result.remaining_photons.data(),
-                      current_particles,
-                      current_count * sizeof(EmParticleState),
-                      cudaMemcpyDeviceToHost),
-                  "download resident photon cascade checkpoint");
-        auto const checkpoint_transfer_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                checkpoint_transfer_stop -
-                checkpoint_transfer_start)
-                .count();
+        copyWithTiming(
+            result.remaining_photons.data(), current_particles,
+            current_count * sizeof(EmParticleState),
+            cudaMemcpyDeviceToHost,
+            "download resident photon cascade checkpoint");
         statistics_.physical_device_to_host_bytes +=
             current_count * sizeof(EmParticleState);
       }
@@ -2966,19 +2922,10 @@ namespace corsika::gpu::em {
         destination.resize(
             checkedAdd(old_size, count,
                        "resident lepton host output size overflow"));
-        auto const transfer_start =
-            std::chrono::steady_clock::now();
-        checkCuda(cudaMemcpy(
-                      destination.data() + old_size, source,
-                      count * sizeof(Value),
-                      cudaMemcpyDeviceToHost),
-                  operation);
-        auto const transfer_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                transfer_stop - transfer_start)
-                .count();
+        copyWithTiming(
+            destination.data() + old_size, source,
+            count * sizeof(Value), cudaMemcpyDeviceToHost,
+            operation);
         statistics_.physical_device_to_host_bytes +=
             count * sizeof(Value);
       };
@@ -2995,16 +2942,12 @@ namespace corsika::gpu::em {
       auto* current_particles =
           current_workspace->acquire<EmParticleState>(
               total_input);
-      auto const input_transfer_start =
-          std::chrono::steady_clock::now();
       if (pending_input != 0) {
-        checkCuda(
-            cudaMemcpy(
-                current_particles,
-                device_pending_leptons_ +
-                    pending_lepton_head_,
-                pending_input * sizeof(EmParticleState),
-                cudaMemcpyDeviceToDevice),
+        copyWithTiming(
+            current_particles,
+            device_pending_leptons_ + pending_lepton_head_,
+            pending_input * sizeof(EmParticleState),
+            cudaMemcpyDeviceToDevice,
             "consume resident cross-species leptons");
         pending_lepton_head_ += pending_input;
         pending_lepton_count_ -= pending_input;
@@ -3015,21 +2958,12 @@ namespace corsika::gpu::em {
             pending_input * sizeof(EmParticleState);
       }
       if (!particles.empty()) {
-        checkCuda(cudaMemcpy(
-                      current_particles + pending_input,
-                      particles.data(),
-                      particles.size() *
-                          sizeof(EmParticleState),
-                      cudaMemcpyHostToDevice),
-                  "upload resident lepton cascade input");
+        copyWithTiming(
+            current_particles + pending_input, particles.data(),
+            particles.size() * sizeof(EmParticleState),
+            cudaMemcpyHostToDevice,
+            "upload resident lepton cascade input");
       }
-      auto const input_transfer_stop =
-          std::chrono::steady_clock::now();
-      statistics_.transfer_time_ms +=
-          std::chrono::duration<double, std::milli>(
-              input_transfer_stop -
-              input_transfer_start)
-              .count();
       statistics_.physical_host_to_device_bytes +=
           particles.size() * sizeof(EmParticleState);
 
@@ -3148,7 +3082,8 @@ namespace corsika::gpu::em {
             },
             statistics_.kernel_time_ms,
             physical_pipeline_start_,
-            physical_pipeline_stop_);
+            physical_pipeline_stop_,
+            statistics_.synchronization_timing);
         if (current_count >=
             detail::MinimumWavefrontRadixSortSize) {
           ++statistics_.wavefront_bucketing_batches;
@@ -3362,7 +3297,8 @@ namespace corsika::gpu::em {
               },
               statistics_.kernel_time_ms,
               physical_pipeline_start_,
-              physical_pipeline_stop_);
+              physical_pipeline_stop_,
+              statistics_.synchronization_timing);
           auto const old_step_count =
               result.projected_step_records.size();
           appendDevice(
@@ -3580,21 +3516,11 @@ namespace corsika::gpu::em {
       result.completed = current_count == 0;
       if (!result.completed) {
         result.remaining_leptons.resize(current_count);
-        auto const checkpoint_transfer_start =
-            std::chrono::steady_clock::now();
-        checkCuda(cudaMemcpy(
-                      result.remaining_leptons.data(),
-                      current_particles,
-                      current_count * sizeof(EmParticleState),
-                      cudaMemcpyDeviceToHost),
-                  "download resident lepton cascade checkpoint");
-        auto const checkpoint_transfer_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                checkpoint_transfer_stop -
-                checkpoint_transfer_start)
-                .count();
+        copyWithTiming(
+            result.remaining_leptons.data(), current_particles,
+            current_count * sizeof(EmParticleState),
+            cudaMemcpyDeviceToHost,
+            "download resident lepton cascade checkpoint");
         statistics_.physical_device_to_host_bytes +=
             current_count * sizeof(EmParticleState);
       }
@@ -3628,25 +3554,22 @@ namespace corsika::gpu::em {
       return result;
     }
 
-    std::vector<EmParticleState> downloadActiveParticles() const {
+    std::vector<EmParticleState> downloadActiveParticles() {
       requireInitialized();
       std::vector<EmParticleState> particles(current_size_);
       if (current_size_ == 0) {
         return particles;
       }
-      auto const start = std::chrono::steady_clock::now();
       auto const blocks = static_cast<unsigned int>(
           (current_size_ + ThreadsPerBlock - 1) / ThreadsPerBlock);
       gatherParticles<<<blocks, ThreadsPerBlock>>>(
           device_current_, current_size_, device_staging_);
       checkCuda(cudaGetLastError(), "gather active GPU particles launch");
-      checkCuda(cudaMemcpy(particles.data(), device_staging_,
-                           current_size_ * sizeof(EmParticleState),
-                           cudaMemcpyDeviceToHost),
-                "download active GPU particles");
-      auto const stop = std::chrono::steady_clock::now();
-      statistics_.transfer_time_ms +=
-          std::chrono::duration<double, std::milli>(stop - start).count();
+      copyWithTiming(
+          particles.data(), device_staging_,
+          current_size_ * sizeof(EmParticleState),
+          cudaMemcpyDeviceToHost,
+          "download active GPU particles");
       return particles;
     }
 
@@ -3662,6 +3585,76 @@ namespace corsika::gpu::em {
     }
 
   private:
+    double copyWithTiming(
+        void* destination, void const* source, std::size_t bytes,
+        cudaMemcpyKind kind, char const* operation,
+        bool add_to_legacy_transfer_time = true) {
+      auto const host_start = std::chrono::steady_clock::now();
+      if (config_.detailed_stage_timing) {
+        if (transfer_copy_start_ == nullptr ||
+            transfer_copy_stop_ == nullptr) {
+          throw std::logic_error(
+              "CUDA transfer timing events are not initialized");
+        }
+        checkCuda(
+            cudaEventRecord(transfer_copy_start_),
+            "cudaEventRecord(transfer copy start)");
+      }
+      checkCuda(
+          cudaMemcpy(destination, source, bytes, kind), operation);
+
+      float device_copy_ms = 0.;
+      if (config_.detailed_stage_timing) {
+        checkCuda(
+            cudaEventRecord(transfer_copy_stop_),
+            "cudaEventRecord(transfer copy stop)");
+        checkCuda(
+            cudaEventSynchronize(transfer_copy_stop_),
+            "cudaEventSynchronize(transfer copy stop)");
+        checkCuda(
+            cudaEventElapsedTime(
+                &device_copy_ms, transfer_copy_start_,
+                transfer_copy_stop_),
+            "cudaEventElapsedTime(transfer copy)");
+      }
+      auto const host_stop = std::chrono::steady_clock::now();
+      auto const host_api_ms =
+          std::chrono::duration<double, std::milli>(
+              host_stop - host_start)
+              .count();
+
+      // Keep the historic field unchanged for existing analysis scripts. It
+      // is a host-wall duration, not a pure PCIe/device-copy measurement.
+      if (add_to_legacy_transfer_time) {
+        statistics_.transfer_time_ms += host_api_ms;
+      }
+      auto& timing = statistics_.transfer_timing;
+      timing.device_event_timing_enabled =
+          config_.detailed_stage_timing;
+      ++timing.operations;
+      timing.host_api_time_ms += host_api_ms;
+      switch (kind) {
+      case cudaMemcpyHostToDevice:
+        ++timing.host_to_device_operations;
+        break;
+      case cudaMemcpyDeviceToHost:
+        ++timing.device_to_host_operations;
+        break;
+      case cudaMemcpyDeviceToDevice:
+        ++timing.device_to_device_operations;
+        break;
+      default:
+        break;
+      }
+      if (config_.detailed_stage_timing) {
+        timing.device_copy_time_ms += device_copy_ms;
+        timing.host_wait_upper_bound_ms +=
+            std::max(0., host_api_ms -
+                             static_cast<double>(device_copy_ms));
+      }
+      return host_api_ms;
+    }
+
     void resetStatisticsForShower(bool reused) {
       GpuEmStatistics next{};
       next.shower_ordinal = shower_ordinal_;
@@ -3699,6 +3692,8 @@ namespace corsika::gpu::em {
       next.radio = radio_accumulator_.statistics();
       next.lepton_pipeline_timing.enabled =
           config_.detailed_stage_timing;
+      next.transfer_timing.device_event_timing_enabled =
+          config_.detailed_stage_timing;
       next.peak_device_bytes =
           checkedAdd(
               resident_allocation_bytes_,
@@ -3734,22 +3729,10 @@ namespace corsika::gpu::em {
       combined.reserve(combined_count);
       if (pending_count != 0) {
         std::vector<EmParticleState> pending(pending_count);
-        auto const download_start =
-            std::chrono::steady_clock::now();
-        checkCuda(
-            cudaMemcpy(
-                pending.data(),
-                device_queue + pending_head,
-                pending_count *
-                    sizeof(EmParticleState),
-                cudaMemcpyDeviceToHost),
-            operation);
-        auto const download_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                download_stop - download_start)
-                .count();
+        copyWithTiming(
+            pending.data(), device_queue + pending_head,
+            pending_count * sizeof(EmParticleState),
+            cudaMemcpyDeviceToHost, operation);
         statistics_.physical_device_to_host_bytes +=
             pending_count * sizeof(EmParticleState);
         for (auto& particle : pending) {
@@ -3804,21 +3787,10 @@ namespace corsika::gpu::em {
             std::move(combined[index].particle));
       }
       if (retained_count != 0) {
-        auto const upload_start =
-            std::chrono::steady_clock::now();
-        checkCuda(
-            cudaMemcpy(
-                device_queue, retained.data(),
-                retained_count *
-                    sizeof(EmParticleState),
-                cudaMemcpyHostToDevice),
-            operation);
-        auto const upload_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                upload_stop - upload_start)
-                .count();
+        copyWithTiming(
+            device_queue, retained.data(),
+            retained_count * sizeof(EmParticleState),
+            cudaMemcpyHostToDevice, operation);
         statistics_.physical_host_to_device_bytes +=
             retained_count * sizeof(EmParticleState);
       }
@@ -3852,20 +3824,11 @@ namespace corsika::gpu::em {
               cross_species_queue_capacity_ -
                   pending_tail) {
         std::vector<EmParticleState> incoming(count);
-        auto const download_start =
-            std::chrono::steady_clock::now();
-        checkCuda(
-            cudaMemcpy(
-                incoming.data(), source,
-                count * sizeof(EmParticleState),
-                cudaMemcpyDeviceToHost),
+        copyWithTiming(
+            incoming.data(), source,
+            count * sizeof(EmParticleState),
+            cudaMemcpyDeviceToHost,
             "download photon spill candidates");
-        auto const download_stop =
-            std::chrono::steady_clock::now();
-        statistics_.transfer_time_ms +=
-            std::chrono::duration<double, std::milli>(
-                download_stop - download_start)
-                .count();
         statistics_.physical_device_to_host_bytes +=
             count * sizeof(EmParticleState);
         auto spilled = rebalanceCrossSpeciesQueue(
@@ -3880,13 +3843,11 @@ namespace corsika::gpu::em {
                 pending_photon_count_);
         return spilled;
       }
-      checkCuda(
-          cudaMemcpy(
-              device_pending_photons_ +
-                  pending_tail,
-              source, count * sizeof(EmParticleState),
-              cudaMemcpyDeviceToDevice),
-          "append resident cross-species photons");
+      copyWithTiming(
+          device_pending_photons_ + pending_tail, source,
+          count * sizeof(EmParticleState),
+          cudaMemcpyDeviceToDevice,
+          "append resident cross-species photons", false);
       pending_photon_count_ += count;
       statistics_.cross_species_particles_kept_on_device +=
           count;
@@ -3919,9 +3880,16 @@ namespace corsika::gpu::em {
       if (!profile_slot_pending_[slot]) {
         return;
       }
+      auto const wait_start = std::chrono::steady_clock::now();
       checkCuda(
           cudaEventSynchronize(profile_done_events_[slot]),
           "wait for resident GPU profile input slot");
+      auto const wait_stop = std::chrono::steady_clock::now();
+      ++statistics_.synchronization_timing.profile_input_waits;
+      statistics_.synchronization_timing.profile_input_wait_time_ms +=
+          std::chrono::duration<double, std::milli>(
+              wait_stop - wait_start)
+              .count();
       float elapsed_ms = 0.;
       checkCuda(
           cudaEventElapsedTime(
@@ -3973,20 +3941,10 @@ namespace corsika::gpu::em {
         return {};
       }
       detail::DeviceProfileCounters current{};
-      auto const transfer_start =
-          std::chrono::steady_clock::now();
-      checkCuda(
-          cudaMemcpy(
-              &current, device_profile_counters_,
-              sizeof(current), cudaMemcpyDeviceToHost),
+      auto const transfer_ms = copyWithTiming(
+          &current, device_profile_counters_, sizeof(current),
+          cudaMemcpyDeviceToHost,
           "download resident GPU profile counters");
-      auto const transfer_stop =
-          std::chrono::steady_clock::now();
-      auto const transfer_ms =
-          std::chrono::duration<double, std::milli>(
-              transfer_stop - transfer_start)
-              .count();
-      statistics_.transfer_time_ms += transfer_ms;
       statistics_.profile.transfer_time_ms += transfer_ms;
       statistics_.physical_device_to_host_bytes +=
           sizeof(current);
@@ -4491,19 +4449,16 @@ namespace corsika::gpu::em {
       }
       ensureCapacity(checkedAdd(current_size_, host_staging_.size(),
                                 "GPU staging queue size overflow"));
-      auto const start = std::chrono::steady_clock::now();
-      checkCuda(cudaMemcpy(device_staging_, host_staging_.data(),
-                           host_staging_.size() * sizeof(EmParticleState),
-                           cudaMemcpyHostToDevice),
-                "upload staged GPU particles");
+      copyWithTiming(
+          device_staging_, host_staging_.data(),
+          host_staging_.size() * sizeof(EmParticleState),
+          cudaMemcpyHostToDevice,
+          "upload staged GPU particles");
       auto const blocks = static_cast<unsigned int>(
           (host_staging_.size() + ThreadsPerBlock - 1) / ThreadsPerBlock);
       scatterParticles<<<blocks, ThreadsPerBlock>>>(
           device_staging_, host_staging_.size(), device_current_, current_size_);
       checkCuda(cudaGetLastError(), "scatter staged GPU particles launch");
-      auto const stop = std::chrono::steady_clock::now();
-      statistics_.transfer_time_ms +=
-          std::chrono::duration<double, std::milli>(stop - start).count();
       current_size_ += host_staging_.size();
       statistics_.current_particles = current_size_;
       statistics_.peak_particles =
@@ -4589,6 +4544,12 @@ namespace corsika::gpu::em {
           cudaEventDestroy(event);
         }
       }
+      if (transfer_copy_stop_ != nullptr) {
+        cudaEventDestroy(transfer_copy_stop_);
+      }
+      if (transfer_copy_start_ != nullptr) {
+        cudaEventDestroy(transfer_copy_start_);
+      }
       cuda_rate_table_.reset();
       photon_pair_lpm_ = {};
       brems_lpm_ = {};
@@ -4639,6 +4600,8 @@ namespace corsika::gpu::em {
       moliere_interpolation_device_bytes_ = 0;
       physical_pipeline_start_ = nullptr;
       physical_pipeline_stop_ = nullptr;
+      transfer_copy_start_ = nullptr;
+      transfer_copy_stop_ = nullptr;
       lepton_pipeline_stage_events_ = {};
       capacity_ = 0;
       current_size_ = 0;
@@ -4740,6 +4703,8 @@ namespace corsika::gpu::em {
     double one_time_initialization_ms_{};
     cudaEvent_t physical_pipeline_start_{};
     cudaEvent_t physical_pipeline_stop_{};
+    cudaEvent_t transfer_copy_start_{};
+    cudaEvent_t transfer_copy_stop_{};
     std::array<cudaEvent_t, LeptonPipelineStageCount>
         lepton_pipeline_stage_events_{};
   };

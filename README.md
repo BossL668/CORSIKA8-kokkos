@@ -1110,7 +1110,7 @@ automatic maximum weight can activate from an initially unweighted history.
 | `--gpu-table-tolerance` | `1e-3` | Maximum accepted table interpolation error |
 | `--gpu-deterministic` | `true` | Enable history-addressed deterministic Philox random numbers |
 | `--gpu-resident-cross-species` | `true` | Keep photon/lepton secondaries in persistent device queues |
-| `--gpu-detailed-stage-timing` | off | Record detailed CUDA stage timings; profiling only |
+| `--gpu-detailed-stage-timing` | off | Record CUDA stage, device-copy, and host-wait timing; profiling only |
 | `--gpu-full-step-records` | off | Return full transport records; validation only |
 
 ### Radio projection

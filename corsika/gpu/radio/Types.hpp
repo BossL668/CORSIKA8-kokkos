@@ -123,6 +123,8 @@ namespace corsika::gpu::radio {
     double device_time_ms{};
     double kernel_time_ms{};
     double transfer_time_ms{};
+    std::uint64_t input_slot_waits{};
+    double input_slot_host_wait_time_ms{};
   };
 
 } // namespace corsika::gpu::radio

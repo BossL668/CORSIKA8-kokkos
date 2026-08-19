@@ -353,6 +353,13 @@ fallback 枚举的单元测试。
 - profile/radio/thinning/process/Molière/Epair 统计；
 - pure-EM 完整覆盖时的严格能量账本。
 
+P0 timing schema 2 还把 CUDA 时间分为三类：CUDA event 测得的真实
+device-copy 时间、主机 CUDA API wall time，以及显式等待 physical pipeline、
+profile input slot 和 radio input slot 的时间。旧 `transfer_time_ms` 继续保留以
+兼容已有脚本，但它包含同步等待，不能当成 PCIe copy 时间。只有显式加入
+`--gpu-detailed-stage-timing` 时才记录逐 copy event 时间；正式性能基准应关闭该
+参数，并用独立 profiling run 解释瓶颈。
+
 调试时才使用：
 
 ```text

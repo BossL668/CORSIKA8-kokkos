@@ -1148,9 +1148,16 @@ namespace corsika::gpu::radio {
       if (!slot.active) {
         return;
       }
+      auto const wait_start = std::chrono::steady_clock::now();
       checkCuda(
           cudaEventSynchronize(slot.radio_done),
           "wait for CUDA radio input slot");
+      auto const wait_stop = std::chrono::steady_clock::now();
+      ++statistics_.input_slot_waits;
+      statistics_.input_slot_host_wait_time_ms +=
+          std::chrono::duration<double, std::milli>(
+              wait_stop - wait_start)
+              .count();
       float elapsed_ms = 0.;
       checkCuda(
           cudaEventElapsedTime(
