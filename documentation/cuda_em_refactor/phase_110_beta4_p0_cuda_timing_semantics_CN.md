@@ -98,48 +98,63 @@ all configured targets
 完整 CTest 结果：
 
 - 34 个已注册测试；
-- 14 个在当前环境中可执行，全部通过；
-- `testModules`（含 FLUKA/PROPOSAL）通过，用时 200.87 s；
-- 20 个 CUDA 设备测试返回约定的 skip code 77。
+- 2026-08-19 在 `corsika_venv` 和 RTX 4060 Laptop GPU 上重新执行后，34/34
+  全部通过，无 skip、无失败，总用时 218.76 s；
+- 其中 27 个 `testGpu*` 测试全部通过，用时 18.54 s，覆盖 rate table、过程选择、
+  wavefront bucketing、pair/brems/Epair LPM、EM thinning、Molière、球形大气、
+  磁场、轻子输运、光子 wavefront 和 GPU radio projection；
+- `testModules`（含 FLUKA/PROPOSAL）通过，用时 199.05 s。
 
 第一次完整门禁发现已有的
 `validation/gpu_em/compare_same_random_processes.cpp` 缺少标准版权头；补充版权头
 后 `copyright_notices` 单独重跑通过。该改动不影响程序行为。
 
-当前 Codex 执行环境没有 `/dev/dxg`，`nvidia-smi` 报告 GPU access blocked by the
-operating system。因此本阶段完成了 CUDA 编译、链接、host/FLUKA/PROPOSAL 回归和
-设备测试入口检查，但不能在该受限进程内生成 RTX 4060 的实际 timing schema 2
-数值。不能把 skip 解释为 GPU device test pass。
+首次提交前的受限执行进程没有 `/dev/dxg`，所以设备测试曾按约定返回 skip code
+77；后续补测环境已经能访问 `/dev/dxg`，`nvidia-smi` 确认设备为 NVIDIA GeForce
+RTX 4060 Laptop GPU，driver 560.94，CUDA runtime capability 12.6，Conda 环境中的
+`nvcc` 为 12.6.85。上述 34/34 结果取代首次的 skip 结果。
 
-## 5. 在正常 WSL 终端完成设备复测
+## 5. RTX 4060 生产路径补测
 
-先验证 GPU 可见：
+使用 10 GeV electron、zenith 80 degree、azimuth 180 degree、IGRF14/2027、
+`emthin=1e-4`、GPU EM 和 GPU CoREAS/ZHS 跑一个固定 seed 8119001 的完整事例。
+输出状态为 `complete: true`，得到：
 
-```bash
-nvidia-smi
-```
+- GPU particles：19555；
+- photon/lepton resident wavefronts：22/213；
+- radio tracks：17912；
+- CPU generic fallback、CPU specified final state、memory spill、queue overflow：均为 0；
+- peak device memory：553750590 bytes；
+- shower run wall time：6878.55 ms（程序冷启动端到端 14.34 s）。
 
-然后运行新增的确定性 timing test：
+详细计时结果：
 
-```bash
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate corsika_venv
-ctest --test-dir "$C8_BUILD" --output-on-failure -R '^testGpuEmCuda$'
-```
+- transfer operations：377，等于 H2D 95 + D2H 111 + D2D 171；
+- device copy：14.2063 ms；
+- host API：55.5715 ms；
+- host wait upper bound：41.3652 ms；
+- physical pipeline wait：235 次、7.0240 ms；
+- profile input wait：235 次、0.1308 ms；
+- radio input-slot wait：213 次、489.3130 ms。
 
-生产事例使用原命令，只额外加入：
+因此在该小型事例中，真实 copy 时间不是首要成本；radio input-slot wait 明显更大。
+这只是用于定位下一步优化对象的单事件 profiling 结果，不能当作生产系综性能结论。
 
-```text
---gpu-detailed-stage-timing
-```
+随后以完全相同的 seed 和物理参数关闭 `--gpu-detailed-stage-timing` 重跑。以下七类
+物理输出的 SHA-256 均逐字节相同：
 
-应验收：
+1. `profile/profile.parquet`；
+2. `production_profile/profile.parquet`；
+3. `energyloss/dEdX.parquet`；
+4. `particles/particles.parquet`；
+5. `interactions/interactions.parquet`；
+6. `CoREAS/observers.parquet`；
+7. `ZHS/observers.parquet`。
 
-1. `timing_schema_version == 2`；
-2. transfer operation 分类之和等于 `operations`；
-3. `device_copy_time_ms`、所有 wait time 有限且非负；
-4. fixed seed 的物理输出 SHA-256 与关闭详细计时时一致；
-5. 关闭详细计时后的 wall time 才能与 P0 前生产性能比较。
+这证明详细计时 instrumentation 在该固定轨迹测试中不改变 shower、地面输出或
+GPU 射电波形。关闭详细计时的 shower wall time 为 6931.60 ms；单次冷启动的时间
+波动大于 instrumentation 差异，正式性能比较仍应关闭详细计时并使用热缓存多次
+重复。
 
 ## 6. 下一步判断方法
 
