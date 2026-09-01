@@ -22,6 +22,7 @@ namespace corsika::gpu::em {
   struct ProposalCpuFallbackStatistics {
     std::uint64_t specified_interactions{};
     std::uint64_t completed_selected_losses{};
+    std::uint64_t completed_native_selection_replays{};
     std::uint64_t generated_secondaries{};
   };
 
@@ -119,7 +120,12 @@ namespace corsika::gpu::em {
             .prepareSpecifiedInteractionCalculator(
                 record, specified_energy_cut_);
       }
-      if (complete_selected_loss) {
+      auto const replay_native_selection =
+          event.reason ==
+          ProposalFallbackReason::NativeSelectionReplay;
+      if (replay_native_selection) {
+        proposal_model_.completeNativeSelectionReplay(record);
+      } else if (complete_selected_loss) {
         proposal_model_.completeSelectedLoss(
             record, event.loss_quantile);
       }
@@ -155,6 +161,9 @@ namespace corsika::gpu::em {
       ++statistics_.specified_interactions;
       if (complete_selected_loss) {
         ++statistics_.completed_selected_losses;
+      }
+      if (replay_native_selection) {
+        ++statistics_.completed_native_selection_replays;
       }
       statistics_.generated_secondaries += generated;
     }

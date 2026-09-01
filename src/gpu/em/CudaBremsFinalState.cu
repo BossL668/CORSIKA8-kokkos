@@ -454,6 +454,7 @@ namespace corsika::gpu::em {
       return loss_MeV / energy_MeV;
     }
 
+
     __device__ ProposalFallbackEvent invalidFinalState(
         EmInteractionRecord const& interaction,
         BremsParameters const& parameters = {}) {
@@ -793,8 +794,7 @@ namespace corsika::gpu::em {
         sample.azimuth_uniform = uniformOpen01(sign_key);
         sample.auxiliary_uniform =
             uniformOpen01(direction_key);
-        auto const rejection =
-            sampleEpairRhoRejection(
+        auto const rejection = sampleEpairRhoRejection(
             lpm_snapshot, interaction.component_hash,
             parent.energy_GeV * 1000., effective_v,
             sample.azimuth_uniform, rho_key);
@@ -910,8 +910,11 @@ namespace corsika::gpu::em {
           !(photon_energy > 0.) ||
           !::isfinite(lepton_energy) ||
           lepton_energy < lepton_mass_GeV) {
-        raw_fallbacks[index] =
-            invalidFinalState(interaction, sample);
+        auto fallback = invalidFinalState(interaction, sample);
+        fallback.diagnostic_value0 = v;
+        fallback.diagnostic_value1 = interaction.loss_quantile;
+        fallback.diagnostic_value2 = lepton_energy;
+        raw_fallbacks[index] = fallback;
         classification.fallback_count = 1;
         return;
       }
@@ -2061,5 +2064,6 @@ namespace corsika::gpu::em {
     }
     return result;
   }
+
 
 } // namespace corsika::gpu::em

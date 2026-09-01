@@ -1,0 +1,174 @@
+--- a/src/CubicInterpolation/Axis.h
++++ b/src/CubicInterpolation/Axis.h
+@@ -1,8 +1,19 @@
+ #pragma once
+
++#include <cstddef>
+ #include <ostream>
+
+ namespace cubic_splines {
++enum class AxisType { Linear, Exponential, ExponentialMinusOne };
++
++template <typename T> struct AxisDescriptor {
++  AxisType type;
++  T low;
++  T high;
++  T stepsize;
++  std::size_t nodes;
++};
++
+ /**
+  * @brief Limits the definition area of the function which will be stored and
+  * praameterize the node spaceing.  Choose the axis transformation wisely to
+@@ -66,6 +77,12 @@
+    */
+   auto GetStepsize() const noexcept { return stepsize; }
+
++  /** Read-only description sufficient to reproduce this coordinate map. */
++  virtual AxisType GetType() const noexcept = 0;
++  AxisDescriptor<T> ExportDescriptor() const noexcept {
++    return {GetType(), low, high, stepsize, required_nodes()};
++  }
++
+   /**
+    * @brief Derivate of the Axis forward transformation.
+    */
+@@ -107,6 +124,7 @@
+
+   T derive(T x) const final;
+   T back_derive(T t) const final;
++  AxisType GetType() const noexcept final { return AxisType::Exponential; }
+ };
+
+ /**
+@@ -133,6 +151,9 @@
+
+   T derive(T x) const final;
+   T back_derive(T t) const final;
++  AxisType GetType() const noexcept final {
++    return AxisType::ExponentialMinusOne;
++  }
+ };
+
+ /**
+@@ -161,5 +182,6 @@
+   T back_transform(T x) const final;
+   T derive(T) const final;
+   T back_derive(T x) const final;
++  AxisType GetType() const noexcept final { return AxisType::Linear; }
+ };
+ } // namespace cubic_splines
+--- a/src/CubicInterpolation/CubicSplines.h
++++ b/src/CubicInterpolation/CubicSplines.h
+@@ -2,6 +2,7 @@
+
+ #include <functional>
+ #include <memory>
++#include <vector>
+
+ #include "Axis.h"
+
+@@ -20,6 +21,16 @@
+
+   struct RuntimeData;
+
++  struct ExportData {
++    std::vector<T> values;
++    // Exact first derivatives at every integer node.  Together with values
++    // these are an exact Hermite representation of each cubic interval, not
++    // a resampling of the underlying physics function.
++    std::vector<T> node_derivatives;
++    T lower_derivative;
++    T upper_derivative;
++  };
++
+   static constexpr size_t N = 1;
+
+   /**
+@@ -51,6 +58,9 @@
+   T prime(T x) const;
+
+   T double_prime(T x) const;
++
++  /** Copy the immutable coefficient state without exposing serialization. */
++  ExportData Export() const;
+ };
+
+
+--- a/src/CubicInterpolation/BicubicSplines.h
++++ b/src/CubicInterpolation/BicubicSplines.h
+@@ -26,6 +26,14 @@
+
+   struct RuntimeData;
+
++  struct ExportData {
++    std::array<long int, 2> dimensions;
++    std::vector<T> values;
++    std::vector<T> derivative_axis0;
++    std::vector<T> derivative_axis1;
++    std::vector<T> mixed_derivative;
++  };
++
+   static constexpr size_t N = 2;
+
+   /**
+@@ -85,5 +93,8 @@
+   template <typename T1> auto double_prime(T1 iterable) const {
+     return double_prime(iterable[0], iterable[1]);
+   }
++
++  /** Copy the immutable Hermite coefficient state in native array order. */
++  ExportData Export() const;
+ };
+ } // namespace cubic_splines
+--- a/src/CubicInterpolation/Interpolant.h
++++ b/src/CubicInterpolation/Interpolant.h
+@@ -65,6 +65,12 @@
+    * @brief Definition of interpolant.
+    */
+   T2 const &GetDefinition() const { return def; };
++
++  /**
++   * Copy only immutable numerical coefficients. This never exposes or mutates
++   * the Boost-serialization representation used by the disk cache.
++   */
++  auto ExportData() const -> decltype(inter.Export()) { return inter.Export(); }
+ };
+
+ } // namespace cubic_splines
+--- a/src/detail/CubicSplines.cxx
++++ b/src/detail/CubicSplines.cxx
+@@ -101,6 +101,15 @@
+ template <typename T> T CubicSplines<T>::double_prime(T x) const {
+   return data->spline.double_prime(x);
+ };
++
++template <typename T>
++typename CubicSplines<T>::ExportData CubicSplines<T>::Export() const {
++  auto node_derivatives = std::vector<T>(data->y.size());
++  for (std::size_t node = 0; node < node_derivatives.size(); ++node)
++    node_derivatives[node] = data->spline.prime(static_cast<T>(node));
++  return {data->y, std::move(node_derivatives), data->lower_lim_derivate,
++          data->upper_lim_derivate};
++}
+ } // namespace cubic_splines
+
+ template class cubic_splines::CubicSplines<float>;
+--- a/src/detail/BicubicSplines.cxx
++++ b/src/detail/BicubicSplines.cxx
+@@ -291,6 +291,15 @@
+       },
+       x0);
+ }
++
++template <typename T>
++typename BicubicSplines<T>::ExportData BicubicSplines<T>::Export() const {
++  return {data->get_dimensions(),
++          RuntimeData::to_vector(data->y),
++          RuntimeData::to_vector(data->dydx1),
++          RuntimeData::to_vector(data->dydx2),
++          RuntimeData::to_vector(data->d2ydx1dx2)};
++}
+ } // namespace cubic_splines
+
+ template class cubic_splines::BicubicSplines<double>;

@@ -12,6 +12,7 @@ import pandas as pd
 
 from compare_ensembles import (
     DEFAULT_KEY_SCALAR_METRICS,
+    PERMITTED_CUDA_GENERIC_FALLBACK_REASONS,
     compare_ensembles,
     concatenate_ensembles,
     extract_ensemble,
@@ -34,6 +35,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sigma-limit", type=float, default=3.0)
     parser.add_argument("--active-fraction", type=float, default=1.0e-4)
     parser.add_argument("--minimum-bin-pass-fraction", type=float, default=0.95)
+    parser.add_argument(
+        "--permitted-cuda-generic-fallback-reason",
+        action="append",
+        default=[],
+        choices=PERMITTED_CUDA_GENERIC_FALLBACK_REASONS,
+        help=(
+            "Explicitly permit one declared CUDA generic-fallback reason. "
+            "Repeat for multiple reasons; the default allowlist is empty."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -121,6 +132,9 @@ def main() -> int:
                 f"{args.backend}_build_reference",
                 path,
                 expect_gpu,
+                permitted_generic_fallback_reasons=tuple(
+                    args.permitted_cuda_generic_fallback_reason
+                ),
             )
             for path in reference_paths
         ],
@@ -132,6 +146,9 @@ def main() -> int:
                 f"{args.backend}_build_candidate",
                 path,
                 expect_gpu,
+                permitted_generic_fallback_reasons=tuple(
+                    args.permitted_cuda_generic_fallback_reason
+                ),
             )
             for path in candidate_paths
         ],

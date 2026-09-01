@@ -54,4 +54,5 @@ namespace corsika::gpu::em {
       std::uint64_t first_secondary_history_id,
       detail::DeviceWorkspace& workspace);
 
+
 } // namespace corsika::gpu::em

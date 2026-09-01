@@ -1,0 +1,480 @@
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h b/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h
+index 6ab98eb..3397533 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h
+@@ -37,6 +37,7 @@
+ #include "PROPOSAL/medium/Components.h"
+ #include "PROPOSAL/medium/Medium.h"
+ #include "PROPOSAL/particle/ParticleDef.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+ #include <memory>
+ #include <type_traits>
+ #include <unordered_map>
+@@ -61,6 +62,8 @@ struct CrossSectionBase {
+     virtual InteractionType GetInteractionType() const noexcept = 0;
+     virtual std::string GetParametrizationName() const noexcept = 0;
+     virtual std::shared_ptr<const EnergyCutSettings> GetEnergyCutSettings() const noexcept = 0;
++    virtual std::vector<DndxInterpolationExport> ExportDndxInterpolation() const = 0;
++    virtual std::vector<DedxInterpolationExport> ExportDedxInterpolation() const = 0;
+ };
+
+ namespace detail {
+@@ -384,6 +387,56 @@ public:
+     {
+         return cut;
+     }
++
++    std::vector<DndxInterpolationExport> ExportDndxInterpolation() const override
++    {
++        std::vector<DndxInterpolationExport> result;
++        if (!dndx)
++            return result;
++        result.reserve(dndx->size());
++        for (auto const& entry : *dndx) {
++            auto const* source = dynamic_cast<CrossSectionDNDXInterpolant const*>(
++                std::get<1>(entry.second).get());
++            if (!source)
++                continue;
++            auto exported = source->ExportInterpolation();
++            exported.interaction_type = interaction_type;
++            exported.parametrization = param_name;
++            exported.cross_section_hash = hash;
++            exported.component_hash = entry.first;
++            exported.component_weight = std::get<0>(entry.second);
++            if (cut) {
++                exported.absolute_cut_MeV = cut->GetEcut();
++                exported.relative_cut = cut->GetVcut();
++            }
++            result.push_back(std::move(exported));
++        }
++        return result;
++    }
++
++    std::vector<DedxInterpolationExport> ExportDedxInterpolation() const override
++    {
++        std::vector<DedxInterpolationExport> result;
++        if (!dedx)
++            return result;
++        result.reserve(dedx->size());
++        for (std::size_t component_index = 0;
++             component_index < dedx->size(); ++component_index) {
++            auto const& entry = (*dedx)[component_index];
++            auto const* source = dynamic_cast<CrossSectionDEDXInterpolant const*>(
++                std::get<1>(entry).get());
++            if (!source)
++                continue;
++            auto exported = source->ExportInterpolation();
++            exported.interaction_type = interaction_type;
++            exported.parametrization = param_name;
++            exported.cross_section_hash = hash;
++            exported.component_index = component_index;
++            exported.component_weight = std::get<0>(entry);
++            result.push_back(std::move(exported));
++        }
++        return result;
++    }
+ };
+
+ using cross_t_ptr = std::unique_ptr<CrossSectionBase>;
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.h b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.h
+index b5f3536..8a2f9b4 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.h
+@@ -10,6 +10,7 @@
+ #include "CubicInterpolation/CubicSplines.h"
+ #include "CubicInterpolation/Interpolant.h"
+ #include "PROPOSAL/crosssection/parametrization/Compton.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+
+ namespace PROPOSAL {
+
+@@ -50,5 +51,7 @@ public:
+     }
+
+     double Calculate(double E) const final;
++
++    DedxInterpolationExport ExportInterpolation() const;
+ };
+ } // namespace PROPOSAL
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h
+index 80bf7ee..036a99e 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h
+@@ -4,6 +4,7 @@
+ #include "PROPOSAL/crosssection/CrossSectionDNDX/AxisBuilderDNDX.h"
+ #include "PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXIntegral.h"
+ #include "PROPOSAL/methods.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+
+ #include <type_traits>
+
+@@ -59,6 +60,15 @@ double retransform_loss(double v_cut, double v_max, double v) {
+     return retransform_loss_log(v_cut, v_max, v);
+ }
+
++template <typename Param>
++constexpr RelativeLossTransform relative_loss_transform() {
++    return std::is_base_of<crosssection::Compton, Param>::value
++        ? RelativeLossTransform::OneMinusLog
++        : (std::is_base_of<crosssection::Ionization, Param>::value
++                  ? RelativeLossTransform::RelativeLogPowerOnePointFive
++                  : RelativeLossTransform::RelativeLog);
++}
++
+ template <typename T1, typename... Args>
+ auto build_dndx_def(T1 const& param, ParticleDef const& p, Args... args)
+ {
+@@ -89,6 +99,7 @@ class CrossSectionDNDXInterpolant : public CrossSectionDNDX, public LogTableCrea
+     cubic_splines::Interpolant<cubic_splines::BicubicSplines<double>>
+         interpolant;
+     InteractionType type_id;
++    RelativeLossTransform loss_transform_;
+
+     std::string gen_path() const;
+     std::string gen_name() const;
+@@ -106,6 +117,7 @@ public:
+         , interpolant(build_dndx_def(param, p, t, cut), gen_path(), gen_name())
+         , type_id(static_cast<InteractionType>(
+                 crosssection::ParametrizationId<Param>::value))
++        , loss_transform_(relative_loss_transform<Param>())
+     {
+         lower_energy_lim
+             = interpolant.GetDefinition().GetAxis().at(0)->GetLow();
+@@ -116,5 +128,7 @@ public:
+     double Calculate(double E, double v) final;
+
+     double GetUpperLimit(double, double) final;
++
++    DndxInterpolationExport ExportInterpolation() const;
+ };
+ } // namespace PROPOSAL
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h
+index 935ab28..7000abd 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h
+@@ -54,6 +54,14 @@ namespace PROPOSAL {
+             return cut;
+         }
+
++        std::vector<DndxInterpolationExport> ExportDndxInterpolation() const override {
++            return {};
++        }
++
++        std::vector<DedxInterpolationExport> ExportDedxInterpolation() const override {
++            return {};
++        }
++
+     private:
+         std::unique_ptr<crosssection::ParametrizationDirect> param;
+         ParticleDef p;
+@@ -63,4 +71,3 @@ namespace PROPOSAL {
+         std::string param_name;
+     };
+ }
+-
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h
+index 764cd68..e9808c4 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h
+@@ -57,6 +57,20 @@ namespace PROPOSAL {
+             return cross_->GetEnergyCutSettings();
+         }
+
++        std::vector<DndxInterpolationExport> ExportDndxInterpolation() const override {
++            auto result = cross_->ExportDndxInterpolation();
++            for (auto& table : result)
++                table.component_weight /= multiplier_;
++            return result;
++        }
++
++        std::vector<DedxInterpolationExport> ExportDedxInterpolation() const override {
++            auto result = cross_->ExportDedxInterpolation();
++            for (auto& table : result)
++                table.component_weight /= multiplier_;
++            return result;
++        }
++
+     private:
+         std::shared_ptr<CrossSectionBase> cross_;
+         double multiplier_;
+@@ -68,4 +82,4 @@ namespace PROPOSAL {
+     inline auto make_crosssection_multiplier(std::shared_ptr<CrossSectionBase> cross, double multiplier) {
+         return std::unique_ptr<CrossSectionBase>(new CrossSectionMultiplier(cross, multiplier));
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h b/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
+new file mode 100644
+index 0000000..c5ae1f4
+--- /dev/null
++++ b/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
+@@ -0,0 +1,69 @@
++#pragma once
++
++#include "CubicInterpolation/Axis.h"
++#include "CubicInterpolation/BicubicSplines.h"
++#include "CubicInterpolation/CubicSplines.h"
++#include "PROPOSAL/particle/Particle.h"
++
++#include <array>
++#include <cstddef>
++#include <string>
++#include <vector>
++
++namespace PROPOSAL {
++
++enum class RelativeLossTransform : unsigned int {
++    RelativeLog = 0,
++    RelativeLogPowerOnePointFive = 1,
++    OneMinusLog = 2,
++};
++
++struct DndxInterpolationExport {
++    InteractionType interaction_type{InteractionType::Undefined};
++    RelativeLossTransform loss_transform{RelativeLossTransform::RelativeLog};
++    std::string parametrization;
++    std::size_t cross_section_hash{};
++    std::size_t table_hash{};
++    std::size_t component_hash{};
++    double component_weight{1.};
++    double lower_energy_limit_MeV{};
++    double absolute_cut_MeV{};
++    double relative_cut{};
++    std::array<cubic_splines::AxisDescriptor<double>, 2> axes;
++    cubic_splines::BicubicSplines<double>::ExportData spline;
++};
++
++struct DedxInterpolationExport {
++    InteractionType interaction_type{InteractionType::Undefined};
++    std::string parametrization;
++    std::size_t cross_section_hash{};
++    std::size_t table_hash{};
++    std::size_t component_index{};
++    double component_weight{1.};
++    double lower_energy_limit_MeV{};
++    cubic_splines::AxisDescriptor<double> axis;
++    bool has_value_transform{};
++    cubic_splines::AxisDescriptor<double> value_transform;
++    cubic_splines::CubicSplines<double>::ExportData spline;
++};
++
++struct UtilityInterpolationExport {
++    bool available{};
++    bool reverse{};
++    std::size_t table_hash{};
++    double lower_energy_limit_MeV{};
++    cubic_splines::AxisDescriptor<double> axis;
++    bool has_value_transform{};
++    cubic_splines::AxisDescriptor<double> value_transform;
++    cubic_splines::CubicSplines<double>::ExportData spline;
++};
++
++struct LpmInterpolationExport {
++    double particle_mass_MeV{};
++    double molecular_density_per_cm3{};
++    double mass_density_g_per_cm3{};
++    double sum_charge{};
++    double e_lpm_MeV{};
++};
++
++} // namespace PROPOSAL
+diff --git a/src/PROPOSAL/PROPOSAL/propagation_utility/Displacement.h b/src/PROPOSAL/PROPOSAL/propagation_utility/Displacement.h
+index aeae790..a047d14 100644
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/Displacement.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/Displacement.h
+@@ -1,6 +1,7 @@
+ #pragma once
+
+ #include "PROPOSAL/crosssection/CrossSectionVector.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+ #include <vector>
+
+ namespace PROPOSAL {
+@@ -34,6 +35,7 @@ public:
+     double FunctionToIntegral(double);
+     virtual double SolveTrackIntegral(double, double) = 0;
+     virtual double UpperLimitTrackIntegral(double, double) = 0;
++    virtual UtilityInterpolationExport ExportInterpolation() const = 0;
+
+     auto GetHash() const noexcept { return hash; }
+     auto GetLowerLim() const noexcept { return lower_lim; }
+diff --git a/src/PROPOSAL/PROPOSAL/propagation_utility/DisplacementBuilder.h b/src/PROPOSAL/PROPOSAL/propagation_utility/DisplacementBuilder.h
+index 77e087e..5267752 100644
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/DisplacementBuilder.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/DisplacementBuilder.h
+@@ -16,6 +16,7 @@ public:
+     double SolveTrackIntegral(double lower_lim, double upper_lim) final;
+
+     double UpperLimitTrackIntegral(double lower_lim, double sum) final;
++    UtilityInterpolationExport ExportInterpolation() const final;
+ };
+
+ std::unique_ptr<Displacement> make_displacement(
+diff --git a/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h b/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h
+index 6ce3e04..7d07638 100644
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h
+@@ -49,5 +49,11 @@ public:
+     virtual double MeanFreePath(double) = 0;
+
+     auto GetHash() const noexcept { return hash; }
++    crosssection_list_t const& GetCrossSections() const noexcept {
++        return cross_list;
++    }
++    std::shared_ptr<Displacement> const& GetDisplacement() const noexcept {
++        return disp;
++    }
+ };
+ } // namespace PROPOSAL
+diff --git a/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h b/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h
+index f183fe8..4e2f06f 100644
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h
+@@ -31,6 +31,7 @@
+ #include "CubicInterpolation/CubicSplines.h"
+ #include "CubicInterpolation/Interpolant.h"
+ #include "PROPOSAL/propagation_utility/PropagationUtilityIntegral.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+
+ #include <functional>
+ #include <memory>
+@@ -64,5 +65,6 @@ public:
+                      bool reverse = false) final;
+     double Calculate(double, double) final;
+     double GetUpperLimit(double, double) final;
++    UtilityInterpolationExport ExportInterpolation() const;
+ };
+ } // namespace PROPOSAL
+diff --git a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx
+index f19b8f4..e947f42 100644
+--- a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx
+@@ -28,3 +28,18 @@ double CrossSectionDEDXInterpolant::Calculate(double E) const
+         return 0.;
+     return interpolant.evaluate(E);
+ }
++
++DedxInterpolationExport
++CrossSectionDEDXInterpolant::ExportInterpolation() const
++{
++    DedxInterpolationExport result;
++    result.table_hash = GetHash();
++    result.lower_energy_limit_MeV = lower_energy_lim;
++    auto const& definition = interpolant.GetDefinition();
++    result.axis = definition.GetAxis().ExportDescriptor();
++    result.has_value_transform = definition.f_trafo != nullptr;
++    if (definition.f_trafo)
++        result.value_transform = definition.f_trafo->ExportDescriptor();
++    result.spline = interpolant.ExportData();
++    return result;
++}
+diff --git a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx
+index 8682803..661427f 100644
+--- a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx
+@@ -118,3 +118,17 @@ double CrossSectionDNDXInterpolant::GetUpperLimit(double energy, double rate)
+     }
+     return transform_v(lim.min, lim.max, v);
+ }
++
++DndxInterpolationExport
++CrossSectionDNDXInterpolant::ExportInterpolation() const
++{
++    DndxInterpolationExport result;
++    result.interaction_type = type_id;
++    result.loss_transform = loss_transform_;
++    result.table_hash = GetHash();
++    result.lower_energy_limit_MeV = lower_energy_lim;
++    auto const& axes = interpolant.GetDefinition().GetAxis();
++    result.axes = { axes[0]->ExportDescriptor(), axes[1]->ExportDescriptor() };
++    result.spline = interpolant.ExportData();
++    return result;
++}
+diff --git a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/DisplacmentBuilder.cxx b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/DisplacmentBuilder.cxx
+index 90a5c8f..97b7229 100644
+--- a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/DisplacmentBuilder.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/DisplacmentBuilder.cxx
+@@ -36,6 +36,14 @@ double DisplacementBuilder::UpperLimitTrackIntegral(
+     return disp_integral->GetUpperLimit(lower_lim, sum);
+ }
+
++UtilityInterpolationExport DisplacementBuilder::ExportInterpolation() const
++{
++    auto const* source = dynamic_cast<UtilityInterpolant const*>(disp_integral.get());
++    if (!source)
++        return {};
++    return source->ExportInterpolation();
++}
++
+ namespace PROPOSAL {
+ std::unique_ptr<Displacement> make_displacement(
+     std::vector<std::shared_ptr<CrossSectionBase>> const& cross,
+diff --git a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx
+index 6ea0017..54ffb49 100644
+--- a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx
+@@ -128,3 +128,21 @@ double UtilityInterpolant::GetUpperLimit(double upper_limit, double rnd)
+     // (see e.g. version at a81e54f62f4383936cb046da4cad7429a48bb750 for old
+     // version)
+ }
++
++UtilityInterpolationExport UtilityInterpolant::ExportInterpolation() const
++{
++    UtilityInterpolationExport result;
++    result.available = interpolant_ != nullptr;
++    result.reverse = reverse_;
++    result.table_hash = GetHash();
++    result.lower_energy_limit_MeV = lower_lim;
++    if (!interpolant_)
++        return result;
++    auto const& definition = interpolant_->GetDefinition();
++    result.axis = definition.GetAxis().ExportDescriptor();
++    result.has_value_transform = definition.f_trafo != nullptr;
++    if (definition.f_trafo)
++        result.value_transform = definition.f_trafo->ExportDescriptor();
++    result.spline = interpolant_->ExportData();
++    return result;
++}
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/parametrization/PhotoPairProduction.h b/src/PROPOSAL/PROPOSAL/crosssection/parametrization/PhotoPairProduction.h
+index 8f2c376..6f3079d 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/parametrization/PhotoPairProduction.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/parametrization/PhotoPairProduction.h
+@@ -31,5 +31,6 @@
+ #include <string>
+ #include "PROPOSAL/crosssection/parametrization/Parametrization.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+ #include "PROPOSAL/methods.h"
+
+ namespace PROPOSAL {
+@@ -109,6 +110,9 @@ namespace crosssection {
+         double suppression_factor(double energy, double x, const Component&,
+                                   double density_correction = 1.0) const;
+         size_t GetHash() const noexcept { return hash; }
++        LpmInterpolationExport ExportParameters() const noexcept {
++            return {0., mol_density_, mass_density_, sum_charge_, eLpm_};
++        }
+     };
+
+ } // namespace crosssection
+diff --git a/src/PROPOSAL/PROPOSAL/crosssection/parametrization/Bremsstrahlung.h b/src/PROPOSAL/PROPOSAL/crosssection/parametrization/Bremsstrahlung.h
+index 17958a8..9ff142b 100644
+--- a/src/PROPOSAL/PROPOSAL/crosssection/parametrization/Bremsstrahlung.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/parametrization/Bremsstrahlung.h
+@@ -28,5 +28,6 @@
+ #pragma once
+
+ #include "PROPOSAL/crosssection/parametrization/Parametrization.h"
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+
+ #define BREMSSTRAHLUNG_DEF(param)                                              \
+@@ -131,6 +132,9 @@ namespace crosssection {
+         double suppression_factor(double energy, double v, const Component&,
+                                   double density_correction = 1.0) const;
+         size_t GetHash() const noexcept { return hash; }
++        LpmInterpolationExport ExportParameters() const noexcept {
++            return {mass_, mol_density_, mass_density_, sum_charge_, eLpm_};
++        }
+     };
+
+ } // namespace crosssection

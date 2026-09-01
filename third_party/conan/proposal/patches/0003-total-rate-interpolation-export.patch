@@ -1,0 +1,110 @@
+--- a/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
++++ b/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
+@@ -61,6 +61,17 @@ struct UtilityInterpolationExport {
+     cubic_splines::CubicSplines<double>::ExportData spline;
+ };
+
++struct TotalRateInterpolationExport {
++    bool available{};
++    std::size_t table_hash{};
++    bool cache_hit{};
++    double lower_energy_limit_MeV{};
++    cubic_splines::AxisDescriptor<double> axis;
++    bool has_value_transform{};
++    cubic_splines::AxisDescriptor<double> value_transform;
++    cubic_splines::CubicSplines<double>::ExportData spline;
++};
++
+ struct LpmInterpolationExport {
+     double particle_mass_MeV{};
+     double molecular_density_per_cm3{};
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/Interaction.h
+@@ -1,5 +1,6 @@
+ #pragma once
+
++#include "PROPOSAL/interpolation/InterpolationTableExport.h"
+ #include <memory>
+ #include <vector>
+
+@@ -47,6 +48,8 @@ public:
+     Loss SampleLoss(double energy, std::vector<Rate> const& rates, double rnd);
+
+     virtual double MeanFreePath(double) = 0;
++    virtual TotalRateInterpolationExport ExportTotalRateInterpolation()
++        const = 0;
+
+     auto GetHash() const noexcept { return hash; }
+     crosssection_list_t const& GetCrossSections() const noexcept {
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/InteractionBuilder.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/InteractionBuilder.h
+@@ -18,7 +18,9 @@ class InteractionBuilder : public Interaction {
+         = cubic_splines::Interpolant<cubic_splines::CubicSplines<double>>;
+     using interpolant_ptr = std::shared_ptr<interpolant_t>;
+     interpolant_ptr rate_interpolant_;
+-    double rate_lower_energy_lim;
++    double rate_lower_energy_lim{};
++    size_t rate_interpolant_hash_{};
++    bool rate_table_available_before_build_{};
+
+     interpolant_ptr InitializeRateInterpolant();
+
+@@ -34,6 +36,8 @@ public:
+
+     double MeanFreePath(double energy) final;
+
++    TotalRateInterpolationExport ExportTotalRateInterpolation()
++        const final;
+ };
+ } // namespace PROPOSAL
+
+--- a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/InteractionBuilder.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/InteractionBuilder.cxx
+@@ -53,14 +53,17 @@ InteractionBuilder::interpolant_ptr InteractionBuilder::InitializeRateInterpol
+     def.axis = std::move(axis);
+     rate_lower_energy_lim = def.axis->GetLow();
+
+-    auto rate_interpolant_hash = this->GetHash();
+-    hash_combine(rate_interpolant_hash,
++    rate_interpolant_hash_ = this->GetHash();
++    hash_combine(rate_interpolant_hash_,
+                  InterpolationSettings::NODES_RATE_INTERPOLANT,
+                  InterpolationSettings::UPPER_ENERGY_LIM);
++    auto const path = std::string(InterpolationSettings::TABLES_PATH);
++    auto const name = std::string("rates_")
++        + std::to_string(rate_interpolant_hash_) + std::string(".dat");
++    rate_table_available_before_build_ = Helper::file_exists(path + "/" + name);
+
+     return std::make_shared<interpolant_t>(
+-            std::move(def), std::string(InterpolationSettings::TABLES_PATH),
+-            std::string("rates_") + std::to_string(rate_interpolant_hash) + std::string(".dat"));
++            std::move(def), path, name);
+ }
+
+ double InteractionBuilder::EnergyInteraction(double energy, double rnd)
+@@ -92,6 +95,25 @@ double InteractionBuilder::MeanFreePath(double energy) {
+     return 1. / calculate_total_rate(energy);
+ }
+
++TotalRateInterpolationExport
++InteractionBuilder::ExportTotalRateInterpolation() const
++{
++    TotalRateInterpolationExport result;
++    result.available = rate_interpolant_ != nullptr;
++    result.table_hash = rate_interpolant_hash_;
++    result.cache_hit = rate_table_available_before_build_;
++    result.lower_energy_limit_MeV = rate_lower_energy_lim;
++    if (!rate_interpolant_)
++        return result;
++    auto const& definition = rate_interpolant_->GetDefinition();
++    result.axis = definition.GetAxis().ExportDescriptor();
++    result.has_value_transform = definition.f_trafo != nullptr;
++    if (definition.f_trafo)
++        result.value_transform = definition.f_trafo->ExportDescriptor();
++    result.spline = rate_interpolant_->ExportData();
++    return result;
++}
++
+ namespace PROPOSAL {
+ std::unique_ptr<Interaction> make_interaction(
+     std::shared_ptr<Displacement> disp,

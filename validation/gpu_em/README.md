@@ -536,6 +536,354 @@ zero invalid profile records. If a CUDA shower advertises complete strict
 energy-ledger coverage, the stored ledger must also be accepted and remain
 within its declared tolerance.
 
+The proposal-native ensemble and performance runners distinguish an
+unexpected physics/table fallback from scalar-routing cases explicitly
+permitted by the backend contract. `unsupported_particle`,
+`unsupported_medium`, and `unsupported_geometry` may return to the scalar
+stepper and are counted individually in the campaign manifest. Their sum must
+equal `cpu_generic_fallbacks`; any other generic reason, queue overflow,
+device spill, or uncompleted selected loss fails the campaign.
+`native_selection_replay` is tracked separately because it preserves the
+selected process/component and reuses the original selection random number.
+The ensemble runner's `--maximum-weight 0` default omits the application
+option and therefore preserves its automatic behavior. Use an explicit value
+greater than one, identically for both arms, when the campaign is intended to
+exercise active EM thinning; the manifest records both the value and whether
+the CLI option was omitted.
+
+## C8EMRT versus proposal-native CUDA campaign
+
+`run_gpu_physics_source_ensemble.py` compares two independent ensembles made
+with the same executable and the same CUDA EM and CUDA radio backends.  The
+only intended difference is the GPU physics source:
+
+```text
+reference: --gpu-physics-source c8emrt
+candidate: --gpu-physics-source proposal-native
+```
+
+This is therefore **not** a CPU-versus-CUDA comparison.  Formal seed ranges
+must be disjoint.  An optional same-seed diagnostic can be requested with
+`--paired-events`, but those showers are stored under `paired/` and are never
+included in the formal event counts.
+
+The following example runs the production 500-versus-500, 1 TeV vertical
+proton campaign with active $10^{-6}$ EM thinning, an explicit maximum
+weight of 100, IGRF14 at epoch 2027, and the full CUDA CoREAS/ZHS path.  The
+paths are examples; keep source, build, tables, caches and large output in
+separate directories on the target machine.
+
+```bash
+SRC=~/src/corsika8-gpu
+BUILD=~/build/corsika8-gpu-release
+DATA=~/corsika-data
+FLUKA_DIR=~/opt/fluka
+CAMPAIGN="$DATA/validation/native_500v500_1TeV"
+
+conda run -n corsika_venv \
+  python "$SRC/validation/gpu_em/run_gpu_physics_source_ensemble.py" \
+  --executable "$BUILD/applications/c8_air_shower" \
+  --c8emrt-table "$DATA/tables/air-production.c8emrt" \
+  --native-aux-cache-dir "$DATA/cache/proposal-native" \
+  --antenna-file "$DATA/antennas.txt" \
+  --flupro "$FLUKA_DIR" \
+  --output-root "$CAMPAIGN" \
+  --events-per-source 500 --batch-events 25 \
+  --c8emrt-seed-start 2026301001 \
+  --native-seed-start 2026302001 \
+  --order alternating \
+  --primary-pdg 2212 --energy-gev 1000 \
+  --zenith-deg 0 --azimuth-deg 0 \
+  --geomagnetic-model IGRF14 --geomagnetic-year 2027 \
+  --em-cut-gev 0.0005 --em-thinning 1e-6 --maximum-weight 100 \
+  --had-cut-gev 0.3 --mu-cut-gev 0.3 --tau-cut-gev 0.3 \
+  --gpu-min-batch 4096 --gpu-memory-fraction 0.70 \
+  --gpu-table-tolerance 5e-4 \
+  --hadronic-workers 4 --hadronic-min-batch 64 \
+  --hadronic-target-batch-ms 5 --hadronic-max-batch 256
+```
+
+Use `--dry-run` first when preparing a new campaign.  It validates all input
+artifacts and prints the complete immutable task plan without creating the
+output root.  During a real run, each batch is first written to a private
+attempt directory and promoted to
+`formal/batch_NNN/{c8emrt,proposal-native}` only after output, provenance and
+GPU-integrity checks pass.
+
+The ensemble runner resumes automatically: after an interruption, invoke the
+**identical command** again, without a separate resume flag.  It takes a
+non-blocking campaign lock, compares the complete immutable configuration,
+artifact hashes and runner hash against `campaign_manifest.json`, revalidates
+every promoted batch, and skips only batches that remain complete.  A partial
+attempt is archived under `failed_attempts/` before a fresh attempt starts.
+Changing the executable, C8EMRT table, antenna file, FLUKA library, runner,
+seed schedule or any physics/scheduler option requires a new output root.
+`campaign_manifest.json:status` must be `complete`, and its formal event counts
+must be exactly 500 and 500, before the output is used as acceptance evidence.
+
+Interruption recovery is batch-atomic.  A canonical
+`formal/batch_NNN/<source>` directory exists only after the child process
+returns zero and the runner has validated its output, GPU-integrity counters
+and provenance.  On the next identical invocation, every canonical batch is
+revalidated before reuse.  A manifest attempt left as `running` is closed as
+`interrupted_orphaned`; its private `.attempt-<source>-NNN` directory, when
+present, is moved under `failed_attempts/`.  An untracked private attempt is
+also archived and recorded.  The runner then allocates the next attempt
+number and reruns that whole batch; it never counts or resumes individual
+showers from a partial batch.  A simulation or validation failure similarly
+archives the private output, sets the campaign status to `failed_retriable`,
+and stops instead of silently proceeding to the next task.  Repeating the
+identical command performs the guarded retry.
+
+### Native-only campaign with an external reference
+
+When compatible CPU and `c8emrt` ensembles already exist, run only the missing
+proposal-native arm:
+
+```bash
+conda run -n corsika_venv \
+  python "$SRC/validation/gpu_em/run_gpu_physics_source_ensemble.py" \
+  --sources proposal-native \
+  --executable "$BUILD/applications/c8_air_shower" \
+  --native-aux-cache-dir "$DATA/cache/proposal-native" \
+  --antenna-file "$DATA/antennas_nwu_coordinates_test.txt" \
+  --flupro "$FLUKA_DIR" \
+  --output-root "$DATA/validation/native_only_1TeV" \
+  --events-per-source 2000 --batch-events 25 \
+  --native-seed-start 2026328001 \
+  --primary-pdg 2212 --energy-gev 1000 \
+  --zenith-deg 0 --azimuth-deg 0 \
+  --geomagnetic-model IGRF14 --geomagnetic-year 2027 \
+  --em-cut-gev 0.0005 --em-thinning 1e-6 \
+  --had-cut-gev 0.3 --mu-cut-gev 0.3 --tau-cut-gev 0.3 \
+  --gpu-min-batch 4096 --gpu-memory-fraction 0.90 \
+  --gpu-table-tolerance 5e-4 \
+  --hadronic-workers 4 --hadronic-min-batch 64 \
+  --hadronic-target-batch-ms 5 --hadronic-max-batch 256
+```
+
+In this mode `--c8emrt-table` is neither needed nor included in the immutable
+artifact contract.  `--paired-events` must remain zero: paired diagnostics
+compare both physics sources and are therefore rejected unless both
+`c8emrt` and `proposal-native` are selected.  Omitting `--maximum-weight` (or
+leaving the runner default at zero) deliberately omits the application's
+`--max-weight` option and preserves its automatic Kobal limit.  Completion is
+defined by the selected source set, so the example is complete only at 2,000
+validated proposal-native events, not at a fictitious 2,000-versus-2,000
+count inside this output root.  Physics acceptance may then compare these
+shards with the compatible external CPU ensemble, while timing is compared
+with the compatible external `c8emrt` ensemble; the external samples must be
+checked for identical physics, observer, thinning and relevant provenance.
+
+### Formal shower analysis and plot labels
+
+`compare_gpu_physics_sources.py` accepts repeated shard paths.  It requires
+one executable identity and one physical configuration across both arms while
+deliberately allowing their table identities to differ.  The following Bash
+array avoids accidentally passing only the first batch:
+
+Older c8emrt outputs created before `gpu_physics_source` was written remain
+fail-closed by default.  They may be used only with the explicit
+`--allow-legacy-c8emrt-source-inference` flag.  That flag does not guess from a
+directory name: it requires a CUDA provenance record, matching provenance and
+OutputManager commands, the same `.c8emrt` path in the command/provenance/GPU
+configuration, valid legacy table metadata, and absent (not contradictory)
+source/native fields in every shower.  The inference rule and hashes are
+written into `comparison.json`.  It does not relax the separate same-build or
+same-physics-configuration gates.
+
+```bash
+ANALYSIS="$CAMPAIGN/analysis_500v500"
+compare=(
+  conda run -n corsika_venv
+  python "$SRC/validation/gpu_em/compare_gpu_physics_sources.py"
+  --output "$ANALYSIS"
+  --minimum-events 500
+  --relative-tolerance 0.01
+  --sigma-limit 3
+  --active-fraction 1e-4
+  --minimum-bin-pass-fraction 0.95
+  --fail-on-acceptance
+)
+for output in "$CAMPAIGN"/formal/batch_*/c8emrt; do
+  compare+=(--reference "$output")
+done
+for output in "$CAMPAIGN"/formal/batch_*/proposal-native; do
+  compare+=(--candidate "$output")
+done
+"${compare[@]}"
+```
+
+The analyzer writes the strict decision to `comparison.json`, the curve data
+to `curve_comparison.csv`, the one-row-per-shower features to
+`per_shower_observables.csv`, and a Chinese summary to `README_CN.md`.  It
+writes these artifacts before returning exit code 2 for a statistical gate
+failure, so a failed formal gate remains inspectable.
+
+Generate the standard figures with:
+
+```bash
+conda run -n corsika_venv \
+  python "$SRC/validation/gpu_em/analyze_shower_feature_distributions.py" \
+  --ensemble-root "$ANALYSIS" \
+  --manifest "$CAMPAIGN/campaign_manifest.json" \
+  --output-dir "$CAMPAIGN/validation_plots_500v500"
+```
+
+The comparison file contains a `comparison_semantics` mapping even though the
+shared analysis schema retains the historical column names `proposal` and
+`cuda`.  The plotting tool reads that mapping and labels the curves
+`c8emrt CUDA` and `PROPOSAL-native CUDA`; it must not label this campaign
+`Original CPU` versus `CUDA EM`.  For an older imported comparison without
+that mapping, pass the labels explicitly:
+
+```bash
+--reference-label "c8emrt CUDA" \
+--candidate-label "PROPOSAL-native CUDA" \
+--comparison-title "c8emrt CUDA versus PROPOSAL-native CUDA"
+```
+
+### Radio acceptance for the same campaign
+
+After the campaign manifest is complete, the radio analyzer discovers every
+formal shard directly from the campaign root:
+
+```bash
+PULSE=~/src/pulse_analysis_modular
+
+conda run -n corsika_venv \
+  python "$SRC/validation/gpu_em/compare_radio_pulse_features.py" \
+  --campaign-root "$CAMPAIGN" \
+  --pulse-analysis-root "$PULSE" \
+  --output "$CAMPAIGN/radio_analysis_500v500" \
+  --minimum-count-per-arm 20 \
+  --bootstrap-repetitions 20000 \
+  --fail-on-acceptance
+```
+
+This gate uses one shower as the statistical unit after antennas at equal
+$r_\perp$ have been aggregated.  It verifies complete CoREAS/ZHS products,
+observer and sampling compatibility, field/configuration consistency, valid
+waveforms, bootstrap equivalence intervals and Holm-corrected shape tests.
+Its principal outputs are `radio_feature_acceptance.json`,
+`RADIO_FEATURE_ACCEPTANCE_CN.md`, the per-antenna/per-shower CSV files, and
+the amplitude/width and candidate/reference-ratio figures.
+
+## C8EMRT versus proposal-native performance acceptance
+
+`run_gpu_physics_source_performance.py` measures the two CUDA physics sources
+with an A-B-B-A schedule (`A=c8emrt`, `B=proposal-native`).  Every process
+contains at least six showers; its first shower is excluded from the
+steady-state statistic.  At least five complete A-B-B-A rounds are required.
+The default production gate requires
+
+```text
+median(proposal-native steady shower wall time)
+------------------------------------------------ <= 1.03
+median(c8emrt steady shower wall time)
+```
+
+CUDA event-duration sums are diagnostics and are never added to wall time.
+The runner leaves detailed stage timing disabled so instrumentation does not
+change the headline measurement.  A representative hot-cache 100 TeV command
+is:
+
+```bash
+PERF="$DATA/validation/native_performance_100TeV"
+
+conda run -n corsika_venv \
+  python "$SRC/validation/gpu_em/run_gpu_physics_source_performance.py" \
+  --executable "$BUILD/applications/c8_air_shower" \
+  --table "$DATA/tables/air-production.c8emrt" \
+  --native-aux-cache "$DATA/cache/proposal-native" \
+  --antenna-file "$DATA/antennas.txt" \
+  --flupro "$FLUKA_DIR" \
+  --output-root "$PERF" \
+  --primary-pdg 2212 --energy-gev 1e5 \
+  --zenith-deg 0 --azimuth-deg 0 \
+  --events-per-process 6 --rounds 5 \
+  --em-cut-gev 0.0005 --em-thinning 1e-6 --maximum-weight 100 \
+  --had-cut-gev 0.3 --mu-cut-gev 0.3 --tau-cut-gev 0.3 \
+  --geomagnetic-model IGRF14 --geomagnetic-year 2027 \
+  --gpu-min-batch 4096 --gpu-memory-fraction 0.70 \
+  --gpu-table-tolerance 5e-4 \
+  --maximum-native-regression-fraction 0.03
+```
+
+The runner first performs one photon cache warm-up per source, then requires
+cache hits in all measured processes.  It writes immutable `attempt_NNN`
+directories, `campaign_manifest.json`, atomic `progress.json`, per-process and
+per-shower CSV files, `benchmark_summary.json`,
+`runtime_distributions.png`, and `PERFORMANCE_REPORT_CN.md`.
+
+An existing performance output root is rejected unless `--resume` is present.
+To continue an interrupted run, repeat every original option and add only
+`--resume`.  The runner locks the campaign, requires the stored immutable
+host/configuration/schedule and executable, C8EMRT-table and antenna hashes to
+match, revalidates completed attempts, and creates a new attempt directory
+for an incomplete or failed task.  Changing any contracted value, including
+`--maximum-weight`, must use a new output root.
+
+`--extra-arg` is only for application options outside the benchmark contract.
+It cannot be used to append a second value for a runner-controlled option.
+Both `--option=value` and compact short forms are checked.  The protected
+long options are:
+
+```text
+--pdg --energy --energy_range --eslope --zenith --azimuth --nevent
+--filename --seed --geomagnetic-model --geomagnetic-year --antenna-file
+--ring --shower-core-x --shower-core-y --emcut --hadcut --mucut --taucut
+--emthin --max-weight --max-deflection-angle --em-backend --radio-backend
+--gpu-device --gpu-min-batch --gpu-memory-fraction --gpu-table-cache
+--gpu-physics-source --gpu-aux-cache-dir --gpu-table-tolerance
+--gpu-deterministic --gpu-detailed-stage-timing --gpu-radio-field-limit
+--radio-sampling-rate-ghz --radio-window-duration-ns --radio-pretrigger-ns
+--verbosity
+```
+
+The protected short options are `-Z`, `-A`, `-p`, `-E`, `-N`, `-z`, `-a`,
+`-s`, `-f`, and `-v`.  Set the corresponding value through the runner's
+named option.  In particular, `--maximum-weight 0` (the default) omits
+`c8_air_shower --max-weight` and preserves the application's automatic Kobal
+limit; a positive value such as 100 passes that exact value to both physics
+sources.  Never use `--extra-arg` to alter it.
+
+## Additional proposal-native radio input mode
+
+The same radio entry point accepts repeated explicit shards for a
+CPU-PROPOSAL versus proposal-native campaign.  This is a different comparison
+from the two-CUDA-source campaign above, so label both arms explicitly:
+
+```bash
+conda run -n corsika_venv \
+  python validation/gpu_em/compare_radio_pulse_features.py \
+  --reference-output /data/cpu_batch_000 \
+  --reference-output /data/cpu_batch_001 \
+  --candidate-output /data/native_batch_000 \
+  --candidate-output /data/native_batch_001 \
+  --reference-label "CPU PROPOSAL" \
+  --candidate-label "proposal-native" \
+  --pulse-analysis-root ~/src/pulse_analysis_modular \
+  --output /data/cpu_native_radio_acceptance
+```
+
+Before fitting a pulse, the tool requires complete CoREAS and ZHS artifacts,
+identical observer layouts and sampling, compatible shower configuration,
+finite waveform values, strictly increasing time, and a complete
+shower-by-observer product. The NWU magnetic field is read from the available
+GPU configuration and cross-checked; `--magnetic-field-tesla BN BW BU` is
+available when comparing outputs without a GPU configuration.
+
+The output contains geomagnetic amplitude and width curves versus
+$r_\perp$, their candidate/reference ratios with pointwise shower-bootstrap
+intervals, per-antenna and per-shower CSV tables, a strict JSON report and a
+Chinese Markdown summary. The default 10% radio equivalence interval is
+deliberately separate from the 1% shower-scalar gate and can be tightened with
+`--equivalence-relative-tolerance`. Passing additionally requires sufficient
+valid shower counts and a Holm-corrected KS shape diagnostic. Omitting
+`--fail-on-acceptance` always leaves the result as a report rather than turning
+an exploratory reanalysis into a failing batch job.
+
 ## Reusable-backend bitwise equivalence
 
 `verify_reused_backend_equivalence.py` compares paired CUDA showers generated

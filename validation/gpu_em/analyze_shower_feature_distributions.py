@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize and plot original-CPU versus CUDA shower-feature distributions."""
+"""Summarize and plot two shower-feature ensembles."""
 
 from __future__ import annotations
 
@@ -42,6 +42,8 @@ LABELS = {
     "proposal": "Original CPU (PROPOSAL)",
     "cuda": "CUDA EM",
 }
+COMPARISON_TITLE = "Original CPU versus CUDA EM"
+RELATIVE_REFERENCE_LABEL = "CPU"
 FEATURES = (
     (
         "profile_xmax_charged_gcm2",
@@ -113,7 +115,84 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--reference-label",
+        help=(
+            "Plot label for the legacy 'proposal' columns. By default this is "
+            "inferred from comparison_semantics when available."
+        ),
+    )
+    parser.add_argument(
+        "--candidate-label",
+        help=(
+            "Plot label for the legacy 'cuda' columns. By default this is "
+            "inferred from comparison_semantics when available."
+        ),
+    )
+    parser.add_argument(
+        "--comparison-title",
+        help="Optional title describing the two compared ensemble arms.",
+    )
     return parser.parse_args()
+
+
+def discover_manifest(root: Path, explicit: Path | None) -> Path:
+    if explicit is not None:
+        return explicit.resolve()
+    candidates = (
+        root / "run_manifest.json",
+        root.parent / "run_manifest.json",
+        root / "campaign_manifest.json",
+        root.parent / "campaign_manifest.json",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+def manifest_configuration(manifest: dict[str, Any]) -> dict[str, Any]:
+    configuration = manifest.get("configuration")
+    if isinstance(configuration, dict):
+        return configuration
+    immutable = manifest.get("immutable_configuration")
+    if isinstance(immutable, dict) and isinstance(immutable.get("physics"), dict):
+        return immutable["physics"]
+    raise ValueError("manifest has no shower physics configuration")
+
+
+def comparison_presentation(
+    comparison: dict[str, Any],
+    reference_label: str | None,
+    candidate_label: str | None,
+    comparison_title: str | None,
+) -> tuple[dict[str, str], str, str]:
+    semantics = comparison.get("comparison_semantics")
+    if isinstance(semantics, dict):
+        reference = str(semantics.get("reference", "reference"))
+        candidate = str(semantics.get("candidate", "candidate"))
+        inferred_reference = (
+            "c8emrt CUDA" if reference == "c8emrt" else reference
+        )
+        inferred_candidate = (
+            "PROPOSAL-native CUDA"
+            if candidate == "proposal-native"
+            else candidate
+        )
+        labels = {
+            "proposal": reference_label or inferred_reference,
+            "cuda": candidate_label or inferred_candidate,
+        }
+        title = comparison_title or (
+            f"{labels['proposal']} versus {labels['cuda']}"
+        )
+        return labels, title, "reference"
+    labels = {
+        "proposal": reference_label or "Original CPU (PROPOSAL)",
+        "cuda": candidate_label or "CUDA EM",
+    }
+    title = comparison_title or f"{labels['proposal']} versus {labels['cuda']}"
+    return labels, title, "CPU"
 
 
 def finite_values(
@@ -309,9 +388,9 @@ def plot_feature_distributions(
         ):
             zero_note = (
                 "\n"
-                + r"$P(x\leq0)$: CPU="
+                + rf"$P(x\leq0)$: {LABELS['proposal']}="
                 + f"{100.0 * nonpositive_fractions['proposal']:.3f}%"
-                + ", CUDA="
+                + f", {LABELS['cuda']}="
                 + f"{100.0 * nonpositive_fractions['cuda']:.3f}%"
             )
         axis.text(
@@ -343,7 +422,7 @@ def plot_feature_distributions(
         )
         axis.grid(alpha=0.2)
     axes[0, 0].legend(frameon=False, fontsize=9)
-    figure.suptitle(f"Original CPU versus CUDA EM: {title}")
+    figure.suptitle(f"{COMPARISON_TITLE}: {title}")
     figure.tight_layout()
     figure.savefig(output, dpi=200, bbox_inches="tight")
     plt.close(figure)
@@ -385,8 +464,8 @@ def plot_reference_scalar_distributions(
         axis.grid(alpha=0.2)
     axes[0].legend(frameon=False, fontsize=9)
     figure.suptitle(
-        "Original CPU versus CUDA EM — "
-        f"{events_per_backend} independent showers per backend",
+        f"{COMPARISON_TITLE} — "
+        f"{events_per_backend} independent showers per arm",
         fontsize=12,
     )
     figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
@@ -630,7 +709,9 @@ def plot_longitudinal_grid(
             linewidth=0.0,
         )
         lower.set_xlabel(r"slant depth [g cm$^{-2}$]")
-        lower.set_ylabel(r"$\Delta/\mathrm{CPU}$ [%]")
+        lower.set_ylabel(
+            rf"$\Delta/\mathrm{{{RELATIVE_REFERENCE_LABEL}}}$ [%]"
+        )
         if x_limits is not None:
             lower.set_xlim(*x_limits)
         lower.grid(alpha=0.2)
@@ -718,19 +799,14 @@ def plot_muon_production_parent_means(
 
 
 def main() -> int:
+    global COMPARISON_TITLE, RELATIVE_REFERENCE_LABEL
     args = parse_args()
     root = args.ensemble_root.resolve()
     output = args.output_dir.resolve()
     per_shower_path = root / "per_shower_observables.csv"
     comparison_path = root / "comparison.json"
     curves_path = root / "curve_comparison.csv"
-    manifest_path = (
-        args.manifest.resolve()
-        if args.manifest is not None
-        else root / "run_manifest.json"
-    )
-    if args.manifest is None and not manifest_path.is_file():
-        manifest_path = root.parent / "run_manifest.json"
+    manifest_path = discover_manifest(root, args.manifest)
     for path in (
         per_shower_path,
         comparison_path,
@@ -741,19 +817,35 @@ def main() -> int:
             raise ValueError(f"missing ensemble artifact: {path}")
     output.mkdir(parents=True, exist_ok=True)
     frame = pd.read_csv(per_shower_path)
+    if "backend" not in frame.columns and "build" in frame.columns:
+        build_to_backend = {"reference": "proposal", "candidate": "cuda"}
+        observed_builds = set(frame["build"].dropna().astype(str))
+        if observed_builds != set(build_to_backend):
+            raise ValueError(
+                "build-stratum observables must contain exactly reference and "
+                f"candidate rows, observed {sorted(observed_builds)}"
+            )
+        frame["backend"] = frame["build"].map(build_to_backend)
     with comparison_path.open(encoding="utf-8") as source:
         comparison = json.load(source)
     with manifest_path.open(encoding="utf-8") as source:
         manifest = json.load(source)
     curves = pd.read_csv(curves_path)
-    configuration = manifest["configuration"]
+    configuration = manifest_configuration(manifest)
+    labels, COMPARISON_TITLE, RELATIVE_REFERENCE_LABEL = comparison_presentation(
+        comparison,
+        args.reference_label,
+        args.candidate_label,
+        args.comparison_title,
+    )
+    LABELS.update(labels)
     proposal_events = int(
         (frame["backend"] == "proposal").sum()
     )
     cuda_events = int((frame["backend"] == "cuda").sum())
     if proposal_events != cuda_events:
         raise ValueError(
-            "the scalar-distribution plot requires equal CPU and CUDA "
+            "the scalar-distribution plot requires equal reference and candidate "
             f"sample sizes, got {proposal_events} and {cuda_events}"
         )
     primary_title = (
@@ -790,6 +882,13 @@ def main() -> int:
             "not treated as independent events."
         ),
         "source": str(root),
+        "comparison_semantics": comparison.get("comparison_semantics"),
+        "presentation": {
+            "reference_label": LABELS["proposal"],
+            "candidate_label": LABELS["cuda"],
+            "comparison_title": COMPARISON_TITLE,
+            "relative_reference_label": RELATIVE_REFERENCE_LABEL,
+        },
         "configuration": configuration,
         "features": summaries,
     }

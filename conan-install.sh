@@ -164,6 +164,18 @@ fi
 
 printf "[ conan-install | info > ${CONAN2_INSTALL_COMMAND}\n"
 
+# Register the two small, version-locked read-only export recipes before Conan
+# resolves the project graph. `conan export` does not build or alter an
+# existing package; the normal project install below builds missing binaries
+# with the exact same profile and Boost options as CORSIKA.
+PATCHED_CUBIC_RECIPE="${CORSIKA_DIR}/third_party/conan/cubicinterpolation"
+PATCHED_PROPOSAL_RECIPE="${CORSIKA_DIR}/third_party/conan/proposal"
+if [[ -d "${PATCHED_CUBIC_RECIPE}" ]] && [[ -d "${PATCHED_PROPOSAL_RECIPE}" ]]; then
+  printf "[ conan-install | info > Registering C8 GPU interpolation export recipes.\n"
+  conan export "${PATCHED_CUBIC_RECIPE}" || exit 126
+  conan export "${PATCHED_PROPOSAL_RECIPE}" || exit 126
+fi
+
 eval ${CONAN2_INSTALL_COMMAND}
 if [ ! $? -eq 0 ]; then 
 	printf "[ conan-install | error > Exit code 126 (Command invoked cannot execute):\n ${CONAN2_INSTALL_COMMAND}\n"

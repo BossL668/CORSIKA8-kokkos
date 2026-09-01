@@ -342,6 +342,55 @@ int main() {
           "selected-loss completion generated a non-finite or invalid secondary");
     }
 
+    // proposal-native selects process, component and the conditional loss
+    // with one PROPOSAL SampleLoss uniform.  Numerically delicate endpoint
+    // selections, and processes whose final state is CPU-only anyway, retain
+    // that original uniform and replay the complete scalar selection.  The
+    // replay must preserve the already selected process/component and must
+    // not interpret the diagnostic residual quantile as a fresh random draw.
+    auto replay_event = event;
+    replay_event.reason =
+        ProposalFallbackReason::NativeSelectionReplay;
+    replay_event.energy_fraction = 0.;
+    // The replay consumes selection_uniform, not this diagnostic residual.
+    // A cumulative-rate boundary can round the latter to exactly one.
+    replay_event.loss_quantile = 1.;
+    require(
+        hasResolvableProposalSelectedLoss(replay_event) &&
+            !hasSpecifiedProposalFinalState(replay_event),
+        "native selection replay was not classified as a resolvable CPU loss");
+    auto non_replay_endpoint_event = unresolved_loss_event;
+    non_replay_endpoint_event.loss_quantile = 1.;
+    require(
+        !hasResolvableProposalSelectedLoss(non_replay_endpoint_event),
+        "ordinary selected-loss completion accepted a closed upper quantile");
+    NoOpSecondaries replay_process_list;
+    Handler replay_handler{
+        proposal_model, replay_process_list,
+        environment, coordinate_system, 12345, 6};
+    require(
+        replay_handler.canHandle(replay_event),
+        "CPU fallback handler rejected a native selection replay");
+    FallbackStack replay_output_stack;
+    replay_handler.handle(
+        replay_output_stack, replay_event);
+    require(
+        replay_handler.statistics().specified_interactions == 1 &&
+            replay_handler.statistics().completed_selected_losses == 1 &&
+            replay_handler.statistics()
+                    .completed_native_selection_replays == 1 &&
+            replay_handler.statistics().generated_secondaries > 0 &&
+            replay_process_list.calls() == 1 &&
+            replay_output_stack.getEntries() ==
+                replay_handler.statistics().generated_secondaries,
+        "native PROPOSAL selection replay did not complete its final state");
+    for (auto&& particle : replay_output_stack) {
+      require(
+          std::isfinite(particle.getEnergy() / 1_GeV) &&
+              particle.getEnergy() >= get_mass(particle.getPID()),
+          "native selection replay generated a non-finite or invalid secondary");
+    }
+
     // CORSIKA normally resolves a requested 0.5 MeV production threshold to
     // its cached 0.4 MeV PROPOSAL calculator. Emulate a GPU table made with a
     // distinct exact cut and prove the fallback cache can decode that record

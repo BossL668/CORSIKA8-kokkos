@@ -20,8 +20,10 @@
 #include <corsika/framework/core/Step.hpp>
 
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
+#include <corsika/modules/proposal/NativeCalculatorView.hpp>
 
 #include <unordered_map>
+#include <vector>
 
 namespace corsika::proposal {
 
@@ -50,6 +52,10 @@ namespace corsika::proposal {
     void buildCalculator(Code, size_t const&) final;
 
   public:
+    /** Read-only views of the displacement calculators used by scalar CORSIKA. */
+    std::vector<NativeContinuousCalculatorView>
+    nativeCalculatorViews() const;
+
     //!
     //! Produces the continuous loss calculator for leptons based on nuclear
     //! compositions and stochastic description limited by the particle cut.

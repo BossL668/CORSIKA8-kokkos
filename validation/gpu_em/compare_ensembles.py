@@ -72,6 +72,11 @@ AVAILABLE_KEY_SCALAR_METRICS = (
     DEFAULT_KEY_SCALAR_METRICS
     + OPTIONAL_KEY_SCALAR_METRICS
 )
+PERMITTED_CUDA_GENERIC_FALLBACK_REASONS = (
+    "unsupported_particle",
+    "unsupported_medium",
+    "unsupported_geometry",
+)
 RADIAL_EDGES_M = np.asarray(
     [
         0.0,
@@ -109,6 +114,8 @@ NON_PHYSICS_OPTIONS_WITH_VALUE = frozenset(
         "--gpu-device",
         "--gpu-min-batch",
         "--gpu-memory-fraction",
+        "--gpu-physics-source",
+        "--gpu-aux-cache-dir",
         "--gpu-table-cache",
         "--gpu-table-tolerance",
         "--gpu-deterministic",
@@ -278,6 +285,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--permitted-cuda-generic-fallback-reason",
+        action="append",
+        choices=PERMITTED_CUDA_GENERIC_FALLBACK_REASONS,
+        default=[],
+        help=(
+            "Explicitly permit one declared CUDA generic-fallback reason. "
+            "Repeat for multiple reasons. The default is an empty allowlist; "
+            "unknown reasons remain fatal."
+        ),
+    )
+    parser.add_argument(
         "--proposal-implicit-geomagnetic-model",
         choices=("IGRF13", "IGRF14"),
         help=(
@@ -395,6 +413,250 @@ def read_validation_provenance(
             f"scalar PROPOSAL provenance unexpectedly contains a CUDA table in {path}"
         )
     return provenance
+
+
+def infer_legacy_c8emrt_source(
+    root: Path,
+    provenance: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Fail-closed inference for c8emrt outputs predating source metadata.
+
+    This is deliberately not a general legacy-output compatibility path.  It
+    recognizes exactly one historical layout: a fully provenanced CUDA run
+    whose immutable command, OutputManager command, and GPU table metadata all
+    identify the same serialized ``.c8emrt`` table, while every newer
+    ``gpu_physics_source`` field is absent rather than contradictory.
+
+    Callers must expose a separate explicit opt-in before invoking this helper.
+    The returned mapping is suitable for inclusion in an audit report.
+    """
+
+    root = root.resolve()
+    gpu_configuration = read_yaml(root / "gpu_em" / "config.yaml")
+    if not isinstance(gpu_configuration, dict):
+        raise ValueError(f"invalid GPU configuration in {root}")
+    if "gpu_physics_source" in gpu_configuration:
+        raise ValueError(
+            "legacy c8emrt inference requires absent GPU source metadata in "
+            f"{root}, observed {gpu_configuration.get('gpu_physics_source')!r}"
+        )
+    forbidden_gpu_keys = {
+        "proposal_native",
+        "proposal-native",
+        "aux_cache_directory",
+        "cubic_interpolation_version",
+    }
+    present_forbidden = sorted(forbidden_gpu_keys.intersection(gpu_configuration))
+    if present_forbidden:
+        raise ValueError(
+            f"native-only GPU metadata contradicts legacy c8emrt inference in "
+            f"{root}: {present_forbidden}"
+        )
+
+    if provenance is None:
+        provenance = read_validation_provenance(root, "cuda")
+    if not isinstance(provenance, dict):
+        raise ValueError(
+            f"legacy c8emrt inference requires validation provenance in {root}"
+        )
+    if provenance.get("backend") != "cuda":
+        raise ValueError(
+            f"legacy c8emrt provenance backend is not CUDA in {root}"
+        )
+    if "gpu_physics_source" in provenance:
+        raise ValueError(
+            "legacy c8emrt inference requires absent provenance source metadata "
+            f"in {root}, observed {provenance.get('gpu_physics_source')!r}"
+        )
+
+    provenance_table = provenance.get("table")
+    if not isinstance(provenance_table, dict):
+        raise ValueError(f"missing c8emrt provenance table in {root}")
+    provenance_table_path = provenance_table.get("path")
+    if (
+        not isinstance(provenance_table_path, str)
+        or Path(provenance_table_path).suffix != ".c8emrt"
+    ):
+        raise ValueError(
+            f"legacy provenance table is not a .c8emrt file in {root}: "
+            f"{provenance_table_path!r}"
+        )
+    provenance_table_sha256 = provenance_table.get("sha256")
+    if (
+        not isinstance(provenance_table_sha256, str)
+        or len(provenance_table_sha256) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in provenance_table_sha256
+        )
+    ):
+        raise ValueError(f"invalid legacy c8emrt provenance hash in {root}")
+    provenance_table_size = provenance_table.get("size_bytes")
+    if (
+        isinstance(provenance_table_size, bool)
+        or not isinstance(provenance_table_size, int)
+        or provenance_table_size <= 0
+    ):
+        raise ValueError(f"invalid legacy c8emrt provenance size in {root}")
+
+    table = gpu_configuration.get("table")
+    if not isinstance(table, dict):
+        raise ValueError(f"missing legacy c8emrt GPU table metadata in {root}")
+    table_path = table.get("path")
+    if table_path != provenance_table_path or Path(str(table_path)).suffix != ".c8emrt":
+        raise ValueError(
+            f"c8emrt table paths disagree between provenance and GPU config in "
+            f"{root}: {provenance_table_path!r} versus {table_path!r}"
+        )
+    content_sha256 = table.get("sha256")
+    if (
+        not isinstance(content_sha256, str)
+        or len(content_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in content_sha256)
+    ):
+        raise ValueError(f"invalid legacy c8emrt content hash in {root}")
+    format_version = table.get("format_version")
+    if (
+        isinstance(format_version, bool)
+        or not isinstance(format_version, int)
+        or format_version <= 0
+    ):
+        raise ValueError(f"invalid legacy c8emrt format version in {root}")
+    for key in ("proposal_version", "generator_version", "medium"):
+        value = table.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"missing legacy c8emrt table field {key} in {root}")
+    for key in ("energy_min_MeV", "energy_max_MeV"):
+        value = table.get(key)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or float(value) <= 0.0
+        ):
+            raise ValueError(f"invalid legacy c8emrt table field {key} in {root}")
+    if float(table["energy_max_MeV"]) <= float(table["energy_min_MeV"]):
+        raise ValueError(f"invalid legacy c8emrt energy domain in {root}")
+    native_table_keys = {
+        "format",
+        "aux_cache_directory",
+        "cubic_interpolation_version",
+    }
+    present_native_table_keys = sorted(native_table_keys.intersection(table))
+    if present_native_table_keys:
+        raise ValueError(
+            f"native table metadata contradicts legacy c8emrt inference in "
+            f"{root}: {present_native_table_keys}"
+        )
+
+    command = provenance.get("command")
+    if (
+        not isinstance(command, list)
+        or not command
+        or any(not isinstance(token, str) for token in command)
+    ):
+        raise ValueError(f"invalid legacy c8emrt provenance command in {root}")
+    encoded_command = json.dumps(
+        command,
+        ensure_ascii=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    observed_command_sha256 = provenance.get("command_sha256")
+    expected_command_sha256 = hashlib.sha256(encoded_command).hexdigest()
+    if observed_command_sha256 != expected_command_sha256:
+        raise ValueError(f"legacy c8emrt provenance command hash differs in {root}")
+
+    output_configuration = read_yaml(root / "config.yaml")
+    if not isinstance(output_configuration, dict) or not isinstance(
+        output_configuration.get("args"), str
+    ):
+        raise ValueError(f"invalid OutputManager command metadata in {root}")
+    output_command = shlex.split(output_configuration["args"])
+    if output_command != command:
+        raise ValueError(
+            f"provenance and OutputManager commands differ in legacy output {root}"
+        )
+
+    def unique_option(option: str) -> str:
+        values: list[str | None] = []
+        index = 0
+        while index < len(command):
+            token = command[index]
+            if token == option:
+                if index + 1 >= len(command) or command[index + 1].startswith("--"):
+                    values.append(None)
+                    index += 1
+                else:
+                    values.append(command[index + 1])
+                    index += 2
+                continue
+            if token.startswith(f"{option}="):
+                values.append(token.split("=", 1)[1])
+            index += 1
+        if len(values) != 1 or values[0] is None:
+            raise ValueError(
+                f"legacy c8emrt command must contain exactly one {option} value "
+                f"in {root}; observed {values}"
+            )
+        return values[0]
+
+    if unique_option("--em-backend") != "cuda":
+        raise ValueError(f"legacy c8emrt command does not select CUDA in {root}")
+    command_table_path = unique_option("--gpu-table-cache")
+    if command_table_path != table_path:
+        raise ValueError(
+            f"command and metadata c8emrt table paths differ in {root}: "
+            f"{command_table_path!r} versus {table_path!r}"
+        )
+    forbidden_options = (
+        "--gpu-physics-source",
+        "--gpu-aux-cache-dir",
+    )
+    for option in forbidden_options:
+        if any(token == option or token.startswith(f"{option}=") for token in command):
+            raise ValueError(
+                f"explicit {option} contradicts legacy c8emrt inference in {root}"
+            )
+
+    summary = read_yaml(root / "gpu_em" / "summary.yaml")
+    if not isinstance(summary, dict) or not summary:
+        raise ValueError(f"invalid legacy c8emrt GPU summary in {root}")
+    events_without_source_metadata = 0
+    for shower, record in summary.items():
+        statistics = record.get("statistics") if isinstance(record, dict) else None
+        if not isinstance(statistics, dict):
+            raise ValueError(f"invalid legacy CUDA statistics for {shower} in {root}")
+        if "gpu_physics_source" in statistics:
+            raise ValueError(
+                f"per-shower source metadata contradicts legacy inference for "
+                f"{shower} in {root}: "
+                f"{statistics.get('gpu_physics_source')!r}"
+            )
+        if "proposal_native" in statistics:
+            raise ValueError(
+                f"proposal-native statistics contradict c8emrt inference for "
+                f"{shower} in {root}"
+            )
+        if "cpu_completed_native_selection_replays" in statistics:
+            raise ValueError(
+                f"post-native replay metadata contradicts legacy c8emrt "
+                f"inference for {shower} in {root}"
+            )
+        events_without_source_metadata += 1
+
+    return {
+        "inferred_source": "c8emrt",
+        "rule": "strict-legacy-c8emrt-v1",
+        "events_without_source_metadata": events_without_source_metadata,
+        "provenance_command_sha256": expected_command_sha256,
+        "provenance_table_sha256": provenance_table_sha256,
+        "content_table_sha256": content_sha256,
+        "table_path": table_path,
+        "table_format_version": format_version,
+        "proposal_version": table["proposal_version"],
+        "generator_version": table["generator_version"],
+        "medium": table["medium"],
+    }
 
 
 def provenance_fingerprint(
@@ -620,7 +882,20 @@ def shower_number(name: str) -> int:
     return int(name[len(prefix) :])
 
 
-def validate_completion(root: Path, expect_gpu: bool) -> tuple[int, ...]:
+def nonnegative_counter(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"invalid CUDA counter {label}={value!r}")
+    return value
+
+
+def validate_completion(
+    root: Path,
+    expect_gpu: bool,
+    expected_gpu_source: str | None = None,
+    permitted_generic_fallback_reasons: tuple[str, ...] = (),
+    *,
+    allow_legacy_c8emrt_source_inference: bool = False,
+) -> tuple[tuple[int, ...], dict[str, Any]]:
     timing = read_yaml(root / "simulation_timing" / "summary.yaml")
     if not isinstance(timing, dict) or not timing:
         raise ValueError(f"invalid simulation timing summary in {root}")
@@ -637,8 +912,43 @@ def validate_completion(root: Path, expect_gpu: bool) -> tuple[int, ...]:
     if showers != list(range(len(showers))):
         raise ValueError(f"shower IDs are not contiguous from zero in {root}")
 
+    integrity: dict[str, Any] = {
+        "events_checked": 0,
+        "cpu_generic_fallbacks": 0,
+        "queue_overflows": 0,
+        "native_inverse_failures": 0,
+        "cpu_completed_selected_losses": 0,
+        "cpu_memory_spill_particles": 0,
+        "cross_species_host_spills": 0,
+        "particles_spilled_to_cpu": 0,
+        "explicit_spills_are_diagnostic_only": True,
+    }
     if expect_gpu:
+        gpu_config = read_yaml(root / "gpu_em" / "config.yaml")
+        legacy_source_inference: dict[str, Any] | None = None
+        configured_source = (
+            gpu_config.get("gpu_physics_source")
+            if isinstance(gpu_config, dict)
+            else None
+        )
+        if not isinstance(configured_source, str) or not configured_source:
+            if not allow_legacy_c8emrt_source_inference:
+                raise ValueError(f"CUDA physics source is missing in {root}")
+            if expected_gpu_source not in (None, "c8emrt"):
+                raise ValueError(
+                    f"legacy c8emrt inference cannot satisfy expected CUDA "
+                    f"source {expected_gpu_source!r} in {root}"
+                )
+            legacy_source_inference = infer_legacy_c8emrt_source(root)
+            configured_source = "c8emrt"
+        if expected_gpu_source is not None and configured_source != expected_gpu_source:
+            raise ValueError(
+                f"CUDA source differs from provenance in {root}: "
+                f"{configured_source!r} versus {expected_gpu_source!r}"
+            )
         gpu = read_yaml(root / "gpu_em" / "summary.yaml")
+        initialization_times: set[float] = set()
+        static_upload_sizes: set[int] = set()
         for shower in showers:
             record = gpu.get(f"shower_{shower}") if isinstance(gpu, dict) else None
             if (
@@ -648,9 +958,125 @@ def validate_completion(root: Path, expect_gpu: bool) -> tuple[int, ...]:
             ):
                 raise ValueError(f"incomplete CUDA record shower_{shower} in {root}")
             statistics = record.get("statistics", {})
+            if legacy_source_inference is not None:
+                if "gpu_physics_source" in statistics:
+                    raise ValueError(
+                        f"CUDA source metadata unexpectedly appears for "
+                        f"shower_{shower} in legacy output {root}"
+                    )
+            elif statistics.get("gpu_physics_source") != configured_source:
+                raise ValueError(
+                    f"CUDA source differs for shower_{shower} in {root}: "
+                    f"{statistics.get('gpu_physics_source')!r} versus "
+                    f"{configured_source!r}"
+                )
+            lifecycle = statistics.get("backend_lifecycle")
+            if not isinstance(lifecycle, dict):
+                raise ValueError(
+                    f"missing CUDA lifecycle for shower_{shower} in {root}"
+                )
+            expected_reused = shower > 0
+            if lifecycle.get("reused") is not expected_reused:
+                raise ValueError(
+                    f"invalid CUDA reuse flag for shower_{shower} in {root}"
+                )
+            if lifecycle.get("shower_ordinal") != shower + 1:
+                raise ValueError(
+                    f"invalid CUDA shower ordinal for shower_{shower} in {root}"
+                )
+            initialization = lifecycle.get("one_time_initialization_ms")
+            static_bytes = lifecycle.get("static_host_to_device_bytes")
+            if (
+                isinstance(initialization, bool)
+                or not isinstance(initialization, (int, float))
+                or not math.isfinite(float(initialization))
+                or float(initialization) < 0.0
+            ):
+                raise ValueError(
+                    f"invalid CUDA initialization metadata for shower_{shower} in {root}"
+                )
+            if (
+                isinstance(static_bytes, bool)
+                or not isinstance(static_bytes, int)
+                or static_bytes < 0
+            ):
+                raise ValueError(
+                    f"invalid CUDA static upload metadata for shower_{shower} in {root}"
+                )
+            initialization_times.add(float(initialization))
+            static_upload_sizes.add(static_bytes)
+            generic_fallbacks = nonnegative_counter(
+                statistics.get("cpu_generic_fallbacks"),
+                "cpu_generic_fallbacks",
+            )
+            queue_overflows = nonnegative_counter(
+                statistics.get("queue_overflows"), "queue_overflows"
+            )
+            permitted_generic = 0
+            if permitted_generic_fallback_reasons:
+                raw_reasons = statistics.get("cpu_fallbacks_by_reason_name")
+                if raw_reasons is None and generic_fallbacks == 0:
+                    raw_reasons = {}
+                if not isinstance(raw_reasons, dict):
+                    raise ValueError(
+                        f"missing CUDA fallback reason map for shower_{shower} "
+                        f"in {root}"
+                    )
+                for reason in permitted_generic_fallback_reasons:
+                    count = raw_reasons.get(reason, 0)
+                    permitted_generic += nonnegative_counter(
+                        count, f"cpu_fallbacks_by_reason_name.{reason}"
+                    )
+            if generic_fallbacks != permitted_generic or queue_overflows != 0:
+                raise ValueError(
+                    f"CUDA fallback/overflow gate failed for shower_{shower} "
+                    f"in {root}: generic={generic_fallbacks}, "
+                    f"permitted={permitted_generic}, queue={queue_overflows}"
+                )
+            cross_species = statistics.get("cross_species")
+            if not isinstance(cross_species, dict):
+                raise ValueError(
+                    f"missing CUDA cross-species statistics for shower_{shower} in {root}"
+                )
+            completed_losses = nonnegative_counter(
+                statistics.get("cpu_completed_selected_losses"),
+                "cpu_completed_selected_losses",
+            )
+            inverse_failures = 0
+            native = statistics.get("proposal_native")
+            if configured_source == "proposal-native":
+                if not isinstance(native, dict):
+                    raise ValueError(
+                        f"missing native statistics for shower_{shower} in {root}"
+                    )
+                inverse_failures = nonnegative_counter(
+                    native.get("inverse_failures"),
+                    "proposal_native.inverse_failures",
+                )
+                if inverse_failures > completed_losses:
+                    raise ValueError(
+                        f"native inverse completion gate failed for shower_{shower} "
+                        f"in {root}: failures={inverse_failures}, "
+                        f"completed={completed_losses}"
+                    )
+            integrity["events_checked"] += 1
+            integrity["cpu_generic_fallbacks"] += generic_fallbacks
+            integrity["queue_overflows"] += queue_overflows
+            integrity["native_inverse_failures"] += inverse_failures
+            integrity["cpu_completed_selected_losses"] += completed_losses
+            integrity["cpu_memory_spill_particles"] += nonnegative_counter(
+                statistics.get("cpu_memory_spill_particles"),
+                "cpu_memory_spill_particles",
+            )
+            integrity["cross_species_host_spills"] += nonnegative_counter(
+                cross_species.get("host_spills"), "cross_species.host_spills"
+            )
+            integrity["particles_spilled_to_cpu"] += nonnegative_counter(
+                cross_species.get("particles_spilled_to_cpu"),
+                "cross_species.particles_spilled_to_cpu",
+            )
             if (
                 statistics.get("queue_overflows", 0) != 0
-                or statistics.get("cross_species", {}).get("host_spills", 0) != 0
                 or statistics.get("profile", {}).get("fixed_point_overflows", 0) != 0
                 or statistics.get("profile", {}).get("invalid_records", 0) != 0
             ):
@@ -678,7 +1104,21 @@ def validate_completion(root: Path, expect_gpu: bool) -> tuple[int, ...]:
                         "CUDA strict energy ledger failed for "
                         f"shower_{shower} in {root}"
                     )
-    return tuple(showers)
+        if len(initialization_times) != 1 or len(static_upload_sizes) != 1:
+            raise ValueError(
+                f"CUDA reuse metadata changes across showers in {root}: "
+                f"times={initialization_times}, bytes={static_upload_sizes}"
+            )
+        integrity["backend_reused_events"] = max(len(showers) - 1, 0)
+        integrity["one_time_initialization_ms"] = next(iter(initialization_times))
+        integrity["static_host_to_device_bytes"] = next(iter(static_upload_sizes))
+        integrity["gpu_physics_source"] = configured_source
+        integrity["gpu_physics_source_inferred"] = (
+            legacy_source_inference is not None
+        )
+        if legacy_source_inference is not None:
+            integrity["legacy_c8emrt_source_inference"] = legacy_source_inference
+    return tuple(showers), integrity
 
 
 def read_parquet(
@@ -836,13 +1276,28 @@ def extract_ensemble(
     *,
     allow_legacy_provenance: bool = False,
     implicit_physics_options: dict[str, str] | None = None,
+    permitted_generic_fallback_reasons: tuple[str, ...] = (),
+    allow_legacy_c8emrt_source_inference: bool = False,
 ) -> Ensemble:
     provenance = read_validation_provenance(
         root,
         "cuda" if expect_gpu else "proposal",
         allow_legacy=allow_legacy_provenance,
     )
-    showers = validate_completion(root, expect_gpu)
+    expected_gpu_source = (
+        provenance.get("gpu_physics_source")
+        if expect_gpu and isinstance(provenance, dict)
+        else None
+    )
+    showers, gpu_integrity = validate_completion(
+        root,
+        expect_gpu,
+        expected_gpu_source,
+        permitted_generic_fallback_reasons,
+        allow_legacy_c8emrt_source_inference=(
+            allow_legacy_c8emrt_source_inference
+        ),
+    )
     profiles = read_parquet(
         root / "profile" / "profile.parquet",
         ("shower", "X", *PROFILE_COLUMNS),
@@ -962,6 +1417,12 @@ def extract_ensemble(
         kinetic = ground["kinetic_energy"].to_numpy(dtype=np.float64)
         weights = ground["weight"].to_numpy(dtype=np.float64)
         em_mask = np.isin(pdg, (-11, 11, 22))
+        muon_mask = np.abs(pdg) == 13
+        # Stable final-state hadrons and nuclei all use PDG codes whose
+        # absolute value is at least 100.  This deliberately excludes the
+        # elementary leptons, neutrinos and photons without relying on a
+        # backend-specific CORSIKA particle enumeration.
+        hadron_mask = np.abs(pdg) >= 100
         em_pdg = pdg[em_mask]
         em_kinetic = kinetic[em_mask]
         em_weights = weights[em_mask]
@@ -979,6 +1440,18 @@ def extract_ensemble(
             particle_mask = em_pdg == particle_pdg
             row[f"ground_{particle_name}_weighted_count"] = float(
                 np.sum(em_weights[particle_mask])
+            )
+        for family, family_mask in (
+            ("muon", muon_mask),
+            ("hadron", hadron_mask),
+        ):
+            family_weights = weights[family_mask]
+            family_kinetic = kinetic[family_mask]
+            row[f"ground_{family}_weighted_count"] = float(
+                np.sum(family_weights)
+            )
+            row[f"ground_{family}_kinetic_energy_GeV"] = float(
+                np.sum(family_weights * family_kinetic)
             )
         weighted_count = float(np.sum(em_weights))
         weighted_kinetic = float(np.sum(em_weights * em_kinetic))
@@ -1057,6 +1530,7 @@ def extract_ensemble(
         "events": len(showers),
         "source": str(root),
         "gpu_integrity_checked": expect_gpu,
+        "gpu_integrity": gpu_integrity,
         "physics_configuration": canonical_physics_configuration(
             root,
             implicit_physics_options=implicit_physics_options,
@@ -1192,6 +1666,23 @@ def concatenate_ensembles(
                 )
                 for ensemble in ensembles
             ),
+            "gpu_integrity": {
+                key: sum(
+                    int(ensemble.metadata.get("gpu_integrity", {}).get(key, 0))
+                    for ensemble in ensembles
+                )
+                for key in (
+                    "events_checked",
+                    "cpu_generic_fallbacks",
+                    "queue_overflows",
+                    "native_inverse_failures",
+                    "cpu_completed_selected_losses",
+                    "cpu_memory_spill_particles",
+                    "cross_species_host_spills",
+                    "particles_spilled_to_cpu",
+                    "backend_reused_events",
+                )
+            },
             "physics_configuration": reference_configuration,
             "validation_provenance":
                 ensembles[0].metadata.get(
@@ -1219,6 +1710,25 @@ def sample_statistics(values: np.ndarray) -> dict[str, float | int]:
         "minimum": float(np.min(values)),
         "maximum": float(np.max(values)),
     }
+
+
+def stable_ratio(numerator: float, denominator: float) -> float:
+    """Return the mathematical ratio without NumPy overflow warnings."""
+    numerator = float(numerator)
+    denominator = float(denominator)
+    if numerator == 0.0:
+        return 0.0
+    if denominator == 0.0:
+        return math.copysign(math.inf, numerator)
+    magnitude = abs(numerator)
+    scale = abs(denominator)
+    # A finite numerator can overflow only when division scales it upward.
+    # Restrict the product test to scale < 1 so max*scale itself cannot
+    # overflow and emit the warning this helper is intended to avoid.
+    if scale < 1.0 and magnitude > np.finfo(np.float64).max * scale:
+        sign_source = numerator if denominator > 0.0 else -numerator
+        return math.copysign(math.inf, sign_source)
+    return numerator / denominator
 
 
 def empirical_ks_distance(a: np.ndarray, b: np.ndarray) -> float:
@@ -1250,7 +1760,7 @@ def relative_quantile_wasserstein(a: np.ndarray, b: np.ndarray) -> float:
         float(np.mean(np.abs(y))),
         np.finfo(np.float64).tiny,
     )
-    return distance / scale
+    return stable_ratio(distance, scale)
 
 
 def bootstrap_relative_mean_interval(
@@ -1275,7 +1785,11 @@ def bootstrap_relative_mean_interval(
         float(np.mean(np.abs(a))) * 1.0e-12,
         np.finfo(np.float64).tiny,
     )
-    shifts = (b_means - a_means) / np.maximum(np.abs(a_means), floor)
+    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+        shifts = np.divide(
+            b_means - a_means,
+            np.maximum(np.abs(a_means), floor),
+        )
     return [
         float(np.quantile(shifts, 0.025)),
         float(np.quantile(shifts, 0.975)),
@@ -1296,7 +1810,7 @@ def compare_scalar(
     difference = float(gpu["mean"] - cpu["mean"])
     scale = abs(float(cpu["mean"]))
     if scale > 0.0:
-        relative_difference = abs(difference) / scale
+        relative_difference = stable_ratio(abs(difference), scale)
     else:
         relative_difference = 0.0 if difference == 0.0 else None
     standard_error = math.hypot(
@@ -1308,9 +1822,9 @@ def compare_scalar(
     else:
         z_score = 0.0 if difference == 0.0 else math.inf
     if scale > 0.0:
-        relative_standard_error = standard_error / scale
+        relative_standard_error = stable_ratio(standard_error, scale)
         sigma_scaled_relative_precision = (
-            sigma_limit * standard_error / scale
+            stable_ratio(sigma_limit * standard_error, scale)
         )
     else:
         relative_standard_error = (
@@ -1365,10 +1879,9 @@ def compare_scalar(
         "distribution_diagnostics": {
             "proposal_median": cpu_median,
             "cuda_median": gpu_median,
-            "signed_relative_median_shift": (
-                gpu_median - cpu_median
-            )
-            / median_scale,
+            "signed_relative_median_shift": stable_ratio(
+                gpu_median - cpu_median, median_scale
+            ),
             "empirical_KS_distance": ks_distance,
             "KS_95pct_critical_value": ks_95_critical,
             "KS_below_95pct_critical_value": ks_distance <= ks_95_critical,
@@ -1651,6 +2164,13 @@ def main() -> int:
         raise ValueError("active fraction must be in [0, 1)")
     if not 0.0 < args.minimum_bin_pass_fraction <= 1.0:
         raise ValueError("minimum bin pass fraction must be in (0, 1]")
+    permitted_cuda_generic_fallback_reasons = tuple(
+        args.permitted_cuda_generic_fallback_reason
+    )
+    if len(set(permitted_cuda_generic_fallback_reasons)) != len(
+        permitted_cuda_generic_fallback_reasons
+    ):
+        raise ValueError("CUDA generic-fallback allowlist contains duplicates")
     implicit_model_set = (
         args.proposal_implicit_geomagnetic_model is not None
     )
@@ -1726,6 +2246,9 @@ def main() -> int:
                     args.allow_legacy_provenance,
                 implicit_physics_options=
                     cuda_implicit_physics_options,
+                permitted_generic_fallback_reasons=(
+                    permitted_cuda_generic_fallback_reasons
+                ),
             )
             for root in cuda_roots
         ],

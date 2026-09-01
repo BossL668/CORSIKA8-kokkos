@@ -258,6 +258,15 @@ namespace {
                 ProposalFallbackReason::CpuOnlyProcess,
             "CPU-only process fallback reason differs");
     require(
+        proposalNativeSelectionRequiresReplay(
+            photon, PhotoproductionProcessId, 0.5) &&
+            proposalNativeSelectionRequiresReplay(
+                photon, ComptonProcessId, 1.e-8) &&
+            !proposalNativeSelectionRequiresReplay(
+                electron, ComptonProcessId, 1.e-8),
+        "native endpoint replay did not fail closed for an unsupported "
+        "particle/process combination");
+    require(
         std::string(gpuEmProcessName(PhotoproductionProcessId)) ==
             "photoproduction" &&
             std::string(gpuEmProcessName(PhotonMuonPairProcessId)) ==

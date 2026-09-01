@@ -21,6 +21,7 @@
 #include <corsika/gpu/em/CudaInteractionSelector.hpp>
 #include <corsika/gpu/em/CudaLeptonVertexSelector.hpp>
 #include <corsika/gpu/em/Philox.hpp>
+#include <corsika/gpu/em/ProcessCapabilities.hpp>
 #include <corsika/gpu/em/ProposalFallback.hpp>
 #include <corsika/gpu/em/detail/DeviceBatchStages.hpp>
 
@@ -80,9 +81,39 @@ namespace corsika::gpu::em {
       auto event = makeTableFallbackEvent(
           candidate.particle, query, result, draw_id,
           candidate.input_index);
-      event.selection_uniform = candidate.process_uniform;
+      auto const native_selection =
+          candidate.proposal_selection_random_process_id != 0u;
+      event.selection_uniform =
+          native_selection ? candidate.proposal_selection_uniform
+                           : candidate.process_uniform;
       event.loss_quantile = loss_quantile;
+      event.outer_acceptance_uniform = candidate.process_uniform;
+      event.outer_acceptance_random_process_id =
+          candidate.process_random_process_id;
+      event.outer_acceptance_draw_id = candidate.process_draw_id;
+      event.random_process_id =
+          native_selection
+              ? candidate.proposal_selection_random_process_id
+              : 0u;
+      if (native_selection)
+        event.random_draw_id = candidate.proposal_selection_draw_id;
       return event;
+    }
+
+    __device__ void recordNativeInverse(
+        tables::FlatRateTableView const& table,
+        tables::TableQueryResult const& result) {
+      if (table.physics_source != 1u ||
+          table.native_inverse_counters == nullptr)
+        return;
+      atomicAdd(table.native_inverse_counters,
+                static_cast<unsigned long long>(
+                    tables::nativeNewtonIterations(result)));
+      atomicAdd(table.native_inverse_counters + 1,
+                static_cast<unsigned long long>(
+                    tables::nativeBisectionIterations(result)));
+      if (result.status != tables::TableLookupStatus::Success)
+        atomicAdd(table.native_inverse_counters + 2, 1ULL);
     }
 
     __global__ void selectLeptonVerticesKernel(
@@ -126,86 +157,86 @@ namespace corsika::gpu::em {
       }
 
       auto const energy_MeV = particle.energy_GeV * 1000.;
-      tables::TableQuery const total_query{
-          tables::TableQueryKind::TotalRate, particle.pid,
-          0, 0, energy_MeV, 0.};
-      if (!tables::detail::validView(table)) {
-        auto const invalid = tables::TableQueryResult{
-            tables::TableLookupStatus::InvalidTableView,
-            0, 0.};
-        raw_fallbacks[index] = vertexTableFallback(
-            record, total_query, invalid,
-            record.process_draw_id);
-        categories[index].fallbacks = 1;
-        return;
-      }
-      auto const particle_index =
-          tables::detail::findParticle(table, particle.pid);
-      if (particle_index == table.particle_count) {
-        auto const missing = tables::TableQueryResult{
-            tables::TableLookupStatus::ParticleNotFound, 0, 0.};
-        raw_fallbacks[index] = vertexTableFallback(
-            record, total_query, missing, record.process_draw_id);
-        categories[index].fallbacks = 1;
-        return;
-      }
-      auto const bracket =
-          tables::detail::rateInterpolationBracket(
-              table, particle_index, energy_MeV);
-      if (bracket.status !=
-          tables::TableLookupStatus::Success) {
-        auto const failure = tables::TableQueryResult{
-            bracket.status, 0, 0.};
-        raw_fallbacks[index] = vertexTableFallback(
-            record, total_query, failure,
-            record.process_draw_id);
-        categories[index].fallbacks = 1;
-        return;
-      }
-      auto const column_begin =
-          table.particle_column_offsets[particle_index];
-      auto const column_end =
-          column_begin +
-          table.particle_column_counts[particle_index];
-      auto const threshold =
+      auto const outer_threshold =
           record.process_uniform *
           record.total_rate_cm2_per_g;
-      double cumulative = 0.;
-      auto selected_column = table.column_count;
-      auto last_positive_column = table.column_count;
-      for (auto column = column_begin;
-           column < column_end; ++column) {
-        auto const rate =
-            tables::detail::interpolateRateColumnAtBracket(
-                table, particle_index, column, bracket);
-        if (rate.status != tables::TableLookupStatus::Success) {
+      auto const proposal_native = table.physics_source == 1u;
+      tables::RateColumnSelectionResult selection{};
+      if (proposal_native) {
+        auto const vertex_total = tables::queryTotalRate(
+            table, particle.pid, energy_MeV);
+        if (vertex_total.status != tables::TableLookupStatus::Success) {
+          tables::TableQuery const failed_total_query{
+              tables::TableQueryKind::TotalRate, particle.pid,
+              0, 0, energy_MeV, 0.};
           raw_fallbacks[index] = vertexTableFallback(
-              record, total_query, rate,
+              record, failed_total_query, vertex_total,
               record.process_draw_id);
           categories[index].fallbacks = 1;
           return;
         }
-        if (rate.value > 0.) {
-          last_positive_column = column;
+        record.vertex_total_rate_cm2_per_g = vertex_total.value;
+        if (!(vertex_total.value > 0.) ||
+            outer_threshold >= vertex_total.value) {
+          if (record.particle.step_id == 0xffffffffffffffffULL) {
+            raw_fallbacks[index] = vertexFallback(
+                record, ProposalFallbackReason::InvalidFinalState);
+            categories[index].fallbacks = 1;
+            return;
+          }
+          record.status = EmInteractionStatus::NoDiscreteInteraction;
+          record.process_id = 0;
+          record.component_hash = 0;
+          record.energy_fraction = 0.;
+          record.loss_quantile = 0.;
+          record.particle.step_id++;
+          raw_records[index] = record;
+          categories[index].continuations = 1;
+          return;
         }
-        cumulative += rate.value;
-        if (selected_column == table.column_count &&
-            threshold < cumulative) {
-          selected_column = column;
-        }
+        RandomNumberKey const proposal_key{
+            random_seed, shower_id, particle.history_id,
+            particle.step_id, ProposalSelectionRandomProcessId,
+            ProposalSelectionDrawId};
+        record.proposal_selection_uniform = uniformOpen01(proposal_key);
+        record.proposal_selection_random_process_id =
+            ProposalSelectionRandomProcessId;
+        record.proposal_selection_draw_id = ProposalSelectionDrawId;
+        selection = tables::selectRateColumnByUniform(
+            table, particle.pid, energy_MeV,
+            record.proposal_selection_uniform);
+      } else {
+        selection = tables::selectRateColumnByThreshold(
+            table, particle.pid, energy_MeV, outer_threshold);
       }
-      if (!::isfinite(cumulative)) {
-        auto const invalid = tables::TableQueryResult{
-            tables::TableLookupStatus::InvalidTableView,
-            0, 0.};
-        raw_fallbacks[index] = vertexTableFallback(
-            record, total_query, invalid,
+      if (selection.status != tables::TableLookupStatus::Success) {
+        record.process_id = selection.process_id;
+        record.component_hash = selection.component_hash;
+        tables::TableQuery const failed_column_query{
+            tables::TableQueryKind::Rate, particle.pid,
+            selection.process_id, selection.component_hash,
+            energy_MeV, 0.};
+        auto const failure = tables::TableQueryResult{
+            selection.status, 0, 0.};
+        auto fallback = vertexTableFallback(
+            record, failed_column_query, failure,
             record.process_draw_id);
+        // Preserve the complete threshold inputs.  A non-finite selection
+        // status cannot be diagnosed from the post-transport energy alone.
+        fallback.diagnostic_value0 = energy_MeV;
+        fallback.diagnostic_value1 = record.total_rate_cm2_per_g;
+        fallback.diagnostic_value2 =
+            proposal_native ? record.proposal_selection_uniform
+                            : record.process_uniform;
+        raw_fallbacks[index] = fallback;
         categories[index].fallbacks = 1;
         return;
       }
-      record.vertex_total_rate_cm2_per_g = cumulative;
-      if (!(cumulative > 0.) || threshold >= cumulative) {
+      if (!proposal_native)
+        record.vertex_total_rate_cm2_per_g = selection.total_rate;
+      if (!proposal_native &&
+          (!(selection.total_rate > 0.) ||
+           outer_threshold >= selection.total_rate)) {
         if (record.particle.step_id ==
             0xffffffffffffffffULL) {
           raw_fallbacks[index] = vertexFallback(
@@ -224,37 +255,48 @@ namespace corsika::gpu::em {
         categories[index].continuations = 1;
         return;
       }
-      if (selected_column == table.column_count &&
-          threshold < cumulative) {
-        selected_column = last_positive_column;
-      }
-      if (selected_column == table.column_count) {
+      if (selection.selected == 0) {
         raw_fallbacks[index] = vertexFallback(
             record, ProposalFallbackReason::ZeroTotalRate);
         categories[index].fallbacks = 1;
         return;
       }
 
-      record.process_id =
-          table.column_process_ids[selected_column];
-      record.component_hash =
-          table.column_component_hashes[selected_column];
-      RandomNumberKey const loss_key{
-          random_seed, shower_id, particle.history_id,
-          particle.step_id,
-          static_cast<std::uint32_t>(record.process_id),
-          InteractionLossDrawId};
-      record.loss_quantile = uniformOpen01(loss_key);
-      record.loss_draw_id = InteractionLossDrawId;
+      record.process_id = selection.process_id;
+      record.component_hash = selection.component_hash;
+      if (proposal_native) {
+        record.loss_quantile = selection.residual_quantile;
+        record.loss_draw_id = ProposalSelectionDrawId;
+        if (proposalNativeSelectionRequiresReplay(
+                particle.pid, record.process_id,
+                record.loss_quantile)) {
+          raw_fallbacks[index] = vertexFallback(
+              record,
+              ProposalFallbackReason::NativeSelectionReplay);
+          categories[index].fallbacks = 1;
+          return;
+        }
+      } else {
+        RandomNumberKey const loss_key{
+            random_seed, shower_id, particle.history_id,
+            particle.step_id,
+            static_cast<std::uint32_t>(record.process_id),
+            InteractionLossDrawId};
+        record.loss_quantile = uniformOpen01(loss_key);
+        record.loss_draw_id = InteractionLossDrawId;
+      }
       tables::TableQuery const loss_query{
           tables::TableQueryKind::LossFraction, particle.pid,
           record.process_id, record.component_hash,
           energy_MeV, record.loss_quantile};
       auto const loss =
           tables::executeTableQuery(table, loss_query);
+      recordNativeInverse(table, loss);
       if (loss.status != tables::TableLookupStatus::Success) {
         raw_fallbacks[index] = vertexTableFallback(
-            record, loss_query, loss, InteractionLossDrawId,
+            record, loss_query, loss,
+            proposal_native ? ProposalSelectionDrawId
+                            : InteractionLossDrawId,
             record.loss_quantile);
         categories[index].fallbacks = 1;
         return;

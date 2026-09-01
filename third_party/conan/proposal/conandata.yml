@@ -1,0 +1,15 @@
+sources:
+  "7.6.2":
+    sha256: 52e91807009b8e610deee485ea57523482cf5626a28f3e42b747dc58d9f505d8
+    url: https://github.com/tudo-astroparticlephysics/PROPOSAL/archive/refs/tags/7.6.2.tar.gz
+patches:
+  "7.6.2":
+    - patch_file: patches/0001-read-only-interpolation-export.patch
+      patch_description: Export native interpolation coefficients without changing calculation state
+      patch_type: feature
+    - patch_file: patches/0002-native-validation-and-cache-state.patch
+      patch_description: Add read-only validation evaluation and pre-build cache diagnostics
+      patch_type: feature
+    - patch_file: patches/0003-total-rate-interpolation-export.patch
+      patch_description: Export the immutable Interaction mean-free-path rate spline
+      patch_type: feature

@@ -1,7 +1,16 @@
 SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
+add_library (
+  c8_air_shower_support
+  STATIC
+  detail/air_shower_cuda/GpuCliOptions.cpp
+  )
+target_link_libraries (c8_air_shower_support PRIVATE CORSIKA8)
+target_compile_features (c8_air_shower_support PRIVATE cxx_std_17)
+
 add_executable (c8_air_shower c8_air_shower.cpp)
-target_link_libraries (c8_air_shower PRIVATE CORSIKA8)
+target_link_libraries (
+  c8_air_shower PRIVATE CORSIKA8 c8_air_shower_support)
 
 # The homogeneous-ice application has a complete scalar PROPOSAL path and must
 # remain buildable on CPU-only validation hosts.  CUDA support is attached
@@ -48,7 +57,17 @@ endif ()
 # sysroot to host objects.
 set (_c8_host_multiarch_libdir
      "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
+if (NOT EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+  file (GLOB _c8_host_libm_candidates "/usr/lib/*-linux-gnu/libm.so")
+  list (LENGTH _c8_host_libm_candidates _c8_host_libm_count)
+  if (_c8_host_libm_count GREATER 0)
+    list (GET _c8_host_libm_candidates 0 _c8_host_libm)
+    get_filename_component (_c8_host_multiarch_libdir
+                            "${_c8_host_libm}" DIRECTORY)
+  endif ()
+endif ()
+if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/" OR
+     CMAKE_CXX_COMPILER MATCHES "/(conda|mambaforge|miniconda)[^/]*/") AND
     EXISTS "${_c8_host_multiarch_libdir}/libm.so")
   target_link_options (
     c8_air_shower PRIVATE
@@ -61,6 +80,13 @@ if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
 endif ()
 
 if (CORSIKA_ENABLE_CUDA)
+  target_sources (
+    c8_air_shower_support PRIVATE
+    detail/air_shower_cuda/CudaRunSession.cpp)
+  target_link_libraries (
+    c8_air_shower_support PRIVATE CORSIKA8GpuEm)
+  target_compile_definitions (
+    c8_air_shower_support PRIVATE CORSIKA8_WITH_CUDA_EM=1)
   target_link_libraries (c8_air_shower PRIVATE CORSIKA8GpuEm)
   target_compile_definitions (c8_air_shower PRIVATE CORSIKA8_WITH_CUDA_EM=1)
 
@@ -81,7 +107,7 @@ if (CORSIKA_ENABLE_CUDA)
     )
   target_link_libraries (
     c8_air_shower_parent_profile_validation
-    PRIVATE CORSIKA8 CORSIKA8GpuEm
+    PRIVATE CORSIKA8 CORSIKA8GpuEm c8_air_shower_support
     )
   target_compile_definitions (
     c8_air_shower_parent_profile_validation
@@ -127,6 +153,23 @@ if (CORSIKA_ENABLE_CUDA)
     GenParticlesHeaders
     GenMediaProperties
     )
+
+  add_executable (
+    gpu_em_proposal_native_decision_oracle EXCLUDE_FROM_ALL
+    ../validation/gpu_em/compare_proposal_native_decisions.cpp
+    )
+  target_link_libraries (
+    gpu_em_proposal_native_decision_oracle
+    PRIVATE
+    CORSIKA8GpuEm
+    PROPOSAL::PROPOSAL
+    spdlog::spdlog
+    )
+  add_dependencies (
+    gpu_em_proposal_native_decision_oracle
+    GenParticlesHeaders
+    GenMediaProperties
+    )
 endif ()
 
 add_executable (gpu_em_tablegen gpu_em_tablegen.cpp)
@@ -168,6 +211,7 @@ target_link_libraries (
 if(WITH_FLUKA)
   message("compiling c8_air_shower.cpp with FLUKA")
   target_compile_definitions(c8_air_shower PRIVATE WITH_FLUKA)
+  target_compile_definitions(c8_air_shower_support PRIVATE WITH_FLUKA)
   if (TARGET c8_ice_cascade)
     target_compile_definitions(c8_ice_cascade PRIVATE WITH_FLUKA)
   endif ()

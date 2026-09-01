@@ -77,6 +77,7 @@ namespace corsika::gpu::em {
       case ProposalFallbackReason::InverseCdfUnavailable:
       case ProposalFallbackReason::LossEnergyOutOfRange:
       case ProposalFallbackReason::LossQuantileOutOfRange:
+      case ProposalFallbackReason::NativeSelectionReplay:
         return true;
       default:
         return false;
@@ -120,9 +121,20 @@ namespace corsika::gpu::em {
    */
   inline bool hasResolvableProposalSelectedLoss(
       ProposalFallbackEvent const& event) noexcept {
-    return hasSpecifiedProposalInteractionIdentity(event) &&
-           proposalFallbackRequiresSelectedLoss(event) &&
-           std::isfinite(event.loss_quantile) &&
+    if (!hasSpecifiedProposalInteractionIdentity(event) ||
+        !proposalFallbackRequiresSelectedLoss(event)) {
+      return false;
+    }
+    // NativeSelectionReplay invokes live PROPOSAL SampleLoss with the
+    // retained selection_uniform.  Its residual conditional quantile is
+    // diagnostic only and can legitimately round to exactly one at a
+    // cumulative-rate boundary.  Other selected-loss completions do consume
+    // loss_quantile and retain their strict half-open [0,1) contract.
+    if (event.reason ==
+        ProposalFallbackReason::NativeSelectionReplay) {
+      return true;
+    }
+    return std::isfinite(event.loss_quantile) &&
            event.loss_quantile >= 0. &&
            event.loss_quantile < 1.;
   }
@@ -222,7 +234,9 @@ namespace corsika::gpu::em {
           shower_id,
           event.particle.history_id,
           event.particle.step_id,
-          static_cast<std::uint32_t>(event.process_id),
+          event.random_process_id != 0u
+              ? event.random_process_id
+              : static_cast<std::uint32_t>(event.process_id),
           event.random_draw_id};
       return proposal::ProposalInteractionRecord{
           context,

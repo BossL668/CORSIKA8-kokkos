@@ -19,10 +19,12 @@
 #include <corsika/modules/proposal/HadronicPhotonModel.hpp>
 #include <corsika/modules/proposal/ProposalFinalStateGenerator.hpp>
 #include <corsika/modules/proposal/ProposalRateProvider.hpp>
+#include <corsika/modules/proposal/NativeCalculatorView.hpp>
 
 #include <map>
 #include <cstdint>
 #include <tuple>
+#include <vector>
 
 namespace corsika::proposal {
 
@@ -119,6 +121,14 @@ namespace corsika::proposal {
         TParticle const&, Code) const;
 
   public:
+    /**
+     * Return non-owning const views of the calculators already used by this
+     * model.  Exporting native interpolation data through these views neither
+     * builds a second calculator nor advances any PROPOSAL random stream.
+     */
+    std::vector<NativeInteractionCalculatorView>
+    nativeCalculatorViews() const;
+
     //!
     //! Produces the stoachastic loss calculator for leptons based on nuclear
     //! compositions and stochastic description limited by the particle cut.
@@ -191,6 +201,13 @@ namespace corsika::proposal {
      */
     void completeSelectedLoss(
         ProposalInteractionRecord&, double loss_quantile);
+
+    /**
+     * Replay the original PROPOSAL SampleLoss uniform on the scalar
+     * calculator and require it to reproduce the process/component already
+     * selected on the GPU. This consumes no new random number.
+     */
+    void completeNativeSelectionReplay(ProposalInteractionRecord&);
 
     /**
      * Prepare a calculator whose absolute stochastic cut is exactly the one

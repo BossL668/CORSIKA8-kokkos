@@ -15,7 +15,8 @@
 - 未指定 `--em-backend` 时，`c8_air_shower` 使用原标量
   `Cascade + PROPOSAL` 路径。
 - `--em-backend cuda` 只在 `CORSIKA_ENABLE_CUDA=ON` 的构建中可用，并且
-  必须显式提供兼容的 `.c8emrt` 表。
+  默认必须显式提供兼容的 `.c8emrt` 表；实验性的 `proposal-native`
+  物理源改为复用当前 PROPOSAL calculator 的原生样条。
 - 布尔 option 使用 `true` 或 `false`，例如
   `--gpu-deterministic true`。不带值的 flag 只需写参数名。
 - 表格、设备、介质、输出或进程池检查失败时，程序终止当前 shower；不会静默
@@ -45,8 +46,10 @@ fluka_batch_worker --help
 | `--gpu-device INT` | `0` | CUDA device index。多 GPU 节点上每个进程应指定自己的 device。 |
 | `--gpu-min-batch UINT` | `4096` | CUDA 执行的最小前沿规模。更小前沿先做有界标量展开；该值需要按新 GPU 实测。 |
 | `--gpu-memory-fraction FLOAT` | `0.70` | 后端最多使用初始化时空闲显存的比例，范围为 0.01–1.0。 |
-| `--gpu-table-cache PATH` | 空 | 版本化 `.c8emrt` 表。CUDA 后端必需；不是 PROPOSAL 自身 cache 目录。 |
-| `--gpu-table-tolerance FLOAT` | `1e-3` | 可接受的最大表格相对误差。表 metadata 超过此值会拒绝启动。 |
+| `--gpu-physics-source c8emrt\|proposal-native` | `c8emrt` | 选择完整二次制表或实验性 PROPOSAL 原生样条。 |
+| `--gpu-table-cache PATH` | 空 | `c8emrt` 模式必需的版本化表；`proposal-native` 不使用该参数。 |
+| `--gpu-aux-cache-dir PATH` | XDG 用户缓存 | `proposal-native` 的小型 `.c8emaux` 缓存目录；不包含完整 rate/inverse-CDF 表。 |
+| `--gpu-table-tolerance FLOAT` | `1e-3` | `.c8emrt` metadata 的最大可接受插值误差；proposal-native 仅要求该兼容参数为正，不用它衡量原生样条。 |
 | `--gpu-deterministic BOOL` | `true` | 启用按 history/step/process 寻址的 Philox 随机数。 |
 | `--gpu-detailed-stage-timing` | 关闭 | 记录融合 lepton pipeline、真实 device-copy 及 host-wait 分解；会增加 event/synchronization 开销，仅用于 profiler。 |
 | `--gpu-full-step-records` | 关闭 | 返回完整 GPU transport records，而不是紧凑 profile 投影，仅用于验证和调试。 |
@@ -57,6 +60,18 @@ fluka_batch_worker --help
 `--gpu-min-batch` 不是越小越快。过小会增加 kernel launch、同步和小批次尾部
 开销；过大则会让更多前沿留在 CPU。推荐在目标 GPU 上扫描
 `64, 256, 1024, 4096, 8192`，以相同物理表和热缓存的五次中位数选择。
+
+`proposal-native` 首次遇到新介质/cut 时仍可能由 PROPOSAL 自动建立自己的
+磁盘 cache，但不再要求用户运行 `gpu_em_table_prepare`。不支持的参数化、轴或
+能区会直接终止，不会自动切换回 `c8emrt`。详见
+[Phase 113](phase_113_proposal_native_gpu_tables_CN.md)。
+
+当前 canonical-v6 标准空气原生表包含 58 个随机过程列，占用 78,129,000
+bytes 显存，并在同一进程中按 SHA-256 复用。第一阶段只允许一种化学组成；
+相同组成的分层密度大气受支持，混合空气/岩石/冰介质会在启动时失败。
+CPU-only 过程及归一化分位点距 CDF 端点小于 `2e-4` 的极少量选择，会在当前
+wavefront 结束后用原 `selection_uniform` 批量执行
+`NativeSelectionReplay`，不会额外消耗随机数。
 
 启用详细计时后，`gpu_em/summary.yaml` 使用 timing schema 2，并新增：
 

@@ -18,6 +18,29 @@
 namespace corsika::proposal {
 
   template <typename TOutput>
+  inline std::vector<NativeContinuousCalculatorView>
+  ContinuousProcess<TOutput>::nativeCalculatorViews() const {
+    std::vector<NativeContinuousCalculatorView> result;
+    result.reserve(calc.size());
+    for (auto const& entry : calc) {
+      auto const medium_hash = entry.first.first;
+      auto const projectile = entry.first.second;
+      if (!entry.second.disp) {
+        throw std::logic_error(
+            "PROPOSAL continuous calculator view contains a null displacement");
+      }
+      result.push_back(
+          {projectile,
+           medium_hash,
+           &media.at(medium_hash),
+           entry.second.disp.get(),
+           proposal_energycutsettings.at(projectile),
+           particle.at(projectile).mass});
+    }
+    return result;
+  }
+
+  template <typename TOutput>
   inline void ContinuousProcess<TOutput>::buildCalculator(Code code,
                                                           size_t const& component_hash) {
     // search crosssection builder for given particle

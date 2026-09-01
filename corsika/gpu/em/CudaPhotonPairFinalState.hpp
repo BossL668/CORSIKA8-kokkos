@@ -29,7 +29,7 @@ namespace corsika::gpu::em {
   inline constexpr std::uint64_t
       PhotonPairAnalyticAcceptanceDrawIdBase = 0x60;
   inline constexpr std::uint32_t
-      PhotonPairAnalyticMaximumAttempts = 32;
+      PhotonPairAnalyticMaximumAttempts = 64;
   inline constexpr std::uint64_t ComptonAzimuthDrawId = 1;
   /**
    * Validation bridge for the first physical GPU final-state kernel.

@@ -21,6 +21,34 @@
 namespace corsika::proposal {
 
   template <typename THadronicLEModel, typename THadronicHEModel>
+  inline std::vector<NativeInteractionCalculatorView>
+  InteractionModel<THadronicLEModel, THadronicHEModel>::
+      nativeCalculatorViews() const {
+    std::vector<NativeInteractionCalculatorView> result;
+    result.reserve(calc_.size());
+    for (auto const& entry : calc_) {
+      auto const medium_hash = entry.first.first;
+      auto const projectile = entry.first.second;
+      auto const& interaction = std::get<eINTERACTION>(entry.second);
+      auto const& lpm = std::get<eLPM_SUPPRESSION>(entry.second);
+      if (!interaction) {
+        throw std::logic_error(
+            "PROPOSAL interaction calculator view contains a null calculator");
+      }
+      result.push_back(
+          {projectile,
+           medium_hash,
+           &media.at(medium_hash),
+           interaction.get(),
+           lpm ? lpm->photo_pair_lpm_.get() : nullptr,
+           lpm ? lpm->brems_lpm_.get() : nullptr,
+           proposal_energycutsettings.at(projectile),
+           particle.at(projectile).mass});
+    }
+    return result;
+  }
+
+  template <typename THadronicLEModel, typename THadronicHEModel>
   template <typename TEnvironment>
   inline InteractionModel<THadronicLEModel, THadronicHEModel>::InteractionModel(
       TEnvironment const& _env, THadronicLEModel& _hadintLE, THadronicHEModel& _hadintHE,
@@ -233,6 +261,29 @@ namespace corsika::proposal {
     record.v_loss = rate_provider_.sampleSelectedLoss(
         rates, record.type, record.component_hash,
         loss_quantile);
+  }
+
+  template <typename THadronicLEModel, typename THadronicHEModel>
+  inline void InteractionModel<
+      THadronicLEModel,
+      THadronicHEModel>::completeNativeSelectionReplay(
+      ProposalInteractionRecord& record) {
+    auto& calculator = getCalculatorForRecord(record);
+    auto& interaction = *std::get<eINTERACTION>(calculator);
+    auto const rates = rate_provider_.rates(
+        interaction, record.context.projectile_energy_MeV);
+    if (rates.interactionHash() != record.interaction_hash) {
+      throw std::logic_error(
+          "PROPOSAL native selection-replay calculator hash changed");
+    }
+    auto const replayed = rate_provider_.sample(
+        interaction, rates, record.context, record.selection_uniform);
+    if (replayed.type != record.type ||
+        replayed.component_hash != record.component_hash) {
+      throw std::runtime_error(
+          "PROPOSAL native selection replay changed process or component");
+    }
+    record.v_loss = replayed.v_loss;
   }
 
   template <typename THadronicLEModel, typename THadronicHEModel>

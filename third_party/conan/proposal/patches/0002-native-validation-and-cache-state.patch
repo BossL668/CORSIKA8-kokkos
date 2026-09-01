@@ -1,0 +1,208 @@
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSection.h
+@@ -64,6 +64,9 @@
+     virtual std::shared_ptr<const EnergyCutSettings> GetEnergyCutSettings() const noexcept = 0;
+     virtual std::vector<DndxInterpolationExport> ExportDndxInterpolation() const = 0;
+     virtual std::vector<DedxInterpolationExport> ExportDedxInterpolation() const = 0;
++    virtual double EvaluateDndxInterpolation(
++        std::size_t component_hash, double energy,
++        double transformed_loss) const = 0;
+ };
+
+ namespace detail {
+@@ -437,6 +440,24 @@
+         }
+         return result;
+     }
++
++    double EvaluateDndxInterpolation(std::size_t component_hash,
++        double energy, double transformed_loss) const override
++    {
++        if (!dndx)
++            throw std::logic_error(
++                "no interpolated dN/dX calculator is available");
++        auto const entry = dndx->find(component_hash);
++        if (entry == dndx->end())
++            throw std::out_of_range("unknown dN/dX target component");
++        auto const* source = dynamic_cast<CrossSectionDNDXInterpolant const*>(
++            std::get<1>(entry->second).get());
++        if (!source)
++            throw std::logic_error(
++                "dN/dX calculator does not use the native interpolant");
++        return source->EvaluateInterpolation(energy, transformed_loss)
++            / std::get<0>(entry->second);
++    }
+ };
+
+ using cross_t_ptr = std::unique_ptr<CrossSectionBase>;
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.h
+@@ -104,7 +104,7 @@
+     std::string gen_path() const;
+     std::string gen_name() const;
+     size_t gen_hash(size_t) const;
+-    double evaluate_interpolant(double E, double vbar);
++    double evaluate_interpolant(double E, double vbar) const;
+
+ public:
+     template <typename Param, typename Target>
+@@ -130,5 +130,7 @@
+     double GetUpperLimit(double, double) final;
+
+     DndxInterpolationExport ExportInterpolation() const;
++    double EvaluateInterpolation(double energy,
++                                 double transformed_loss) const;
+ };
+ } // namespace PROPOSAL
+--- a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDNDX/CrossSectionDNDXInterpolant.cxx
+@@ -60,7 +60,7 @@
+     return hash;
+ }
+
+-double CrossSectionDNDXInterpolant::evaluate_interpolant(double E, double vbar)
++double CrossSectionDNDXInterpolant::evaluate_interpolant(double E, double vbar) const
+ {
+     if (E < lower_energy_lim)
+         return 0.;
+@@ -126,9 +126,16 @@
+     result.interaction_type = type_id;
+     result.loss_transform = loss_transform_;
+     result.table_hash = GetHash();
++    result.cache_hit = WasTableAvailable();
+     result.lower_energy_limit_MeV = lower_energy_lim;
+     auto const& axes = interpolant.GetDefinition().GetAxis();
+     result.axes = { axes[0]->ExportDescriptor(), axes[1]->ExportDescriptor() };
+     result.spline = interpolant.ExportData();
+     return result;
+ }
++
++double CrossSectionDNDXInterpolant::EvaluateInterpolation(
++    double energy, double transformed_loss) const
++{
++    return evaluate_interpolant(energy, transformed_loss);
++}
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionDirect.h
+@@ -62,6 +62,12 @@
+             return {};
+         }
+
++        double EvaluateDndxInterpolation(
++            std::size_t, double, double) const override {
++            throw std::logic_error(
++                "direct cross section has no interpolation table");
++        }
++
+     private:
+         std::unique_ptr<crosssection::ParametrizationDirect> param;
+         ParticleDef p;
+--- a/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h
++++ b/src/PROPOSAL/PROPOSAL/crosssection/CrossSectionMultiplier.h
+@@ -71,6 +71,12 @@
+             return result;
+         }
+
++        double EvaluateDndxInterpolation(std::size_t component_hash,
++            double energy, double transformed_loss) const override {
++            return multiplier_ * cross_->EvaluateDndxInterpolation(
++                component_hash, energy, transformed_loss);
++        }
++
+     private:
+         std::shared_ptr<CrossSectionBase> cross_;
+         double multiplier_;
+--- a/src/PROPOSAL/PROPOSAL/methods.h
++++ b/src/PROPOSAL/PROPOSAL/methods.h
+@@ -89,9 +89,13 @@
+ // creation process has started.
+ struct LogTableCreation {
+     LogTableCreation(const std::string& path, const std::string& filename);
++    bool WasTableAvailable() const noexcept { return table_available_; }
+
+ private:
+     static std::string warn_for_path;
++    // Diagnostic state captured before the table builder starts. It never
++    // changes the interpolant or its cache-loading behaviour.
++    bool table_available_{};
+ };
+
+ namespace Helper {
+--- a/src/PROPOSAL/detail/PROPOSAL/methods.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/methods.cxx
+@@ -21,7 +21,8 @@
+ LogTableCreation::LogTableCreation(const std::string &path, const std::string &filename) {
+     // TODO: use std::filesystem when we switch to c++17
+     auto combined = path + "/" + filename;
+-    if (!Helper::file_exists(combined)) {
++    table_available_ = Helper::file_exists(combined);
++    if (!table_available_) {
+         if (warn_for_path != path) {
+             // we haven't logged a warning for this specific path yet
+             Logging::Get("TableCreation")->warn("Tables are not available and need to be created. "
+--- a/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
++++ b/src/PROPOSAL/PROPOSAL/interpolation/InterpolationTableExport.h
+@@ -26,6 +26,7 @@
+     std::size_t table_hash{};
+     std::size_t component_hash{};
+     double component_weight{1.};
++    bool cache_hit{};
+     double lower_energy_limit_MeV{};
+     double absolute_cut_MeV{};
+     double relative_cut{};
+@@ -39,7 +40,8 @@
+     std::size_t cross_section_hash{};
+     std::size_t table_hash{};
+     std::size_t component_index{};
+     double component_weight{1.};
++    bool cache_hit{};
+     double lower_energy_limit_MeV{};
+     cubic_splines::AxisDescriptor<double> axis;
+     bool has_value_transform{};
+@@ -51,6 +53,7 @@
+     bool available{};
+     bool reverse{};
+     std::size_t table_hash{};
++    bool cache_hit{};
+     double lower_energy_limit_MeV{};
+     cubic_splines::AxisDescriptor<double> axis;
+     bool has_value_transform{};
+--- a/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/crosssection/CrossSectionDEDX/CrossSectionDEDXInterpolant.cxx
+@@ -34,6 +34,7 @@
+ {
+     DedxInterpolationExport result;
+     result.table_hash = GetHash();
++    result.cache_hit = table_create.WasTableAvailable();
+     result.lower_energy_limit_MeV = lower_energy_lim;
+     auto const& definition = interpolant.GetDefinition();
+     result.axis = definition.GetAxis().ExportDescriptor();
+--- a/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h
++++ b/src/PROPOSAL/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.h
+@@ -48,6 +48,7 @@
+     double lower_lim;
+     interpolant_ptr interpolant_;
+     bool reverse_;
++    bool table_available_before_build_{};
+
+     // maybe interpolate function to integral will give a performance boost.
+     // in general this function should be underfrequently called
+--- a/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx
++++ b/src/PROPOSAL/detail/PROPOSAL/propagation_utility/PropagationUtilityInterpolant.cxx
+@@ -56,6 +56,8 @@
+     def.axis = std::make_unique<cubic_splines::ExpAxis<double>>(
+             lower_lim, InterpolationSettings::UPPER_ENERGY_LIM, nodes);
+
++    table_available_before_build_ = Helper::file_exists(
++        gen_path() + "/" + gen_name(prefix));
+     interpolant_ = std::make_shared<interpolant_t>(
+             std::move(def), gen_path(), gen_name(prefix));
+ }
+@@ -135,6 +137,7 @@
+     result.available = interpolant_ != nullptr;
+     result.reverse = reverse_;
+     result.table_hash = GetHash();
++    result.cache_hit = table_available_before_build_;
+     result.lower_energy_limit_MeV = lower_lim;
+     if (!interpolant_)
+         return result;

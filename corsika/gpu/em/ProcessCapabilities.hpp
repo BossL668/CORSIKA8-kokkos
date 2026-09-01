@@ -149,6 +149,34 @@ namespace corsika::gpu::em {
                : ProposalFallbackReason::GpuProcessNotImplemented;
   }
 
+  inline constexpr double NativeSelectionReplayEndpointWidth = 2.e-4;
+
+  /**
+   * Mark proposal-native selections whose final v must be replayed by the
+   * scalar calculator using the same selection uniform.  CPU-only processes
+   * already require a host final state, so replay avoids paying for a device
+   * inverse that cannot improve that path.  For device final states, only a
+   * narrow conditional-CDF endpoint band is replayed; this bounds the
+   * amplification of the final host/device interpolation ULPs.
+   */
+  CORSIKA_GPU_CAPABILITY_HOST_DEVICE inline bool
+  proposalNativeSelectionRequiresReplay(
+      std::int32_t pid, std::int32_t process_id,
+      double residual_quantile) {
+    auto const capability = gpuProcessCapability(pid, process_id);
+    if (capability == GpuProcessCapability::CpuOnlyFinalState) return true;
+    // An endpoint replay is a numerical completion mechanism for processes
+    // already covered by either a declared GPU final state or a declared
+    // CPU-only final state.  It must never turn an unregistered process into
+    // an implicit CPU fallback merely because its quantile lies near an
+    // endpoint.
+    if (capability ==
+        GpuProcessCapability::GpuFinalStateNotImplemented) return false;
+    return residual_quantile < NativeSelectionReplayEndpointWidth ||
+           residual_quantile >
+               1. - NativeSelectionReplayEndpointWidth;
+  }
+
 } // namespace corsika::gpu::em
 
 #undef CORSIKA_GPU_CAPABILITY_HOST_DEVICE

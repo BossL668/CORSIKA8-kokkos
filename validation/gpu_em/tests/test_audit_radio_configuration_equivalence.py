@@ -27,6 +27,20 @@ def write_source(
     (root / "summary.yaml").write_text(
         yaml.safe_dump({"showers": events})
     )
+    timing = root / "simulation_timing" / "summary.yaml"
+    timing.parent.mkdir()
+    timing.write_text(
+        yaml.safe_dump(
+            {
+                f"shower_{index}": {
+                    "closed": True,
+                    "status": "closed",
+                    "wall_time_ms": 1000.0,
+                }
+                for index in range(events)
+            }
+        )
+    )
     for algorithm in ("CoREAS", "ZHS"):
         directory = root / algorithm
         directory.mkdir()
@@ -51,8 +65,8 @@ def write_source(
 def test_accepts_byte_identical_cpu_cuda_radio_configuration(
     tmp_path: Path,
 ) -> None:
-    proposal = tmp_path / "proposal" / "shard_000"
-    cuda = tmp_path / "cuda" / "batch_000"
+    proposal = tmp_path / "proposal" / "proposal_shard_000"
+    cuda = tmp_path / "cuda" / "batch_000" / "cuda"
     write_source(proposal, "proposal")
     write_source(cuda, "cuda")
     report = audit.audit_configuration_equivalence(
@@ -66,8 +80,8 @@ def test_accepts_byte_identical_cpu_cuda_radio_configuration(
 
 
 def test_rejects_cpu_cuda_radio_configuration_drift(tmp_path: Path) -> None:
-    proposal = tmp_path / "proposal" / "shard_000"
-    cuda = tmp_path / "cuda" / "batch_000"
+    proposal = tmp_path / "proposal" / "proposal_shard_000"
+    cuda = tmp_path / "cuda" / "batch_000" / "cuda"
     write_source(proposal, "proposal")
     write_source(cuda, "cuda", duration=401.0)
     with pytest.raises(ValueError, match="radio setting differs"):
@@ -78,8 +92,8 @@ def test_rejects_cpu_cuda_radio_configuration_drift(tmp_path: Path) -> None:
 
 
 def test_rejects_incomplete_expected_event_count(tmp_path: Path) -> None:
-    proposal = tmp_path / "proposal" / "shard_000"
-    cuda = tmp_path / "cuda" / "batch_000"
+    proposal = tmp_path / "proposal" / "proposal_shard_000"
+    cuda = tmp_path / "cuda" / "batch_000" / "cuda"
     write_source(proposal, "proposal")
     write_source(cuda, "cuda")
     with pytest.raises(ValueError, match="expected 500"):

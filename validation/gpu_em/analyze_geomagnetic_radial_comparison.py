@@ -593,11 +593,11 @@ def plot_ratios(
                 axis.legend(frameon=False, fontsize=8.5)
             axis.set_xscale("log")
             axis.set_xlabel(r"Shower-axis distance $r_\perp$ [m]")
-            axis.set_ylabel("CUDA / original CPU")
+            axis.set_ylabel("CUDA / scalar CPU")
             axis.set_title(f"{algorithm}: {metric}")
             axis.grid(alpha=0.24, which="both")
     figure.suptitle(
-        "Pointwise CPU/CUDA $r_\perp$ ratios (95% shower bootstrap)\n"
+        "Pointwise CUDA/CPU $r_\perp$ ratios (95% shower bootstrap)\n"
         + title_suffix,
         fontsize=14,
     )

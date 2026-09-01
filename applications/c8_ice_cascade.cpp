@@ -2572,6 +2572,9 @@ int main(int argc, char** argv) {
       shower_metadata["cpu_completed_selected_losses"] =
           proposal_fallback_stats
               .completed_selected_losses;
+      shower_metadata["cpu_completed_native_selection_replays"] =
+          proposal_fallback_stats
+              .completed_native_selection_replays;
       shower_metadata["photo_hadronic_generator"]
                      ["sophia_interactions"] =
           photo_hadronic_sophia;

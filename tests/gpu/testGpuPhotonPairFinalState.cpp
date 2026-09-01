@@ -1278,6 +1278,53 @@ namespace {
             "hydrogen endpoint-regularized Koch--Motz trial is invalid");
       }
     }
+
+    // A 100 PeV air-shower production event exhausted the former fixed
+    // 32-trial budget even though every Koch--Motz evaluation was valid.  The
+    // history-keyed Philox stream accepts on attempt 35 (zero based) for all
+    // dry-air components.  Keep this exact key as a regression test so a
+    // statistically possible rejection tail cannot be mistaken for an
+    // invalid physical final state again.
+    constexpr std::uint64_t RejectionTailSeed = 2026240011ULL;
+    constexpr std::uint64_t RejectionTailShower = 2ULL;
+    constexpr std::uint64_t RejectionTailHistory = 11474369673ULL;
+    constexpr std::uint64_t RejectionTailStep = 0ULL;
+    constexpr double RejectionTailEnergyMeV =
+        5.172892663461306;
+    static_assert(PhotonPairAnalyticMaximumAttempts > 35);
+    for (auto const& component : components) {
+      auto const component_hash =
+          static_cast<std::uint64_t>(component.GetHash());
+      std::uint32_t accepted_attempt =
+          PhotonPairAnalyticMaximumAttempts;
+      for (std::uint32_t attempt = 0;
+           attempt < PhotonPairAnalyticMaximumAttempts;
+           ++attempt) {
+        RandomNumberKey candidate_key{
+            RejectionTailSeed, RejectionTailShower,
+            RejectionTailHistory, RejectionTailStep,
+            static_cast<std::uint32_t>(PhotonPairProcessId),
+            PhotonPairAnalyticCandidateDrawIdBase + attempt};
+        auto acceptance_key = candidate_key;
+        acceptance_key.draw_id =
+            PhotonPairAnalyticAcceptanceDrawIdBase + attempt;
+        auto const trial = photonPairFinalStateTrial(
+            snapshot, component_hash, RejectionTailEnergyMeV,
+            uniformOpen01(candidate_key),
+            uniformOpen01(acceptance_key));
+        require(
+            trial.status == PhotonPairFinalStateStatus::Success,
+            "production rejection-tail trial is physically invalid");
+        if (trial.accepted != 0) {
+          accepted_attempt = attempt;
+          break;
+        }
+      }
+      require(
+          accepted_attempt == 35,
+          "production rejection-tail key was not recovered deterministically");
+    }
+
     auto const threshold = photonPairFinalStateTrial(
         snapshot,
         static_cast<std::uint64_t>(components.front().GetHash()),

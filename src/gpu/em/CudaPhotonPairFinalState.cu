@@ -447,7 +447,17 @@ namespace corsika::gpu::em {
         }
       } else if (
           split.status ==
-          tables::TableLookupStatus::LossEnergyOutOfRange) {
+              tables::TableLookupStatus::LossEnergyOutOfRange ||
+          (table.physics_source == 1u &&
+           split.status ==
+               tables::TableLookupStatus::ColumnNotFound)) {
+        // The legacy c8emrt payload contains an artificial
+        // PhotonPairFinalStateProcessId inverse-CDF column.  That column is
+        // deliberately not part of PROPOSAL's native interaction splines.
+        // In proposal-native mode use the already validated device
+        // rejection sampler and the exported LPM parameters directly.  The
+        // same sampler is also the established out-of-domain path for the
+        // legacy auxiliary column.
         for (std::uint32_t attempt = 0;
              attempt < PhotonPairAnalyticMaximumAttempts; ++attempt) {
           RandomNumberKey candidate_key{
@@ -490,9 +500,25 @@ namespace corsika::gpu::em {
             interaction.input_index);
         event.energy_fraction = interaction.energy_fraction;
         event.process_id = interaction.process_id;
-        event.selection_uniform = interaction.process_uniform;
+        auto const native_selection =
+            interaction.proposal_selection_random_process_id != 0u;
+        event.selection_uniform =
+            native_selection
+                ? interaction.proposal_selection_uniform
+                : interaction.process_uniform;
         event.loss_quantile = interaction.loss_quantile;
-        event.random_draw_id = interaction.loss_draw_id;
+        event.outer_acceptance_uniform = interaction.process_uniform;
+        event.outer_acceptance_random_process_id =
+            interaction.process_random_process_id;
+        event.outer_acceptance_draw_id = interaction.process_draw_id;
+        event.random_process_id =
+            native_selection
+                ? interaction.proposal_selection_random_process_id
+                : 0u;
+        event.random_draw_id =
+            native_selection
+                ? interaction.proposal_selection_draw_id
+                : interaction.loss_draw_id;
         event.final_state_uniform = sample.split_uniform;
         event.final_state_draw_id = PhotonPairSplitDrawId;
         raw_fallbacks[index] = event;

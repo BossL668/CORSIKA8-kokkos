@@ -922,12 +922,12 @@ namespace corsika::gpu::em {
         CORSIKA_LOG_WARN(
             "CUDA EM fallback returned to scalar transport: "
             "pid={}, energy_GeV={}, "
-            "history={}, step={}, process={}, reason={}, "
+            "history={}, step={}, process={}, component={}, reason={}, "
             "diagnostic_status={}, diagnostic_values=[{},{},{}], "
             "position_m=[{},{},{}], direction=[{},{},{}]",
             event.particle.pid, event.particle.energy_GeV,
             event.particle.history_id, event.particle.step_id,
-            event.process_id,
+            event.process_id, event.component_hash,
             proposalFallbackReasonName(event.reason),
             event.diagnostic_status, event.diagnostic_value0,
             event.diagnostic_value1, event.diagnostic_value2,
@@ -947,6 +947,7 @@ namespace corsika::gpu::em {
               << ", history=" << event.particle.history_id
               << ", step=" << event.particle.step_id
               << ", process=" << event.process_id
+              << ", component=" << event.component_hash
               << ", reason="
               << proposalFallbackReasonName(event.reason)
               << ", diagnostic_status="

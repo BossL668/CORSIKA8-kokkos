@@ -18,6 +18,8 @@
 #include <corsika/gpu/em/CudaLeptonSelectionTransport.hpp>
 #include <corsika/gpu/em/CudaPhotonSelectionTransport.hpp>
 #include <corsika/gpu/radio/Types.hpp>
+#include <corsika/gpu/em/tables/ProposalNativeAux.hpp>
+#include <corsika/gpu/em/tables/ProposalNativeTable.hpp>
 
 namespace corsika::gpu::em {
 
@@ -41,6 +43,9 @@ namespace corsika::gpu::em {
 
     void initialize(EnvironmentSnapshot const&, ProposalTableSet const&,
                     GpuEmConfig const&);
+    void initialize(
+        EnvironmentSnapshot const&, tables::ProposalNativeTableSet const&,
+        tables::ProposalNativeAuxData const&, GpuEmConfig const&);
     void beginShower(GpuEmShowerConfig const&);
     bool canTransport(EmParticleState const&) const;
     void enqueue(EmParticleState const&);

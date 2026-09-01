@@ -77,6 +77,8 @@ namespace corsika::gpu::em {
       return "atmosphere_vertex_lookup_failed";
     case ProposalFallbackReason::EpairRejectionEnvelopeExceeded:
       return "epair_rejection_envelope_exceeded";
+    case ProposalFallbackReason::NativeSelectionReplay:
+      return "native_selection_replay";
     }
     return "unknown";
   }
@@ -131,6 +133,11 @@ namespace corsika::gpu::em {
     event.reason = proposalFallbackReason(result.status);
     event.component_hash = query.component_hash;
     event.random_draw_id = random_draw_id;
+    event.diagnostic_status =
+        static_cast<std::int32_t>(result.status);
+    event.diagnostic_value0 = query.energy_MeV;
+    event.diagnostic_value1 = query.quantile;
+    event.diagnostic_value2 = result.value;
     return event;
   }
 
@@ -144,9 +151,23 @@ namespace corsika::gpu::em {
     event.reason = reason;
     event.component_hash = record.component_hash;
     event.energy_fraction = record.energy_fraction;
-    event.selection_uniform = record.process_uniform;
+    auto const native_selection =
+        record.proposal_selection_random_process_id != 0u;
+    event.selection_uniform =
+        native_selection ? record.proposal_selection_uniform
+                         : record.process_uniform;
     event.loss_quantile = record.loss_quantile;
-    event.random_draw_id = record.loss_draw_id;
+    event.outer_acceptance_uniform = record.process_uniform;
+    event.outer_acceptance_random_process_id =
+        record.process_random_process_id;
+    event.outer_acceptance_draw_id = record.process_draw_id;
+    event.random_process_id =
+        native_selection
+            ? record.proposal_selection_random_process_id
+            : 0u;
+    event.random_draw_id =
+        native_selection ? record.proposal_selection_draw_id
+                         : record.loss_draw_id;
     return event;
   }
 

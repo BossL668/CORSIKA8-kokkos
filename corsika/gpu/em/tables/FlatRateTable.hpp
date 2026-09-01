@@ -15,6 +15,7 @@
 
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
+#include <corsika/gpu/em/tables/ProposalNativeTable.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 
 #if defined(__CUDACC__)
@@ -72,6 +73,43 @@ namespace corsika::gpu::em::tables {
     std::uint32_t reserved{};
     double value{};
   };
+
+  /**
+   * Result of walking the process/component columns in their canonical
+   * PROPOSAL order.  This small POD is shared by the photon selector and the
+   * charged-lepton vertex selector so neither kernel needs to know whether
+   * the backing storage is a legacy c8emrt table or native PROPOSAL splines.
+   */
+  struct RateColumnSelectionResult {
+    TableLookupStatus status{TableLookupStatus::InvalidTableView};
+    std::int32_t process_id{};
+    std::uint64_t component_hash{};
+    double total_rate{};
+    // Proposal-native only: (-sampled_rate)/selected_rate after the exact
+    // Interaction::SampleLoss subtraction. Legacy c8emrt selectors leave it
+    // zero and keep their independent loss draw unchanged.
+    double residual_quantile{};
+    std::uint32_t selected{};
+  };
+
+  CORSIKA_GPU_TABLE_HOST_DEVICE inline std::uint32_t
+  packNativeInverseIterations(std::uint32_t newton,
+                              std::uint32_t bisection) {
+    auto const bounded_newton = newton > 0xffffu ? 0xffffu : newton;
+    auto const bounded_bisection =
+        bisection > 0xffffu ? 0xffffu : bisection;
+    return bounded_newton | (bounded_bisection << 16u);
+  }
+
+  CORSIKA_GPU_TABLE_HOST_DEVICE inline std::uint32_t
+  nativeNewtonIterations(TableQueryResult const& result) {
+    return result.reserved & 0xffffu;
+  }
+
+  CORSIKA_GPU_TABLE_HOST_DEVICE inline std::uint32_t
+  nativeBisectionIterations(TableQueryResult const& result) {
+    return result.reserved >> 16u;
+  }
 
   /**
    * Pointer-only view copied by value into a CUDA kernel.
@@ -136,6 +174,20 @@ namespace corsika::gpu::em::tables {
     std::uint32_t epair_rho_v_coordinate_count{};
     std::uint32_t epair_rho_quantile_count{};
     std::uint32_t epair_rho_value_count{};
+
+    // Optional native PROPOSAL core. Legacy c8emrt fields remain unchanged;
+    // physics_source==1 selects this read-only native spline view.
+    ProposalNativeDeviceView proposal_native{};
+    std::uint32_t physics_source{};
+    // Three unsigned 64-bit counters: Newton iterations, bisection
+    // iterations, and failed native inverse solves. They are diagnostic
+    // reductions, not queue append indices, so atomic addition is safe and
+    // independent of wavefront scheduling order.
+    unsigned long long* native_inverse_counters{};
+    // Proposal-native only: user-facing muon kinetic-energy/ParticleCut
+    // threshold.  Appended to preserve all legacy c8emrt aggregate
+    // initializers and device-view semantics.
+    double muon_transport_cut_MeV{};
   };
 
   /**
@@ -188,6 +240,8 @@ namespace corsika::gpu::em::tables {
   static_assert(std::is_trivially_copyable_v<TableQuery>);
   static_assert(std::is_standard_layout_v<TableQueryResult>);
   static_assert(std::is_trivially_copyable_v<TableQueryResult>);
+  static_assert(std::is_standard_layout_v<RateColumnSelectionResult>);
+  static_assert(std::is_trivially_copyable_v<RateColumnSelectionResult>);
 
   FlatRateTable flattenRateTable(RateTableSet const& source);
   void validateFlatRateTable(FlatRateTable const& table);
@@ -575,6 +629,60 @@ namespace corsika::gpu::em::tables {
               interpolatePositive(losses[lower], losses[upper], fraction)};
     }
 
+    CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult fromProposalNative(
+        NativeQueryResult const& result, bool continuous = false) {
+      switch (result.status) {
+      case NativeQueryStatus::Success:
+        return {TableLookupStatus::Success,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations),
+                result.value};
+      case NativeQueryStatus::ParticleNotFound:
+        return {continuous ? TableLookupStatus::ContinuousParticleNotFound
+                           : TableLookupStatus::ParticleNotFound,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::ColumnNotFound:
+        return {TableLookupStatus::ColumnNotFound,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::EnergyOutOfRange:
+        return {continuous ? TableLookupStatus::ContinuousEnergyOutOfRange
+                           : TableLookupStatus::RateEnergyOutOfRange,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::QuantileOutOfRange:
+        return {TableLookupStatus::LossQuantileOutOfRange,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::UnsupportedKinematics:
+      case NativeQueryStatus::RootNotConverged:
+        return {TableLookupStatus::InverseCdfUnavailable,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::NonFiniteInput:
+        return {TableLookupStatus::NonFiniteInput,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      case NativeQueryStatus::InvalidView:
+        return {TableLookupStatus::InvalidTableView,
+                packNativeInverseIterations(
+                    result.newton_iterations,
+                    result.bisection_iterations), 0.};
+      }
+      return {TableLookupStatus::InvalidTableView,
+              packNativeInverseIterations(
+                  result.newton_iterations,
+                  result.bisection_iterations), 0.};
+    }
+
   } // namespace detail
 
   /**
@@ -676,6 +784,11 @@ namespace corsika::gpu::em::tables {
       FlatRateTableView const& view, std::int32_t pdg_id,
       std::int32_t process_id, std::uint64_t component_hash,
       double energy_MeV) {
+    if (view.physics_source == 1u) {
+      return detail::fromProposalNative(queryProposalNativeRate(
+          view.proposal_native, pdg_id, process_id, component_hash,
+          energy_MeV));
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -695,6 +808,10 @@ namespace corsika::gpu::em::tables {
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryTotalRate(
       FlatRateTableView const& view, std::int32_t pdg_id,
       double energy_MeV) {
+    if (view.physics_source == 1u) {
+      return detail::fromProposalNative(queryProposalNativeTotalRate(
+          view.proposal_native, pdg_id, energy_MeV));
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -725,10 +842,196 @@ namespace corsika::gpu::em::tables {
     return {TableLookupStatus::Success, 0, total};
   }
 
+  /**
+   * Select a process/component with the same cumulative-rate rule used by
+   * scalar CORSIKA.  The threshold is an absolute rate in [0,total), not a
+   * unit random number.  All columns are still evaluated after a selection
+   * so the returned total can be used by the lepton vertex-reselection
+   * algorithm without a second table traversal.
+   */
+  CORSIKA_GPU_TABLE_HOST_DEVICE inline RateColumnSelectionResult
+  selectRateColumnByThreshold(
+      FlatRateTableView const& view, std::int32_t pdg_id,
+      double energy_MeV, double threshold) {
+    if (!detail::finiteValue(energy_MeV) ||
+        !detail::finiteValue(threshold) || threshold < 0.) {
+      return {TableLookupStatus::NonFiniteInput, 0, 0, 0., 0., 0};
+    }
+
+    double cumulative = 0.;
+    std::int32_t selected_process = 0;
+    std::uint64_t selected_component = 0;
+    std::int32_t last_positive_process = 0;
+    std::uint64_t last_positive_component = 0;
+    double selected_residual_quantile = 0.;
+    bool found_particle = false;
+    bool selected = false;
+    bool have_positive = false;
+
+    if (view.physics_source == 1u) {
+      if (!native_detail::validView(view.proposal_native)) {
+        return {TableLookupStatus::InvalidTableView, 0, 0, 0., 0., 0};
+      }
+      auto const range = native_detail::dndxParticleRange(
+          view.proposal_native, pdg_id);
+      for (std::uint32_t index = range.begin;
+           index < range.end; ++index) {
+        auto const* selected_column = native_detail::selectionDndx(
+            view.proposal_native, index);
+        if (!selected_column || selected_column->pdg_id != pdg_id)
+          return {TableLookupStatus::InvalidTableView, 0, 0,
+                  cumulative, 0., 0};
+        auto const& column = *selected_column;
+        found_particle = true;
+        NativeQueryResult native_rate{
+            NativeQueryStatus::Success, 0, 0, 0.};
+        if (!proposalNativeRateBelowThreshold(column, energy_MeV))
+          native_rate = queryProposalNativeRateForColumn(
+              view.proposal_native, column, energy_MeV);
+        auto const rate = detail::fromProposalNative(native_rate);
+        if (rate.status != TableLookupStatus::Success) {
+          // Preserve the exact descriptor identity for device-side failure
+          // diagnostics.  The caller can then distinguish a bad column from
+          // a malformed aggregate query without repeating the traversal.
+          return {rate.status, column.process_id, column.component_hash,
+                  cumulative, 0., 0};
+        }
+        if (rate.value > 0.) {
+          have_positive = true;
+          last_positive_process = column.process_id;
+          last_positive_component = column.component_hash;
+        }
+        cumulative += rate.value;
+        if (!selected && threshold < cumulative) {
+          selected = true;
+          selected_process = column.process_id;
+          selected_component = column.component_hash;
+          selected_residual_quantile =
+              rate.value > 0. ? (cumulative - threshold) / rate.value : 0.;
+        }
+      }
+    } else {
+      if (!detail::validView(view)) {
+        return {TableLookupStatus::InvalidTableView, 0, 0, 0., 0., 0};
+      }
+      auto const particle = detail::findParticle(view, pdg_id);
+      if (particle == view.particle_count) {
+        return {TableLookupStatus::ParticleNotFound, 0, 0, 0., 0., 0};
+      }
+      found_particle = true;
+      auto const bracket =
+          detail::rateInterpolationBracket(view, particle, energy_MeV);
+      if (bracket.status != TableLookupStatus::Success) {
+        return {bracket.status, 0, 0, 0., 0., 0};
+      }
+      auto const begin = view.particle_column_offsets[particle];
+      auto const end = begin + view.particle_column_counts[particle];
+      for (auto column = begin; column < end; ++column) {
+        auto const rate = detail::interpolateRateColumnAtBracket(
+            view, particle, column, bracket);
+        if (rate.status != TableLookupStatus::Success) {
+          return {rate.status, 0, 0, 0., 0., 0};
+        }
+        if (rate.value > 0.) {
+          have_positive = true;
+          last_positive_process = view.column_process_ids[column];
+          last_positive_component =
+              view.column_component_hashes[column];
+        }
+        cumulative += rate.value;
+        if (!selected && threshold < cumulative) {
+          selected = true;
+          selected_process = view.column_process_ids[column];
+          selected_component = view.column_component_hashes[column];
+        }
+      }
+    }
+
+    if (!found_particle) {
+      return {TableLookupStatus::ParticleNotFound, 0, 0, 0., 0., 0};
+    }
+    if (!detail::finiteValue(cumulative)) {
+      return {TableLookupStatus::InvalidTableView, 0, 0, 0., 0., 0};
+    }
+    // Guard the last representable boundary exactly as the legacy selectors
+    // did.  This is only reachable through floating-point summation drift.
+    if (!selected && have_positive && threshold < cumulative) {
+      selected = true;
+      selected_process = last_positive_process;
+      selected_component = last_positive_component;
+    }
+    return {TableLookupStatus::Success, selected_process,
+            selected_component, cumulative, selected_residual_quantile,
+            selected ? 1u : 0u};
+  }
+
+  /** Select from a unit uniform with PROPOSAL 7.6.2 SampleLoss semantics.
+   * Native mode walks the exported Rates insertion order, first accumulates
+   * the flat per-target total, then evaluates sampled_rate=u*total and
+   * subtracts every rate until sampled_rate<0. The residual in the selected
+   * interval is the stochastic-loss quantile. */
+  CORSIKA_GPU_TABLE_HOST_DEVICE inline RateColumnSelectionResult
+  selectRateColumnByUniform(FlatRateTableView const& view,
+                            std::int32_t pdg_id, double energy_MeV,
+                            double uniform) {
+    if (!detail::finiteValue(uniform) || uniform < 0. || uniform >= 1.)
+      return {TableLookupStatus::NonFiniteInput, 0, 0, 0., 0., 0};
+    if (view.physics_source != 1u) {
+      auto const total = queryTotalRate(view, pdg_id, energy_MeV);
+      if (total.status != TableLookupStatus::Success)
+        return {total.status, 0, 0, 0., 0., 0};
+      return selectRateColumnByThreshold(
+          view, pdg_id, energy_MeV, uniform * total.value);
+    }
+    auto const total = queryProposalNativeSelectionTotalRate(
+        view.proposal_native, pdg_id, energy_MeV);
+    auto const converted_total = detail::fromProposalNative(total);
+    if (converted_total.status != TableLookupStatus::Success)
+      return {converted_total.status, 0, 0, 0., 0., 0};
+    if (!(converted_total.value > 0.))
+      return {TableLookupStatus::Success, 0, 0,
+              converted_total.value, 0., 0};
+
+    auto sampled_rate = uniform * converted_total.value;
+    auto const range = native_detail::dndxParticleRange(
+        view.proposal_native, pdg_id);
+    for (auto position = range.begin; position < range.end; ++position) {
+      auto const* column = native_detail::selectionDndx(
+          view.proposal_native, position);
+      if (!column || column->pdg_id != pdg_id)
+        return {TableLookupStatus::InvalidTableView, 0, 0,
+                converted_total.value, 0., 0};
+      NativeQueryResult native_rate{NativeQueryStatus::Success, 0, 0, 0.};
+      if (!proposalNativeRateBelowThreshold(*column, energy_MeV))
+        native_rate = queryProposalNativeRateForColumn(
+            view.proposal_native, *column, energy_MeV);
+      auto const rate = detail::fromProposalNative(native_rate);
+      if (rate.status != TableLookupStatus::Success)
+        return {rate.status, column->process_id, column->component_hash,
+                converted_total.value, 0., 0};
+      sampled_rate -= rate.value;
+      if (sampled_rate < 0.) {
+        auto const quantile = (-sampled_rate) / rate.value;
+        if (!detail::finiteValue(quantile) || quantile < 0. || quantile > 1.)
+          return {TableLookupStatus::InvalidTableView, column->process_id,
+                  column->component_hash, converted_total.value, 0., 0};
+        return {TableLookupStatus::Success, column->process_id,
+                column->component_hash, converted_total.value, quantile, 1u};
+      }
+    }
+    return {TableLookupStatus::Success, 0, 0,
+            converted_total.value, 0., 0};
+  }
+
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryLossFraction(
       FlatRateTableView const& view, std::int32_t pdg_id,
       std::int32_t process_id, std::uint64_t component_hash,
       double energy_MeV, double quantile) {
+    if (view.physics_source == 1u) {
+      return detail::fromProposalNative(queryProposalNativeLossFraction(
+          view.proposal_native, pdg_id, process_id, component_hash,
+          energy_MeV, quantile));
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -848,6 +1151,10 @@ namespace corsika::gpu::em::tables {
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryContinuousDedx(
       FlatRateTableView const& view, std::int32_t pdg_id,
       double energy_MeV) {
+    if (view.physics_source == 1u) {
+      return detail::fromProposalNative(queryProposalNativeDedx(
+          view.proposal_native, pdg_id, energy_MeV), true);
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -876,6 +1183,17 @@ namespace corsika::gpu::em::tables {
 
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryContinuousMass(
       FlatRateTableView const& view, std::int32_t pdg_id) {
+    if (view.physics_source == 1u) {
+      auto const* utility = native_detail::findUtility(
+          view.proposal_native, pdg_id);
+      if (!utility)
+        return {TableLookupStatus::ContinuousParticleNotFound, 0, 0.};
+      if (!detail::finiteValue(utility->particle_mass_MeV) ||
+          !(utility->particle_mass_MeV > 0.))
+        return {TableLookupStatus::InvalidTableView, 0, 0.};
+      return {TableLookupStatus::Success, 0,
+              utility->particle_mass_MeV};
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -894,6 +1212,35 @@ namespace corsika::gpu::em::tables {
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult
   queryContinuousMinimumEnergy(
       FlatRateTableView const& view, std::int32_t pdg_id) {
+    if (view.physics_source == 1u) {
+      auto const* utility = native_detail::findUtility(
+          view.proposal_native, pdg_id);
+      if (!utility)
+        return {TableLookupStatus::ContinuousParticleNotFound, 0, 0.};
+      // PROPOSAL's native displacement interpolant starts at the particle
+      // mass.  The scalar CORSIKA step limiter, however, stops at
+      // mass + 0.9999 * the user-facing transport cut.  The legacy c8emrt
+      // table stored that derived endpoint as its first energy; derive it
+      // here so one native spline can serve different transport cuts.
+      auto const transport_cut_MeV =
+          (pdg_id == 13 || pdg_id == -13)
+              ? view.muon_transport_cut_MeV
+              : view.em_transport_cut_MeV;
+      auto const minimum =
+          utility->particle_mass_MeV +
+          ContinuousCutSafetyFactor * transport_cut_MeV;
+      if (!detail::finiteValue(utility->lower_energy_limit_MeV) ||
+          utility->lower_energy_limit_MeV <
+              utility->particle_mass_MeV ||
+          !detail::finiteValue(transport_cut_MeV) ||
+          !(transport_cut_MeV > 0.) ||
+          !detail::finiteValue(minimum) ||
+          !(minimum > utility->particle_mass_MeV) ||
+          minimum < utility->lower_energy_limit_MeV ||
+          minimum > utility->spline.axis.high)
+        return {TableLookupStatus::InvalidTableView, 0, 0.};
+      return {TableLookupStatus::Success, 0, minimum};
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -914,6 +1261,10 @@ namespace corsika::gpu::em::tables {
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryContinuousRange(
       FlatRateTableView const& view, std::int32_t pdg_id,
       double energy_MeV) {
+    if (view.physics_source == 1u) {
+      return detail::fromProposalNative(queryProposalNativeRange(
+          view.proposal_native, pdg_id, energy_MeV), true);
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -944,6 +1295,13 @@ namespace corsika::gpu::em::tables {
   CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryContinuousEnergy(
       FlatRateTableView const& view, std::int32_t pdg_id,
       double range_g_per_cm2) {
+    if (view.physics_source == 1u) {
+      auto result = detail::fromProposalNative(queryProposalNativeEnergy(
+          view.proposal_native, pdg_id, range_g_per_cm2), true);
+      if (result.status == TableLookupStatus::ContinuousEnergyOutOfRange)
+        result.status = TableLookupStatus::ContinuousRangeOutOfRange;
+      return result;
+    }
     if (!detail::validView(view)) {
       return {TableLookupStatus::InvalidTableView, 0, 0.};
     }
@@ -1011,6 +1369,12 @@ namespace corsika::gpu::em::tables {
         grammage_g_per_cm2 != 0.) {
       return {TableLookupStatus::TransportCutReached, 0, 0.};
     }
+    if (view.physics_source == 1u)
+      return detail::fromProposalNative(
+          queryProposalNativeEnergyAfterContinuousLoss(
+              view.proposal_native, pdg_id, initial_energy_MeV,
+              grammage_g_per_cm2),
+          true);
     return queryContinuousEnergy(
         view, pdg_id, initial_range.value - grammage_g_per_cm2);
   }

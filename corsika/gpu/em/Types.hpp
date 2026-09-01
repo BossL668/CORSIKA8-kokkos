@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <limits>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -175,6 +176,12 @@ namespace corsika::gpu::em {
     // state.  Keep this separate from InvalidFinalState: the latter is a
     // numerical/physics defect and must not be silently retried.
     EpairRejectionEnvelopeExceeded = 27,
+    // The device selected the process/component with the original PROPOSAL
+    // uniform, but the conditional interval is too ill-conditioned for the
+    // last few host/device interpolation ULPs to guarantee the requested v
+    // tolerance.  CPU PROPOSAL replays that same uniform, verifies the
+    // selected identity, and completes the final state after the wavefront.
+    NativeSelectionReplay = 28,
   };
 
   struct ProposalFallbackEvent {
@@ -199,7 +206,14 @@ namespace corsika::gpu::em {
     double selection_uniform{};
     double loss_quantile{};
     double final_state_uniform{};
+    // Counter-key provenance. selection_uniform/random_* identify the inner
+    // PROPOSAL SampleLoss draw; outer_acceptance_* identify CORSIKA's
+    // independent interaction-process acceptance draw.
+    double outer_acceptance_uniform{};
+    std::uint32_t random_process_id{};
+    std::uint32_t outer_acceptance_random_process_id{};
     std::uint64_t random_draw_id{};
+    std::uint64_t outer_acceptance_draw_id{};
     std::uint64_t final_state_draw_id{};
   };
 
@@ -266,6 +280,13 @@ namespace corsika::gpu::em {
     std::uint64_t distance_draw_id{};
     std::uint64_t process_draw_id{};
     std::uint64_t loss_draw_id{};
+    // Proposal-native reproduces the second, independent scalar PROPOSAL draw
+    // and derives loss_quantile from the selected rate interval. Legacy
+    // c8emrt leaves these fields zero and keeps its existing loss draw.
+    double proposal_selection_uniform{};
+    std::uint32_t process_random_process_id{};
+    std::uint32_t proposal_selection_random_process_id{};
+    std::uint64_t proposal_selection_draw_id{};
   };
 
   struct RadioTrackRecord {
@@ -342,6 +363,11 @@ namespace corsika::gpu::em {
     std::array<std::uint8_t, 32> content_hash{};
   };
 
+  enum class GpuPhysicsSource : std::uint32_t {
+    C8EmRt = 0,
+    ProposalNative = 1,
+  };
+
   struct GpuEmConfig {
     struct ProfileProjection {
       bool enabled{};
@@ -372,6 +398,11 @@ namespace corsika::gpu::em {
     std::size_t min_batch_size{4096};
     double memory_fraction{0.70};
     double table_tolerance{1.e-3};
+    double em_transport_cut_MeV{};
+    // User-facing muon kinetic-energy/ParticleCut threshold.  Native
+    // PROPOSAL utilities are shared by electrons and muons, so their scalar
+    // transport endpoints must remain independently configurable.
+    double muon_transport_cut_MeV{};
     bool deterministic{true};
     /**
      * Record CUDA-event timings at the boundaries of the fused lepton
@@ -382,6 +413,8 @@ namespace corsika::gpu::em {
     std::uint64_t random_seed{};
     std::uint64_t shower_id{};
     std::filesystem::path table_cache{};
+    GpuPhysicsSource physics_source{GpuPhysicsSource::C8EmRt};
+    std::filesystem::path auxiliary_cache_directory{};
     EmThinningConfig thinning{};
     bool resident_cross_species{};
     ProfileProjection profile_projection{};
@@ -530,6 +563,20 @@ namespace corsika::gpu::em {
     bool reused_for_shower{};
     std::uint64_t static_host_to_device_bytes{};
     double one_time_initialization_ms{};
+    GpuPhysicsSource physics_source{GpuPhysicsSource::C8EmRt};
+    std::string native_proposal_version;
+    std::string native_cubic_interpolation_version;
+    std::array<std::uint8_t, 32> native_table_hash{};
+    std::array<std::uint8_t, 32> auxiliary_cache_hash{};
+    std::uint64_t native_table_nodes{};
+    std::size_t native_table_device_bytes{};
+    std::uint64_t native_newton_iterations{};
+    std::uint64_t native_bisection_iterations{};
+    std::uint64_t native_inverse_failures{};
+    std::uint64_t proposal_cache_table_count{};
+    std::uint64_t proposal_cache_hit_count{};
+    bool proposal_cache_all_hit{};
+    bool auxiliary_cache_hit{};
     std::uint64_t wavefronts{};
     std::uint64_t particles_enqueued{};
     std::uint64_t particles_advanced{};

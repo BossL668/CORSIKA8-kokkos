@@ -69,6 +69,7 @@ class SourceRecord:
     table_sha256: str | None
     antenna_sha256: str
     observer_layout_sha256: str
+    gpu_physics_source: str | None = None
 
     @property
     def seeds(self) -> range:
@@ -102,6 +103,56 @@ def read_mapping(path: Path) -> dict[str, Any]:
     return value
 
 
+_EXCLUDED_SOURCE_DIRECTORY_NAMES = {
+    "failed_attempt",
+    "failed_attempts",
+    "failed-attempt",
+    "failed-attempts",
+    "archive",
+    "archives",
+}
+_CANONICAL_SOURCE_DIRECTORY_NAMES = {
+    "proposal": {"proposal"},
+    "cuda": {"cuda", "c8emrt", "proposal-native"},
+}
+
+
+def is_canonical_source_directory(
+    source: Path, search_root: Path, backend: str
+) -> bool:
+    """Return whether ``source`` is a canonical completed-output directory.
+
+    Distributed runners write live attempts below ``.attempt-*`` and may keep
+    failed copies below a ``failed_attempts`` or archive directory.  Those
+    trees can contain a syntactically valid provenance file, so accepting
+    every recursive match can silently double-count an event.  A caller may
+    still pass one completed output directly; recursively discovered outputs
+    must use one of the stable runner directory names.
+    """
+
+    if backend not in _CANONICAL_SOURCE_DIRECTORY_NAMES:
+        raise ValueError(f"unsupported source backend: {backend!r}")
+    try:
+        relative_parts = source.relative_to(search_root).parts
+    except ValueError as error:
+        raise ValueError(
+            f"source {source} is outside requested campaign root {search_root}"
+        ) from error
+    inspected_parts = (*search_root.parts[-1:], *relative_parts)
+    for part in inspected_parts:
+        lowered = part.lower()
+        if part.startswith(".attempt-") or lowered in _EXCLUDED_SOURCE_DIRECTORY_NAMES:
+            return False
+    if source == search_root:
+        return True
+    leaf = source.name
+    if backend == "proposal":
+        return leaf.startswith("proposal_shard_") or leaf in (
+            _CANONICAL_SOURCE_DIRECTORY_NAMES[backend]
+        )
+    return leaf in _CANONICAL_SOURCE_DIRECTORY_NAMES[backend]
+
+
 def discover_sources(search_roots: Iterable[Path], backend: str) -> list[Path]:
     discovered: set[Path] = set()
     for requested in search_roots:
@@ -113,10 +164,46 @@ def discover_sources(search_roots: Iterable[Path], backend: str) -> list[Path]:
             "validation_provenance.json"
         )
         for provenance_path in candidates:
+            source = provenance_path.parent.resolve()
+            if not is_canonical_source_directory(source, root, backend):
+                continue
             provenance = read_mapping(provenance_path)
             if provenance.get("backend") == backend:
-                discovered.add(provenance_path.parent.resolve())
+                discovered.add(source)
     return sorted(discovered, key=str)
+
+
+def cuda_generic_fallback_allowlist(
+    records: Iterable[SourceRecord],
+) -> tuple[str, ...]:
+    """Return the exact scalar-fallback allowlist for one CUDA ensemble."""
+
+    sources = {record.gpu_physics_source for record in records}
+    if sources == {"proposal-native"}:
+        return (
+            "unsupported_particle",
+            "unsupported_medium",
+            "unsupported_geometry",
+        )
+    if "proposal-native" in sources:
+        raise ValueError(
+            "CUDA campaign mixes proposal-native with another or unrecorded "
+            f"physics source: {sorted(str(value) for value in sources)}"
+        )
+    return ()
+
+
+def append_presentation_arguments(
+    command: list[str],
+    reference_label: str | None,
+    candidate_label: str | None,
+) -> None:
+    """Append labels only to child analyzers that explicitly support them."""
+
+    if reference_label is not None:
+        command.extend(("--reference-label", reference_label))
+    if candidate_label is not None:
+        command.extend(("--candidate-label", candidate_label))
 
 
 def require_sha256(value: Any, label: str) -> str:
@@ -360,7 +447,24 @@ def audit_source(
     seed = int(summary.get("seed", -1))
     if events <= 0 or seed < 0:
         raise ValueError(f"invalid shower count or seed in {root / 'summary.yaml'}")
-    showers = validate_completion(root, backend == "cuda")
+    configured_gpu_source: str | None = None
+    permitted_generic_fallback_reasons: tuple[str, ...] = ()
+    if backend == "cuda":
+        candidate_source = provenance.get("gpu_physics_source")
+        if isinstance(candidate_source, str) and candidate_source:
+            configured_gpu_source = candidate_source
+        if configured_gpu_source == "proposal-native":
+            permitted_generic_fallback_reasons = (
+                "unsupported_particle",
+                "unsupported_medium",
+                "unsupported_geometry",
+            )
+    showers, _gpu_integrity = validate_completion(
+        root,
+        backend == "cuda",
+        expected_gpu_source=configured_gpu_source,
+        permitted_generic_fallback_reasons=permitted_generic_fallback_reasons,
+    )
     if len(showers) != events:
         raise ValueError(
             f"summary/timing event count differs in {root}: {events} versus {len(showers)}"
@@ -410,6 +514,7 @@ def audit_source(
         table_sha256=table_hash,
         antenna_sha256=antenna_hash,
         observer_layout_sha256=layout,
+        gpu_physics_source=configured_gpu_source,
     )
 
 
@@ -589,6 +694,21 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--bootstrap-repetitions", type=int, default=10000)
     parser.add_argument(
+        "--reference-label",
+        help=(
+            "Optional presentation label for the scalar-PROPOSAL/reference "
+            "arm. Statistical column names and acceptance semantics are not "
+            "changed."
+        ),
+    )
+    parser.add_argument(
+        "--candidate-label",
+        help=(
+            "Optional presentation label for the CUDA/candidate arm. "
+            "Statistical column names and acceptance semantics are not changed."
+        ),
+    )
+    parser.add_argument(
         "--cuda-build-equivalence-attestation",
         type=Path,
         help=(
@@ -646,6 +766,9 @@ def main() -> int:
             audit_source(root, "proposal", expected=args) for root in proposal_roots
         ]
         cuda_records = [audit_source(root, "cuda", expected=args) for root in cuda_roots]
+        permitted_cuda_generic_fallback_reasons = (
+            cuda_generic_fallback_allowlist(cuda_records)
+        )
         proposal_seed_schedule: tuple[int, ...] | None = None
         if args.proposal_seed_file is not None:
             proposal_seed_schedule = read_explicit_seed_schedule(
@@ -704,6 +827,10 @@ def main() -> int:
             f"cuda{args.expected_events}"
         ),
         "purpose": "Immutable source list for the complete distributed CPU/CUDA comparison",
+        "presentation": {
+            "reference_label": args.reference_label,
+            "candidate_label": args.candidate_label,
+        },
         "configuration": {
             "energy_GeV": args.energy_gev,
             "events_per_backend": args.expected_events,
@@ -752,6 +879,13 @@ def main() -> int:
             "cuda_table_sha256": sorted(str(value) for value in cuda_tables),
             "observer_layout_sha256": next(iter(layouts)),
             "cuda_build_equivalence_attestation": build_equivalence,
+            "cuda_gpu_physics_sources": sorted(
+                str(value)
+                for value in {record.gpu_physics_source for record in cuda_records}
+            ),
+            "permitted_cuda_generic_fallback_reasons": list(
+                permitted_cuda_generic_fallback_reasons
+            ),
         },
     }
     atomic_json(analysis_manifest, manifest_payload)
@@ -792,16 +926,25 @@ def main() -> int:
     )
     if build_equivalence is not None:
         compare_command.append("--allow-mixed-cuda-builds")
+    for reason in permitted_cuda_generic_fallback_reasons:
+        compare_command.extend(
+            ("--permitted-cuda-generic-fallback-reason", reason)
+        )
 
-    commands = [
-        compare_command,
-        [
+    feature_command = [
             python,
             str(SCRIPT_DIR / "analyze_shower_feature_distributions.py"),
             "--ensemble-root", str(comparison),
             "--manifest", str(analysis_manifest),
             "--output-dir", str(final_root / "validation_plots_all_components"),
-        ],
+    ]
+    append_presentation_arguments(
+        feature_command, args.reference_label, args.candidate_label
+    )
+
+    commands = [
+        compare_command,
+        feature_command,
         [
             python,
             str(SCRIPT_DIR / "analyze_post_xmax_em_profiles.py"),

@@ -4,12 +4,14 @@
 > 官方发布版，也尚未经过 CORSIKA 8 上游评审。默认 CPU 路径仍是原来的
 > `Cascade + PROPOSAL`；CUDA、CUDA 射电和 FLUKA 进程池都必须显式启用。
 
-> **当前分支建议（2026-08-09）：**beta4 是从 beta2 派生的维护与验收分支。
+> **当前分支建议（2026-09-01）：**beta4 是从 beta2 派生的维护与验收分支。
 > 它保留 beta2 的调度和性能模型，同时修复代码审计确认的 CPU/GPU 语义差异：
 > 端点弦 grammage 与逐粒子 transport cut、局部水平观测平面、GPU 首相互作用
 > 输出、原版 10 ms 物理时间 cut，以及强制初级相互作用/衰变。CUDA 启动时还会
-> 对六类过程执行 fail-closed 兼容性门禁。beta3 的实验性强子多核调度不属于
-> 本次修补。
+> 对六类过程执行 fail-closed 兼容性门禁。beta4 现在还提供实验性的
+> `proposal-native` 物理源，把实际 PROPOSAL calculator 的原生插值状态只读导出
+> 为常驻 GPU 数据；在直接原始数据系综和性能门禁全部完成前，默认生产物理源仍是
+> `.c8emrt`。beta3 的实验性强子多核调度不属于本次修补。
 
 文档导航：
 
@@ -46,11 +48,13 @@ beta4 从 beta2 复制出来，是为了保留已经验证过的 beta2 wavefront
 | 强制初级与自定义过程 | 指定的初级顶点在 GPU 路由前执行一次；六类过程必须全部登记 | [Phase 101](documentation/cuda_em_refactor/phase_101_beta4_forced_primary_and_process_compatibility_gate.md) |
 | 性能回归 | 同机三对 10 PeV 质子表明 beta4 与 beta2 的时间差约为 1--3% | [Phase 102](documentation/cuda_em_refactor/phase_102_beta4_beta2_10pev_performance.md) |
 | 最终代码路径复核与 100 TeV 门禁 | 未发现新的生产阻断型遗漏/重排；已确认新版 beta2 CPU500 参考，并启动匹配的 beta4 CUDA500 | [Phase 103](documentation/cuda_em_refactor/phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md) |
+| PROPOSAL 原生样条导出 | 已实现版本锁定只读依赖接口、canonical 哈希、GPU Hermite 求值、能区预检、metadata 和端点显式回放 | [Phase 113](documentation/cuda_em_refactor/phase_113_proposal_native_gpu_tables_CN.md) |
+| 原生路径 decision 语义 | 完整 CPU tape 可重放输运和射电；固定过程/组分/条件分位点后可复刻 live PROPOSAL，但只给相同初始 seed 不保证同一事例 | [Phase 114](documentation/cuda_em_refactor/phase_114_beta4_proposal_native_decision_tape_replay_CN.md) |
 
-当前自动测试为 C++/CUDA `34/34`、Python validation `241/241` 通过。修复后的
-10 GeV 电子 `500 vs 500` 诊断已经完成，shower 曲线统计相容；但其射电信号接近
-数值底噪，不能替代高能射电验收。正式 100 TeV 质子 beta4 CUDA500 仍在运行，
-完成前不能把部分样本写成 beta4 的最终生产结论。
+原 beta4 语义修补阶段记录了 C++/CUDA `34/34`、Python validation `241/241`
+通过；原生表扩展另有 table/fallback/selection/final-state/transport/radio/cache
+以及 decision oracle 门禁。代码级正确性、固定 decision 回放和独立 shower
+系综是三个不同证据层级，不能用其中一层替代另外两层。
 
 ## 1. 项目定位
 
@@ -151,6 +155,23 @@ PROPOSAL 数值制表。表格保存：
 [`RateTable.hpp`](corsika/gpu/em/tables/RateTable.hpp)，设备平坦视图见
 [`FlatRateTable.hpp`](corsika/gpu/em/tables/FlatRateTable.hpp)。
 
+beta4 另提供实验性的 `--gpu-physics-source proposal-native`：它从当前
+`InteractionModel` 和 `ContinuousProcess` 已经构造的 calculator 中只读导出
+PROPOSAL 7.6.2 / CubicInterpolation 0.1.5 原生样条，转换为 GPU POD 并常驻
+显存，不再制作完整 `.c8emrt`。小型 LPM/Molière 辅助数据自动存入
+`.c8emaux`；旧 `.c8emrt` 仍是默认生产路径。实现和当前验收边界见
+[Phase 113](documentation/cuda_em_refactor/phase_113_proposal_native_gpu_tables_CN.md)。
+当前 58 个 photon/electron/positron/muon 过程列均已通过每列一百万点的
+依赖、缓存和 host/device 求值检查；五种粒子共五百万次完整选择的过程和目标
+组分 mismatch 为 0。严格百万点 loss oracle 保留一个高能 Compton 点：其
+`v` 相对差为 `4.57e-10`，超过预设 `1e-10` 门槛，因此不能写成无条件全通过。
+另一个固定语义 decision 的 20,480 顶点测试中，过程、组分和 live
+`SampleLoss` mismatch 均为 0，已支持过程的最大 `v` 相对差低于 `8e-13`。
+CPU-only 过程和极小端点带使用同一 selection random number 显式回放，不增加
+新的随机数。1 TeV native 2000 例已完成本地阶段检查；与 CPU 精确同 seed 集合
+的 100 TeV native 2000 例正在运行。直接原始数据与性能门禁尚未全部完成，
+因此默认值不变。
+
 表查询不在能区外静默 clamp。缺列、超范围、无逆 CDF 或哈希/误差不匹配都会
 成为明确 fallback 或 hard failure。
 
@@ -158,7 +179,31 @@ PROPOSAL 数值制表。表格保存：
 
 - PROPOSAL 自身的插值 cache：准备/生成工具会在介质哈希目录中按需创建；
 - CUDA 运行时使用的 `.c8emrt`：可以先由独立 `gpu_em_table_prepare` 自动查找
-  或生成；`c8_air_shower` 本身仍只读显式路径，不会在事件中临时制表。
+  或生成；默认 `c8emrt` 模式只读显式路径；
+- 实验性原生 GPU 表：运行时从上述 PROPOSAL cache 对应 calculator 导出，
+  不要求介质 YAML 或完整 `.c8emrt`，同一进程的后续 shower 复用设备上传。
+
+`proposal-native` 并不是把 PROPOSAL C++ 直接放进 CUDA kernel。PROPOSAL 仍在
+主机端建立或加载自己的插值器；程序只读导出轴、系数和物理标识，转换为扁平
+POD 后在 GPU 上按相同坐标变换和 Hermite 语义求值。不支持的插值轴、参数化、
+化学组成或配置能区会在 shower 输运前明确失败。
+
+因此，“更换介质不需要重新制表”应准确理解为：用户不再需要手工运行
+`gpu_em_table_prepare` 生成完整 `.c8emrt`，而不是所有介质共用同一张表。
+
+- 只改变同一化学组成的密度 profile、磁场或观测几何时，可以复用相同的
+  PROPOSAL 物理系数；
+- 改变元素组成、组分比例、材料常数、cut、PROPOSAL 参数化或依赖版本时，
+  PROPOSAL 会自动建立或读取另一套 host cache，并得到新的 canonical native
+  hash；第一次运行仍可能较慢，但不需要用户手工制完整表；
+- 当前一个 native backend 实例只接受一种化学组成，空气/岩石/冰同时存在的
+  mixed-media geometry 会在输运前拒绝；
+- 当前 `c8_air_shower` 的 CUDA 环境仍只完成五层 `AirDry1Atm` 干空气验收。
+  真正运行岩石、冰或月壤还要实现相应 device environment snapshot、geometry、
+  grammage、medium-ID 映射和物理验收；原生表导出本身不会自动补齐这些功能。
+
+所以，对已经由运行时环境支持的单一新介质，不再需要手工完整制表；首次运行会
+自动产生 PROPOSAL cache、新的 native 表哈希和必要的 `.c8emaux` 辅助缓存。
 
 `gpu_em_tablegen --medium-yaml` 已支持 schema 1 的自定义材料，准备工具会对
 组成和全部 PROPOSAL 材料参数规范化并计算 SHA-256。当前 `c8_air_shower`
@@ -765,6 +810,20 @@ test -f "$C8_SOURCE/conan_cmake/conan_toolchain.cmake"
 conan profile show -pr corsika8
 ```
 
+当前 `conan-install.sh` 会自动从 `third_party/conan/` 导出并解析两个版本锁定包：
+
+```text
+cubicinterpolation/0.1.5@c8gpu/stable
+proposal/7.6.2@c8gpu/stable
+```
+
+补丁只增加只读导出 API，不改变普通 CPU 求值、缓存生成或随机数状态；但它们会
+扩展 C++ 类布局，因此与未打补丁的 vanilla 二进制不具备 ABI 兼容性。迁移时
+必须保留 `third_party/conan/`，修改任一 recipe 后要使用干净的 Conan/CMake
+构建目录，不能混用 vanilla header、library 或旧 object。标准构建流程不需要
+手工执行 `conan create`；独立依赖审计命令见
+[`third_party/conan/README.md`](third_party/conan/README.md)。
+
 迁移到其他服务器时，只需把 `C8_WORKSPACE` 改成服务器上的绝对父目录，建议保持
 三个子目录的名称不变。不要把构建文件写入源码目录，也不要复制复用另一台机器、
 另一 CUDA toolkit、编译器或 GPU 架构产生的构建目录。
@@ -984,13 +1043,41 @@ GitLab release archive，因为原 `pythia.org/download` 压缩包地址已经�
 如果不需要 CUDA μ 子输运，也可以生成只含 \(\gamma/e^\pm\) 的表；
 表中没有成对的 PDG `13/-13` 时，μ 子保留在 CPU 路径。
 
-`c8_air_shower` 不会在缺表时自动执行生成器。应在运行 shower 前显式调用
+默认 `c8emrt` 模式不会在缺表时自动执行生成器。应在运行 shower 前显式调用
 `gpu_em_table_prepare`；它会自动查找兼容表，并在未命中时通过跨进程锁生成、
 回读校验和写 manifest。这样避免生产事件隐式制表，同时允许多任务共享缓存。
 查找还会核对制表器合同版本；旧生成器产生的表不会被静默复用。
 若只改变 GPU 型号、GPU 数量、磁场、天线、观测高度或同一干空气的密度
 profile，直接复用表。
-以下变化必须生成并重新验收表：
+
+如果明确选择 `--gpu-physics-source proposal-native`，则不传
+`--gpu-table-cache`；首次新介质/cut 仍可能由 PROPOSAL 建立自己的 cache，
+但用户无需单独运行完整制表工具。不支持的参数化或轴会直接终止，当前尚未通过
+完整系综/性能门禁，因此不能替代默认生产路径。
+当前 canonical-v6 完整空气表包含 58 个随机过程列，占用 78,129,000 bytes
+显存；同一进程只上传一次，后续 shower 按相同哈希复用。第一阶段每个 backend
+只支持一种化学组成：相同干空气组成的分层密度 profile 可以使用，不同空气、
+岩石或冰组成混合的 geometry 会在启动时明确拒绝。
+
+当前正式干空气原生 artifact 为：
+
+```text
+PROPOSAL / CubicInterpolation: 7.6.2 / 0.1.5
+canonical format:              v6
+native table SHA-256:          7d618286c1acf3832ac8f6a4c8219ed02b94a204eea9b0cd16775d473b9ba72f
+auxiliary SHA-256:             5d389cde09fb75bf4d53475ef7f8cdebaa2993923c8e9a720df4fd0af7c67c9f
+rate columns / nodes:          58 / 550000
+device bytes:                  78129000
+```
+
+这些哈希只标识当前依赖、干空气组成、cut 和辅助算法合同，并不是其他介质或
+构建也应具有的固定常数。输出 metadata 会记录实际链接版本、原生/辅助表哈希、
+节点和显存字节数、PROPOSAL cache 命中、Newton/bisection、inverse failure
+以及 selection replay 计数。
+以下列表和后面的 `10^19` eV 示例专指 `.c8emrt` 模式；这些变化必须生成并
+重新验收完整表。`proposal-native` 不要求手工制表，而会让 PROPOSAL 自动建立
+对应 cache、重新导出原生样条并产生新的 canonical hash，但仍需要对新物理配置
+重新验收：
 
 - PROPOSAL 版本或物理参数化；
 - 介质组成、组分比例或材料常数；
@@ -1132,6 +1219,91 @@ c8_air_shower \
 
 它们用于诊断，会增加同步、归约或输出开销。
 
+### 7.12 使用原生 PROPOSAL 物理源
+
+保留应用全部默认参数、同时开启 CUDA 粒子输运、CUDA CoREAS/ZHS 和
+`proposal-native` 的最简单实用命令为：
+
+```bash
+"$C8_INSTALL/bin/c8_air_shower" \
+  -p 2212 -E 1e5 \
+  -f /path/to/new_output \
+  --antenna-file /path/to/antennas.txt \
+  --em-backend cuda \
+  --radio-backend cuda \
+  --gpu-physics-source proposal-native
+```
+
+程序本身真正必填的是初级粒子、正的初级能量和一个尚不存在的输出目录。这里
+仍显式给出天线文件，因为没有有效 observer 的 CUDA 射电计算没有科研意义。
+若当前工作目录已经存在有效的默认 `antennas.txt`，可以进一步缩短为：
+
+```bash
+"$C8_INSTALL/bin/c8_air_shower" \
+  -p 2212 -E 1e5 -f /path/to/new_output \
+  --em-backend cuda --radio-backend cuda \
+  --gpu-physics-source proposal-native
+```
+
+这条命令保留当前应用默认值：单事例、垂直入射、方位角 0、seed 0、默认
+`emcut/hadcut/mucut/taucut`、`emthin=1e-6`、自动 `max-weight`、IGRF14/2027、
+GPU 0、`gpu-min-batch=4096`、当前空闲显存的 70%、确定性 CUDA 随机数以及
+标量强子后端。这里的“CUDA 全加速”专指已经实现的 photon/lepton 输运和
+CoREAS/ZHS 射电投影；高能强子过程及未支持末态仍由 CPU 处理。
+
+如果要显式固定生产参数和缓存位置，可以使用下面的完整形式；它与上面的最短
+命令使用同一原生物理源：
+
+```bash
+c8_air_shower \
+  -p 2212 -E 100000 -N 1 -z 0 -a 0 \
+  --seed 2026085001 \
+  -f /path/to/native_output \
+  --geomagnetic-model IGRF14 \
+  --geomagnetic-year 2027 \
+  --emcut 0.0005 \
+  --emthin 1e-6 \
+  --ring 0 \
+  --antenna-file /path/to/antennas.txt \
+  --em-backend cuda \
+  --gpu-physics-source proposal-native \
+  --gpu-aux-cache-dir ~/.cache/corsika8/gpu-em-aux \
+  --gpu-min-batch 4096 \
+  --gpu-memory-fraction 0.70 \
+  --gpu-table-tolerance 5e-4 \
+  --gpu-deterministic true \
+  --gpu-resident-cross-species true \
+  --radio-backend cuda \
+  --gpu-radio-field-limit 1
+```
+
+此模式不能再传 `--gpu-table-cache`。首次遇到新的介质/cut 时，PROPOSAL 可能
+先建立自己的 cache；`.c8emaux` 也会加锁自动生成。后续进程命中 cache，同一
+进程内相同 canonical hash 的 shower 还会复用已上传的设备表。`--max-weight`
+是否出现会改变 thinning 语义；CPU、`c8emrt` 和 native 系综比较时必须三者
+一致，省略与显式设置不能混用。
+
+当前验收结论是：
+
+- 完整 CPU transport tape 的 57,313 条记录在 GPU 上 ordered hash 完全一致，
+  CoREAS/ZHS 最坏 relative (L_2) 约为 `1.1e-7/1.9e-7`；
+- 固定语义 decision 的 20,480 顶点与 live PROPOSAL 过程、组分和
+  `SampleLoss` mismatch 为 0；
+- 新的 1 TeV native 2000 例相对已保存 CPU 摘要，列出的 11 个均值偏移全部
+  比上一批 native 更小，例如 total-EM profile integral 从 `+0.377%` 变为
+  `+0.097%`，charged (X_{\max}) 从 `-2.060%` 变为 `-0.114%`；
+- 新旧 native 的 longitudinal/ground curve gate 全部通过，但地面 EM 动能的
+  KS 距离 `0.0530` 高于 95% 临界值 `0.0430`；
+- PSR 上 CPU raw shard 恢复访问后，仍要补做逐深度、KS、ground timing 和射电
+  的直接比较；当前只能称为本地阶段验收；
+- 与既有 100 TeV CPU 参考完全相同 2000 个 seed 的 native 任务已于
+  2026-09-01 启动，完成前不引用其物理或性能结论。
+
+完整代码门禁和逐随机数诊断分别见
+[Phase 113](documentation/cuda_em_refactor/phase_113_proposal_native_gpu_tables_CN.md)
+与
+[Phase 114](documentation/cuda_em_refactor/phase_114_beta4_proposal_native_decision_tape_replay_CN.md)。
+
 ## 8. 与官方最新公开状态的比较
 
 ### 8.1 比较基线和方法
@@ -1210,6 +1382,10 @@ c8_air_shower \
 - 不同 GPU 架构只承诺统计一致，不承诺浮点逐位一致；
 - production CUDA 与原版 CPU 相同 seed 不承诺逐粒子同一 shower；
 - `.c8emrt` 只在记录的粒子、介质、cut、能区和误差范围内有效；
+- `proposal-native` 第一阶段每个 backend 只接受一种化学组成；混合空气、岩石、
+  冰的原生表会在输运前拒绝；
+- 原生正式介质百万点 oracle 仍保留一个高能 Compton `v` 严格门禁 warning，
+  CPU raw 2000 例直接验收以及 100 TeV/1 PeV 热缓存性能门禁尚未完成；
 - CUDA radio 的定点范围必须预先配置并检查 overflow；
 - 本地工作树包含尚未上游合并的实现，迁移前必须保存精确 commit/patch、二进制
   和表哈希；仅从官方仓库重新 clone 不会得到这些 GPU 功能。
@@ -1256,9 +1432,13 @@ c8_air_shower \
 7. photon/lepton selection、transport 和 final-state CUDA 文件；
 8. [`RateTable.hpp`](corsika/gpu/em/tables/RateTable.hpp) 与
    [`gpu_em_tablegen.cpp`](applications/gpu_em_tablegen.cpp)；
-9. [`CudaRadioAccumulator.cu`](src/gpu/em/CudaRadioAccumulator.cu)；
-10. [`fluka_batch_worker.cpp`](applications/fluka_batch_worker.cpp)；
-11. [`validation/gpu_em`](validation/gpu_em/) 的物理与性能验收工具。
+9. [`ProposalNativeTable.hpp`](corsika/gpu/em/tables/ProposalNativeTable.hpp)、
+   [`ProposalNativeTableExporter.hpp`](corsika/gpu/em/tables/ProposalNativeTableExporter.hpp)
+   和 [`CudaProposalNativeTable.cu`](src/gpu/em/CudaProposalNativeTable.cu)；
+10. [`third_party/conan`](third_party/conan/) 的版本锁定依赖补丁；
+11. [`CudaRadioAccumulator.cu`](src/gpu/em/CudaRadioAccumulator.cu)；
+12. [`fluka_batch_worker.cpp`](applications/fluka_batch_worker.cpp)；
+13. [`validation/gpu_em`](validation/gpu_em/) 的物理与性能验收工具。
 
 ## 12. 引用与科研表述
 

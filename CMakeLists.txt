@@ -375,7 +375,17 @@ add_subdirectory (modules/fluka)
 # directory first for all of them.  This is derived at configure time and does
 # not embed a user- or machine-specific project path.
 set (_c8_host_multiarch_libdir "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/") AND
+if (NOT EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+  file (GLOB _c8_host_libm_candidates "/usr/lib/*-linux-gnu/libm.so")
+  list (LENGTH _c8_host_libm_candidates _c8_host_libm_count)
+  if (_c8_host_libm_count GREATER 0)
+    list (GET _c8_host_libm_candidates 0 _c8_host_libm)
+    get_filename_component (_c8_host_multiarch_libdir
+                            "${_c8_host_libm}" DIRECTORY)
+  endif ()
+endif ()
+if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/" OR
+     CMAKE_CXX_COMPILER MATCHES "/(conda|mambaforge|miniconda)[^/]*/") AND
     EXISTS "${_c8_host_multiarch_libdir}/libm.so")
   add_link_options ("-L${_c8_host_multiarch_libdir}")
 endif ()

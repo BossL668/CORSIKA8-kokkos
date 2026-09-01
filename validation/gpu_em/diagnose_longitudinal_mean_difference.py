@@ -42,7 +42,7 @@ COMPONENTS = (
 )
 COLORS = {"proposal": "#1f77b4", "cuda": "#d62728"}
 LABELS = {
-    "proposal": "Original CPU (PROPOSAL)",
+    "proposal": "Scalar CPU (PROPOSAL)",
     "cuda": "CUDA EM",
 }
 
@@ -695,8 +695,7 @@ def plot_sample_size_scaling(
         color=COLORS["cuda"],
         linestyle="--",
         label=(
-            "observed 100 TeV "
-            f"N={observed_events_per_backend} peak shift"
+            f"observed N={observed_events_per_backend} peak shift"
         ),
     )
     axis.set_xscale("log")
@@ -724,13 +723,27 @@ def write_markdown(
     xmax = report["xmax_distribution"]
     permutation = report["permutation"]
     thinning = report["thinning"]
+    configuration = report.get("configuration", {})
+    primary_energy_gev = float(configuration.get("energy_GeV", math.nan))
+    energy_text = (
+        f"{primary_energy_gev:g} GeV"
+        if math.isfinite(primary_energy_gev)
+        else "configured-energy"
+    )
+    provenance = report.get("provenance_strata", {})
+    proposal_hashes = set(provenance.get("proposal_executable_sha256", []))
+    cuda_hashes = set(provenance.get("cuda_executable_sha256", []))
+    executable_match = (
+        len(proposal_hashes) == 1
+        and proposal_hashes == cuda_hashes
+    )
     bootstrap = report[
         "fixed_depth_peak_bootstrap_relative_shift_95pct"
     ]
     proposal_events = int(report["events"]["proposal"])
     cuda_events = int(report["events"]["cuda"])
     lines = [
-        "# 100 TeV 纵向平均 profile 峰值差异诊断",
+        f"# {energy_text} 纵向平均 profile 峰值差异诊断",
         "",
         "## 结论",
         "",
@@ -806,10 +819,9 @@ def write_markdown(
             "这一解释，但也说明不能把这组数据称为已经启用的 1e-6 thinning。"
         ),
         (
-            "- 两侧不是同一个二进制：参考侧是原始程序，CUDA 侧还包含"
-            "进程隔离 FLUKA 和稀有光核末态 fallback。输运参数相同，"
-            "而实现级差异仍需通过“原始 CPU / 重构 CPU-PROPOSAL / CUDA”"
-            "三臂对照单独排除。"
+            f"- CPU/CUDA 使用相同的可执行文件哈希：{executable_match}。"
+            "该检查隔离了构建版本差异，但两个后端仍采用不同的输运与"
+            "随机数实现，因此独立系综不会逐事件相同。"
         ),
         "",
         "## 下一步验收",
@@ -848,7 +860,7 @@ def write_markdown(
         ]
         lines.extend(
             [
-                "## 与旧 1 TeV、1000 事例图的样本量交叉检查",
+                "## 与外部大样本参考的样本量交叉检查",
                 "",
                 (
                     f"- 旧样本完整集合的平均峰差为 "
@@ -869,7 +881,7 @@ def write_markdown(
                     "该交叉检查的能量、天顶角和 thinning 设置不同，只能"
                     f"用于说明 {proposal_events} 个质子 shower 的平均峰"
                     "仍可能具有抽样噪声，"
-                    "不能替代同一 100 TeV 配置的增样本验收。"
+                    "不能替代相同物理配置的增样本验收。"
                 ),
                 "- 对应图：`reference_sample_size_scaling.png`。",
                 "",
@@ -1033,6 +1045,8 @@ def main() -> int:
         },
         "physics_configuration_match": physics_configuration_match,
         "observer_layout_ignored_for_profile_configuration": True,
+        "configuration": configuration,
+        "provenance_strata": manifest.get("provenance_strata", {}),
         "thinning": {
             "em_fraction": em_fraction,
             "threshold_GeV": em_fraction * primary_energy,

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 import json
+from unittest import mock
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,7 @@ from compare_ensembles import (  # noqa: E402
     provenance_fingerprint,
     quadratic_peak,
     read_validation_provenance,
+    parse_args,
     VALIDATION_PROVENANCE_FILENAME,
 )
 
@@ -81,6 +83,28 @@ def make_ensemble(name: str, scale: float = 1.0) -> Ensemble:
 
 
 class EnsembleComparisonTest(unittest.TestCase):
+    def test_generic_cuda_fallback_allowlist_is_explicit_and_choice_limited(self) -> None:
+        arguments = [
+            "compare_ensembles.py",
+            "--proposal", "/cpu",
+            "--cuda", "/gpu",
+            "--output", "/out",
+            "--permitted-cuda-generic-fallback-reason", "unsupported_geometry",
+            "--permitted-cuda-generic-fallback-reason", "unsupported_medium",
+        ]
+        with mock.patch.object(sys, "argv", arguments):
+            parsed = parse_args()
+        self.assertEqual(
+            parsed.permitted_cuda_generic_fallback_reason,
+            ["unsupported_geometry", "unsupported_medium"],
+        )
+        invalid = [
+            *arguments[:7],
+            "--permitted-cuda-generic-fallback-reason", "anything_else",
+        ]
+        with mock.patch.object(sys, "argv", invalid), self.assertRaises(SystemExit):
+            parse_args()
+
     def test_validation_provenance_is_strict_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

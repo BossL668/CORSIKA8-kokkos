@@ -501,7 +501,7 @@ def markdown_report(report: dict[str, Any], rows: pd.DataFrame) -> str:
             "若原始振幅比随半径近似保持常数，而控制 shower development 或做单 shower 参考半径归一化后更接近 1，",
             "则主要差异是两个有限 shower 样本的整体射电规模，而不是 CUDA 射电公式改变了 lateral shape。",
             "远距离宽度在有效率下降、结果接近记录窗上限时不进入物理一致性的主判据。",
-            "最终结论还需与 identical-track CPU/CUDA radio oracle 以及新的 100 TeV 500 vs 500 数据共同给出。",
+            "最终结论应与 identical-track CPU/CUDA radio oracle、主射电脉冲验收和 shower profile 验收共同给出。",
             "",
             "![Radio radial attribution](radio_radial_attribution.png)",
             "",

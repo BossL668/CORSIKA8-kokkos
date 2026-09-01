@@ -15,14 +15,18 @@ FLUKA pool are explicit opt-in features.
 > production only within the supported and validated configurations described
 > below.
 
-> **Current branch recommendation (2026-08-09):** beta4 is the maintained
+> **Current branch recommendation (2026-09-01):** beta4 is the maintained
 > beta2-derived validation branch. It preserves the beta2 scheduler and GPU
 > performance model while repairing the audited CPU/GPU semantic differences:
 > charged-particle endpoint-chord grammage and per-PID cuts, the locally flat
 > observation plane, native-GPU first-interaction output, the scalar 10 ms
 > physical-time cut, and forced-primary interaction/decay handling. CUDA
 > startup now also rejects any unregistered process category before a shower
-> begins.
+> begins. Beta4 now also contains an experimental `proposal-native` physics
+> source that exports the live PROPOSAL interpolation state directly to
+> resident GPU data. The established `.c8emrt` source remains the production
+> default while the remaining native-source ensemble and performance gates are
+> completed.
 > The separate beta3 branch adds experimental hadronic multiprocessing and is
 > not the reference for this repair. The complete beta4 change and evidence
 > index is given below.
@@ -44,6 +48,7 @@ hybrid CPU/GPU execution path. The main additions are:
 | CUDA charged-lepton transport | Table-enabled muon transport with CPU return for decay and unsupported final states |
 | Hybrid scheduling | Stable routing between the original CPU stack and independent GPU structure-of-arrays queues |
 | Physics tables | Versioned PROPOSAL-derived rate, inverse-CDF, continuous-loss, LPM, and scattering tables |
+| Native PROPOSAL tables (experimental) | Direct read-only export of PROPOSAL 7.6.2/CubicInterpolation 0.1.5 spline state to resident GPU POD data; no complete `.c8emrt` preparation step |
 | Automatic table preparation | Material YAML normalization, content hashing, cache lookup, locked generation, and validation |
 | Radio calculation | Selectable CPU or CUDA CoREAS/ZHS waveform projection for electromagnetic tracks |
 | Low-energy hadronic throughput | Optional persistent multi-process FLUKA final-state pool |
@@ -52,6 +57,28 @@ hybrid CPU/GPU execution path. The main additions are:
 
 Unsupported or rare processes are never silently discarded. They are either
 returned to a declared CPU physics module or treated as a hard failure.
+
+The established `.c8emrt` source remains the production default. The
+experimental `proposal-native` source reuses the exact calculator objects
+constructed by the current shower and is documented in
+[Phase 113](documentation/cuda_em_refactor/phase_113_proposal_native_gpu_tables_CN.md),
+with the random-stream and replay audit in
+[Phase 114](documentation/cuda_em_refactor/phase_114_beta4_proposal_native_decision_tape_replay_CN.md).
+The production-air oracle covers 58 photon, electron, positron, and muon rate
+columns and five million complete process/component selections. Process and
+component mismatches are zero. One extreme Compton point exceeds the original
+`1e-10` completed-loss tolerance (`4.57e-10` relative in `v`), so the strict
+million-point loss gate is retained as a warning rather than reported as an
+unqualified pass. A separate semantic-decision replay over 20,480 vertices has
+zero process/component/live-`SampleLoss` mismatches and a maximum supported
+`v` difference below `8e-13`.
+
+A configuration-matched 1 TeV native ensemble of 2,000 showers is complete.
+Its local aggregate cross-check is substantially closer to the stored CPU
+means than the preceding native seed stratum, but one ground-EM kinetic-energy
+KS gate remains failed and the direct CPU raw-data comparison is pending. A
+2,000-event 100 TeV native campaign using the exact CPU reference seed set was
+started on 2026-09-01. These results do not change the production default.
 
 ### Execution model
 
@@ -96,14 +123,15 @@ backend.
 | Forced primary and custom process semantics | A requested primary interaction or decay executes once before GPU routing; all six process categories are checked by a fail-closed compatibility registry | [Phase 101](documentation/cuda_em_refactor/phase_101_beta4_forced_primary_and_process_compatibility_gate.md) |
 | Performance regression | Three paired 10 PeV proton runs put beta4 within about 1--3% of beta2 on the same RTX 4060 Laptop GPU | [Phase 102](documentation/cuda_em_refactor/phase_102_beta4_beta2_10pev_performance.md) |
 | Final code-path audit and 100 TeV gate | No further production-blocking omitted or reordered contract was found; the canonical beta2 CPU 500-event reference was verified and the matching beta4 CUDA campaign was started | [Phase 103](documentation/cuda_em_refactor/phase_103_beta4_gpu_cpu_path_reaudit_and_100tev_campaign.md) |
+| Native PROPOSAL spline export | Version-locked read-only dependency exports, canonical hashing, device Hermite evaluation, energy-domain checks, metadata, and explicit endpoint replay are implemented | [Phase 113](documentation/cuda_em_refactor/phase_113_proposal_native_gpu_tables_CN.md) |
+| Native decision semantics | Fixed CPU transport tapes reproduce transport and radio; semantic process/component/loss decisions reproduce live PROPOSAL, while equal initial seeds alone are not an event-by-event equivalence contract | [Phase 114](documentation/cuda_em_refactor/phase_114_beta4_proposal_native_decision_tape_replay_CN.md) |
 
-The completed automated gate is 34/34 C++/CUDA tests and 241/241 Python
-validation tests with the FLUKA runtime environment present. A 500-versus-500
-10 GeV electron diagnostic also completed; its shower curves were statistically
-consistent, while the radio signal was too close to the numerical floor to be
-a sufficient high-energy radio-shape acceptance sample. The canonical 100 TeV
-proton beta4 campaign is still in progress, so its partial sample must not be
-reported as a final beta4 production result.
+The pre-native beta4 repair gate recorded 34/34 C++/CUDA tests and 241/241
+Python validation tests with the FLUKA runtime environment present. The native
+extension adds dedicated table, fallback, selection, final-state, transport,
+radio, cache, and decision-oracle gates. The current evidence is intentionally
+split into code-level correctness, fixed-decision replay, and independent
+shower ensembles; a pass in one layer is not substituted for another.
 
 ## Supported production contract
 
@@ -490,6 +518,18 @@ cmake \
   -DCMAKE_INSTALL_PREFIX="$C8_INSTALL"
 ```
 
+For a CUDA build, `conan-install.sh` automatically exports and resolves the
+version-locked packages
+`cubicinterpolation/0.1.5@c8gpu/stable` and
+`proposal/7.6.2@c8gpu/stable` from `third_party/conan/`. Their additions are
+read-only APIs, but they extend C++ class layouts and are therefore not ABI
+compatible with vanilla packages. Keep `third_party/conan/` with the source
+tree, use a clean Conan/CMake build after changing either recipe, and never mix
+vanilla headers or libraries with objects built against the patched packages.
+No manual `conan create` step is needed in the normal workflow. The isolated
+package-audit commands are documented in
+[`third_party/conan/README.md`](third_party/conan/README.md).
+
 `Release` is required for performance measurements. The CUDA build deliberately
 does not enable fast math. CMake caches compiler and CUDA selections on its
 first configuration. If any of them must change, use a new empty build
@@ -712,11 +752,61 @@ cmake \
 cmake --build "$C8_CPU_BUILD" --parallel 16
 ```
 
-## Prepare the CUDA physics table
+## Select the CUDA physics source
 
-CUDA showers require a versioned `.c8emrt` file. This file is different from
-PROPOSAL's internal interpolation cache. `c8_air_shower` never creates a table
-implicitly during a shower; prepare it first with `gpu_em_table_prepare`.
+The default `c8emrt` source requires a versioned `.c8emrt` file. This file is
+different from PROPOSAL's internal interpolation cache. In this mode,
+`c8_air_shower` never creates a table implicitly during a shower; prepare it
+first with `gpu_em_table_prepare`.
+
+The experimental `proposal-native` source instead exports the immutable
+PROPOSAL/CubicInterpolation spline state already constructed for the current
+CORSIKA environment. It does not require a material YAML or a complete
+`.c8emrt` file. On a new medium/cut configuration PROPOSAL may still spend
+time creating its own internal cache; later runs reuse that cache. A small
+`.c8emaux` cache for LPM/Molière state is created automatically under the XDG
+user cache directory. The native coefficients are uploaded once per canonical
+hash and reused by subsequent showers in the same process.
+
+This distinction is important:
+
+| Data product | Owner | User action |
+|---|---|---|
+| PROPOSAL interpolation cache | PROPOSAL | Created automatically on the first new medium/cut request and reused later |
+| Complete `.c8emrt` table | CORSIKA CUDA table tools | Prepare explicitly with `gpu_em_table_prepare`; required by the default `c8emrt` source |
+| Native GPU table | Runtime exporter | Read-only export from the live calculator; no material YAML or complete `.c8emrt` file |
+| `.c8emaux` sidecar | CORSIKA CUDA runtime | Locked, validated, and atomically created on demand for the native auxiliary state |
+
+`proposal-native` does not mean that PROPOSAL C++ runs inside a CUDA kernel.
+PROPOSAL still constructs or loads its native interpolants on the host; the
+fork exports their axes and coefficients into a flat POD representation and
+evaluates that representation on the GPU. Unsupported axes, parameterizations,
+chemical compositions, or configured energy domains fail before transport.
+
+### What happens when the medium changes?
+
+`proposal-native` removes the separate user-managed `.c8emrt` preparation
+step, but it does not make one native table valid for every medium:
+
+- changing only the density profile, magnetic field, or observation geometry
+  while retaining the same chemical composition and cuts can reuse the same
+  PROPOSAL physics coefficients;
+- changing elemental composition, component fractions, material constants,
+  cuts, PROPOSAL parameterizations, or dependency versions causes PROPOSAL to
+  construct or load a different host cache and produces a different canonical
+  native-table hash; this happens automatically, but the first request may be
+  slow;
+- the current GPU backend accepts only one chemical composition in one backend
+  instance. Mixed air/rock/ice geometry is rejected before transport;
+- the stock `c8_air_shower` CUDA environment is still the validated five-layer
+  `AirDry1Atm` atmosphere. Running a new material end to end also requires the
+  corresponding device environment snapshot, grammage/geometry support,
+  medium-ID mapping, and validation. Native export alone does not provide
+  those pieces.
+
+Thus, a compatible new single-composition environment needs no manual complete
+table generation, but it may automatically create a new PROPOSAL cache,
+native canonical table, and `.c8emaux` sidecar on first use.
 
 ### Recommended automatic workflow
 
@@ -990,6 +1080,88 @@ export C8_CUDA_OUTPUT=/absolute/path/to/proton_100TeV_cuda
 This uses CUDA electromagnetic transport with the default CPU radio and scalar
 low-energy hadronic backends.
 
+### Experimental PROPOSAL-native run
+
+The shortest useful command that retains all application defaults and enables
+both implemented CUDA stages is:
+
+```bash
+"$C8_INSTALL/bin/c8_air_shower" \
+  -p 2212 -E 1e5 \
+  -f /absolute/path/to/new_output \
+  --antenna-file /absolute/path/to/antennas.txt \
+  --em-backend cuda \
+  --radio-backend cuda \
+  --gpu-physics-source proposal-native
+```
+
+Only the primary, positive primary energy, and a non-existing output path are
+intrinsically required. The antenna option is included because CUDA radio with
+no valid observers is not scientifically useful. If a valid `antennas.txt`
+already exists in the working directory, its path is the application default
+and the option may be omitted:
+
+```bash
+"$C8_INSTALL/bin/c8_air_shower" \
+  -p 2212 -E 1e5 -f /absolute/path/to/new_output \
+  --em-backend cuda --radio-backend cuda \
+  --gpu-physics-source proposal-native
+```
+
+This minimal command deliberately keeps the application defaults: one vertical
+shower, azimuth zero, seed zero, the default cuts and thinning configuration,
+automatic maximum weight, IGRF14/2027, CUDA device zero, minimum wavefront
+4,096, 70% of currently free device memory, deterministic CUDA random numbers,
+and the scalar hadronic backend. “Full CUDA” here means the implemented
+photon/lepton transport and CoREAS/ZHS projection; high-energy hadronic physics
+and unsupported final states remain on the CPU.
+
+For an explicit production configuration, use the same physical shower
+arguments, replace the complete `.c8emrt` input with the native source, and
+optionally choose the small auxiliary-cache directory:
+
+```bash
+export C8_NATIVE_OUTPUT=/absolute/path/to/proton_100TeV_cuda_native
+
+"$C8_INSTALL/bin/c8_air_shower" \
+  -p 2212 -E 1e5 -N 1 -z 0 -a 0 \
+  -s 20001 -f "$C8_NATIVE_OUTPUT" \
+  --emcut 0.0005 --emthin 1e-6 --max-weight 100 \
+  --ring 0 --antenna-file "$C8_ANTENNAS" \
+  --em-backend cuda \
+  --gpu-physics-source proposal-native \
+  --gpu-aux-cache-dir ~/.cache/corsika8/gpu-em-aux
+```
+
+Do not pass `--gpu-table-cache` in this mode. Unsupported PROPOSAL
+parameterizations, interpolation axes, or energy domains are fatal; the
+program does not silently switch physics sources. The current canonical-v6
+full air-shower export contains 58 stochastic-rate columns and occupies
+78,129,000 bytes of device memory. It is uploaded only once per process;
+subsequent showers reuse the same hash. This first phase supports one chemical
+composition per backend instance: a layered density profile of the same
+dry-air composition is valid, while mixed air/rock/ice geometry is rejected
+explicitly.
+
+The run metadata records the actual linked PROPOSAL/CubicInterpolation
+versions, canonical table and auxiliary hashes, node and byte counts, PROPOSAL
+cache state, Newton/bisection counters, inverse failures, and exact replay
+counts. The current validated production-air native artifacts are:
+
+```text
+PROPOSAL / CubicInterpolation: 7.6.2 / 0.1.5
+canonical format:              v6
+native table SHA-256:          7d618286c1acf3832ac8f6a4c8219ed02b94a204eea9b0cd16775d473b9ba72f
+auxiliary SHA-256:             5d389cde09fb75bf4d53475ef7f8cdebaa2993923c8e9a720df4fd0af7c67c9f
+rate columns / nodes:          58 / 550000
+device bytes:                  78129000
+```
+
+These hashes identify the current dry-air, cut, dependency, and algorithm
+contract; they are not universal constants for another medium or build. This
+path remains experimental until the direct raw-data ensemble and warm-cache
+performance gates described below are complete.
+
 ### Fully accelerated reference run
 
 Enable CUDA radio and the process-isolated FLUKA pool explicitly:
@@ -1106,8 +1278,10 @@ automatic maximum weight can activate from an initially unweighted history.
 | `--gpu-device` | `0` | CUDA device index |
 | `--gpu-min-batch` | `4096` | Minimum useful GPU front; smaller fronts receive bounded scalar expansion |
 | `--gpu-memory-fraction` | `0.70` | Fraction of currently free device memory available to the backend |
-| `--gpu-table-cache` | none | Required versioned `.c8emrt` file |
-| `--gpu-table-tolerance` | `1e-3` | Maximum accepted table interpolation error |
+| `--gpu-physics-source` | `c8emrt` | Select `c8emrt` or experimental `proposal-native` coefficients |
+| `--gpu-table-cache` | none | Required only for `c8emrt`; versioned `.c8emrt` file |
+| `--gpu-aux-cache-dir` | XDG cache | Optional `.c8emaux` directory for `proposal-native` |
+| `--gpu-table-tolerance` | `1e-3` | Maximum accepted `.c8emrt` interpolation error; proposal-native only requires a positive compatibility value |
 | `--gpu-deterministic` | `true` | Enable history-addressed deterministic Philox random numbers |
 | `--gpu-resident-cross-species` | `true` | Keep photon/lepton secondaries in persistent device queues |
 | `--gpu-detailed-stage-timing` | off | Record CUDA stage, device-copy, and host-wait timing; profiling only |
@@ -1233,9 +1407,13 @@ Different GPU architectures are required to reproduce statistical distributions
 but are not required to reproduce every floating-point bit.
 
 The scalar and CUDA schedulers do not consume one shared global random stream in
-the same order. Therefore, the same initial seed does not imply an identical
-production shower between scalar CORSIKA 8 and the CUDA backend. Physics
-equivalence is evaluated with independent ensembles.
+the same order. Scalar PROPOSAL can use one joint draw for process, component,
+and conditional loss, whereas the CUDA scheduler addresses these decisions by
+history and draw role. Therefore, the same initial seed does not imply an
+identical production shower between scalar CORSIKA 8 and the CUDA backend, or
+between the autonomous `c8emrt` and `proposal-native` paths. Same-seed samples
+are useful paired diagnostics, but physics equivalence is evaluated with
+independent ensembles.
 
 For process-by-process debugging, record and replay the exact scalar decision
 tape:
@@ -1255,6 +1433,13 @@ tape:
 
 Decision replay verifies identical recorded transport decisions and radio
 tracks; it is not a replacement for independent production-ensemble tests.
+With a complete CPU transport tape, the current replay reproduces all 57,313
+ordered transport records and gives worst-case CoREAS/ZHS relative-L2
+differences of approximately `1.1e-7` and `1.9e-7`. A semantic tape that fixes
+particle state, process, component, and conditional loss quantile isolates the
+native interpolation itself. See
+[Phase 114](documentation/cuda_em_refactor/phase_114_beta4_proposal_native_decision_tape_replay_CN.md)
+for the first-divergence analysis.
 
 ## Validation and measured performance
 
@@ -1268,8 +1453,13 @@ The validation suite compares:
 - deterministic repetition, table identity, fallbacks, and failure behavior;
 - cold-cache and warm-cache end-to-end timing.
 
-The largest completed production-scale reference comparison currently remains
-the beta2-era 500 scalar versus 500 CUDA proton ensemble:
+The largest completed default-table references are beta2 scalar versus beta4
+`c8emrt` ensembles of 2,000 versus 2,000 proton showers at both 1 TeV and
+100 TeV. All principal longitudinal curve gates pass. Their reports retain
+hard 1% scalar outcomes that are statistically inconclusive and localized
+radio-width warnings, so they are not summarized as an unconditional
+all-observable pass. The following 100 TeV configuration also underlies the
+earlier 500-versus-500 production-turnaround measurement:
 
 ```text
 primary: proton
@@ -1320,10 +1510,44 @@ Beta4-specific acceptance is tracked separately:
 - phase 102 found mean beta4/beta2 wall time `1.014` in three paired 10 PeV
   proton runs, with both versions sustaining the same high-utilization GPU
   regime;
-- phase 103 accepted a new IGRF14/2027 beta2 scalar 500-event reference on the
-  server and started the exactly matched beta4 CUDA 500-event campaign. This
-  comparison remains **in progress**; partial-event statistics are not a final
-  validation result.
+- the later configuration-matched beta2 CPU versus beta4 `c8emrt` campaigns
+  reached 2,000 versus 2,000 showers at both 1 TeV and 100 TeV. All principal
+  longitudinal curve gates passed. The reports retain statistically
+  inconclusive hard 1% scalar gates and localized radio-width warnings rather
+  than promoting them to an unconditional all-observable pass.
+
+### PROPOSAL-native validation status
+
+The native source is validated in layers:
+
+1. Read-only patched-dependency regression and canonical table hash checks.
+2. Per-column rate/CDF and five-PID selection oracles against the live
+   production-air PROPOSAL calculators.
+3. Fixed transport and semantic-decision replay, including CUDA CoREAS/ZHS.
+4. Independent shower ensembles and performance comparisons.
+
+The first three layers are implemented and documented in Phases 113 and 114.
+The strict production-air million-point oracle has zero process/component
+mismatches in five million complete selections; its one retained warning is an
+extreme Compton point with a `4.57e-10` relative `v` difference against a
+`1e-10` threshold. The smaller semantic-decision replay has zero mismatches in
+20,480 vertices and a maximum supported `v` difference below `8e-13`.
+
+Two independent 1 TeV native seed strata of 2,000 showers each pass all
+longitudinal/ground curve gates when compared with one another. In an aggregate
+cross-check against the stored CPU summary, the newer stratum reduces the
+absolute mean offset for all 11 reported observables: for example total-EM
+profile integral changes from `+0.377%` to `+0.097%`, charged `Xmax` from
+`-2.060%` to `-0.114%`, and ground EM kinetic energy from `-12.611%` to
+`-1.405%`. One ground-EM kinetic-energy KS test between the two native strata
+still fails (`D=0.0530`, 95% critical value `0.0430`). Because the CPU raw
+shards were unavailable locally during this check, these numbers are a local
+aggregate cross-check, not a completed direct CPU/native acceptance.
+
+The exact 2,000-seed set selected for the established 100 TeV CPU reference is
+now being rerun with `proposal-native`. No 100 TeV native physics or timing
+result should be quoted until that campaign and the direct raw-data comparison
+are complete. The production default therefore remains `c8emrt`.
 
 Run the maintained acceptance drivers rather than comparing only one shower:
 
@@ -1398,6 +1622,11 @@ run a competing scalar campaign while measuring CUDA performance.
 - Rare and unsupported final states return to explicit CPU generators.
 - Same-seed scalar and production CUDA showers are not expected to be
   event-by-event identical.
+- `proposal-native` currently accepts one chemical composition per backend
+  instance; mixed air/rock/ice native tables are rejected before transport.
+- The native production-air million-point oracle retains one extreme Compton
+  completed-loss tolerance warning, and the direct 2,000-event CPU/raw
+  comparison and 100 TeV/1 PeV warm-cache performance gates are incomplete.
 - New media, energy ranges, cuts, GPU architectures, or performance settings
   require renewed validation.
 - The fork is not an official CORSIKA Collaboration release.
@@ -1411,6 +1640,8 @@ run a competing scalar campaign while measuring CUDA performance.
 | `corsika/gpu/` and `src/gpu/` | CUDA transport, tables, radio, and runtime |
 | `applications/gpu_em_table_prepare.cpp` | Material hashing and automatic table preparation |
 | `applications/gpu_em_tablegen.cpp` | Low-level PROPOSAL table generation |
+| `corsika/gpu/em/tables/ProposalNativeTable*.hpp` and `src/gpu/em/*ProposalNative*` | Native PROPOSAL export, canonical host table, auxiliary cache, and device evaluation |
+| `third_party/conan/` | Version-locked read-only CubicInterpolation and PROPOSAL export recipes |
 | `applications/cuda_decision_replay.cpp` | Exact scalar-tape CUDA replay |
 | `applications/fluka_batch_worker.cpp` | Process-isolated FLUKA worker |
 | `configs/media/` | Canonical schema-1 material definitions |

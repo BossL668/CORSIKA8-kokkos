@@ -15,10 +15,17 @@ add_library (
   CudaLeptonVertexSelector.cu
   CudaLeptonSelectionTransport.cu
   MoliereInterpolation.cpp
+  ProposalNativeTable.cpp
+  ProposalNativeAux.cpp
   CudaRateTable.cu
+  CudaProposalNativeTable.cu
   )
 
 add_library (CORSIKA8::GpuEm ALIAS CORSIKA8GpuEm)
+
+# ProposalNativeTable.cpp consumes the generated CORSIKA particle/PDG mapping.
+# Keep this dependency explicit so building only CORSIKA8GpuEm is reliable.
+add_dependencies (CORSIKA8GpuEm GenParticlesHeaders)
 
 target_include_directories (
   CORSIKA8GpuEm
@@ -61,6 +68,7 @@ target_link_libraries (
   CUDA::cudart_static
   PRIVATE
   CubicInterpolation::CubicInterpolation
+  PROPOSAL::PROPOSAL
   )
 
 target_compile_features (

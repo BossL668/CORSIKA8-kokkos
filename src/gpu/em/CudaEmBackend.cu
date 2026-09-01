@@ -44,6 +44,7 @@
 #include <corsika/gpu/em/detail/DeviceWavefrontBucketing.hpp>
 #include <corsika/gpu/em/detail/ProfileProjection.hpp>
 #include <corsika/gpu/em/tables/CudaRateTable.hpp>
+#include <corsika/gpu/em/tables/CudaProposalNativeTable.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 #include <corsika/gpu/radio/CudaRadioAccumulator.hpp>
 
@@ -385,6 +386,25 @@ namespace corsika::gpu::em {
     void initialize(EnvironmentSnapshot const& environment,
                     ProposalTableSet const& table_descriptor,
                     GpuEmConfig const& requested_config) {
+      initializeImpl(environment, &table_descriptor, nullptr, nullptr,
+                     requested_config);
+    }
+
+    void initialize(
+        EnvironmentSnapshot const& environment,
+        tables::ProposalNativeTableSet const& native_table,
+        tables::ProposalNativeAuxData const& native_aux,
+        GpuEmConfig const& requested_config) {
+      initializeImpl(environment, nullptr, &native_table, &native_aux,
+                     requested_config);
+    }
+
+    void initializeImpl(
+        EnvironmentSnapshot const& environment,
+        ProposalTableSet const* table_descriptor,
+        tables::ProposalNativeTableSet const* native_table,
+        tables::ProposalNativeAuxData const* native_aux,
+        GpuEmConfig const& requested_config) {
       auto const initialization_start =
           std::chrono::steady_clock::now();
       if (initialized_) {
@@ -394,8 +414,15 @@ namespace corsika::gpu::em {
         throw std::invalid_argument(
             "environment snapshot contains more than five atmosphere layers");
       }
-      if (table_descriptor.format_version == 0) {
+      if (table_descriptor && table_descriptor->format_version == 0) {
         throw std::invalid_argument("PROPOSAL table metadata has no format version");
+      }
+      if ((requested_config.physics_source == GpuPhysicsSource::C8EmRt) !=
+              (table_descriptor != nullptr) ||
+          (requested_config.physics_source == GpuPhysicsSource::ProposalNative) !=
+              (native_table != nullptr && native_aux != nullptr)) {
+        throw std::invalid_argument(
+            "GPU physics source does not match the supplied table type");
       }
       if (requested_config.device < 0) {
         throw std::invalid_argument("CUDA device index must be non-negative");
@@ -410,6 +437,20 @@ namespace corsika::gpu::em {
       }
       if (!(requested_config.table_tolerance > 0.)) {
         throw std::invalid_argument("GPU table tolerance must be positive");
+      }
+      if (requested_config.physics_source ==
+              GpuPhysicsSource::ProposalNative &&
+          (!(requested_config.em_transport_cut_MeV > 0.) ||
+           !std::isfinite(requested_config.em_transport_cut_MeV))) {
+        throw std::invalid_argument(
+            "proposal-native requires a positive finite EM transport cut");
+      }
+      if (requested_config.physics_source ==
+              GpuPhysicsSource::ProposalNative &&
+          (!(requested_config.muon_transport_cut_MeV > 0.) ||
+           !std::isfinite(requested_config.muon_transport_cut_MeV))) {
+        throw std::invalid_argument(
+            "proposal-native requires a positive finite muon transport cut");
       }
       if (requested_config.thinning.enabled != 0 &&
           (!std::isfinite(
@@ -548,8 +589,110 @@ namespace corsika::gpu::em {
           }
           statistics_.lepton_pipeline_timing.enabled = true;
         }
-        if (!config_.table_cache.empty()) {
-          if (table_descriptor.format_version !=
+        if (native_table != nullptr) {
+          tables::validateProposalNativeTable(*native_table);
+          proposal_medium_hash_ =
+              native_table->interaction_identities.empty()
+                  ? 0u
+                  : native_table->interaction_identities.front().medium_hash;
+          interaction_hashes_.clear();
+          interaction_hashes_.reserve(
+              native_table->interaction_identities.size());
+          for (auto const& identity : native_table->interaction_identities)
+            interaction_hashes_.emplace_back(
+                identity.pdg_id, identity.interaction_hash);
+          photon_pair_lpm_ = native_aux->photon_pair_lpm;
+          brems_lpm_ = native_aux->brems_lpm;
+          brems_lpm_prepared_ =
+              prepareBremsLpmSnapshotForCuda(
+                  brems_lpm_, config_.device);
+          moliere_ = native_aux->electron_moliere;
+          muon_moliere_ = native_aux->muon_moliere;
+          muon_moliere_available_ =
+              native_aux->has_muon_moliere != 0;
+          auto moliere_cache_path = native_aux->cache_file;
+          moliere_cache_path += ".moliere-initial-v1.c8cache";
+          auto const interpolation =
+              loadOrMakeMoliereInterpolationTable(
+                  moliere_, moliere_cache_path);
+          moliere_interpolation_device_bytes_ =
+              sizeof(MoliereInterpolationTable);
+          checkCuda(
+              cudaMalloc(
+                  reinterpret_cast<void**>(
+                      &device_moliere_interpolation_),
+                  moliere_interpolation_device_bytes_),
+              "allocate native GPU Moliere interpolation coefficients");
+          checkCuda(
+              cudaMemcpy(
+                  device_moliere_interpolation_, &interpolation,
+                  moliere_interpolation_device_bytes_,
+                  cudaMemcpyHostToDevice),
+              "upload native GPU Moliere interpolation coefficients");
+          moliere_interpolation_ =
+              makeMoliereInterpolationView(
+                  device_moliere_interpolation_,
+                  reinterpret_cast<double const*>(
+                      reinterpret_cast<unsigned char const*>(
+                          device_moliere_interpolation_) +
+                      offsetof(MoliereInterpolationTable,
+                               initial_guess_delta)));
+          statistics_.physical_host_to_device_bytes +=
+              moliere_interpolation_device_bytes_;
+          moliere_available_ = true;
+          cuda_native_table_.initialize(
+              *native_table, config_.device, memory_budget_bytes_);
+          checkCuda(
+              cudaMalloc(
+                  reinterpret_cast<void**>(
+                      &device_native_inverse_counters_),
+                  3 * sizeof(unsigned long long)),
+              "allocate native inverse-solver counters");
+          checkCuda(
+              cudaMemset(
+                  device_native_inverse_counters_, 0,
+                  3 * sizeof(unsigned long long)),
+              "clear native inverse-solver counters");
+          native_auxiliary_hash_ = native_aux->content_hash;
+          native_auxiliary_cache_hit_ = native_aux->cache_hit;
+          native_proposal_version_ = native_table->proposal_version;
+          native_cubic_interpolation_version_ =
+              native_table->cubic_interpolation_version;
+          native_table_nodes_ =
+              native_table->bicubic_values.size() +
+              native_table->cubic_values.size();
+          native_stochastic_cut_MeV_ =
+              native_table->stochastic_cut_MeV;
+          native_proposal_cache_table_count_ =
+              native_table->proposal_cache_table_count;
+          native_proposal_cache_hit_count_ =
+              native_table->proposal_cache_hit_count;
+          native_proposal_cache_all_hit_ =
+              native_table->proposal_cache_all_hit;
+          statistics_.physics_source = GpuPhysicsSource::ProposalNative;
+          statistics_.native_proposal_version =
+              native_proposal_version_;
+          statistics_.native_cubic_interpolation_version =
+              native_cubic_interpolation_version_;
+          statistics_.native_table_hash = native_table->content_hash;
+          statistics_.auxiliary_cache_hash = native_aux->content_hash;
+          statistics_.auxiliary_cache_hit = native_aux->cache_hit;
+          statistics_.native_table_nodes = native_table_nodes_;
+          statistics_.proposal_cache_table_count =
+              native_proposal_cache_table_count_;
+          statistics_.proposal_cache_hit_count =
+              native_proposal_cache_hit_count_;
+          statistics_.proposal_cache_all_hit =
+              native_proposal_cache_all_hit_;
+          statistics_.native_table_device_bytes =
+              cuda_native_table_.deviceBytes();
+          statistics_.table_device_bytes =
+              checkedAdd(
+                  cuda_native_table_.deviceBytes(),
+                  moliere_interpolation_device_bytes_,
+                  "native GPU table byte statistics overflow");
+        } else if (!config_.table_cache.empty()) {
+          if (table_descriptor->format_version !=
               tables::RateTableFormatVersion) {
             throw std::runtime_error(
                 "PROPOSAL table descriptor format version mismatch");
@@ -570,14 +713,14 @@ namespace corsika::gpu::em {
           }
           auto const source_process_count =
               processCount(source);
-          if (table_descriptor.process_count != 0 &&
-              table_descriptor.process_count !=
+          if (table_descriptor->process_count != 0 &&
+              table_descriptor->process_count !=
                   source_process_count) {
             throw std::runtime_error(
                 "PROPOSAL table descriptor process count mismatch");
           }
-          if (!isZeroHash(table_descriptor.content_hash) &&
-              table_descriptor.content_hash !=
+          if (!isZeroHash(table_descriptor->content_hash) &&
+              table_descriptor->content_hash !=
                   source.content_hash) {
             throw std::runtime_error(
                 "PROPOSAL table descriptor content hash mismatch");
@@ -964,7 +1107,7 @@ namespace corsika::gpu::em {
         static_host_to_device_bytes_ =
             checkedAdd(
                 statistics_.physical_host_to_device_bytes,
-                cuda_rate_table_.deviceBytes(),
+                physicsTableDeviceBytes(),
                 "CUDA static upload statistics overflow");
         auto const initialization_stop =
             std::chrono::steady_clock::now();
@@ -1125,6 +1268,13 @@ namespace corsika::gpu::em {
               device_first_interaction_candidate_count_, 0,
               sizeof(std::uint32_t)),
           "reset GPU first-interaction candidate count");
+      if (device_native_inverse_counters_ != nullptr) {
+        checkCuda(
+            cudaMemset(
+                device_native_inverse_counters_, 0,
+                3 * sizeof(unsigned long long)),
+            "reset native inverse-solver counters");
+      }
       ++shower_ordinal_;
       resetStatisticsForShower(true);
     }
@@ -1284,6 +1434,17 @@ namespace corsika::gpu::em {
 
     GpuEmStatistics const& statistics() const {
       statistics_.radio = radio_accumulator_.statistics();
+      if (device_native_inverse_counters_ != nullptr) {
+        std::array<unsigned long long, 3> counters{};
+        checkCuda(
+            cudaMemcpy(
+                counters.data(), device_native_inverse_counters_,
+                sizeof(counters), cudaMemcpyDeviceToHost),
+            "download native inverse-solver counters");
+        statistics_.native_newton_iterations = counters[0];
+        statistics_.native_bisection_iterations = counters[1];
+        statistics_.native_inverse_failures = counters[2];
+      }
       return statistics_;
     }
 
@@ -1317,17 +1478,46 @@ namespace corsika::gpu::em {
       return pending_lepton_count_;
     }
 
+    bool physicsTableInitialized() const noexcept {
+      return cuda_rate_table_.initialized() ||
+             cuda_native_table_.initialized();
+    }
+
+    tables::FlatRateTableView physicsTableView() const {
+      if (cuda_native_table_.initialized()) {
+        tables::FlatRateTableView result{};
+        result.proposal_native = cuda_native_table_.deviceView();
+        result.physics_source = 1u;
+        result.native_inverse_counters =
+            device_native_inverse_counters_;
+        result.energy_cut_MeV = native_stochastic_cut_MeV_;
+        result.em_transport_cut_MeV = config_.em_transport_cut_MeV;
+        result.muon_transport_cut_MeV =
+            config_.muon_transport_cut_MeV;
+        return result;
+      }
+      return cuda_rate_table_.deviceView();
+    }
+
+    std::size_t physicsTableDeviceBytes() const noexcept {
+      return (cuda_native_table_.initialized()
+                  ? cuda_native_table_.deviceBytes()
+                  : cuda_rate_table_.deviceBytes());
+    }
+
     bool hasProposalTable() const {
-      return cuda_rate_table_.initialized();
+      return physicsTableInitialized();
     }
 
     std::array<std::uint8_t, 32> proposalTableHash() const {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "CUDA EM backend has no uploaded PROPOSAL table");
       }
-      return cuda_rate_table_.sourceContentHash();
+      return cuda_native_table_.initialized()
+                 ? cuda_native_table_.sourceContentHash()
+                 : cuda_rate_table_.sourceContentHash();
     }
 
     bool gpuRadioEnabled() const noexcept {
@@ -1495,7 +1685,7 @@ namespace corsika::gpu::em {
     EmInteractionBatchResult selectInteractionsForValidation(
         std::vector<EmParticleState> const& particles) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "interaction selection requires an uploaded PROPOSAL table");
       }
@@ -1509,7 +1699,7 @@ namespace corsika::gpu::em {
         }
       }
       auto result = selectDiscreteInteractionsForValidation(
-          cuda_rate_table_.deviceView(), particles,
+          physicsTableView(), particles,
           config_.random_seed, config_.shower_id, config_.device,
           physical_workspace_);
       enrichFallbackEvents(result.fallback_events);
@@ -1533,7 +1723,7 @@ namespace corsika::gpu::em {
         std::vector<EmInteractionRecord> const& interactions,
         std::uint64_t first_secondary_history_id) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "final-state generation requires an uploaded PROPOSAL table");
       }
@@ -1580,7 +1770,7 @@ namespace corsika::gpu::em {
         }
       }
       auto result = generatePhotonPairFinalStatesForValidation(
-          cuda_rate_table_.deviceView(), photon_pair_lpm_,
+          physicsTableView(), photon_pair_lpm_,
           config_.thinning, interactions,
           config_.random_seed, config_.shower_id, config_.device,
           first_secondary_history_id, physical_workspace_);
@@ -1625,7 +1815,7 @@ namespace corsika::gpu::em {
         std::vector<EmInteractionRecord> const& interactions,
         std::uint64_t first_secondary_history_id) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "bremsstrahlung final-state generation requires an uploaded "
             "PROPOSAL table");
@@ -1801,7 +1991,7 @@ namespace corsika::gpu::em {
     transportLeptonsStraightForValidation(
         std::vector<EmInteractionRecord> const& interactions) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "lepton transport requires an uploaded PROPOSAL table");
       }
@@ -1834,7 +2024,7 @@ namespace corsika::gpu::em {
       }
       auto result =
           gpu::em::transportLeptonsStraightForValidation(
-              cuda_rate_table_.deviceView(), environment_,
+              physicsTableView(), environment_,
               interactions, config_.device, physical_workspace_);
       enrichFallbackEvents(result.fallback_events);
       updateWorkspaceStatistics();
@@ -1884,7 +2074,7 @@ namespace corsika::gpu::em {
     reselectLeptonInteractionsAtVertexForValidation(
         std::vector<EmInteractionRecord> const& candidates) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "lepton vertex selection requires an uploaded PROPOSAL table");
       }
@@ -1904,7 +2094,7 @@ namespace corsika::gpu::em {
       auto result =
           gpu::em::
               reselectLeptonInteractionsAtVertexForValidation(
-                  cuda_rate_table_.deviceView(), candidates,
+                  physicsTableView(), candidates,
                   config_.random_seed, config_.shower_id,
                   config_.device, physical_workspace_);
       enrichFallbackEvents(result.fallback_events);
@@ -1933,7 +2123,7 @@ namespace corsika::gpu::em {
         std::vector<EmParticleState> const& particles,
         std::uint64_t first_secondary_history_id) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "lepton device pipeline requires an uploaded PROPOSAL table");
       }
@@ -1971,7 +2161,7 @@ namespace corsika::gpu::em {
       }
       auto result =
           gpu::em::runLeptonDevicePipelineForValidation(
-              cuda_rate_table_.deviceView(), brems_lpm_,
+              physicsTableView(), brems_lpm_,
               config_.thinning, moliere_,
               muon_moliere_, moliere_interpolation_,
               moliere_available_,
@@ -2142,7 +2332,7 @@ namespace corsika::gpu::em {
     selectAndTransportPhotonsForValidation(
         std::vector<EmParticleState> const& particles) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "selection-transport requires an uploaded PROPOSAL table");
       }
@@ -2173,7 +2363,7 @@ namespace corsika::gpu::em {
       }
       auto result =
           gpu::em::selectAndTransportPhotonsForValidation(
-              cuda_rate_table_.deviceView(), environment_, particles,
+              physicsTableView(), environment_, particles,
               config_.random_seed, config_.shower_id, config_.device,
               physical_workspace_);
       enrichFallbackEvents(result.selection_fallback_events);
@@ -2206,7 +2396,7 @@ namespace corsika::gpu::em {
         std::vector<EmParticleState> const& particles,
         std::uint64_t first_secondary_history_id) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "photon device pipeline requires an uploaded PROPOSAL table");
       }
@@ -2241,7 +2431,7 @@ namespace corsika::gpu::em {
       }
       auto result =
           gpu::em::runPhotonDevicePipelineForValidation(
-              cuda_rate_table_.deviceView(), photon_pair_lpm_,
+              physicsTableView(), photon_pair_lpm_,
               config_.thinning, environment_, particles,
               config_.random_seed, config_.shower_id, config_.device,
               first_secondary_history_id, physical_workspace_);
@@ -2332,7 +2522,7 @@ namespace corsika::gpu::em {
         std::size_t maximum_wavefronts,
         std::size_t minimum_resident_batch_size) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "resident photon cascade requires an uploaded PROPOSAL table");
       }
@@ -2514,7 +2704,7 @@ namespace corsika::gpu::em {
                           *output_workspace);
               return detail::
                   launchPhotonDevicePipelineOnDevice(
-                      cuda_rate_table_.deviceView(),
+                      physicsTableView(),
                       photon_pair_lpm_, config_.thinning,
                       environment_, bucketed.particles,
                       current_count, config_.random_seed,
@@ -2876,7 +3066,7 @@ namespace corsika::gpu::em {
         std::uint64_t secondary_history_id_limit_exclusive,
         std::size_t minimum_resident_batch_size) {
       requireInitialized();
-      if (!cuda_rate_table_.initialized()) {
+      if (!physicsTableInitialized()) {
         throw std::logic_error(
             "resident lepton cascade requires an uploaded PROPOSAL table");
       }
@@ -3089,7 +3279,7 @@ namespace corsika::gpu::em {
                       LeptonEndpointCompactionStage];
               auto launched = detail::
                   launchLeptonDevicePipelineOnDevice(
-                      cuda_rate_table_.deviceView(),
+                      physicsTableView(),
                       brems_lpm_, brems_lpm_prepared_,
                       config_.thinning,
                       moliere_, muon_moliere_,
@@ -3732,10 +3922,29 @@ namespace corsika::gpu::em {
           static_host_to_device_bytes_;
       next.one_time_initialization_ms =
           one_time_initialization_ms_;
+      next.physics_source = config_.physics_source;
+      if (cuda_native_table_.initialized()) {
+        next.native_proposal_version = native_proposal_version_;
+        next.native_cubic_interpolation_version =
+            native_cubic_interpolation_version_;
+        next.native_table_hash =
+            cuda_native_table_.sourceContentHash();
+        next.auxiliary_cache_hash = native_auxiliary_hash_;
+        next.native_table_nodes = native_table_nodes_;
+        next.native_table_device_bytes =
+            cuda_native_table_.deviceBytes();
+        next.auxiliary_cache_hit = native_auxiliary_cache_hit_;
+        next.proposal_cache_table_count =
+            native_proposal_cache_table_count_;
+        next.proposal_cache_hit_count =
+            native_proposal_cache_hit_count_;
+        next.proposal_cache_all_hit =
+            native_proposal_cache_all_hit_;
+      }
       next.reserved_particles = capacity_;
       next.table_device_bytes =
           checkedAdd(
-              cuda_rate_table_.deviceBytes(),
+              physicsTableDeviceBytes(),
               moliere_interpolation_device_bytes_,
               "CUDA table statistics overflow");
       next.physical_workspace_bytes =
@@ -4357,7 +4566,7 @@ namespace corsika::gpu::em {
           checkedAdd(
               required_bytes,
               checkedAdd(
-                  cuda_rate_table_.deviceBytes(),
+                  physicsTableDeviceBytes(),
                   moliere_interpolation_device_bytes_,
                   "GPU device table size overflow"),
               "GPU device allocation size overflow"),
@@ -4560,6 +4769,9 @@ namespace corsika::gpu::em {
       if (device_first_interaction_snapshot_ != nullptr) {
         cudaFree(device_first_interaction_snapshot_);
       }
+      if (device_native_inverse_counters_ != nullptr) {
+        cudaFree(device_native_inverse_counters_);
+      }
       freeQueue(device_next_);
       freeQueue(device_current_);
       physical_workspace_.release();
@@ -4620,6 +4832,7 @@ namespace corsika::gpu::em {
         cudaEventDestroy(transfer_copy_start_);
       }
       cuda_rate_table_.reset();
+      cuda_native_table_.reset();
       photon_pair_lpm_ = {};
       brems_lpm_ = {};
       brems_lpm_prepared_ = {};
@@ -4630,6 +4843,15 @@ namespace corsika::gpu::em {
       muon_moliere_available_ = false;
       proposal_medium_hash_ = 0;
       interaction_hashes_.clear();
+      native_auxiliary_hash_ = {};
+      native_proposal_version_.clear();
+      native_cubic_interpolation_version_.clear();
+      native_table_nodes_ = 0;
+      native_stochastic_cut_MeV_ = 0.;
+      native_proposal_cache_table_count_ = 0;
+      native_proposal_cache_hit_count_ = 0;
+      native_proposal_cache_all_hit_ = false;
+      native_auxiliary_cache_hit_ = false;
       environment_ = EnvironmentSnapshot{};
       device_scan_temporary_ = nullptr;
       device_child_offsets_ = nullptr;
@@ -4637,6 +4859,7 @@ namespace corsika::gpu::em {
       device_staging_ = nullptr;
       device_first_interaction_snapshot_ = nullptr;
       device_first_interaction_candidate_count_ = nullptr;
+      device_native_inverse_counters_ = nullptr;
       first_interaction_capture_ = {};
       first_interaction_device_bytes_ = 0;
       device_profile_axis_grammage_ = nullptr;
@@ -4706,6 +4929,7 @@ namespace corsika::gpu::em {
         device_first_interaction_snapshot_{};
     std::uint32_t*
         device_first_interaction_candidate_count_{};
+    unsigned long long* device_native_inverse_counters_{};
     detail::DeviceFirstInteractionCapture
         first_interaction_capture_{};
     std::size_t first_interaction_device_bytes_{};
@@ -4715,6 +4939,16 @@ namespace corsika::gpu::em {
     std::vector<EmParticleState> host_staging_{};
     mutable GpuEmStatistics statistics_{};
     tables::CudaRateTable cuda_rate_table_{};
+    tables::CudaProposalNativeTable cuda_native_table_{};
+    std::array<std::uint8_t, 32> native_auxiliary_hash_{};
+    std::string native_proposal_version_;
+    std::string native_cubic_interpolation_version_;
+    std::uint64_t native_table_nodes_{};
+    double native_stochastic_cut_MeV_{};
+    std::uint64_t native_proposal_cache_table_count_{};
+    std::uint64_t native_proposal_cache_hit_count_{};
+    bool native_proposal_cache_all_hit_{};
+    bool native_auxiliary_cache_hit_{};
     std::uint64_t proposal_medium_hash_{};
     std::vector<std::pair<std::int32_t, std::uint64_t>>
         interaction_hashes_{};
@@ -4790,6 +5024,14 @@ namespace corsika::gpu::em {
                                  ProposalTableSet const& tables,
                                  GpuEmConfig const& config) {
     impl_->initialize(environment, tables, config);
+  }
+
+  void CudaEmBackend::initialize(
+      EnvironmentSnapshot const& environment,
+      tables::ProposalNativeTableSet const& native_tables,
+      tables::ProposalNativeAuxData const& auxiliary,
+      GpuEmConfig const& config) {
+    impl_->initialize(environment, native_tables, auxiliary, config);
   }
 
   void CudaEmBackend::beginShower(

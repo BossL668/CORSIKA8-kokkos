@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import tempfile
 from pathlib import Path
 import unittest
 
@@ -82,6 +83,45 @@ class HistogramNormalizationTests(unittest.TestCase):
     def test_empty_log_histogram_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "empty logarithmic"):
             MODULE.histogram_normalization(np.asarray([]), True)
+
+
+class ComparisonPresentationTests(unittest.TestCase):
+    def test_gpu_physics_sources_are_not_mislabeled_as_cpu_cuda(self) -> None:
+        labels, title, denominator = MODULE.comparison_presentation(
+            {
+                "comparison_semantics": {
+                    "reference": "c8emrt",
+                    "candidate": "proposal-native",
+                }
+            },
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(labels["proposal"], "c8emrt CUDA")
+        self.assertEqual(labels["cuda"], "PROPOSAL-native CUDA")
+        self.assertEqual(title, "c8emrt CUDA versus PROPOSAL-native CUDA")
+        self.assertEqual(denominator, "reference")
+
+    def test_campaign_manifest_physics_configuration_is_supported(self) -> None:
+        physics = {"primary_pdg": 2212, "energy_GeV": 1000.0}
+        self.assertEqual(
+            MODULE.manifest_configuration(
+                {"immutable_configuration": {"physics": physics}}
+            ),
+            physics,
+        )
+
+    def test_campaign_manifest_is_discovered_beside_analysis(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            campaign = Path(directory)
+            analysis = campaign / "analysis"
+            analysis.mkdir()
+            manifest = campaign / "campaign_manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+            self.assertEqual(
+                MODULE.discover_manifest(analysis, None), manifest
+            )
 
 
 if __name__ == "__main__":

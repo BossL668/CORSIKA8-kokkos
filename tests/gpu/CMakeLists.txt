@@ -191,6 +191,40 @@ if (CORSIKA_ENABLE_CUDA)
     )
 
   add_executable (
+    testGpuProposalNativeTable
+    testGpuProposalNativeTable.cpp
+    )
+  target_link_libraries (
+    testGpuProposalNativeTable
+    PRIVATE
+    CORSIKA8GpuEm
+    PROPOSAL::PROPOSAL
+    )
+  target_include_directories (
+    testGpuProposalNativeTable
+    PRIVATE
+    ${PROPOSAL_INCLUDE_DIRS}
+    ${CubicInterpolation_INCLUDE_DIRS}
+    ${spdlog_INCLUDE_DIRS}
+    ${fmt_INCLUDE_DIRS}
+    ${nlohmann_json_INCLUDE_DIRS}
+    )
+  add_dependencies (
+    testGpuProposalNativeTable
+    GenParticlesHeaders
+    GenMediaProperties
+    )
+  add_test (
+    NAME testGpuProposalNativeTable
+    COMMAND testGpuProposalNativeTable
+    )
+  set_tests_properties (
+    testGpuProposalNativeTable
+    PROPERTIES
+    SKIP_RETURN_CODE 77
+    )
+
+  add_executable (
     testGpuInteractionSelection
     testGpuInteractionSelection.cpp
     )

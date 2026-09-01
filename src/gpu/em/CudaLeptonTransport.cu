@@ -53,9 +53,14 @@ namespace corsika::gpu::em {
 
     __device__ ProposalFallbackEvent makeTableFallback(
         EmInteractionRecord const& interaction,
-        tables::TableLookupStatus status) {
-      return makeLeptonFallback(
+        tables::TableLookupStatus status,
+        double query_stage = 0., double query_value = 0.) {
+      auto event = makeLeptonFallback(
           interaction, proposalFallbackReason(status));
+      event.diagnostic_status = static_cast<std::int32_t>(status);
+      event.diagnostic_value0 = query_stage;
+      event.diagnostic_value1 = query_value;
+      return event;
     }
 
     __device__ bool closeRadius(double left, double right) {
@@ -254,14 +259,14 @@ namespace corsika::gpu::em {
           tables::queryContinuousMinimumEnergy(table, start.pid);
       if (mass.status != tables::TableLookupStatus::Success) {
         raw_fallbacks[index] =
-            makeTableFallback(interaction, mass.status);
+            makeTableFallback(interaction, mass.status, 1.);
         fallback_flags[index] = 1;
         return;
       }
       if (minimum_energy.status !=
           tables::TableLookupStatus::Success) {
         raw_fallbacks[index] =
-            makeTableFallback(interaction, minimum_energy.status);
+            makeTableFallback(interaction, minimum_energy.status, 2.);
         fallback_flags[index] = 1;
         return;
       }
@@ -277,9 +282,13 @@ namespace corsika::gpu::em {
           tables::ContinuousCutSafetyFactor;
       if (!::isfinite(transport_cut_MeV) ||
           !(transport_cut_MeV > 0.)) {
-        raw_fallbacks[index] = makeLeptonFallback(
+        auto fallback = makeLeptonFallback(
             interaction,
             ProposalFallbackReason::InvalidTableQuery);
+        fallback.diagnostic_value0 = mass.value;
+        fallback.diagnostic_value1 = minimum_energy.value;
+        fallback.diagnostic_value2 = transport_cut_MeV;
+        raw_fallbacks[index] = fallback;
         fallback_flags[index] = 1;
         return;
       }
@@ -332,7 +341,9 @@ namespace corsika::gpu::em {
       if (initial_range.status !=
           tables::TableLookupStatus::Success) {
         raw_fallbacks[index] =
-            makeTableFallback(interaction, initial_range.status);
+            makeTableFallback(
+                interaction, initial_range.status, 3.,
+                initial_energy_MeV);
         fallback_flags[index] = 1;
         return;
       }
@@ -348,7 +359,9 @@ namespace corsika::gpu::em {
       if (target_range.status !=
           tables::TableLookupStatus::Success) {
         raw_fallbacks[index] =
-            makeTableFallback(interaction, target_range.status);
+            makeTableFallback(
+                interaction, target_range.status, 4.,
+                target_energy_MeV);
         fallback_flags[index] = 1;
         return;
       }
@@ -364,8 +377,12 @@ namespace corsika::gpu::em {
       }
       if (!::isfinite(continuous_grammage) ||
           continuous_grammage < 0.) {
-        raw_fallbacks[index] = makeLeptonFallback(
+        auto fallback = makeLeptonFallback(
             interaction, ProposalFallbackReason::InvalidTableQuery);
+        fallback.diagnostic_value0 = initial_range.value;
+        fallback.diagnostic_value1 = target_range.value;
+        fallback.diagnostic_value2 = continuous_grammage;
+        raw_fallbacks[index] = fallback;
         fallback_flags[index] = 1;
         return;
       }
@@ -722,7 +739,9 @@ namespace corsika::gpu::em {
         transport_cut_reached = true;
       } else {
         raw_fallbacks[index] =
-            makeTableFallback(interaction, final_energy.status);
+            makeTableFallback(
+                interaction, final_energy.status, 5.,
+                traversed_grammage);
         fallback_flags[index] = 1;
         return;
       }

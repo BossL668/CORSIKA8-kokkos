@@ -29,7 +29,8 @@
 
 ```mermaid
 flowchart TD
-    A[c8_air_shower.cpp 构造物理过程和环境] --> B[HybridCascade 主调度器]
+    A[c8_air_shower.cpp 构造物理过程和环境] --> A1[air_shower_cuda 私有支持层]
+    A1 --> B[HybridCascade 主调度器]
     B -->|强子、CPU 专属过程| C[ScalarCascadeStepper]
     B -->|gamma / e± / 支持的 mu±| D[PhysicalCudaEmRouter]
     D --> E[CudaEmBackend]
@@ -84,7 +85,7 @@ add_library(CORSIKA8GpuEm STATIC
 
 ### 3.3 顶层 `CMakeLists.txt` 与 `applications/CMakeLists.txt`
 
-顶层的 `CORSIKA_ENABLE_CUDA` 决定是否启用 CUDA 语言和 GPU 库。`applications/CMakeLists.txt` 只在 CUDA 打开时把 `c8_air_shower` 链接到 `CORSIKA8GpuEm`，同时构建 replay 工具；制表工具始终只依赖 `CORSIKA8GpuEmTables`。因此 CPU 默认构建不需要 CUDA toolkit。
+顶层的 `CORSIKA_ENABLE_CUDA` 决定是否启用 CUDA 语言和 GPU 库。`applications/CMakeLists.txt` 建立应用私有的 `c8_air_shower_support` 静态目标：CPU 构建只编译 CLI 支持，CUDA 构建才追加 session 实现并链接 `CORSIKA8GpuEm`。`c8_air_shower` 与 parent-profile 验证程序共享这个目标；制表工具仍只依赖 `CORSIKA8GpuEmTables`。因此 CPU 默认构建不需要 CUDA toolkit，这些应用适配代码也不会被安装成 CORSIKA 公共 API。
 
 ## 4. 最底层的数据契约
 
@@ -593,30 +594,29 @@ GPU 绕过了标量 `ProcessSequence::doContinuous/doSecondaries`，所以自定
 
 ### 14.1 `applications/c8_air_shower.cpp`
 
-这是所有模块的装配入口。与 CUDA 相关的职责包括：
+这是所有模块的高层装配入口。重构后它主要保留 CLI 入口、大气和初级粒子、
+PROPOSAL/FLUKA/高能强子模型、CoREAS/ZHS、原有 `ProcessSequence` 顺序、标量
+`Cascade` 分支，以及一次清晰的 `runCudaAirShower(...)` 调用。CUDA 实现细节放在
+`applications/detail/air_shower_cuda/`，它们是应用私有支持层，不属于公共 API：
 
-1. 解析 `--em-backend`、`--radio-backend`、GPU device/batch/memory/table/tolerance/deterministic 等参数；
-2. 读取 `.c8emrt` 并检查 generator contract，拒绝包含运行期 selected-loss fallback 的旧表；
-3. 构造 `EnvironmentSnapshot`、`GpuEmConfig`、profile projection 和 radio snapshot；
-4. 初始化或跨 shower 复用 `CudaEmBackend`；
-5. 构造 `ProposalCpuFallbackHandler`、`CorsikaOutputSink`、`PhysicalCudaEmRouter`；
-6. 用 `HybridCascade` 替代标量 `Cascade`；
-7. 保留 FLUKA、高能强子模型、CoREAS/ZHS detector 和所有原 writer；
-8. 写 GPU 型号、driver/runtime、表哈希、fallback、显存和时间 summary。
+- `GpuCliOptions.hpp/.cpp`：按原有顺序注册 GPU、射电和强子调度参数，并执行解析后的兼容性门禁；
+- `CudaRunSession.hpp/.cpp`：读取并验证 `.c8emrt`、查询设备与依赖版本、创建运行级 metadata，并持有跨 shower 复用的 backend；
+- `CudaAirShowerRunner.hpp`：从主文件已经构造好的物理模型建立 snapshot、registry、fallback、router 和 `HybridCascade`；
+- `CudaEventConfig`：把单 shower 的 seed、能量、cut、thinning、初级粒子与最大磁偏转作为显式只读输入；
+- `CudaShowerReportBuilder`：保持原 YAML 字段、层级和插入顺序，集中生成计数器、fallback、射电、显存、计时与能量闭合报告。
 
-最能体现依赖方向的代码是：
+主文件现在只看见高层调用：
 
 ```cpp
-using Router = PhysicalCudaEmRouter<StackType, FallbackHandler, OutputSink>;
-Router router{backend, rootCS, environment_snapshot,
-              fallback_handler, output_sink};
-HybridCascade<TrackingType, Sequence, OutputManager,
-              StackType, Router> EAS(
-    env, tracking, sequence, output, stack, router);
-EAS.run();
+CudaEventConfig cuda_event{/* 本 shower 的值 */};
+runCudaAirShower(cuda_session, gpu_cli, cuda_event,
+                 env, rootCS, /* 已构造的模型、writer 和 sequence */);
 ```
 
-应用层决定使用什么物理过程；router/backend 只实现已经声明的设备能力，不在内部偷偷替换用户配置。
+而 `CudaAirShowerRunner.hpp` 内部仍按原顺序建立 `PhysicalCudaEmRouter` 和
+`HybridCascade`。这次拆分只移动接线与报告语句，没有修改 kernel、物理公式、
+随机流、过程顺序或输出 schema。应用层继续决定使用什么物理过程；
+router/backend 只实现已经声明的设备能力，不在内部偷偷替换用户配置。
 
 ### 14.2 `applications/gpu_em_table_prepare.cpp`
 

@@ -20,8 +20,11 @@ namespace corsika::gpu::em {
       InteractionDistanceRandomProcessId = 0x454d0001U;
   inline constexpr std::uint32_t
       InteractionColumnRandomProcessId = 0x454d0002U;
+  inline constexpr std::uint32_t
+      ProposalSelectionRandomProcessId = 0x454d0003U;
   inline constexpr std::uint64_t InteractionDistanceDrawId = 0;
   inline constexpr std::uint64_t InteractionColumnDrawId = 0;
+  inline constexpr std::uint64_t ProposalSelectionDrawId = 0;
   inline constexpr std::uint64_t InteractionLossDrawId = 0;
 
   /**

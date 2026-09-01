@@ -9,16 +9,25 @@
 #include <CubicInterpolation/CubicSplines.h>
 #include <CubicInterpolation/Interpolant.h>
 
+#include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
+
+#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <corsika/gpu/em/MoliereScattering.hpp>
 
@@ -47,6 +56,162 @@ namespace corsika::gpu::em {
 
     static_assert(
         std::is_trivially_copyable_v<MoliereCacheHeader>);
+
+    class FileDescriptor {
+    public:
+      explicit FileDescriptor(int descriptor = -1) noexcept
+          : descriptor_(descriptor) {}
+
+      FileDescriptor(FileDescriptor const&) = delete;
+      FileDescriptor& operator=(FileDescriptor const&) = delete;
+
+      FileDescriptor(FileDescriptor&& other) noexcept
+          : descriptor_(
+                std::exchange(other.descriptor_, -1)) {}
+
+      FileDescriptor& operator=(FileDescriptor&& other) noexcept {
+        if (this != &other) {
+          close();
+          descriptor_ =
+              std::exchange(other.descriptor_, -1);
+        }
+        return *this;
+      }
+
+      ~FileDescriptor() {
+        close();
+      }
+
+      [[nodiscard]] int get() const noexcept {
+        return descriptor_;
+      }
+
+      [[nodiscard]] bool valid() const noexcept {
+        return descriptor_ >= 0;
+      }
+
+      bool close() noexcept {
+        if (!valid()) {
+          return true;
+        }
+        auto const descriptor = descriptor_;
+        descriptor_ = -1;
+        return ::close(descriptor) == 0;
+      }
+
+    private:
+      int descriptor_{-1};
+    };
+
+    class CacheFileLock {
+    public:
+      explicit CacheFileLock(
+          std::filesystem::path const& path) {
+        descriptor_ = FileDescriptor(::open(
+            path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC,
+            S_IRUSR | S_IWUSR));
+        if (!descriptor_.valid()) {
+          return;
+        }
+        int status = -1;
+        do {
+          status = ::flock(descriptor_.get(), LOCK_EX);
+        } while (status != 0 && errno == EINTR);
+        if (status == 0) {
+          owns_lock_ = true;
+        } else {
+          descriptor_.close();
+        }
+      }
+
+      CacheFileLock(CacheFileLock const&) = delete;
+      CacheFileLock& operator=(CacheFileLock const&) = delete;
+
+      ~CacheFileLock() {
+        if (owns_lock_) {
+          ::flock(descriptor_.get(), LOCK_UN);
+        }
+        // The lock file deliberately remains in place. Removing it here can
+        // split waiters between the unlinked inode and a newly created one;
+        // closing the descriptor is sufficient to release flock after both
+        // normal exit and process failure.
+      }
+
+      [[nodiscard]] bool ownsLock() const noexcept {
+        return owns_lock_;
+      }
+
+    private:
+      FileDescriptor descriptor_{};
+      bool owns_lock_{false};
+    };
+
+    class TemporaryPath {
+    public:
+      explicit TemporaryPath(std::filesystem::path path)
+          : path_(std::move(path)) {}
+
+      TemporaryPath(TemporaryPath const&) = delete;
+      TemporaryPath& operator=(TemporaryPath const&) = delete;
+
+      ~TemporaryPath() {
+        if (remove_on_destruction_) {
+          std::error_code ignored;
+          std::filesystem::remove(path_, ignored);
+        }
+      }
+
+      void release() noexcept {
+        remove_on_destruction_ = false;
+      }
+
+    private:
+      std::filesystem::path path_;
+      bool remove_on_destruction_{true};
+    };
+
+    bool writeAll(
+        int descriptor, void const* data,
+        std::size_t size) noexcept {
+      auto const* current =
+          static_cast<unsigned char const*>(data);
+      while (size != 0) {
+        auto const written =
+            ::write(descriptor, current, size);
+        if (written < 0 && errno == EINTR) {
+          continue;
+        }
+        if (written <= 0) {
+          return false;
+        }
+        auto const count =
+            static_cast<std::size_t>(written);
+        current += count;
+        size -= count;
+      }
+      return true;
+    }
+
+    bool syncFile(int descriptor) noexcept {
+      int status = -1;
+      do {
+        status = ::fsync(descriptor);
+      } while (status != 0 && errno == EINTR);
+      return status == 0;
+    }
+
+    void syncParentDirectory(
+        std::filesystem::path const& path) noexcept {
+      auto parent = path.parent_path();
+      if (parent.empty()) {
+        parent = ".";
+      }
+      FileDescriptor directory(::open(
+          parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+      if (directory.valid()) {
+        syncFile(directory.get());
+      }
+    }
 
     std::uint64_t checksumBytes(
         void const* data, std::size_t size) {
@@ -127,12 +292,10 @@ namespace corsika::gpu::em {
       return true;
     }
 
-    void writeInterpolationCache(
+    bool writeInterpolationCache(
         std::filesystem::path const& path,
         MoliereSnapshot const& snapshot,
         MoliereInterpolationTable const& table) {
-      auto temporary = path;
-      temporary += ".tmp";
       MoliereCacheHeader header{};
       std::memcpy(
           header.magic, MoliereCacheMagic,
@@ -143,31 +306,56 @@ namespace corsika::gpu::em {
       header.table_checksum =
           checksumBytes(&table, sizeof(table));
       header.snapshot = snapshot;
-      {
-        std::ofstream output(
-            temporary,
-            std::ios::binary | std::ios::trunc);
-        if (!output) {
-          return;
-        }
-        output.write(
-            reinterpret_cast<char const*>(&header),
-            sizeof(header));
-        output.write(
-            reinterpret_cast<char const*>(&table),
-            sizeof(table));
-        output.flush();
-        if (!output) {
-          std::error_code ignored;
-          std::filesystem::remove(temporary, ignored);
-          return;
-        }
+
+      auto temporary_template =
+          path.string() + ".tmp.XXXXXX";
+      std::vector<char> template_buffer(
+          temporary_template.begin(),
+          temporary_template.end());
+      template_buffer.push_back('\0');
+      FileDescriptor output(
+          ::mkstemp(template_buffer.data()));
+      if (!output.valid()) {
+        return false;
       }
-      std::error_code error;
-      std::filesystem::rename(temporary, path, error);
-      if (error) {
-        std::filesystem::remove(temporary, error);
+      auto const temporary =
+          std::filesystem::path(template_buffer.data());
+      TemporaryPath temporary_guard(temporary);
+      auto const descriptor_flags =
+          ::fcntl(output.get(), F_GETFD);
+      if (descriptor_flags >= 0) {
+        ::fcntl(
+            output.get(), F_SETFD,
+            descriptor_flags | FD_CLOEXEC);
       }
+      auto const write_succeeded =
+          writeAll(
+              output.get(), &header, sizeof(header)) &&
+          writeAll(
+              output.get(), &table, sizeof(table));
+      auto const sync_succeeded =
+          write_succeeded && syncFile(output.get());
+      auto const close_succeeded = output.close();
+      if (!write_succeeded || !sync_succeeded ||
+          !close_succeeded) {
+        return false;
+      }
+
+      MoliereInterpolationTable verified{};
+      if (!readInterpolationCache(
+              temporary, snapshot, verified) ||
+          std::memcmp(
+              &verified, &table, sizeof(table)) != 0) {
+        return false;
+      }
+
+      if (::rename(
+              temporary.c_str(), path.c_str()) != 0) {
+        return false;
+      }
+      temporary_guard.release();
+      syncParentDirectory(path);
+      return true;
     }
 
     void buildFunctionPolynomials(
@@ -472,11 +660,26 @@ namespace corsika::gpu::em {
             cache_path, snapshot, table)) {
       return table;
     }
-    table = makeMoliereInterpolationTable(snapshot);
     if (!cache_path.empty()) {
+      auto lock_path = cache_path;
+      lock_path += ".lock";
+      CacheFileLock cache_lock(lock_path);
+      if (!cache_lock.ownsLock()) {
+        return makeMoliereInterpolationTable(snapshot);
+      }
+      // Another process may have populated or repaired the cache while this
+      // process was waiting for the lock. Re-read it before doing the costly
+      // interpolation build.
+      if (readInterpolationCache(
+              cache_path, snapshot, table)) {
+        return table;
+      }
+      table = makeMoliereInterpolationTable(snapshot);
       writeInterpolationCache(
           cache_path, snapshot, table);
+      return table;
     }
+    table = makeMoliereInterpolationTable(snapshot);
     return table;
   }
 
