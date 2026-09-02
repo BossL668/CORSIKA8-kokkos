@@ -14,6 +14,10 @@
 #include <utility>
 
 #include <corsika/accelerator/em/kokkos/KokkosInteractionSelector.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosLeptonFinalState.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosLeptonTransport.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosLeptonVertexSelector.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosMoliereInterpolation.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosPhotonFinalState.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosPhotonTransport.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosProposalNativeTable.hpp>
@@ -46,6 +50,8 @@ namespace corsika::accelerator::em {
     KokkosRuntime runtime_;
     BackendExecutionSpace execution_{};
     kokkos_detail::KokkosProposalNativeTable<BackendExecutionSpace> table_{};
+    kokkos_detail::KokkosMoliereInterpolation<BackendExecutionSpace>
+        moliere_interpolation_{};
     gpu::em::tables::ProposalNativeTableSet host_table_{};
     gpu::em::tables::ProposalNativeAuxData auxiliary_{};
     gpu::em::EnvironmentSnapshot environment_{};
@@ -80,6 +86,11 @@ namespace corsika::accelerator::em {
     impl_->host_table_ = table;
     impl_->auxiliary_ = auxiliary;
     impl_->table_.initialize(table);
+    auto moliere_cache_path = auxiliary.cache_file;
+    if (!moliere_cache_path.empty())
+      moliere_cache_path += ".moliere-initial-v1.c8cache";
+    impl_->moliere_interpolation_.initialize(
+        auxiliary.electron_moliere, moliere_cache_path);
     impl_->physics_ = {};
     impl_->physics_.proposal_native = impl_->table_.deviceView();
     impl_->physics_.physics_source = 1u;
@@ -92,7 +103,9 @@ namespace corsika::accelerator::em {
     impl_->statistics_.native_table_nodes =
         table.bicubic_values.size() + table.cubic_values.size();
     impl_->statistics_.native_table_device_bytes = impl_->table_.deviceBytes();
-    impl_->statistics_.table_device_bytes = impl_->table_.deviceBytes();
+    impl_->statistics_.table_device_bytes =
+        impl_->table_.deviceBytes() +
+        impl_->moliere_interpolation_.deviceBytes();
     impl_->statistics_.auxiliary_cache_hit = auxiliary.cache_hit;
     impl_->statistics_.reused_for_shower = false;
     impl_->initialized_ = true;
@@ -149,6 +162,41 @@ namespace corsika::accelerator::em {
     return result;
   }
 
+  gpu::em::LeptonTransportBatchResult
+  KokkosEmBackend::transportLeptonsForValidation(
+      std::vector<gpu::em::EmInteractionRecord> const& interactions) {
+    impl_->requireInitialized();
+    auto result = kokkos_detail::transportLeptons(
+        impl_->physics_, impl_->environment_, impl_->auxiliary_.electron_moliere,
+        impl_->auxiliary_.muon_moliere,
+        impl_->moliere_interpolation_.deviceView(),
+        impl_->auxiliary_.has_muon_moliere != 0,
+        impl_->config_.random_seed, impl_->config_.shower_id, interactions,
+        impl_->execution_);
+    impl_->statistics_.lepton_transport_batches++;
+    impl_->statistics_.proposal_fallbacks += result.fallback_events.size();
+    return result;
+  }
+
+  gpu::em::LeptonVertexSelectionBatchResult
+  KokkosEmBackend::selectLeptonVerticesForValidation(
+      std::vector<gpu::em::EmInteractionRecord> const& candidates) {
+    impl_->requireInitialized();
+    auto result = kokkos_detail::selectLeptonVertices(
+        impl_->physics_, candidates, impl_->config_.random_seed,
+        impl_->config_.shower_id, impl_->execution_);
+    impl_->statistics_.lepton_vertex_selection_batches++;
+    impl_->statistics_.proposal_fallbacks +=
+        result.batch.fallback_events.size();
+    impl_->statistics_.native_newton_iterations +=
+        result.native_newton_iterations;
+    impl_->statistics_.native_bisection_iterations +=
+        result.native_bisection_iterations;
+    impl_->statistics_.native_inverse_failures +=
+        result.native_inverse_failures;
+    return std::move(result.batch);
+  }
+
   gpu::em::EmFinalStateBatchResult
   KokkosEmBackend::generatePhotonFinalStatesForValidation(
       std::vector<gpu::em::EmInteractionRecord> const& interactions,
@@ -176,6 +224,48 @@ namespace corsika::accelerator::em {
     return std::move(result.batch);
   }
 
+  gpu::em::BremsFinalStateBatchResult
+  KokkosEmBackend::generateLeptonFinalStatesForValidation(
+      std::vector<gpu::em::EmInteractionRecord> const& interactions,
+      std::uint64_t const first_secondary_history_id) {
+    impl_->requireInitialized();
+    auto result = kokkos_detail::generateLeptonFinalStates(
+        impl_->auxiliary_.brems_lpm, impl_->config_.thinning, interactions,
+        impl_->config_.random_seed, impl_->config_.shower_id,
+        first_secondary_history_id, impl_->execution_);
+    impl_->statistics_.final_state_batches++;
+    impl_->statistics_.gpu_final_states += result.batch.gpu_interactions;
+    impl_->statistics_.physical_secondaries_generated +=
+        result.batch.secondaries.size();
+    impl_->statistics_.brems_final_states +=
+        result.batch.brems_interactions;
+    impl_->statistics_.annihilation_final_states +=
+        result.batch.annihilation_interactions;
+    impl_->statistics_.ionization_final_states +=
+        result.batch.ionization_interactions;
+    impl_->statistics_.electron_pair_final_states +=
+        result.batch.electron_pair_interactions;
+    impl_->statistics_.brems_lpm_trials += result.batch.brems_lpm_trials;
+    impl_->statistics_.brems_lpm_suppressions +=
+        result.batch.brems_lpm_suppressions;
+    impl_->statistics_.electron_pair_lpm_trials +=
+        result.batch.electron_pair_lpm_trials;
+    impl_->statistics_.electron_pair_lpm_suppressions +=
+        result.batch.electron_pair_lpm_suppressions;
+    impl_->statistics_.electron_pair_rejection_trials +=
+        result.batch.electron_pair_rejection_trials;
+    impl_->statistics_.electron_pair_zero_weight_samples +=
+        result.batch.electron_pair_zero_weight_samples;
+    impl_->statistics_.electron_pair_rejection_fallbacks +=
+        result.batch.electron_pair_rejection_fallbacks;
+    impl_->statistics_.electron_pair_envelope_violations +=
+        result.batch.electron_pair_envelope_violations;
+    impl_->statistics_.proposal_fallbacks +=
+        result.batch.fallback_events.size();
+    if (result.first_interaction) impl_->first_interaction_ = result.first_interaction;
+    return std::move(result.batch);
+  }
+
   void KokkosEmBackend::beginShower(
       AcceleratedEmShowerConfig const& shower) {
     impl_->requireInitialized();
@@ -184,6 +274,7 @@ namespace corsika::accelerator::em {
     impl_->config_.thinning = shower.thinning;
     auto const ordinal = impl_->statistics_.shower_ordinal + 1;
     auto const static_bytes = impl_->statistics_.native_table_device_bytes;
+    auto const all_table_bytes = impl_->statistics_.table_device_bytes;
     auto const table_hash = impl_->statistics_.native_table_hash;
     auto const auxiliary_hash = impl_->statistics_.auxiliary_cache_hash;
     auto const auxiliary_hit = impl_->statistics_.auxiliary_cache_hit;
@@ -194,7 +285,7 @@ namespace corsika::accelerator::em {
     impl_->statistics_.native_table_hash = table_hash;
     impl_->statistics_.auxiliary_cache_hash = auxiliary_hash;
     impl_->statistics_.native_table_device_bytes = static_bytes;
-    impl_->statistics_.table_device_bytes = static_bytes;
+    impl_->statistics_.table_device_bytes = all_table_bytes;
     impl_->statistics_.auxiliary_cache_hit = auxiliary_hit;
     impl_->first_interaction_.reset();
   }

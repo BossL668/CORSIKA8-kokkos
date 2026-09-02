@@ -6,6 +6,7 @@ add_library (
   ProposalMedium.cpp
   ../ProposalNativeTable.cpp
   ../ProposalNativeAux.cpp
+  ../MoliereInterpolation.cpp
   ProposalNativeRequirements.cpp
   RateTable.cpp
   Sha256.cpp

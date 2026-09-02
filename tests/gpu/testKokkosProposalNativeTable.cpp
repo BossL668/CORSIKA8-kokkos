@@ -15,13 +15,19 @@
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
 #include <corsika/accelerator/em/KokkosRuntime.hpp>
 #include <corsika/accelerator/em/KokkosEmBackend.hpp>
 #include <corsika/accelerator/em/detail/InteractionSelection.hpp>
+#include <corsika/accelerator/em/detail/LeptonFinalStateStep.hpp>
+#include <corsika/accelerator/em/detail/LeptonTransportStep.hpp>
+#include <corsika/accelerator/em/detail/LeptonVertexSelection.hpp>
+#include <corsika/accelerator/em/detail/MoliereStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonFinalStateStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonTransportStep.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
@@ -119,6 +125,14 @@ int main(int argc, char** argv) {
     auto const environment = gpu::em::makeCorsika7AtmosphereSnapshot(
         AtmosphereId::USStdBK, {0., 0., 0.}, 0, earth_radius_m + 100.);
     auto const auxiliary = loadOrCreateProposalNativeAux(interactions);
+    auto moliere_cache_path = auxiliary.cache_file;
+    if (!moliere_cache_path.empty())
+      moliere_cache_path += ".moliere-initial-v1.c8cache";
+    auto const host_moliere_table = gpu::em::loadOrMakeMoliereInterpolationTable(
+        auxiliary.electron_moliere, moliere_cache_path);
+    auto const host_moliere_view = gpu::em::makeMoliereInterpolationView(
+        host_moliere_table.polynomials.data(),
+        host_moliere_table.initial_guess_delta.data());
     backend.initialize(environment, source, auxiliary, backend_config);
 
     std::vector<ProposalNativeQuery> queries;
@@ -378,6 +392,338 @@ int main(int argc, char** argv) {
       }
     }
 
+    auto const electron_total = std::find_if(
+        source.total_rate_columns.begin(), source.total_rate_columns.end(),
+        [](auto const& column) { return column.pdg_id == 11; });
+    if (electron_total == source.total_rate_columns.end()) {
+      throw std::runtime_error("native table has no electron total-rate column");
+    }
+    auto const lepton_samples = std::min<std::size_t>(samples, 4096);
+    std::vector<gpu::em::EmParticleState> leptons(lepton_samples);
+    for (std::size_t i = 0; i < leptons.size(); ++i) {
+      auto const fraction =
+          (static_cast<double>((i * 32771U) % 524287U) + 0.5) / 524287.;
+      auto const coordinate = fraction * static_cast<double>(
+          electron_total->spline.axis.nodes - 1u);
+      auto& particle = leptons[i];
+      particle.pid = i % 2 == 0 ? 11 : -11;
+      particle.medium_id = 0;
+      particle.energy_GeV = native_detail::axisBackTransform(
+                                electron_total->spline.axis, coordinate) /
+                            1000.;
+      particle.position_m[0] = 100. * static_cast<double>(i % 7);
+      particle.position_m[2] = earth_radius_m + 50000.;
+      particle.direction[0] = 0.1;
+      particle.direction[2] = -std::sqrt(0.99);
+      particle.weight = 1.;
+      particle.history_id = 200000 + i;
+      particle.step_id = i % 17;
+    }
+    auto lepton_selection = backend.selectInteractionsForValidation(leptons);
+    auto lepton_transport = backend.transportLeptonsForValidation(
+        lepton_selection.interactions);
+    std::vector<gpu::em::LeptonTransportRecord> expected_lepton_records;
+    std::vector<gpu::em::ProposalFallbackEvent> expected_lepton_fallbacks;
+    for (auto const& interaction : lepton_selection.interactions) {
+      gpu::em::LeptonTransportRecord record{};
+      gpu::em::ProposalFallbackEvent fallback{};
+      auto const state = accelerator::em::detail::transportLepton(
+          host_physics, true, environment, interaction, record, fallback);
+      auto const final_state =
+          accelerator::em::detail::applyMoliereScatteringStage<4>(
+              auxiliary.electron_moliere, auxiliary.muon_moliere,
+              host_moliere_view, auxiliary.has_muon_moliere != 0,
+              backend_config.random_seed, backend_config.shower_id, record,
+              fallback, state);
+      if (final_state == 1u) {
+        expected_lepton_fallbacks.push_back(fallback);
+      } else {
+        expected_lepton_records.push_back(record);
+      }
+    }
+    if (lepton_transport.records.size() != expected_lepton_records.size() ||
+        lepton_transport.fallback_events.size() !=
+            expected_lepton_fallbacks.size()) {
+      throw std::runtime_error(
+          "Kokkos lepton transport changed stable output counts");
+    }
+    for (std::size_t i = 0; i < lepton_transport.records.size(); ++i) {
+      auto const& actual = lepton_transport.records[i];
+      auto const& expected = expected_lepton_records[i];
+      if (actual.start.history_id != expected.start.history_id ||
+          actual.limit != expected.limit ||
+          actual.start_layer_index != expected.start_layer_index ||
+          actual.end_layer_index != expected.end_layer_index ||
+          !sameOrClose(actual.distance_m, expected.distance_m) ||
+          !sameOrClose(actual.traversed_grammage_g_per_cm2,
+                       expected.traversed_grammage_g_per_cm2) ||
+          !sameOrClose(actual.end.energy_GeV, expected.end.energy_GeV) ||
+          std::abs(actual.continuous_deposited_energy_GeV -
+                   expected.continuous_deposited_energy_GeV) >
+              5.e-12 * std::max(1., expected.start.energy_GeV) ||
+          !sameOrClose(actual.end.time_s, expected.end.time_s) ||
+          actual.multiple_scattering_status !=
+              expected.multiple_scattering_status ||
+          actual.multiple_scattering_iterations !=
+              expected.multiple_scattering_iterations ||
+          !sameOrClose(actual.multiple_scattering_angle_rad,
+                       expected.multiple_scattering_angle_rad) ||
+          std::abs(actual.end.direction[0] - expected.end.direction[0]) >
+              2.e-12 ||
+          std::abs(actual.end.direction[1] - expected.end.direction[1]) >
+              2.e-12 ||
+          std::abs(actual.end.direction[2] - expected.end.direction[2]) >
+              2.e-12) {
+        std::ostringstream message;
+        message << std::setprecision(17);
+        message << "Kokkos lepton transport differs from the CPU oracle at "
+                << i << ": history=" << actual.start.history_id << '/'
+                << expected.start.history_id << ", limit="
+                << static_cast<int>(actual.limit) << '/'
+                << static_cast<int>(expected.limit) << ", distance="
+                << actual.distance_m << '/' << expected.distance_m
+                << ", grammage=" << actual.traversed_grammage_g_per_cm2
+                << '/' << expected.traversed_grammage_g_per_cm2
+                << ", energy=" << actual.end.energy_GeV << '/'
+                << expected.end.energy_GeV << ", deposit="
+                << actual.continuous_deposited_energy_GeV << '/'
+                << expected.continuous_deposited_energy_GeV << ", time="
+                << actual.end.time_s << '/' << expected.end.time_s
+                << ", moliere_status="
+                << actual.multiple_scattering_status << '/'
+                << expected.multiple_scattering_status << ", iterations="
+                << actual.multiple_scattering_iterations << '/'
+                << expected.multiple_scattering_iterations << ", angle="
+                << actual.multiple_scattering_angle_rad << '/'
+                << expected.multiple_scattering_angle_rad << ", direction=["
+                << actual.end.direction[0] << ',' << actual.end.direction[1]
+                << ',' << actual.end.direction[2] << "]/["
+                << expected.end.direction[0] << ',' << expected.end.direction[1]
+                << ',' << expected.end.direction[2] << ']';
+        throw std::runtime_error(message.str());
+      }
+    }
+    std::vector<gpu::em::EmInteractionRecord> lepton_candidates;
+    for (auto const& record : lepton_transport.records) {
+      if (record.limit == gpu::em::LeptonTransportLimit::InteractionCandidate)
+        lepton_candidates.push_back(record.interaction);
+    }
+    auto lepton_vertices =
+        backend.selectLeptonVerticesForValidation(lepton_candidates);
+    gpu::em::LeptonVertexSelectionBatchResult expected_vertices{};
+    expected_vertices.input_candidates = lepton_candidates.size();
+    for (auto const& candidate : lepton_candidates) {
+      auto const outcome = accelerator::em::detail::selectLeptonVertex(
+          host_physics, candidate, backend_config.random_seed,
+          backend_config.shower_id);
+      if (outcome.interaction_flag != 0u)
+        expected_vertices.interactions.push_back(outcome.record);
+      else if (outcome.continuation_flag != 0u)
+        expected_vertices.continuations.push_back(outcome.record);
+      else if (outcome.fallback_flag != 0u)
+        expected_vertices.fallback_events.push_back(outcome.fallback);
+    }
+    if (lepton_vertices.interactions.size() !=
+            expected_vertices.interactions.size() ||
+        lepton_vertices.continuations.size() !=
+            expected_vertices.continuations.size() ||
+        lepton_vertices.fallback_events.size() !=
+            expected_vertices.fallback_events.size()) {
+      throw std::runtime_error(
+          "Kokkos lepton vertex selection changed stable output counts");
+    }
+    for (std::size_t i = 0; i < lepton_vertices.interactions.size(); ++i) {
+      auto const& actual = lepton_vertices.interactions[i];
+      auto const& expected = expected_vertices.interactions[i];
+      if (actual.particle.history_id != expected.particle.history_id ||
+          actual.status != expected.status ||
+          actual.process_id != expected.process_id ||
+          actual.component_hash != expected.component_hash ||
+          actual.proposal_selection_uniform !=
+              expected.proposal_selection_uniform ||
+          !sameOrClose(actual.vertex_total_rate_cm2_per_g,
+                       expected.vertex_total_rate_cm2_per_g) ||
+          !sameOrClose(actual.energy_fraction, expected.energy_fraction)) {
+        throw std::runtime_error(
+            "Kokkos lepton vertex selection differs from the CPU oracle");
+      }
+    }
+
+    auto constexpr first_lepton_secondary_history_id = 2000000ULL;
+    auto lepton_final_states = backend.generateLeptonFinalStatesForValidation(
+        lepton_vertices.interactions, first_lepton_secondary_history_id);
+    gpu::em::BremsFinalStateBatchResult expected_lepton_final_states{};
+    expected_lepton_final_states.input_interactions =
+        lepton_vertices.interactions.size();
+    std::uint64_t expected_child_offset = 0;
+    for (auto const& interaction : lepton_vertices.interactions) {
+      auto const classification =
+          accelerator::em::detail::classifyLeptonFinalState(
+              auxiliary.brems_lpm, backend_config.thinning, interaction,
+              backend_config.random_seed, backend_config.shower_id);
+      auto const output =
+          accelerator::em::detail::materializeLeptonFinalState(
+              interaction, classification, expected_child_offset,
+              first_lepton_secondary_history_id,
+              auxiliary.brems_lpm.lepton_mass_MeV / 1000.);
+      if (output.error != 0u) {
+        throw std::runtime_error(
+            "CPU lepton final-state oracle failed to materialize");
+      }
+      if (output.has_record != 0u) {
+        expected_lepton_final_states.final_state_records.push_back(
+            output.record);
+        for (std::uint32_t child = 0; child < output.secondary_count; ++child)
+          expected_lepton_final_states.secondaries.push_back(
+              output.secondaries[child]);
+        expected_lepton_final_states.gpu_interactions++;
+      } else if (output.has_fallback != 0u) {
+        expected_lepton_final_states.fallback_events.push_back(
+            output.fallback);
+      } else if (output.has_continuation != 0u) {
+        expected_lepton_final_states.continuations.push_back(
+            output.continuation);
+      } else if (output.has_suppression != 0u) {
+        expected_lepton_final_states.lpm_suppressed.push_back(
+            output.suppression);
+      }
+      expected_child_offset += classification.child_count;
+      expected_lepton_final_states.brems_interactions +=
+          classification.brems_flag;
+      expected_lepton_final_states.annihilation_interactions +=
+          classification.annihilation_flag;
+      expected_lepton_final_states.ionization_interactions +=
+          classification.ionization_flag;
+      expected_lepton_final_states.electron_pair_interactions +=
+          classification.electron_pair_flag;
+      expected_lepton_final_states.brems_lpm_trials +=
+          classification.brems_flag +
+          classification.brems_suppression_flag;
+      expected_lepton_final_states.brems_lpm_suppressions +=
+          classification.brems_suppression_flag;
+      expected_lepton_final_states.electron_pair_lpm_trials +=
+          classification.electron_pair_flag +
+          classification.electron_pair_suppression_flag;
+      expected_lepton_final_states.electron_pair_lpm_suppressions +=
+          classification.electron_pair_suppression_flag;
+      expected_lepton_final_states.electron_pair_rejection_trials +=
+          classification.electron_pair_rejection_trials;
+      expected_lepton_final_states.electron_pair_zero_weight_samples +=
+          classification.electron_pair_zero_weight_flag;
+      expected_lepton_final_states.electron_pair_rejection_fallbacks +=
+          classification.electron_pair_rejection_fallback_flag;
+      expected_lepton_final_states.electron_pair_envelope_violations +=
+          classification.electron_pair_envelope_violation_flag;
+    }
+    if (lepton_final_states.gpu_interactions !=
+            expected_lepton_final_states.gpu_interactions ||
+        lepton_final_states.final_state_records.size() !=
+            expected_lepton_final_states.final_state_records.size() ||
+        lepton_final_states.secondaries.size() !=
+            expected_lepton_final_states.secondaries.size() ||
+        lepton_final_states.fallback_events.size() !=
+            expected_lepton_final_states.fallback_events.size() ||
+        lepton_final_states.continuations.size() !=
+            expected_lepton_final_states.continuations.size() ||
+        lepton_final_states.lpm_suppressed.size() !=
+            expected_lepton_final_states.lpm_suppressed.size() ||
+        lepton_final_states.brems_interactions !=
+            expected_lepton_final_states.brems_interactions ||
+        lepton_final_states.annihilation_interactions !=
+            expected_lepton_final_states.annihilation_interactions ||
+        lepton_final_states.ionization_interactions !=
+            expected_lepton_final_states.ionization_interactions ||
+        lepton_final_states.electron_pair_interactions !=
+            expected_lepton_final_states.electron_pair_interactions ||
+        lepton_final_states.brems_lpm_trials !=
+            expected_lepton_final_states.brems_lpm_trials ||
+        lepton_final_states.brems_lpm_suppressions !=
+            expected_lepton_final_states.brems_lpm_suppressions ||
+        lepton_final_states.electron_pair_lpm_trials !=
+            expected_lepton_final_states.electron_pair_lpm_trials ||
+        lepton_final_states.electron_pair_lpm_suppressions !=
+            expected_lepton_final_states.electron_pair_lpm_suppressions ||
+        lepton_final_states.electron_pair_rejection_trials !=
+            expected_lepton_final_states.electron_pair_rejection_trials ||
+        lepton_final_states.electron_pair_zero_weight_samples !=
+            expected_lepton_final_states.electron_pair_zero_weight_samples ||
+        lepton_final_states.electron_pair_rejection_fallbacks !=
+            expected_lepton_final_states.electron_pair_rejection_fallbacks ||
+        lepton_final_states.electron_pair_envelope_violations !=
+            expected_lepton_final_states.electron_pair_envelope_violations) {
+      throw std::runtime_error(
+          "Kokkos lepton final states changed stable output counts");
+    }
+    for (std::size_t i = 0;
+         i < lepton_final_states.final_state_records.size(); ++i) {
+      auto const& actual = lepton_final_states.final_state_records[i];
+      auto const& expected =
+          expected_lepton_final_states.final_state_records[i];
+      if (actual.input_index != expected.input_index ||
+          actual.parent_history_id != expected.parent_history_id ||
+          actual.secondary_offset != expected.secondary_offset ||
+          actual.secondary_count != expected.secondary_count ||
+          actual.process_id != expected.process_id ||
+          !sameOrClose(actual.photon_energy_fraction,
+                       expected.photon_energy_fraction) ||
+          actual.final_state_uniform != expected.final_state_uniform ||
+          actual.azimuth_uniform != expected.azimuth_uniform ||
+          actual.auxiliary_uniform != expected.auxiliary_uniform ||
+          !sameOrClose(actual.lpm_survival_probability,
+                       expected.lpm_survival_probability) ||
+          actual.lpm_uniform != expected.lpm_uniform ||
+          actual.final_state_draw_id != expected.final_state_draw_id ||
+          actual.azimuth_draw_id != expected.azimuth_draw_id ||
+          actual.auxiliary_draw_id != expected.auxiliary_draw_id ||
+          actual.lpm_draw_id != expected.lpm_draw_id ||
+          actual.thinning_status != expected.thinning_status ||
+          actual.thinning_keep_mask != expected.thinning_keep_mask ||
+          actual.thinning_first_uniform !=
+              expected.thinning_first_uniform ||
+          actual.thinning_second_uniform !=
+              expected.thinning_second_uniform) {
+        throw std::runtime_error(
+            "Kokkos lepton final-state record differs from CPU oracle");
+      }
+    }
+    for (std::size_t i = 0; i < lepton_final_states.secondaries.size(); ++i) {
+      auto const& actual = lepton_final_states.secondaries[i];
+      auto const& expected = expected_lepton_final_states.secondaries[i];
+      if (actual.pid != expected.pid ||
+          actual.history_id != expected.history_id ||
+          actual.parent_history_id != expected.parent_history_id ||
+          actual.generation != expected.generation ||
+          actual.step_id != expected.step_id ||
+          !sameOrClose(actual.energy_GeV, expected.energy_GeV) ||
+          !sameOrClose(actual.weight, expected.weight) ||
+          // At E >> m, the mathematically equivalent momentum subtraction
+          // amplifies the last ULP of device cos/sqrt into an O(1e-8 rad)
+          // transverse component.  This is below the existing native-CUDA
+          // final-state angular acceptance and does not alter any decision.
+          std::abs(actual.direction[0] - expected.direction[0]) > 5.e-8 ||
+          std::abs(actual.direction[1] - expected.direction[1]) > 5.e-8 ||
+          std::abs(actual.direction[2] - expected.direction[2]) > 5.e-8) {
+        std::ostringstream message;
+        message << std::setprecision(17)
+                << "Kokkos lepton secondary differs from CPU oracle at "
+                << i << ": pid=" << actual.pid << '/' << expected.pid
+                << ", history=" << actual.history_id << '/'
+                << expected.history_id << ", parent="
+                << actual.parent_history_id << '/'
+                << expected.parent_history_id << ", generation="
+                << actual.generation << '/' << expected.generation
+                << ", step=" << actual.step_id << '/' << expected.step_id
+                << ", energy=" << actual.energy_GeV << '/'
+                << expected.energy_GeV << ", weight=" << actual.weight << '/'
+                << expected.weight << ", direction=[" << actual.direction[0]
+                << ',' << actual.direction[1] << ',' << actual.direction[2]
+                << "]/[" << expected.direction[0] << ','
+                << expected.direction[1] << ',' << expected.direction[2]
+                << ']';
+        throw std::runtime_error(message.str());
+      }
+    }
+
     std::cout << "Kokkos proposal-native table passed " << queries.size()
               << " rate queries and " << selection_samples
               << " interaction selections plus " << transported.records.size()
@@ -389,6 +735,16 @@ int main(int argc, char** argv) {
               << ", photon_final_states="
               << final_states.final_state_records.size()
               << ", photon_secondaries=" << final_states.secondaries.size()
+              << ", lepton_transports=" << lepton_transport.records.size()
+              << ", lepton_fallbacks="
+              << lepton_transport.fallback_events.size()
+              << ", lepton_vertices=" << lepton_vertices.interactions.size()
+              << ", lepton_continuations="
+              << lepton_vertices.continuations.size()
+              << ", lepton_final_states="
+              << lepton_final_states.final_state_records.size()
+              << ", lepton_secondaries="
+              << lepton_final_states.secondaries.size()
               << "; bytes=" << device_output.device_bytes
               << ", max_relative_difference="
               << maximum_relative_difference << '\n';

@@ -10,27 +10,24 @@
 #include <cstdint>
 #include <vector>
 
+#include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
 #include <corsika/gpu/em/BremsLpm.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/em/detail/DeviceWorkspace.hpp>
 
 namespace corsika::gpu::em {
 
-  // Draw zero is already used by inverse-CDF loss sampling for BremsProcessId.
-  inline constexpr std::uint64_t BremsAzimuthDrawId = 1;
-  inline constexpr std::uint64_t BremsLpmDrawId = 2;
-  // PROPOSAL's Heitler annihilation final state consumes two random numbers
-  // after the direct cross section has selected v=1.
-  inline constexpr std::uint64_t AnnihilationRhoDrawId = 1;
-  inline constexpr std::uint64_t AnnihilationAzimuthDrawId = 2;
-  inline constexpr std::uint64_t IonizationAzimuthDrawId = 1;
-  // Default KelnerKokoulinPetrukhinEpairProduction consumes three final-state
-  // uniforms. Its direction sampler currently ignores the third value, but
-  // the draw remains part of the reproducible/auditable key sequence.
-  inline constexpr std::uint64_t EpairRhoDrawId = 1;
-  inline constexpr std::uint64_t EpairSignDrawId = 2;
-  inline constexpr std::uint64_t EpairDirectionDrawId = 3;
-  inline constexpr std::uint64_t EpairLpmDrawId = 4;
+  // Source compatibility for code which historically obtained these domains
+  // from the native-CUDA header.
+  using accelerator::em::AnnihilationAzimuthDrawId;
+  using accelerator::em::AnnihilationRhoDrawId;
+  using accelerator::em::BremsAzimuthDrawId;
+  using accelerator::em::BremsLpmDrawId;
+  using accelerator::em::EpairDirectionDrawId;
+  using accelerator::em::EpairLpmDrawId;
+  using accelerator::em::EpairRhoDrawId;
+  using accelerator::em::EpairSignDrawId;
+  using accelerator::em::IonizationAzimuthDrawId;
 
   /**
    * Evaluate immutable BremsLPM component terms once with the selected CUDA

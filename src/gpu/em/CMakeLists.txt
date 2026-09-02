@@ -15,7 +15,6 @@ add_library (
   CudaLeptonTransport.cu
   CudaLeptonVertexSelector.cu
   CudaLeptonSelectionTransport.cu
-  MoliereInterpolation.cpp
   CudaRateTable.cu
   CudaProposalNativeTable.cu
   )

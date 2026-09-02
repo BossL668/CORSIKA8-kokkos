@@ -45,7 +45,16 @@ namespace corsika::accelerator::em {
         std::vector<gpu::em::EmParticleState> const&);
     gpu::em::PhotonTransportBatchResult transportPhotonsForValidation(
         std::vector<gpu::em::EmInteractionRecord> const&);
+    gpu::em::LeptonTransportBatchResult transportLeptonsForValidation(
+        std::vector<gpu::em::EmInteractionRecord> const&);
+    gpu::em::LeptonVertexSelectionBatchResult
+    selectLeptonVerticesForValidation(
+        std::vector<gpu::em::EmInteractionRecord> const&);
     gpu::em::EmFinalStateBatchResult generatePhotonFinalStatesForValidation(
+        std::vector<gpu::em::EmInteractionRecord> const&,
+        std::uint64_t first_secondary_history_id);
+    gpu::em::BremsFinalStateBatchResult
+    generateLeptonFinalStatesForValidation(
         std::vector<gpu::em::EmInteractionRecord> const&,
         std::uint64_t first_secondary_history_id);
 

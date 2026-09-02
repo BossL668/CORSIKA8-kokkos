@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <corsika/accelerator/em/detail/LeptonFinalStateStep.hpp>
 #include <corsika/gpu/em/CudaBremsFinalState.hpp>
 #include <corsika/gpu/em/EpairFinalState.hpp>
 #include <corsika/gpu/em/EpairLpm.hpp>
@@ -38,21 +39,8 @@ namespace corsika::gpu::em {
         3.141592653589793238462643383279502884;
     constexpr double ProposalHalfPrecision = 1.e-5;
 
-    struct BremsParameters {
-      std::int32_t process_id{};
-      std::uint32_t thinning_status{};
-      std::uint32_t thinning_keep_mask{0x3U};
-      double final_state_uniform{};
-      double energy_split_fraction{};
-      double azimuth_uniform{};
-      double auxiliary_uniform{};
-      double lpm_survival_probability{};
-      double lpm_uniform{};
-      double thinning_first_uniform{};
-      double thinning_second_uniform{};
-      double thinning_first_weight{};
-      double thinning_second_weight{};
-    };
+    using BremsParameters =
+        accelerator::em::detail::LeptonFinalStateParameters;
 
     struct BremsCompactionValue {
       std::uint32_t child_count{};
@@ -601,6 +589,66 @@ namespace corsika::gpu::em {
         return;
       }
       auto const& interaction = interactions[index];
+      auto const outcome =
+          accelerator::em::detail::classifyLeptonFinalState(
+              lpm_snapshot, prepared_lpm, thinning, interaction,
+              random_seed, shower_id);
+      parameters[index] = outcome.parameters;
+      if (outcome.fallback_flag != 0) {
+        raw_fallbacks[index] = outcome.fallback;
+      }
+      classification.child_count = outcome.child_count;
+      classification.record_count = outcome.record_flag;
+      classification.fallback_count = outcome.fallback_flag;
+      classification.continuation_count = outcome.continuation_flag;
+      classification.suppression_count = outcome.suppression_flag;
+      if (outcome.brems_flag != 0)
+        warpAggregatedIncrement(
+            summary + detail::BremsFinalStateSummaryLayout::BremsCount);
+      if (outcome.annihilation_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::AnnihilationCount);
+      if (outcome.ionization_flag != 0)
+        warpAggregatedIncrement(
+            summary + detail::BremsFinalStateSummaryLayout::IonizationCount);
+      if (outcome.electron_pair_flag != 0)
+        warpAggregatedIncrement(
+            summary + detail::BremsFinalStateSummaryLayout::ElectronPairCount);
+      if (outcome.brems_suppression_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::BremsSuppressionCount);
+      if (outcome.electron_pair_suppression_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::ElectronPairSuppressionCount);
+      if (outcome.electron_pair_rejection_trials != 0)
+        atomicAdd(
+            summary +
+                detail::BremsFinalStateSummaryLayout::
+                    ElectronPairRejectionTrials,
+            outcome.electron_pair_rejection_trials);
+      if (outcome.electron_pair_zero_weight_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::
+                ElectronPairZeroWeightSamples);
+      if (outcome.electron_pair_rejection_fallback_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::
+                ElectronPairRejectionFallbacks);
+      if (outcome.electron_pair_envelope_violation_flag != 0)
+        warpAggregatedIncrement(
+            summary +
+            detail::BremsFinalStateSummaryLayout::
+                ElectronPairEnvelopeViolations);
+      return;
+
+      // The original CUDA-only implementation is intentionally retained
+      // below during the staged port as a review oracle.  It is unreachable;
+      // native CUDA and Kokkos execute the shared classifier above.
       if (interaction.status ==
           EmInteractionStatus::NoDiscreteInteraction) {
         classification.continuation_count = 1;
@@ -1003,6 +1051,63 @@ namespace corsika::gpu::em {
       }
       auto const classification = classifications[index];
       auto const offset = offsets[index];
+      accelerator::em::detail::LeptonFinalStateClassification
+          shared_classification{};
+      shared_classification.parameters = parameters[index];
+      shared_classification.child_count = classification.child_count;
+      shared_classification.record_flag = classification.record_count;
+      shared_classification.fallback_flag = classification.fallback_count;
+      shared_classification.continuation_flag =
+          classification.continuation_count;
+      shared_classification.suppression_flag =
+          classification.suppression_count;
+      if (classification.fallback_count != 0)
+        shared_classification.fallback = raw_fallbacks[index];
+      auto const shared_output =
+          accelerator::em::detail::materializeLeptonFinalState(
+              interactions[index], shared_classification,
+              offset.child_count, first_history_id,
+              electron_mass_GeV);
+      if (shared_output.error != 0) {
+        atomicExch(error_flag, shared_output.error);
+        return;
+      }
+      if (shared_output.has_fallback != 0) {
+        compact_fallbacks[offset.fallback_count] =
+            shared_output.fallback;
+        return;
+      }
+      if (shared_output.has_continuation != 0) {
+        compact_continuations[offset.continuation_count] =
+            shared_output.continuation;
+        return;
+      }
+      if (shared_output.has_suppression != 0) {
+        compact_suppressions[offset.suppression_count] =
+            shared_output.suppression;
+        return;
+      }
+      if (shared_output.has_record != 0) {
+        compact_records[offset.record_count] = shared_output.record;
+        for (std::uint32_t child = 0;
+             child < shared_output.secondary_count; ++child) {
+          compact_secondaries[offset.child_count + child] =
+              shared_output.secondaries[child];
+        }
+        if (shared_output.has_first_interaction != 0 &&
+            first_interaction.snapshot != nullptr &&
+            first_interaction.candidate_count != nullptr) {
+          auto const candidate =
+              atomicAdd(first_interaction.candidate_count, 1U);
+          if (candidate == 0)
+            *first_interaction.snapshot =
+                shared_output.first_interaction;
+        }
+      }
+      return;
+
+      // Retained as a non-executed CUDA-only review oracle while the shared
+      // implementation completes its acceptance campaign.
       if (classification.fallback_count != 0) {
         compact_fallbacks[offset.fallback_count] =
             raw_fallbacks[index];
