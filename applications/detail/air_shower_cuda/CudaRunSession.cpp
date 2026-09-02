@@ -12,7 +12,6 @@
 #include <PROPOSAL/version.h>
 
 #include <corsika/gpu/em/tables/ProposalNativeAux.hpp>
-#include <corsika/gpu/em/tables/MediumConfig.hpp>
 #include <corsika/gpu/em/tables/Sha256.hpp>
 
 #include <cstdint>
@@ -36,28 +35,17 @@ namespace corsika::applications::air_shower {
     if (options.em_backend != "cuda") { return; }
 
     using namespace corsika::gpu::em::tables;
-    if (options.gpu_physics_source == "c8emrt") {
-      loaded_gpu_table_.emplace(readRateTable(options.gpu_table_cache));
-      if (loaded_gpu_table_->metadata.generator_version !=
-          TableGeneratorContractVersion) {
-        throw std::runtime_error(
-            "CUDA EM table generator contract mismatch: table=" +
-            loaded_gpu_table_->metadata.generator_version +
-            ", required=" + TableGeneratorContractVersion +
-            "; regenerate the table with gpu_em_table_prepare");
-      }
-      for (auto const& particle : loaded_gpu_table_->particles) {
-        for (auto const& column : particle.columns) {
-          if (column.inverse_cdf.reference_mode ==
-              SelectedLossCpuFallbackReferenceMode) {
-            throw std::runtime_error(
-                "CUDA EM table contains a runtime selected-loss CPU fallback; "
-                "regenerate it with table contract " +
-                std::string(TableGeneratorContractVersion));
-          }
-        }
-      }
-    }
+    auto const physics_source =
+        options.gpu_physics_source == "proposal-native"
+            ? gpu::em::GpuPhysicsSource::ProposalNative
+            : gpu::em::GpuPhysicsSource::C8EmRt;
+    auto const auxiliary_cache =
+        options.gpu_aux_cache_dir.empty()
+            ? defaultProposalNativeAuxCacheDirectory()
+            : options.gpu_aux_cache_dir;
+    runtime_session_ =
+        std::make_unique<gpu::em::detail::CudaEmRunSession>(
+            physics_source, options.gpu_table_cache, auxiliary_cache);
 
     cudaDeviceProp properties{};
     auto const property_status =
@@ -132,8 +120,8 @@ namespace corsika::applications::air_shower {
     configuration["environment"]["observation_plane_normal"]["y"] = 0.;
     configuration["environment"]["observation_plane_normal"]["z"] = 1.;
     configuration["environment"]["antenna_file"] = environment.antenna_file;
-    if (loaded_gpu_table_) {
-      auto const& table = *loaded_gpu_table_;
+    if (auto const* loaded_gpu_table = loadedRateTable()) {
+      auto const& table = *loaded_gpu_table;
       configuration["table"]["path"] = options.gpu_table_cache.string();
       configuration["table"]["format_version"] = RateTableFormatVersion;
       configuration["table"]["sha256"] = toHex(table.content_hash);
@@ -167,19 +155,11 @@ namespace corsika::applications::air_shower {
         std::move(configuration));
   }
 
-  gpu::em::CudaEmBackend& CudaRunSession::createBackend() {
-    if (backend_) {
-      throw std::logic_error("CUDA EM backend already exists");
+  gpu::em::detail::CudaEmRunSession& CudaRunSession::runtimeSession() {
+    if (!runtime_session_) {
+      throw std::logic_error("CUDA EM run session is disabled");
     }
-    backend_ = std::make_unique<gpu::em::CudaEmBackend>();
-    return *backend_;
-  }
-
-  gpu::em::CudaEmBackend& CudaRunSession::backend() {
-    if (!backend_) {
-      throw std::logic_error("CUDA EM backend has not been initialized");
-    }
-    return *backend_;
+    return *runtime_session_;
   }
 
 } // namespace corsika::applications::air_shower

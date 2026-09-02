@@ -2,6 +2,7 @@ add_library (
   CORSIKA8GpuEm
   STATIC
   CudaEmBackend.cu
+  CudaEmRunSession.cpp
   CudaDecisionReplayVerifier.cu
   CudaInteractionSelector.cu
   CudaPhotonTransport.cu

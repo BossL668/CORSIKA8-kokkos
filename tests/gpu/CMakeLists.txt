@@ -81,6 +81,15 @@ target_compile_options (testGpuEmFlatRateTable PRIVATE -g)
 add_test (NAME testGpuEmFlatRateTable COMMAND testGpuEmFlatRateTable)
 
 if (CORSIKA_ENABLE_CUDA)
+  add_test (
+    NAME testGpuGenericRunnerArchitecture
+    COMMAND
+    ${CMAKE_COMMAND}
+    -DC8_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -P
+    ${CMAKE_CURRENT_SOURCE_DIR}/checkGpuGenericRunnerArchitecture.cmake
+    )
+
   add_executable (
     testGpuEmCppLink
     testGpuEmCppLink.cpp

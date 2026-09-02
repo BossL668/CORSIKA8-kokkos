@@ -29,8 +29,10 @@
 
 ```mermaid
 flowchart TD
-    A[c8_air_shower.cpp 构造物理过程和环境] --> A1[air_shower_cuda 私有支持层]
-    A1 --> B[HybridCascade 主调度器]
+    A[c8_air_shower.cpp 构造物理过程和环境] --> A1[空气 shower 应用适配层]
+    A1 --> A2[CudaEmRunSession 通用运行级资源]
+    A1 --> B[runCudaHybridCascade 通用调度器]
+    A2 --> D[PhysicalCudaEmRouter]
     B -->|强子、CPU 专属过程| C[ScalarCascadeStepper]
     B -->|gamma / e± / 支持的 mu±| D[PhysicalCudaEmRouter]
     D --> E[CudaEmBackend]
@@ -85,7 +87,7 @@ add_library(CORSIKA8GpuEm STATIC
 
 ### 3.3 顶层 `CMakeLists.txt` 与 `applications/CMakeLists.txt`
 
-顶层的 `CORSIKA_ENABLE_CUDA` 决定是否启用 CUDA 语言和 GPU 库。`applications/CMakeLists.txt` 建立应用私有的 `c8_air_shower_support` 静态目标：CPU 构建只编译 CLI 支持，CUDA 构建才追加 session 实现并链接 `CORSIKA8GpuEm`。`c8_air_shower` 与 parent-profile 验证程序共享这个目标；制表工具仍只依赖 `CORSIKA8GpuEmTables`。因此 CPU 默认构建不需要 CUDA toolkit，这些应用适配代码也不会被安装成 CORSIKA 公共 API。
+顶层的 `CORSIKA_ENABLE_CUDA` 决定是否启用 CUDA 语言和 GPU 库。通用运行器的非模板实现 `src/gpu/em/CudaEmRunSession.cpp` 编译进 `CORSIKA8GpuEm`；模板调度器位于 `corsika/gpu/em/detail/CudaHybridCascadeRunner.hpp`。`applications/CMakeLists.txt` 只在 CUDA 构建中把很薄的运行报告包装器 `CudaRunSession.cpp` 加入 `c8_air_shower` 和 parent-profile 验证程序。制表工具仍只依赖 `CORSIKA8GpuEmTables`。因此 CPU 默认构建不需要 CUDA toolkit，通用层也不依赖 CLI11、YAML 报告、空气/冰模型或具体强子模块。
 
 ## 4. 最底层的数据契约
 
@@ -596,12 +598,21 @@ GPU 绕过了标量 `ProcessSequence::doContinuous/doSecondaries`，所以自定
 
 这是所有模块的高层装配入口。重构后它主要保留 CLI 入口、大气和初级粒子、
 PROPOSAL/FLUKA/高能强子模型、CoREAS/ZHS、原有 `ProcessSequence` 顺序、标量
-`Cascade` 分支，以及一次清晰的 `runCudaAirShower(...)` 调用。CUDA 实现细节放在
-`applications/detail/air_shower_cuda/`，它们是应用私有支持层，不属于公共 API：
+`Cascade` 分支，以及一次清晰的 `runCudaAirShower(...)` 调用。CLI 注册与解析后
+校验重新放在主文件中，因此用户查看应用入口时仍能直接审计参数合同。
 
-- `GpuCliOptions.hpp/.cpp`：按原有顺序注册 GPU、射电和强子调度参数，并执行解析后的兼容性门禁；
-- `CudaRunSession.hpp/.cpp`：读取并验证 `.c8emrt`、查询设备与依赖版本、创建运行级 metadata，并持有跨 shower 复用的 backend；
-- `CudaAirShowerRunner.hpp`：从主文件已经构造好的物理模型建立 snapshot、registry、fallback、router 和 `HybridCascade`；
+可复用的 CORSIKA 内部层位于：
+
+- `corsika/gpu/em/detail/CudaEmRunSession.hpp` 与 `src/gpu/em/CudaEmRunSession.cpp`：读取并验证 `.c8emrt`，或导出 proposal-native 样条和辅助缓存；管理 backend 首次初始化与后续 `beginShower()`；
+- `corsika/gpu/em/detail/CudaHybridCascadeRunner.hpp`：检查 process registry，通过调用方 factory 建立 fallback、output sink、router 和 `HybridCascade`，并在对象仍存活时调用完成回调；
+- `tests/gpu/checkGpuGenericRunnerArchitecture.cmake`：禁止上述通用层直接依赖 CLI11、YAML、air/ice application、CoREAS/ZHS detector 或 FLUKA。
+
+空气 shower 专属内容仍位于 `applications/detail/air_shower_cuda/`：
+
+- `GpuCliOptions.hpp`：只有应用参数数据，不包含 CLI11 或 CUDA runtime 对象；
+- `CudaRunSession.hpp/.cpp`：查询设备和实际依赖版本、生成原有运行级 YAML，并委托通用 `CudaEmRunSession`；
+- `CudaAirShowerSetup.hpp`：建立五层空气 snapshot、观测平面、profile/radio 配置和空气应用 process registry；
+- `CudaAirShowerRunner.hpp`：用空气应用已经构造好的物理模型提供通用运行器所需的 factories/callbacks；
 - `CudaEventConfig`：把单 shower 的 seed、能量、cut、thinning、初级粒子与最大磁偏转作为显式只读输入；
 - `CudaShowerReportBuilder`：保持原 YAML 字段、层级和插入顺序，集中生成计数器、fallback、射电、显存、计时与能量闭合报告。
 
@@ -613,10 +624,11 @@ runCudaAirShower(cuda_session, gpu_cli, cuda_event,
                  env, rootCS, /* 已构造的模型、writer 和 sequence */);
 ```
 
-而 `CudaAirShowerRunner.hpp` 内部仍按原顺序建立 `PhysicalCudaEmRouter` 和
+`CudaAirShowerRunner.hpp` 把空气应用的工厂交给
+`runCudaHybridCascade(...)`；后者按原顺序建立 `PhysicalCudaEmRouter` 和
 `HybridCascade`。这次拆分只移动接线与报告语句，没有修改 kernel、物理公式、
 随机流、过程顺序或输出 schema。应用层继续决定使用什么物理过程；
-router/backend 只实现已经声明的设备能力，不在内部偷偷替换用户配置。
+router/backend 只实现已经声明的设备能力，不在内部替换用户配置。
 
 ### 14.2 `applications/gpu_em_table_prepare.cpp`
 
@@ -673,6 +685,7 @@ router/backend 只实现已经声明的设备能力，不在内部偷偷替换�
 | `src/gpu/em/CudaRadioAccumulator.cu` | CoREAS/ZHS 传播与波形累计 | `accumulateCoREAS`, `accumulateZHS` |
 | `src/gpu/em/CudaRateTable.cu` | 扁平表上传和验证查询 | `CudaRateTable::Impl` |
 | `src/gpu/em/CudaDecisionReplayVerifier.cu` | tape 设备 hash 与物理合法性检查 | `verifyReplayKernel` |
+| `src/gpu/em/CudaEmRunSession.cpp` | `.c8emrt`/proposal-native 物理源门禁、初始化和跨 shower backend 复用 | `CudaEmRunSession::beginC8EmRt`, `beginProposalNative` |
 | `src/gpu/em/MoliereInterpolation.cpp` | 初始化期 Molière 插值/cache | 插值表构造与 cache header |
 | `src/gpu/em/tables/MediumConfig.cpp` | 严格 YAML、规范化、介质哈希 | `normalizeMediumConfig` |
 | `src/gpu/em/tables/ProposalMedium.cpp` | YAML 介质转 PROPOSAL medium | `makeProposalMedium` |
@@ -692,6 +705,8 @@ router/backend 只实现已经声明的设备能力，不在内部偷偷替换�
 | `PhysicalCudaEmRouter.hpp` | 主栈、GPU 队列、fallback 和输出路由 |
 | `ToyCudaEmRouter.hpp` | toy branching 开发路由 |
 | `CudaEmBackend.hpp` | GPU 后端公共 API |
+| `detail/CudaEmRunSession.hpp` | 与应用无关的物理源和 backend 生命周期 |
+| `detail/CudaHybridCascadeRunner.hpp` | 与环境/报告类型无关的 HybridCascade 接线模板 |
 | `CudaInteractionSelector.hpp` | 离散选择接口和 RNG 键 |
 | `CudaPhotonTransport.hpp` | photon 输运接口 |
 | `CudaPhotonSelectionTransport.hpp` | photon fused pipeline 接口 |

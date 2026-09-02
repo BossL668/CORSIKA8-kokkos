@@ -9,7 +9,7 @@
 
 #include "GpuCliOptions.hpp"
 
-#include <corsika/gpu/em/CudaEmBackend.hpp>
+#include <corsika/gpu/em/detail/CudaEmRunSession.hpp>
 #include <corsika/gpu/em/GpuEmRunOutput.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 
@@ -45,18 +45,18 @@ namespace corsika::applications::air_shower {
     }
 
     gpu::em::tables::RateTableSet const* loadedRateTable() const noexcept {
-      return loaded_gpu_table_ ? &*loaded_gpu_table_ : nullptr;
+      return runtime_session_ ? runtime_session_->loadedRateTable() : nullptr;
     }
 
-    bool hasBackend() const noexcept { return backend_ != nullptr; }
+    bool hasBackend() const noexcept {
+      return runtime_session_ && runtime_session_->initialized();
+    }
 
-    gpu::em::CudaEmBackend& createBackend();
-    gpu::em::CudaEmBackend& backend();
+    gpu::em::detail::CudaEmRunSession& runtimeSession();
 
   private:
-    std::optional<gpu::em::tables::RateTableSet> loaded_gpu_table_;
+    std::unique_ptr<gpu::em::detail::CudaEmRunSession> runtime_session_;
     std::unique_ptr<gpu::em::GpuEmRunOutput> run_output_;
-    std::unique_ptr<gpu::em::CudaEmBackend> backend_;
   };
 
 } // namespace corsika::applications::air_shower

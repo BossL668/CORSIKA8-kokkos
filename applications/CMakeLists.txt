@@ -1,16 +1,7 @@
 SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-add_library (
-  c8_air_shower_support
-  STATIC
-  detail/air_shower_cuda/GpuCliOptions.cpp
-  )
-target_link_libraries (c8_air_shower_support PRIVATE CORSIKA8)
-target_compile_features (c8_air_shower_support PRIVATE cxx_std_17)
-
 add_executable (c8_air_shower c8_air_shower.cpp)
-target_link_libraries (
-  c8_air_shower PRIVATE CORSIKA8 c8_air_shower_support)
+target_link_libraries (c8_air_shower PRIVATE CORSIKA8)
 
 # The homogeneous-ice application has a complete scalar PROPOSAL path and must
 # remain buildable on CPU-only validation hosts.  CUDA support is attached
@@ -81,12 +72,8 @@ endif ()
 
 if (CORSIKA_ENABLE_CUDA)
   target_sources (
-    c8_air_shower_support PRIVATE
+    c8_air_shower PRIVATE
     detail/air_shower_cuda/CudaRunSession.cpp)
-  target_link_libraries (
-    c8_air_shower_support PRIVATE CORSIKA8GpuEm)
-  target_compile_definitions (
-    c8_air_shower_support PRIVATE CORSIKA8_WITH_CUDA_EM=1)
   target_link_libraries (c8_air_shower PRIVATE CORSIKA8GpuEm)
   target_compile_definitions (c8_air_shower PRIVATE CORSIKA8_WITH_CUDA_EM=1)
 
@@ -104,10 +91,11 @@ if (CORSIKA_ENABLE_CUDA)
   add_executable (
     c8_air_shower_parent_profile_validation EXCLUDE_FROM_ALL
     c8_air_shower.cpp
+    detail/air_shower_cuda/CudaRunSession.cpp
     )
   target_link_libraries (
     c8_air_shower_parent_profile_validation
-    PRIVATE CORSIKA8 CORSIKA8GpuEm c8_air_shower_support
+    PRIVATE CORSIKA8 CORSIKA8GpuEm
     )
   target_compile_definitions (
     c8_air_shower_parent_profile_validation
@@ -211,7 +199,6 @@ target_link_libraries (
 if(WITH_FLUKA)
   message("compiling c8_air_shower.cpp with FLUKA")
   target_compile_definitions(c8_air_shower PRIVATE WITH_FLUKA)
-  target_compile_definitions(c8_air_shower_support PRIVATE WITH_FLUKA)
   if (TARGET c8_ice_cascade)
     target_compile_definitions(c8_ice_cascade PRIVATE WITH_FLUKA)
   endif ()

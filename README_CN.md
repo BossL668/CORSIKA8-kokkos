@@ -1426,19 +1426,24 @@ c8_air_shower \
    调度边界；
 3. [`PhysicalCudaEmRouter.hpp`](corsika/gpu/em/PhysicalCudaEmRouter.hpp)：
    粒子转换、fallback、输出和强制衰变；
-4. [`Types.hpp`](corsika/gpu/em/Types.hpp)：设备 POD 和记录格式；
-5. [`Philox.hpp`](corsika/gpu/em/Philox.hpp)：调度无关随机数；
-6. [`CudaEmBackend.cu`](src/gpu/em/CudaEmBackend.cu)：常驻队列和 wavefront；
-7. photon/lepton selection、transport 和 final-state CUDA 文件；
-8. [`RateTable.hpp`](corsika/gpu/em/tables/RateTable.hpp) 与
+4. [`CudaEmRunSession.hpp`](corsika/gpu/em/detail/CudaEmRunSession.hpp) 与
+   [`CudaHybridCascadeRunner.hpp`](corsika/gpu/em/detail/CudaHybridCascadeRunner.hpp)：
+   不依赖空气应用的物理源生命周期和通用 HybridCascade 接线；
+5. [`CudaAirShowerSetup.hpp`](applications/detail/air_shower_cuda/CudaAirShowerSetup.hpp)
+   与 `CudaAirShowerRunner.hpp`：空气模型专属 snapshot、registry、factory 和报告回调；
+6. [`Types.hpp`](corsika/gpu/em/Types.hpp)：设备 POD 和记录格式；
+7. [`Philox.hpp`](corsika/gpu/em/Philox.hpp)：调度无关随机数；
+8. [`CudaEmBackend.cu`](src/gpu/em/CudaEmBackend.cu)：常驻队列和 wavefront；
+9. photon/lepton selection、transport 和 final-state CUDA 文件；
+10. [`RateTable.hpp`](corsika/gpu/em/tables/RateTable.hpp) 与
    [`gpu_em_tablegen.cpp`](applications/gpu_em_tablegen.cpp)；
-9. [`ProposalNativeTable.hpp`](corsika/gpu/em/tables/ProposalNativeTable.hpp)、
+11. [`ProposalNativeTable.hpp`](corsika/gpu/em/tables/ProposalNativeTable.hpp)、
    [`ProposalNativeTableExporter.hpp`](corsika/gpu/em/tables/ProposalNativeTableExporter.hpp)
    和 [`CudaProposalNativeTable.cu`](src/gpu/em/CudaProposalNativeTable.cu)；
-10. [`third_party/conan`](third_party/conan/) 的版本锁定依赖补丁；
-11. [`CudaRadioAccumulator.cu`](src/gpu/em/CudaRadioAccumulator.cu)；
-12. [`fluka_batch_worker.cpp`](applications/fluka_batch_worker.cpp)；
-13. [`validation/gpu_em`](validation/gpu_em/) 的物理与性能验收工具。
+12. [`third_party/conan`](third_party/conan/) 的版本锁定依赖补丁；
+13. [`CudaRadioAccumulator.cu`](src/gpu/em/CudaRadioAccumulator.cu)；
+14. [`fluka_batch_worker.cpp`](applications/fluka_batch_worker.cpp)；
+15. [`validation/gpu_em`](validation/gpu_em/) 的物理与性能验收工具。
 
 ## 12. 引用与科研表述
 

@@ -1637,6 +1637,9 @@ run a competing scalar campaign while measuring CUDA performance.
 |---|---|
 | `applications/c8_air_shower.cpp` | Main scalar/CUDA production application |
 | `corsika/framework/core/HybridCascade.hpp` | CPU/GPU cascade scheduler |
+| `corsika/gpu/em/detail/CudaEmRunSession.hpp` and `src/gpu/em/CudaEmRunSession.cpp` | Application-independent physics-source and CUDA-backend lifecycle |
+| `corsika/gpu/em/detail/CudaHybridCascadeRunner.hpp` | Internal reusable HybridCascade wiring template |
+| `applications/detail/air_shower_cuda/` | Air-shower snapshot, factories, and unchanged report-schema adapter |
 | `corsika/gpu/` and `src/gpu/` | CUDA transport, tables, radio, and runtime |
 | `applications/gpu_em_table_prepare.cpp` | Material hashing and automatic table preparation |
 | `applications/gpu_em_tablegen.cpp` | Low-level PROPOSAL table generation |

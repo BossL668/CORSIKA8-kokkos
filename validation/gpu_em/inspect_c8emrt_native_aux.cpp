@@ -1,4 +1,11 @@
 /*
+ * (c) Copyright 2026 CORSIKA Project, corsika-project@lists.kit.edu
+ *
+ * This software is distributed under the terms of the 3-clause BSD license.
+ * See file LICENSE for a full version of the license.
+ */
+
+/*
  * Read-only diagnostic used to compare the small physics snapshots embedded
  * in a legacy .c8emrt file with a proposal-native .c8emaux cache.  This is not
  * part of the shower executable and intentionally has no CUDA dependency.

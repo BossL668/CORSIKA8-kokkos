@@ -6,10 +6,24 @@
  */
 
 #include <cstdlib>
+#include <stdexcept>
 
 #include <corsika/gpu/em/CudaEmBackend.hpp>
+#include <corsika/gpu/em/detail/CudaEmRunSession.hpp>
 
 int main() {
   corsika::gpu::em::CudaEmBackend backend;
-  return backend.empty() ? EXIT_SUCCESS : EXIT_FAILURE;
+  if (!backend.empty()) { return EXIT_FAILURE; }
+
+  corsika::gpu::em::detail::CudaEmRunSession session{
+      corsika::gpu::em::GpuPhysicsSource::ProposalNative, {}, {}};
+  if (session.initialized() || session.loadedRateTable() != nullptr) {
+    return EXIT_FAILURE;
+  }
+  try {
+    static_cast<void>(session.backend());
+  } catch (std::logic_error const&) {
+    return EXIT_SUCCESS;
+  }
+  return EXIT_FAILURE;
 }

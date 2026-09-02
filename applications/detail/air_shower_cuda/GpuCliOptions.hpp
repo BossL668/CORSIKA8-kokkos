@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <CLI/App.hpp>
-
 #include <cstddef>
 #include <filesystem>
 #include <string>
@@ -59,14 +57,5 @@ namespace corsika::applications::air_shower {
     bool cpu_detailed_step_timing{false};
     std::filesystem::path hadronic_worker_executable;
   };
-
-  void addGpuCliOptions(CLI::App& app, GpuCliOptions& options);
-
-  /**
-   * Apply the post-parse compatibility gates.  Returns false after emitting
-   * the same critical diagnostic used by the monolithic application.
-   */
-  bool validateGpuCliOptions(GpuCliOptions& options,
-                             std::filesystem::path const& executable);
 
 } // namespace corsika::applications::air_shower
