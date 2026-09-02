@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
 #include <corsika/gpu/em/MoliereScattering.hpp>
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
@@ -35,37 +36,6 @@ namespace corsika::gpu::em::detail {
       message << operation << " failed: "
               << cudaGetErrorString(status);
       throw std::runtime_error(message.str());
-    }
-
-    __device__ double projectGrammage(
-        DeviceProfileProjection const& projection,
-        double const position_m[3]) {
-      auto projected_length_m = 0.;
-      for (int axis = 0; axis < 3; ++axis) {
-        projected_length_m +=
-            (position_m[axis] -
-             projection.axis_start_position_m[axis]) *
-            projection.axis_direction[axis];
-      }
-      auto const fractional_bin =
-          projected_length_m /
-          projection.axis_step_length_m;
-      if (fractional_bin < 0.) {
-        return projection.axis_grammage_g_per_cm2[0];
-      }
-      auto const lower =
-          static_cast<std::size_t>(fractional_bin);
-      auto const upper = lower + 1;
-      if (upper >= projection.axis_support_count) {
-        return projection.axis_grammage_g_per_cm2[
-            projection.axis_support_count - 1];
-      }
-      auto const fraction =
-          fractional_bin - static_cast<double>(lower);
-      return projection.axis_grammage_g_per_cm2[upper] *
-                 fraction +
-             projection.axis_grammage_g_per_cm2[lower] *
-                 (1. - fraction);
     }
 
     __device__ bool checkedAtomicAdd(
@@ -368,25 +338,8 @@ namespace corsika::gpu::em::detail {
       if (index >= count) {
         return;
       }
-      auto const record = records[index];
-      ProjectedEmStepRecord projected{};
-      projected.history_id = record.start.history_id;
-      projected.pid = record.start.pid;
-      projected.process_id =
-          record.limit == PhotonTransportLimit::Interaction
-              ? record.interaction.process_id
-              : 0;
-      projected.transport_limit =
-          static_cast<std::int32_t>(record.limit);
-      projected.start_grammage_g_per_cm2 =
-          projectGrammage(projection, record.start.position_m);
-      projected.end_grammage_g_per_cm2 =
-          projectGrammage(projection, record.end.position_m);
-      projected.end_energy_GeV = record.end.energy_GeV;
-      projected.deposited_energy_GeV =
-          record.cut_deposited_energy_GeV;
-      projected.weight = record.start.weight;
-      output[index] = projected;
+      output[index] = accelerator::em::detail::projectPhotonStep(
+          projection, records[index]);
     }
 
     __global__ void projectLeptonStepsKernel(
@@ -399,35 +352,8 @@ namespace corsika::gpu::em::detail {
       if (index >= count) {
         return;
       }
-      auto const record = records[index];
-      ProjectedEmStepRecord projected{};
-      projected.history_id = record.start.history_id;
-      projected.pid = record.start.pid;
-      projected.process_id =
-          record.limit ==
-                  LeptonTransportLimit::InteractionCandidate
-              ? record.interaction.process_id
-              : 0;
-      projected.transport_limit =
-          static_cast<std::int32_t>(record.limit);
-      projected.reserved =
-          static_cast<std::int32_t>(
-              static_cast<std::uint32_t>(
-                  record.multiple_scattering_applied) |
-              (static_cast<std::uint32_t>(
-                   record.multiple_scattering_status)
-               << 1) |
-              (record.multiple_scattering_iterations << 8));
-      projected.start_grammage_g_per_cm2 =
-          projectGrammage(projection, record.start.position_m);
-      projected.end_grammage_g_per_cm2 =
-          projectGrammage(projection, record.end.position_m);
-      projected.end_energy_GeV = record.end.energy_GeV;
-      projected.deposited_energy_GeV =
-          record.continuous_deposited_energy_GeV +
-          record.cut_deposited_energy_GeV;
-      projected.weight = record.start.weight;
-      output[index] = projected;
+      output[index] = accelerator::em::detail::projectLeptonStep(
+          projection, records[index]);
     }
 
     __global__ void accumulatePhotonStepsKernel(
@@ -442,9 +368,9 @@ namespace corsika::gpu::em::detail {
         return;
       }
       auto const record = records[index];
-      auto const start = projectGrammage(
+      auto const start = accelerator::em::detail::projectProfileGrammage(
           projection, record.start.position_m);
-      auto const end = projectGrammage(
+      auto const end = accelerator::em::detail::projectProfileGrammage(
           projection, record.end.position_m);
       accumulateParticleProfile(
           accumulator, record.start.pid, start, end,
@@ -550,9 +476,9 @@ namespace corsika::gpu::em::detail {
             &accumulator.counters->invalid_records, 1ULL);
         return;
       }
-      auto const start = projectGrammage(
+      auto const start = accelerator::em::detail::projectProfileGrammage(
           projection, transport->start.position_m);
-      auto const end = projectGrammage(
+      auto const end = accelerator::em::detail::projectProfileGrammage(
           projection, transport->end.position_m);
       auto const deposit =
           transport->end.energy_GeV *
@@ -585,9 +511,9 @@ namespace corsika::gpu::em::detail {
       accumulateMoliereIterationCounters(
           accumulator.counters,
           record.multiple_scattering_iterations, warp_mask);
-      auto const start = projectGrammage(
+      auto const start = accelerator::em::detail::projectProfileGrammage(
           projection, record.start.position_m);
-      auto const end = projectGrammage(
+      auto const end = accelerator::em::detail::projectProfileGrammage(
           projection, record.end.position_m);
       accumulateParticleProfile(
           accumulator, record.start.pid, start, end,
@@ -691,7 +617,8 @@ namespace corsika::gpu::em::detail {
         }
         if (record.process_id == IonizationProcessId &&
             isMuonPid(transport->start.pid)) {
-          auto const vertex_grammage = projectGrammage(
+          auto const vertex_grammage =
+              accelerator::em::detail::projectProfileGrammage(
               projection, transport->end.position_m);
           accumulateMuonParentProduction(
               accumulator, vertex_grammage,

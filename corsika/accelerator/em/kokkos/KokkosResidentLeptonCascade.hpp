@@ -23,7 +23,9 @@
 #include <corsika/accelerator/em/detail/LeptonTransportStep.hpp>
 #include <corsika/accelerator/em/detail/LeptonVertexSelection.hpp>
 #include <corsika/accelerator/em/detail/MoliereStep.hpp>
+#include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosWavefrontQueue.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosProfileAccumulator.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -184,6 +186,10 @@ namespace corsika::accelerator::em::kokkos_detail {
       std::uint64_t const secondary_history_id_limit_exclusive,
       std::size_t const minimum_resident_batch_size,
       std::optional<gpu::em::GpuFirstInteractionSnapshot>& first_interaction,
+      bool const project_steps = false,
+      gpu::em::detail::DeviceProfileProjection const profile_projection = {},
+      KokkosProfileAccumulator<ExecutionSpace>* const profile_accumulator =
+          nullptr,
       ExecutionSpace const& execution = {}) {
     using Memory = typename ExecutionSpace::memory_space;
     using Policy = Kokkos::RangePolicy<ExecutionSpace>;
@@ -217,6 +223,8 @@ namespace corsika::accelerator::em::kokkos_detail {
         "c8_kokkos_resident_lepton_offsets", capacity);
     Kokkos::View<LeptonTransportRecord*, Memory> steps(
         "c8_kokkos_resident_lepton_steps", capacity);
+    Kokkos::View<ProjectedEmStepRecord*, Memory> projected_steps(
+        "c8_kokkos_resident_lepton_projected_steps", capacity);
     Kokkos::View<BremsFinalStateRecord*, Memory> records(
         "c8_kokkos_resident_lepton_records", capacity);
     Kokkos::View<EmParticleState*, Memory> photons(
@@ -343,8 +351,13 @@ namespace corsika::accelerator::em::kokkos_detail {
           KOKKOS_LAMBDA(std::size_t const source) {
             auto const outcome = outcomes(source);
             auto const source_counts = counts(source);
-            if (source_counts.step)
+            if (source_counts.step) {
               steps(offsets(source, LeptonStepOffset)) = outcome.transport;
+              if (project_steps)
+                projected_steps(offsets(source, LeptonStepOffset)) =
+                    detail::projectLeptonStep(
+                        profile_projection, outcome.transport);
+            }
             if (outcome.selection.fallback_flag) {
               fallbacks(offsets(source, LeptonFallbackOffset)) =
                   outcome.selection.fallback;
@@ -443,7 +456,15 @@ namespace corsika::accelerator::em::kokkos_detail {
         throw std::runtime_error(
             "resident Kokkos lepton final-state materialization failed");
 
-      append(result.step_records, steps, totals[LeptonStepOffset]);
+      if (profile_accumulator != nullptr)
+        profile_accumulator->accumulateLepton(
+            profile_projection, steps, totals[LeptonStepOffset], records,
+            totals[LeptonRecordOffset], execution);
+      if (project_steps)
+        append(result.projected_step_records, projected_steps,
+               totals[LeptonStepOffset]);
+      else if (profile_accumulator == nullptr)
+        append(result.step_records, steps, totals[LeptonStepOffset]);
       append(result.final_state_records, records, totals[LeptonRecordOffset]);
       append(result.generated_photons, photons, totals[LeptonPhotonOffset]);
       append(result.fallback_events, fallbacks,
@@ -478,6 +499,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         result.lpm_suppressions +=
             host_outcomes(source).final_state.suppression_flag;
 
+      result.transport_records += totals[LeptonStepOffset];
       next_history_id += totals[LeptonChildOffset];
       queue.commitNext(totals[LeptonNextOffset]);
       result.wavefronts++;

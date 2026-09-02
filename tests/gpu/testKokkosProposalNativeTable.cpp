@@ -122,6 +122,22 @@ int main(int argc, char** argv) {
     backend_config.random_seed = 0xdecafbad12345678ULL;
     backend_config.shower_id = 73;
     auto const earth_radius_m = 6371000.;
+    backend_config.profile_projection.enabled = true;
+    backend_config.profile_projection.accumulate_on_device = true;
+    backend_config.profile_projection.axis_start_position_m[2] =
+        earth_radius_m + 50000.;
+    backend_config.profile_projection.axis_direction[2] = -1.;
+    backend_config.profile_projection.axis_step_length_m = 1000.;
+    backend_config.profile_projection.axis_grammage_g_per_cm2.resize(64);
+    for (std::size_t i = 0;
+         i < backend_config.profile_projection.axis_grammage_g_per_cm2.size();
+         ++i)
+      backend_config.profile_projection.axis_grammage_g_per_cm2[i] =
+          static_cast<double>(i) * 16.;
+    backend_config.profile_projection.output_bin_count = 128;
+    backend_config.profile_projection.output_bin_width_g_per_cm2 = 8.;
+    backend_config.profile_projection.fixed_point_weight_limit = 1.e12;
+    backend_config.profile_projection.fixed_point_energy_limit_GeV = 1.e12;
     auto const environment = gpu::em::makeCorsika7AtmosphereSnapshot(
         AtmosphereId::USStdBK, {0., 0., 0.}, 0, earth_radius_m + 100.);
     auto const auxiliary = loadOrCreateProposalNativeAux(interactions);
@@ -734,6 +750,8 @@ int main(int argc, char** argv) {
         resident_photons, 30000000ULL, 4, 1);
     if (resident_photon.wavefronts == 0 ||
         resident_photon.input_particles != resident_photon_count ||
+        !resident_photon.step_records.empty() ||
+        !resident_photon.projected_step_records.empty() ||
         resident_photon.wavefronts != resident_photon_repeat.wavefronts ||
         resident_photon.transport_records !=
             resident_photon_repeat.transport_records ||
@@ -769,6 +787,8 @@ int main(int argc, char** argv) {
         resident_leptons, 40000000ULL, 3, 50000000ULL, 1);
     if (resident_lepton.wavefronts == 0 ||
         resident_lepton.input_particles != resident_lepton_count ||
+        !resident_lepton.step_records.empty() ||
+        !resident_lepton.projected_step_records.empty() ||
         resident_lepton.wavefronts != resident_lepton_repeat.wavefronts ||
         resident_lepton.transport_records !=
             resident_lepton_repeat.transport_records ||
@@ -794,6 +814,20 @@ int main(int argc, char** argv) {
           first.energy_GeV != second.energy_GeV)
         throw std::runtime_error(
             "Kokkos resident lepton checkpoint changed on replay");
+    }
+    auto const profile = backend.downloadProfile();
+    auto const expected_profile_steps =
+        resident_photon.transport_records +
+        resident_photon_repeat.transport_records +
+        resident_lepton.transport_records +
+        resident_lepton_repeat.transport_records;
+    if (profile.steps != expected_profile_steps ||
+        profile.photons.size() !=
+            backend_config.profile_projection.output_bin_count ||
+        profile.fixed_point_overflows != 0 || profile.invalid_records != 0 ||
+        !(profile.weighted_deposited_energy_GeV >= 0.)) {
+      throw std::runtime_error(
+          "Kokkos resident deterministic profile accumulation failed");
     }
 
     std::cout << "Kokkos proposal-native table passed " << queries.size()

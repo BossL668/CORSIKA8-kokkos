@@ -17,8 +17,10 @@
 #include <vector>
 
 #include <corsika/accelerator/em/detail/InteractionSelection.hpp>
+#include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonFinalStateStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonTransportStep.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosProfileAccumulator.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosWavefrontQueue.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
@@ -65,6 +67,10 @@ namespace corsika::accelerator::em::kokkos_detail {
       std::size_t const maximum_wavefronts,
       std::size_t const minimum_resident_batch_size,
       std::optional<gpu::em::GpuFirstInteractionSnapshot>& first_interaction,
+      bool const project_steps = false,
+      gpu::em::detail::DeviceProfileProjection const profile_projection = {},
+      KokkosProfileAccumulator<ExecutionSpace>* const profile_accumulator =
+          nullptr,
       ExecutionSpace const& execution = {}) {
     using Memory = typename ExecutionSpace::memory_space;
     using Policy = Kokkos::RangePolicy<ExecutionSpace>;
@@ -91,6 +97,8 @@ namespace corsika::accelerator::em::kokkos_detail {
         "c8_kokkos_resident_photon_offsets", capacity);
     Kokkos::View<PhotonTransportRecord*, Memory> steps(
         "c8_kokkos_resident_photon_steps", capacity);
+    Kokkos::View<ProjectedEmStepRecord*, Memory> projected_steps(
+        "c8_kokkos_resident_photon_projected_steps", capacity);
     Kokkos::View<PhotonPairFinalStateRecord*, Memory> records(
         "c8_kokkos_resident_photon_records", capacity);
     Kokkos::View<EmParticleState*, Memory> charged(
@@ -224,9 +232,14 @@ namespace corsika::accelerator::em::kokkos_detail {
           KOKKOS_LAMBDA(std::size_t const source) {
             auto const outcome = outcomes(source);
             auto const source_counts = counts(source);
-            if (source_counts.step)
+            if (source_counts.step) {
               steps(offsets(source, PhotonStepOffset)) =
                   outcome.transport.record;
+              if (project_steps)
+                projected_steps(offsets(source, PhotonStepOffset)) =
+                    detail::projectPhotonStep(
+                        profile_projection, outcome.transport.record);
+            }
             if (outcome.selection.fallback_flag) {
               fallbacks(offsets(source, PhotonFallbackOffset)) =
                   outcome.selection.fallback;
@@ -301,7 +314,15 @@ namespace corsika::accelerator::em::kokkos_detail {
         throw std::runtime_error(
             "resident Kokkos photon final-state materialization failed");
 
-      append(result.step_records, steps, totals[PhotonStepOffset]);
+      if (profile_accumulator != nullptr)
+        profile_accumulator->accumulatePhoton(
+            profile_projection, steps, totals[PhotonStepOffset], records,
+            totals[PhotonRecordOffset], execution);
+      if (project_steps)
+        append(result.projected_step_records, projected_steps,
+               totals[PhotonStepOffset]);
+      else if (profile_accumulator == nullptr)
+        append(result.step_records, steps, totals[PhotonStepOffset]);
       append(result.final_state_records, records,
              totals[PhotonRecordOffset]);
       append(result.electromagnetic_secondaries, charged,

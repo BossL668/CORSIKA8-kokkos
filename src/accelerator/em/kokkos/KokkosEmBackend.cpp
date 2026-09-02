@@ -23,6 +23,8 @@
 #include <corsika/accelerator/em/kokkos/KokkosMoliereInterpolation.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosPhotonFinalState.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosPhotonTransport.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosProfileProjection.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosProfileAccumulator.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosProposalNativeTable.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentLeptonCascade.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentPhotonCascade.hpp>
@@ -57,6 +59,10 @@ namespace corsika::accelerator::em {
     kokkos_detail::KokkosProposalNativeTable<BackendExecutionSpace> table_{};
     kokkos_detail::KokkosMoliereInterpolation<BackendExecutionSpace>
         moliere_interpolation_{};
+    kokkos_detail::KokkosProfileProjection<BackendExecutionSpace>
+        profile_projection_{};
+    kokkos_detail::KokkosProfileAccumulator<BackendExecutionSpace>
+        profile_accumulator_{};
     gpu::em::tables::ProposalNativeTableSet host_table_{};
     gpu::em::tables::ProposalNativeAuxData auxiliary_{};
     gpu::em::EnvironmentSnapshot environment_{};
@@ -96,6 +102,10 @@ namespace corsika::accelerator::em {
       moliere_cache_path += ".moliere-initial-v1.c8cache";
     impl_->moliere_interpolation_.initialize(
         auxiliary.electron_moliere, moliere_cache_path);
+    impl_->profile_projection_.initialize(
+        config.profile_projection, impl_->execution_);
+    impl_->profile_accumulator_.initialize(
+        config.profile_projection, impl_->execution_);
     impl_->physics_ = {};
     impl_->physics_.proposal_native = impl_->table_.deviceView();
     impl_->physics_.physics_source = 1u;
@@ -110,7 +120,14 @@ namespace corsika::accelerator::em {
     impl_->statistics_.native_table_device_bytes = impl_->table_.deviceBytes();
     impl_->statistics_.table_device_bytes =
         impl_->table_.deviceBytes() +
-        impl_->moliere_interpolation_.deviceBytes();
+        impl_->moliere_interpolation_.deviceBytes() +
+        impl_->profile_projection_.deviceBytes();
+    impl_->statistics_.profile.bins = config.profile_projection.output_bin_count;
+    impl_->statistics_.profile.device_bytes =
+        impl_->profile_projection_.deviceBytes() +
+        impl_->profile_accumulator_.deviceBytes();
+    impl_->statistics_.profile.enabled = impl_->profile_accumulator_.enabled();
+    impl_->statistics_.profile.deterministic = true;
     impl_->statistics_.auxiliary_cache_hit = auxiliary.cache_hit;
     impl_->statistics_.reused_for_shower = false;
     impl_->initialized_ = true;
@@ -292,6 +309,16 @@ namespace corsika::accelerator::em {
     impl_->statistics_.native_table_device_bytes = static_bytes;
     impl_->statistics_.table_device_bytes = all_table_bytes;
     impl_->statistics_.auxiliary_cache_hit = auxiliary_hit;
+    impl_->statistics_.profile.enabled = impl_->profile_accumulator_.enabled();
+    impl_->statistics_.profile.deterministic = true;
+    impl_->statistics_.profile.bins =
+        impl_->config_.profile_projection.output_bin_count;
+    impl_->statistics_.profile.device_bytes =
+        impl_->profile_projection_.deviceBytes() +
+        impl_->profile_accumulator_.deviceBytes();
+    impl_->profile_accumulator_.reset(
+        shower.profile_fixed_point_weight_limit,
+        shower.profile_fixed_point_energy_limit_GeV, impl_->execution_);
     impl_->first_interaction_.reset();
   }
 
@@ -335,6 +362,12 @@ namespace corsika::accelerator::em {
         impl_->config_.random_seed, impl_->config_.shower_id,
         first_secondary_history_id, maximum_wavefronts,
         minimum_resident_batch_size, impl_->first_interaction_,
+        impl_->profile_projection_.enabled() &&
+            !impl_->profile_accumulator_.enabled(),
+        impl_->profile_projection_.deviceView(),
+        impl_->profile_accumulator_.enabled()
+            ? &impl_->profile_accumulator_
+            : nullptr,
         impl_->execution_);
     impl_->statistics_.physical_photon_wavefronts += resident.wavefronts;
     impl_->statistics_.interaction_selection_batches += resident.wavefronts;
@@ -526,7 +559,14 @@ namespace corsika::accelerator::em {
         impl_->config_.random_seed, impl_->config_.shower_id,
         first_secondary_history_id, maximum_wavefronts,
         secondary_history_id_limit_exclusive, minimum_resident_batch_size,
-        impl_->first_interaction_, impl_->execution_);
+        impl_->first_interaction_,
+        impl_->profile_projection_.enabled() &&
+            !impl_->profile_accumulator_.enabled(),
+        impl_->profile_projection_.deviceView(),
+        impl_->profile_accumulator_.enabled()
+            ? &impl_->profile_accumulator_
+            : nullptr,
+        impl_->execution_);
     impl_->statistics_.physical_lepton_wavefronts += resident.wavefronts;
     impl_->statistics_.interaction_selection_batches += resident.wavefronts;
     impl_->statistics_.lepton_transport_batches += resident.wavefronts;
@@ -769,8 +809,21 @@ namespace corsika::accelerator::em {
   AcceleratedEmStatistics const& KokkosEmBackend::statistics() const {
     return impl_->statistics_;
   }
-  bool KokkosEmBackend::gpuProfileEnabled() const noexcept { return false; }
-  gpu::em::GpuProfileResult KokkosEmBackend::downloadProfile() { return {}; }
+  bool KokkosEmBackend::gpuProfileEnabled() const noexcept {
+    return impl_->profile_accumulator_.enabled();
+  }
+  gpu::em::GpuProfileResult KokkosEmBackend::downloadProfile() {
+    impl_->requireInitialized();
+    auto result = impl_->profile_accumulator_.download(impl_->execution_);
+    impl_->statistics_.profile.steps = result.steps;
+    impl_->statistics_.profile.deposited_steps = result.deposited_steps;
+    impl_->statistics_.profile.fixed_point_overflows =
+        result.fixed_point_overflows;
+    impl_->statistics_.profile.invalid_records = result.invalid_records;
+    impl_->statistics_.profile.device_to_host_bytes +=
+        impl_->profile_accumulator_.deviceBytes();
+    return result;
+  }
   bool KokkosEmBackend::gpuRadioEnabled() const noexcept { return false; }
   gpu::radio::GpuRadioWaveforms KokkosEmBackend::downloadRadioWaveforms() {
     return {};
