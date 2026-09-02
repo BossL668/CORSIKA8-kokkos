@@ -151,6 +151,17 @@ namespace corsika::accelerator::em::kokkos_detail {
     std::size_t capacity() const noexcept { return capacity_; }
     bool empty() const noexcept { return size_ == 0; }
     ParticleSoA<memory_space> const& current() const noexcept { return current_; }
+    ParticleSoA<memory_space>& next() noexcept { return next_; }
+
+    void commitNext(std::size_t const next_size) {
+      if (next_size > capacity_) {
+        throw std::length_error(
+            "Kokkos next wavefront exceeds queue capacity");
+      }
+      execution_.fence("commit Kokkos EM wavefront");
+      std::swap(current_, next_);
+      size_ = next_size;
+    }
 
     void upload(std::vector<gpu::em::EmParticleState> const& particles) {
       if (particles.size() > capacity_) {

@@ -724,6 +724,78 @@ int main(int argc, char** argv) {
       }
     }
 
+    auto const resident_photon_count =
+        std::min<std::size_t>(particles.size(), 256);
+    std::vector<gpu::em::EmParticleState> resident_photons(
+        particles.begin(), particles.begin() + resident_photon_count);
+    auto resident_photon = backend.runPhotonWavefront(
+        resident_photons, 30000000ULL, 4, 1);
+    auto resident_photon_repeat = backend.runPhotonWavefront(
+        resident_photons, 30000000ULL, 4, 1);
+    if (resident_photon.wavefronts == 0 ||
+        resident_photon.input_particles != resident_photon_count ||
+        resident_photon.wavefronts != resident_photon_repeat.wavefronts ||
+        resident_photon.transport_records !=
+            resident_photon_repeat.transport_records ||
+        resident_photon.interaction_vertices !=
+            resident_photon_repeat.interaction_vertices ||
+        resident_photon.final_state_records.size() !=
+            resident_photon_repeat.final_state_records.size() ||
+        resident_photon.electromagnetic_secondaries.size() !=
+            resident_photon_repeat.electromagnetic_secondaries.size() ||
+        resident_photon.remaining_photons.size() !=
+            resident_photon_repeat.remaining_photons.size()) {
+      throw std::runtime_error(
+          "Kokkos resident photon wavefront is not repeatable");
+    }
+    for (std::size_t i = 0;
+         i < resident_photon.remaining_photons.size(); ++i) {
+      auto const& first = resident_photon.remaining_photons[i];
+      auto const& second = resident_photon_repeat.remaining_photons[i];
+      if (first.history_id != second.history_id || first.pid != second.pid ||
+          first.step_id != second.step_id ||
+          first.energy_GeV != second.energy_GeV)
+        throw std::runtime_error(
+            "Kokkos resident photon checkpoint changed on replay");
+    }
+
+    auto const resident_lepton_count =
+        std::min<std::size_t>(leptons.size(), 128);
+    std::vector<gpu::em::EmParticleState> resident_leptons(
+        leptons.begin(), leptons.begin() + resident_lepton_count);
+    auto resident_lepton = backend.runLeptonWavefront(
+        resident_leptons, 40000000ULL, 3, 50000000ULL, 1);
+    auto resident_lepton_repeat = backend.runLeptonWavefront(
+        resident_leptons, 40000000ULL, 3, 50000000ULL, 1);
+    if (resident_lepton.wavefronts == 0 ||
+        resident_lepton.input_particles != resident_lepton_count ||
+        resident_lepton.wavefronts != resident_lepton_repeat.wavefronts ||
+        resident_lepton.transport_records !=
+            resident_lepton_repeat.transport_records ||
+        resident_lepton.interaction_vertices !=
+            resident_lepton_repeat.interaction_vertices ||
+        resident_lepton.secondary_history_ids_used !=
+            resident_lepton_repeat.secondary_history_ids_used ||
+        resident_lepton.final_state_records.size() !=
+            resident_lepton_repeat.final_state_records.size() ||
+        resident_lepton.generated_photons.size() !=
+            resident_lepton_repeat.generated_photons.size() ||
+        resident_lepton.remaining_leptons.size() !=
+            resident_lepton_repeat.remaining_leptons.size()) {
+      throw std::runtime_error(
+          "Kokkos resident lepton wavefront is not repeatable");
+    }
+    for (std::size_t i = 0;
+         i < resident_lepton.remaining_leptons.size(); ++i) {
+      auto const& first = resident_lepton.remaining_leptons[i];
+      auto const& second = resident_lepton_repeat.remaining_leptons[i];
+      if (first.history_id != second.history_id || first.pid != second.pid ||
+          first.step_id != second.step_id ||
+          first.energy_GeV != second.energy_GeV)
+        throw std::runtime_error(
+            "Kokkos resident lepton checkpoint changed on replay");
+    }
+
     std::cout << "Kokkos proposal-native table passed " << queries.size()
               << " rate queries and " << selection_samples
               << " interaction selections plus " << transported.records.size()
@@ -745,6 +817,10 @@ int main(int argc, char** argv) {
               << lepton_final_states.final_state_records.size()
               << ", lepton_secondaries="
               << lepton_final_states.secondaries.size()
+              << ", resident_photon_wavefronts="
+              << resident_photon.wavefronts
+              << ", resident_lepton_wavefronts="
+              << resident_lepton.wavefronts
               << "; bytes=" << device_output.device_bytes
               << ", max_relative_difference="
               << maximum_relative_difference << '\n';
