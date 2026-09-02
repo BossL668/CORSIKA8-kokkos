@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <corsika/accelerator/em/detail/PhotonTransportStep.hpp>
 #include <corsika/gpu/em/CudaPhotonTransport.hpp>
 #include <corsika/gpu/em/ObservationPlane.hpp>
 #include <corsika/gpu/em/SphericalAtmosphere.hpp>
@@ -94,6 +95,13 @@ namespace corsika::gpu::em {
                   selection_fallbacks == 0
               ? raw_interactions[index]
               : interactions[index];
+      auto const shared =
+          accelerator::em::detail::transportPhoton(
+              environment, interaction);
+      raw_records[index] = shared.record;
+      raw_fallbacks[index] = shared.fallback;
+      fallback_flags[index] = shared.fallback_flag;
+      return;
       auto const start = interaction.particle;
       if (start.pid != static_cast<std::int32_t>(EmPid::Photon)) {
         raw_fallbacks[index] = makeTransportFallback(

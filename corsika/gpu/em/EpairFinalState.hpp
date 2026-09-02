@@ -11,14 +11,11 @@
 #include <cstdint>
 #include <type_traits>
 
+#include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/gpu/em/BremsLpm.hpp>
 #include <corsika/gpu/em/Philox.hpp>
 
-#if defined(__CUDACC__)
-#define CORSIKA_GPU_EPAIR_HOST_DEVICE __host__ __device__
-#else
-#define CORSIKA_GPU_EPAIR_HOST_DEVICE
-#endif
+#define CORSIKA_GPU_EPAIR_HOST_DEVICE C8_ACCELERATOR_INLINE_FUNCTION
 
 namespace corsika::gpu::em {
 

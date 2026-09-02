@@ -4,11 +4,18 @@ add_library (
   FlatRateTable.cpp
   MediumConfig.cpp
   ProposalMedium.cpp
+  ../ProposalNativeTable.cpp
+  ../ProposalNativeAux.cpp
+  ProposalNativeRequirements.cpp
   RateTable.cpp
   Sha256.cpp
   )
 
 add_library (CORSIKA8::GpuEmTables ALIAS CORSIKA8GpuEmTables)
+
+# Native-PROPOSAL export and hashing are host-only shared infrastructure used
+# by both native CUDA and Kokkos execution backends.
+add_dependencies (CORSIKA8GpuEmTables GenParticlesHeaders)
 
 target_include_directories (
   CORSIKA8GpuEmTables
@@ -24,6 +31,9 @@ target_link_libraries (
   PUBLIC
   PROPOSAL::PROPOSAL
   yaml-cpp::yaml-cpp
+  PRIVATE
+  CubicInterpolation::CubicInterpolation
+  nlohmann_json::nlohmann_json
   )
 set_target_properties (
   CORSIKA8GpuEmTables

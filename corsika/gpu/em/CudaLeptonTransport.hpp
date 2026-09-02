@@ -9,26 +9,12 @@
 
 #include <vector>
 
+#include <corsika/accelerator/em/RandomDomains.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/em/detail/DeviceWorkspace.hpp>
 #include <corsika/gpu/em/tables/FlatRateTable.hpp>
 
 namespace corsika::gpu::em {
-
-  inline constexpr std::uint32_t
-      ContinuousScatteringRandomProcessId = 0x454d0003U;
-  inline constexpr std::uint64_t
-      MoliereFirstAngleDrawId = 0;
-  inline constexpr std::uint64_t
-      MoliereSecondAngleDrawId = 1;
-  inline constexpr std::uint64_t
-      MoliereAzimuthDrawId = 2;
-  inline constexpr std::uint32_t
-      MuonDecayRandomProcessId = 0x4d554445U;
-  inline constexpr std::uint64_t MuonDecayDrawId = 0;
-  inline constexpr double MuonMeanLifetimeS = 2.196981e-6;
-  inline constexpr double MuonDecaySpeedOfLightMPerS =
-      299792458.;
 
   /**
    * Advance electrons/positrons through one spherical-atmosphere segment

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <vector>
 
+#include <corsika/accelerator/em/PhotonFinalStateRandomDomains.hpp>
 #include <corsika/gpu/em/PhotonPairFinalState.hpp>
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
 #include <corsika/gpu/em/PhotonPairLpm.hpp>
@@ -19,18 +20,18 @@
 
 namespace corsika::gpu::em {
 
-  inline constexpr std::uint64_t PhotonPairSplitDrawId = 1;
-  inline constexpr std::uint64_t PhotonPairAzimuthDrawId = 2;
-  inline constexpr std::uint64_t PhotonPairElectronPolarDrawId = 3;
-  inline constexpr std::uint64_t PhotonPairPositronPolarDrawId = 4;
-  inline constexpr std::uint64_t PhotonPairLpmDrawId = 5;
-  inline constexpr std::uint64_t
-      PhotonPairAnalyticCandidateDrawIdBase = 0x20;
-  inline constexpr std::uint64_t
-      PhotonPairAnalyticAcceptanceDrawIdBase = 0x60;
-  inline constexpr std::uint32_t
-      PhotonPairAnalyticMaximumAttempts = 64;
-  inline constexpr std::uint64_t ComptonAzimuthDrawId = 1;
+  // Preserve the historical namespace for source compatibility.  The actual
+  // counter domains now live in the execution-model-neutral accelerator
+  // layer and are shared by native CUDA and Kokkos.
+  using accelerator::em::ComptonAzimuthDrawId;
+  using accelerator::em::PhotonPairAnalyticAcceptanceDrawIdBase;
+  using accelerator::em::PhotonPairAnalyticCandidateDrawIdBase;
+  using accelerator::em::PhotonPairAnalyticMaximumAttempts;
+  using accelerator::em::PhotonPairAzimuthDrawId;
+  using accelerator::em::PhotonPairElectronPolarDrawId;
+  using accelerator::em::PhotonPairLpmDrawId;
+  using accelerator::em::PhotonPairPositronPolarDrawId;
+  using accelerator::em::PhotonPairSplitDrawId;
   /**
    * Validation bridge for the first physical GPU final-state kernel.
    *

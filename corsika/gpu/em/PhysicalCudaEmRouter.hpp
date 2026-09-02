@@ -104,13 +104,14 @@ namespace corsika::gpu::em {
       typename TStack,
       typename TProposalFallbackHandler =
           ScalarProposalFallback,
-      typename TOutputSink = NullCorsikaOutputSink>
+      typename TOutputSink = NullCorsikaOutputSink,
+      typename TBackend = CudaEmBackend>
   class PhysicalCudaEmRouter {
   public:
     using particle_type = typename TStack::particle_type;
 
     PhysicalCudaEmRouter(
-        CudaEmBackend& backend,
+        TBackend& backend,
         CoordinateSystemPtr coordinate_system,
         EnvironmentSnapshot const& environment)
         : backend_(backend)
@@ -131,7 +132,7 @@ namespace corsika::gpu::em {
     }
 
     PhysicalCudaEmRouter(
-        CudaEmBackend& backend,
+        TBackend& backend,
         CoordinateSystemPtr coordinate_system,
         EnvironmentSnapshot const& environment,
         TProposalFallbackHandler& fallback_handler)
@@ -147,7 +148,7 @@ namespace corsika::gpu::em {
     }
 
     PhysicalCudaEmRouter(
-        CudaEmBackend& backend,
+        TBackend& backend,
         CoordinateSystemPtr coordinate_system,
         EnvironmentSnapshot const& environment,
         TProposalFallbackHandler& fallback_handler,
@@ -1433,7 +1434,7 @@ namespace corsika::gpu::em {
       }
     }
 
-    CudaEmBackend& backend_;
+    TBackend& backend_;
     CoordinateSystemPtr coordinate_system_;
     EnvironmentSnapshot environment_{};
     std::vector<EmParticleState> staged_{};
@@ -1465,5 +1466,17 @@ namespace corsika::gpu::em {
     bool radio_finalized_{};
     PhysicalCudaEmRouterStatistics statistics_{};
   };
+
+  /**
+   * Device-neutral spelling for new Kokkos integrations.  The native CUDA
+   * spelling remains source compatible and keeps CudaEmBackend as its default
+   * fourth template argument.
+   */
+  template <
+      typename TStack, typename TBackend,
+      typename TProposalFallbackHandler = ScalarProposalFallback,
+      typename TOutputSink = NullCorsikaOutputSink>
+  using PhysicalAcceleratedEmRouter = PhysicalCudaEmRouter<
+      TStack, TProposalFallbackHandler, TOutputSink, TBackend>;
 
 } // namespace corsika::gpu::em

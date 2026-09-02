@@ -16,13 +16,10 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 
-#if defined(__CUDACC__)
-#define CORSIKA_GPU_MOLIERE_HOST_DEVICE __host__ __device__
-#else
-#define CORSIKA_GPU_MOLIERE_HOST_DEVICE
-#endif
+#define CORSIKA_GPU_MOLIERE_HOST_DEVICE C8_ACCELERATOR_INLINE_FUNCTION
 
 namespace corsika::gpu::em {
 

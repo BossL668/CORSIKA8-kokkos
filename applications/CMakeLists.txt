@@ -9,6 +9,12 @@ target_link_libraries (c8_air_shower PRIVATE CORSIKA8)
 add_executable (c8_ice_cascade c8_ice_cascade.cpp)
 target_link_libraries (c8_ice_cascade PRIVATE CORSIKA8)
 
+if (CORSIKA_ENABLE_KOKKOS)
+  add_executable (kokkos_backend_probe kokkos_backend_probe.cpp)
+  target_link_libraries (
+    kokkos_backend_probe PRIVATE CORSIKA8KokkosEm CLI11::CLI11)
+endif ()
+
 set_target_properties(c8_air_shower PROPERTIES
   INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
 )

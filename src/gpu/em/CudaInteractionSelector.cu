@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <corsika/accelerator/em/detail/InteractionSelection.hpp>
 #include <corsika/gpu/em/CudaInteractionSelector.hpp>
 #include <corsika/gpu/em/CudaLeptonTransport.hpp>
 #include <corsika/gpu/em/Philox.hpp>
@@ -86,6 +87,30 @@ namespace corsika::gpu::em {
       if (index >= count) {
         return;
       }
+
+      // Native CUDA and every Kokkos execution space deliberately enter the
+      // same per-particle physics function.  Only compaction and launch policy
+      // remain backend-specific.
+      auto const shared =
+          accelerator::em::detail::selectDiscreteInteraction(
+              table, particles[index], index, random_seed, shower_id);
+      raw_interactions[index] = shared.interaction;
+      raw_fallbacks[index] = shared.fallback;
+      fallback_flags[index] = shared.fallback_flag;
+      if (table.physics_source == 1u &&
+          table.native_inverse_counters != nullptr) {
+        atomicAdd(
+            table.native_inverse_counters,
+            static_cast<unsigned long long>(shared.native_newton_iterations));
+        atomicAdd(
+            table.native_inverse_counters + 1,
+            static_cast<unsigned long long>(
+                shared.native_bisection_iterations));
+        atomicAdd(
+            table.native_inverse_counters + 2,
+            static_cast<unsigned long long>(shared.native_inverse_failures));
+      }
+      return;
 
       auto const particle = particles[index];
       auto const energy_MeV = particle.energy_GeV * 1000.;

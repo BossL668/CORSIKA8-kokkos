@@ -714,3 +714,43 @@ if (CORSIKA_ENABLE_CUDA)
     SKIP_RETURN_CODE 77
     )
 endif ()
+
+if (CORSIKA_ENABLE_KOKKOS)
+  add_executable (
+    testKokkosProposalNativeTable
+    testKokkosProposalNativeTable.cpp
+    KokkosProposalNativeTableTestDriver.cpp
+    )
+  target_link_libraries (
+    testKokkosProposalNativeTable
+    PRIVATE
+    CORSIKA8KokkosEm
+    CORSIKA8GpuEmTables
+    PROPOSAL::PROPOSAL
+    spdlog::spdlog
+    )
+  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+    set_source_files_properties (
+      KokkosProposalNativeTableTestDriver.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options (
+      testKokkosProposalNativeTable PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
+      )
+    set_target_properties (
+      testKokkosProposalNativeTable PROPERTIES
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}"
+      )
+  elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties (
+      KokkosProposalNativeTableTestDriver.cpp PROPERTIES LANGUAGE HIP)
+  endif ()
+  add_dependencies (
+    testKokkosProposalNativeTable
+    GenParticlesHeaders
+    GenMediaProperties
+    )
+  add_test (
+    NAME testKokkosProposalNativeTable
+    COMMAND testKokkosProposalNativeTable
+    )
+endif ()

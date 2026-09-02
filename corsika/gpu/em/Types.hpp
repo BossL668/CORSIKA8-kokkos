@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/gpu/em/EmThinning.hpp>
 #include <corsika/gpu/radio/Types.hpp>
 
@@ -34,11 +35,7 @@ namespace corsika::gpu::em {
   // scalar ParticleCut condition `timePost > 10_ms`.
   inline constexpr double ParticleCutMaximumTimeS = 10.e-3;
 
-#if defined(__CUDACC__)
-#define CORSIKA_GPU_EM_PID_HOST_DEVICE __host__ __device__
-#else
-#define CORSIKA_GPU_EM_PID_HOST_DEVICE
-#endif
+#define CORSIKA_GPU_EM_PID_HOST_DEVICE C8_ACCELERATOR_INLINE_FUNCTION
 
   CORSIKA_GPU_EM_PID_HOST_DEVICE inline constexpr bool
   isElectronOrPositronPid(std::int32_t const pid) {

@@ -12,51 +12,9 @@
 #include <memory>
 #include <vector>
 
-#include <corsika/gpu/em/tables/ProposalNativeTable.hpp>
+#include <corsika/gpu/em/tables/ProposalNativeQueries.hpp>
 
 namespace corsika::gpu::em::tables {
-
-  enum class ProposalNativeQueryKind : std::uint32_t {
-    Rate = 0,
-    TotalRate = 1,
-    CumulativeRate = 2,
-    LossFraction = 3,
-    ContinuousDedx = 4,
-    ContinuousRange = 5,
-    ContinuousEnergy = 6,
-    ContinuousEnergyAfterLoss = 7,
-  };
-
-  struct ProposalNativeQuery {
-    ProposalNativeQueryKind kind{ProposalNativeQueryKind::Rate};
-    std::int32_t pdg_id{};
-    std::int32_t process_id{};
-    std::uint64_t component_hash{};
-    double energy_MeV{};
-    double argument{};
-  };
-
-  /** Validation-only explicit-threshold selector query.  Accepting an
-   * absolute cumulative-rate threshold (rather than a random uniform) lets
-   * the oracle probe the exact floating-point boundary and its two adjacent
-   * representable values without perturbing the production RNG path. */
-  struct ProposalNativeSelectionQuery {
-    std::int32_t pdg_id{};
-    double energy_MeV{};
-    double threshold{};
-    std::int32_t boundary_process_id{};
-    std::uint64_t boundary_component_hash{};
-  };
-
-  struct ProposalNativeSelectionResult {
-    NativeQueryStatus status{NativeQueryStatus::InvalidView};
-    std::int32_t process_id{};
-    std::uint64_t component_hash{};
-    double total_rate{};
-    double boundary_cumulative_rate{};
-    double residual_quantile{};
-    std::uint32_t selected{};
-  };
 
   /**
    * Owns one immutable device copy of PROPOSAL's native interpolation state.

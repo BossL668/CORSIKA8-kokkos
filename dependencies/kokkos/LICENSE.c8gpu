@@ -1,0 +1,3 @@
+This recipe packages Kokkos without source modifications. Kokkos is distributed
+under the BSD 3-Clause license; the upstream license is installed by Kokkos and
+is available at https://github.com/kokkos/kokkos/blob/4.7.03/LICENSE.

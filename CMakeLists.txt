@@ -30,6 +30,59 @@ option (
   OFF
   )
 
+option (
+  CORSIKA_ENABLE_KOKKOS
+  "Build one mutually exclusive Kokkos EM/radio execution backend"
+  OFF
+  )
+set (
+  CORSIKA_KOKKOS_BACKEND "OPENMP" CACHE STRING
+  "Kokkos backend compiled into this build: OPENMP, CUDA, HIP, or SYCL"
+  )
+set_property (
+  CACHE CORSIKA_KOKKOS_BACKEND PROPERTY STRINGS OPENMP CUDA HIP SYCL)
+set (
+  CORSIKA_KOKKOS_CUDA_ARCHITECTURES "native" CACHE STRING
+  "CUDA architectures for Kokkos CUDA translation units; must match the Kokkos package"
+  )
+set (
+  CORSIKA_KOKKOS_ARCHITECTURE "NONE" CACHE STRING
+  "Kokkos architecture token used to build the selected Conan package"
+  )
+
+if (CORSIKA_ENABLE_CUDA AND CORSIKA_ENABLE_KOKKOS)
+  message (
+    FATAL_ERROR
+    "| CORSIKA8 > Native CUDA and Kokkos are separate build products. "
+    "Configure only one of CORSIKA_ENABLE_CUDA or CORSIKA_ENABLE_KOKKOS."
+    )
+endif ()
+
+if (CORSIKA_ENABLE_KOKKOS AND
+    ${CMAKE_VERSION} VERSION_LESS "3.24")
+  message (
+    FATAL_ERROR
+    "| CORSIKA8 > CORSIKA_ENABLE_KOKKOS requires CMake 3.24 or newer."
+    )
+endif ()
+
+if (CORSIKA_ENABLE_KOKKOS)
+  string (TOUPPER "${CORSIKA_KOKKOS_BACKEND}"
+          CORSIKA_KOKKOS_BACKEND)
+  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+    enable_language (CUDA)
+    set (CMAKE_CUDA_STANDARD 17)
+    set (CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set (CMAKE_CUDA_EXTENSIONS OFF)
+    find_package (CUDAToolkit 12 REQUIRED)
+  elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    enable_language (HIP)
+    set (CMAKE_HIP_STANDARD 17)
+    set (CMAKE_HIP_STANDARD_REQUIRED ON)
+    set (CMAKE_HIP_EXTENSIONS OFF)
+  endif ()
+endif ()
+
 if (CORSIKA_ENABLE_CUDA)
   if (${CMAKE_VERSION} VERSION_LESS "3.24")
     message (
@@ -324,6 +377,49 @@ find_package(Arrow REQUIRED)
 find_package(PROPOSAL REQUIRED)
 find_package(Catch2 REQUIRED)
 
+if (CORSIKA_ENABLE_KOKKOS)
+  string (TOUPPER "${CORSIKA_KOKKOS_BACKEND}"
+          CORSIKA_KOKKOS_BACKEND)
+  if (NOT CORSIKA_KOKKOS_BACKEND MATCHES
+      "^(OPENMP|CUDA|HIP|SYCL)$")
+    message (
+      FATAL_ERROR
+      "| CORSIKA8 > CORSIKA_KOKKOS_BACKEND must be OPENMP, CUDA, HIP, or SYCL."
+      )
+  endif ()
+
+  find_package (Kokkos 4.7.3 CONFIG REQUIRED)
+  get_target_property (
+    _c8_kokkos_package_definitions Kokkos::kokkos
+    INTERFACE_COMPILE_DEFINITIONS)
+  string (JOIN ";" _c8_kokkos_package_definitions_text
+          ${_c8_kokkos_package_definitions})
+  set (_c8_expected_kokkos_package_definition
+       "C8_KOKKOS_PACKAGE_BACKEND_${CORSIKA_KOKKOS_BACKEND}")
+  if (NOT _c8_kokkos_package_definitions_text MATCHES
+      "${_c8_expected_kokkos_package_definition}")
+    message (
+      FATAL_ERROR
+      "| CORSIKA8 > Requested ${CORSIKA_KOKKOS_BACKEND}, but the selected "
+      "Kokkos Conan package has a different backend. Re-run conan install "
+      "with &:kokkos_backend=${CORSIKA_KOKKOS_BACKEND}."
+      )
+  endif ()
+  if (NOT CORSIKA_KOKKOS_ARCHITECTURE STREQUAL "NONE")
+    set (_c8_expected_kokkos_arch_definition
+         "C8_KOKKOS_PACKAGE_ARCH_${CORSIKA_KOKKOS_ARCHITECTURE}")
+    if (NOT _c8_kokkos_package_definitions_text MATCHES
+        "${_c8_expected_kokkos_arch_definition}")
+      message (
+        FATAL_ERROR
+        "| CORSIKA8 > Kokkos architecture mismatch: CMake requested "
+        "${CORSIKA_KOKKOS_ARCHITECTURE}, but the selected Conan package "
+        "was built for another architecture."
+        )
+    endif ()
+  endif ()
+endif ()
+
 target_link_libraries (
   CORSIKA8
   INTERFACE
@@ -345,6 +441,10 @@ list (APPEND public_CORSIKA8_targets CORSIKA8GpuEmTables)
 if (CORSIKA_ENABLE_CUDA)
   add_subdirectory (src/gpu/em)
   list (APPEND public_CORSIKA8_targets CORSIKA8GpuEm)
+endif ()
+if (CORSIKA_ENABLE_KOKKOS)
+  add_subdirectory (src/accelerator/em/kokkos)
+  list (APPEND public_CORSIKA8_targets CORSIKA8KokkosEm)
 endif ()
 add_subdirectory (documentation)
 
@@ -420,6 +520,15 @@ install (
 if (CORSIKA_ENABLE_CUDA)
   install (
     TARGETS CORSIKA8GpuEm
+    EXPORT CORSIKA8PublicTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif ()
+if (CORSIKA_ENABLE_KOKKOS)
+  install (
+    TARGETS CORSIKA8KokkosEm
     EXPORT CORSIKA8PublicTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

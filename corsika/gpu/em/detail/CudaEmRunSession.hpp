@@ -8,6 +8,7 @@
 #pragma once
 
 #include <corsika/gpu/em/CudaEmBackend.hpp>
+#include <corsika/accelerator/em/AcceleratedPhysicsRequirements.hpp>
 #include <corsika/gpu/em/tables/MediumConfig.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 #include <corsika/modules/proposal/NativeCalculatorView.hpp>
@@ -21,12 +22,8 @@
 namespace corsika::gpu::em::detail {
 
   /** Physics-domain requirements shared by every CORSIKA CUDA application. */
-  struct GpuPhysicsRequirements {
-    double maximum_primary_energy_MeV{};
-    double em_transport_cut_MeV{};
-    double muon_transport_cut_MeV{};
-    double stochastic_cut_MeV{};
-  };
+  using GpuPhysicsRequirements =
+      accelerator::em::AcceleratedPhysicsRequirements;
 
   struct CudaSessionBeginResult {
     CudaEmBackend* backend{};

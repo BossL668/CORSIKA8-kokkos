@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <corsika/accelerator/em/detail/PhotonFinalStateStep.hpp>
 #include <corsika/gpu/em/CudaPhotonPairFinalState.hpp>
 #include <corsika/gpu/em/Philox.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
@@ -31,23 +32,8 @@ namespace corsika::gpu::em {
     constexpr unsigned int ThreadsPerBlock = 256;
     constexpr unsigned int ClassificationThreadsPerBlock = 64;
 
-    struct PhotonPairParameters {
-      std::int32_t process_id{};
-      std::uint32_t thinning_status{};
-      std::uint32_t thinning_keep_mask{0x3U};
-      double split_fraction{};
-      double split_uniform{};
-      std::uint64_t split_draw_id{PhotonPairSplitDrawId};
-      double azimuth_uniform{};
-      double electron_polar_uniform{};
-      double positron_polar_uniform{};
-      double lpm_survival_probability{};
-      double lpm_uniform{};
-      double thinning_first_uniform{};
-      double thinning_second_uniform{};
-      double thinning_first_weight{};
-      double thinning_second_weight{};
-    };
+    using PhotonPairParameters =
+        accelerator::em::detail::PhotonFinalStateParameters;
 
     void checkCuda(cudaError_t status, char const* operation) {
       if (status == cudaSuccess) {
@@ -309,6 +295,21 @@ namespace corsika::gpu::em {
           index >= *device_input_count) {
         return;
       }
+      auto const shared =
+          accelerator::em::detail::classifyPhotonFinalState(
+              table, lpm_snapshot, thinning, interactions[index],
+              random_seed, shower_id);
+      parameters[index] = shared.parameters;
+      raw_fallbacks[index] = shared.fallback;
+      child_counts[index] = shared.child_count;
+      record_flags[index] = shared.record_flag;
+      fallback_flags[index] = shared.fallback_flag;
+      continuation_flags[index] = shared.continuation_flag;
+      suppression_flags[index] = shared.suppression_flag;
+      photon_pair_flags[index] = shared.photon_pair_flag;
+      compton_flags[index] = shared.compton_flag;
+      photoelectric_flags[index] = shared.photoelectric_flag;
+      return;
       auto const& interaction = interactions[index];
       if (interaction.status ==
           EmInteractionStatus::NoDiscreteInteraction) {
@@ -623,6 +624,55 @@ namespace corsika::gpu::em {
       if (index >= count) {
         return;
       }
+      accelerator::em::detail::PhotonFinalStateClassification
+          classification{};
+      classification.parameters = parameters[index];
+      classification.fallback = raw_fallbacks[index];
+      classification.child_count = child_counts[index];
+      classification.record_flag = record_flags[index];
+      classification.fallback_flag = fallback_flags[index];
+      classification.continuation_flag = continuation_flags[index];
+      classification.suppression_flag = suppression_flags[index];
+      auto const shared =
+          accelerator::em::detail::materializePhotonFinalState(
+              interactions[index], classification, child_offsets[index],
+              first_history_id);
+      if (shared.error != 0) {
+        atomicCAS(error_flag, 0U, shared.error);
+        return;
+      }
+      if (shared.has_fallback != 0) {
+        compact_fallbacks[fallback_offsets[index]] = shared.fallback;
+        return;
+      }
+      if (shared.has_continuation != 0) {
+        compact_continuations[continuation_offsets[index]] =
+            shared.continuation;
+        return;
+      }
+      if (shared.has_suppression != 0) {
+        compact_suppressions[suppression_offsets[index]] =
+            shared.suppression;
+        return;
+      }
+      if (shared.has_record != 0) {
+        compact_records[record_offsets[index]] = shared.record;
+        for (std::uint32_t child = 0; child < shared.secondary_count;
+             ++child) {
+          compact_secondaries[child_offsets[index] + child] =
+              shared.secondaries[child];
+        }
+        if (shared.has_first_interaction != 0 &&
+            first_interaction.snapshot != nullptr &&
+            first_interaction.candidate_count != nullptr) {
+          auto const candidate =
+              atomicAdd(first_interaction.candidate_count, 1U);
+          if (candidate == 0) {
+            *first_interaction.snapshot = shared.first_interaction;
+          }
+        }
+      }
+      return;
       if (fallback_flags[index] != 0) {
         compact_fallbacks[fallback_offsets[index]] =
             raw_fallbacks[index];

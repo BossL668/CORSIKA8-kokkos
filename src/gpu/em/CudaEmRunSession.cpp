@@ -7,6 +7,7 @@
 
 #include <corsika/gpu/em/detail/CudaEmRunSession.hpp>
 
+#include <corsika/accelerator/em/ProposalNativeRequirements.hpp>
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/gpu/em/tables/ProposalNativeAux.hpp>
@@ -103,84 +104,6 @@ namespace corsika::gpu::em::detail {
       return gpu_muon_transport_available;
     }
 
-    void validateProposalNativeRequirements(
-        ProposalNativeTableSet const& native_tables,
-        GpuPhysicsRequirements const& requirements) {
-      auto const native_domain_epsilon =
-          64. * std::numeric_limits<double>::epsilon();
-      for (auto const pdg : {22, 11, -11, 13, -13}) {
-        auto const total = std::find_if(
-            native_tables.total_rate_columns.begin(),
-            native_tables.total_rate_columns.end(),
-            [pdg](auto const& column) { return column.pdg_id == pdg; });
-        if (total == native_tables.total_rate_columns.end()) {
-          throw std::runtime_error(
-              "PROPOSAL native table has no total-rate spline for a "
-              "routed particle");
-        }
-        double upper_energy_MeV = total->spline.axis.high;
-        double lower_energy_MeV = total->spline.axis.low;
-        for (auto const& column : native_tables.dndx_columns) {
-          if (column.pdg_id == pdg &&
-              column.rate_model == NativeRateModel::BicubicSpline) {
-            upper_energy_MeV =
-                std::min(upper_energy_MeV,
-                         column.spline.energy_axis.high);
-          }
-        }
-        if (pdg != 22) {
-          auto const utility = std::find_if(
-              native_tables.utility_columns.begin(),
-              native_tables.utility_columns.end(),
-              [pdg](auto const& column) { return column.pdg_id == pdg; });
-          if (utility == native_tables.utility_columns.end()) {
-            throw std::runtime_error(
-                "PROPOSAL native table has no continuous range spline "
-                "for a routed charged lepton");
-          }
-          lower_energy_MeV = std::max(
-              lower_energy_MeV,
-              std::max(utility->lower_energy_limit_MeV,
-                       utility->spline.axis.low));
-          upper_energy_MeV =
-              std::min(upper_energy_MeV, utility->spline.axis.high);
-          for (auto const& column : native_tables.dedx_columns) {
-            if (column.pdg_id == pdg) {
-              upper_energy_MeV =
-                  std::min(upper_energy_MeV, column.spline.axis.high);
-            }
-          }
-        }
-        auto const code = convert_from_PDG(static_cast<PDGCode>(pdg));
-        auto const minimum_transport_energy_MeV =
-            pdg == 22
-                ? requirements.em_transport_cut_MeV
-                : get_mass(code) / 1_MeV + ContinuousCutSafetyFactor *
-                      (std::abs(pdg) == 13
-                           ? requirements.muon_transport_cut_MeV
-                           : requirements.em_transport_cut_MeV);
-        auto const lower_scale = std::max(
-            {1., std::abs(lower_energy_MeV),
-             std::abs(minimum_transport_energy_MeV)});
-        if (minimum_transport_energy_MeV +
-                native_domain_epsilon * lower_scale <
-            lower_energy_MeV) {
-          throw std::runtime_error(
-              "PROPOSAL native interpolation domain does not cover the "
-              "configured transport cut");
-        }
-        auto const upper_scale = std::max(
-            {1., std::abs(upper_energy_MeV),
-             std::abs(requirements.maximum_primary_energy_MeV)});
-        if (requirements.maximum_primary_energy_MeV >
-            upper_energy_MeV + native_domain_epsilon * upper_scale) {
-          throw std::runtime_error(
-              "configured maximum primary energy exceeds the common "
-              "PROPOSAL native interpolation domain");
-        }
-      }
-    }
-
   } // namespace
 
   CudaEmRunSession::CudaEmRunSession(
@@ -255,7 +178,8 @@ namespace corsika::gpu::em::detail {
     if (!backend_) {
       auto const native_tables =
           exportProposalNativeTables(interactions, continuous);
-      validateProposalNativeRequirements(native_tables, requirements);
+      accelerator::em::validateProposalNativeRequirements(
+          native_tables, requirements);
       auto const native_aux =
           loadOrCreateProposalNativeAux(interactions, auxiliary_cache_);
       backend_ = std::make_unique<CudaEmBackend>();

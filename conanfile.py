@@ -4,7 +4,15 @@ from conan.tools.cmake import cmake_layout,CMakeToolchain, CMakeDeps
 class Pkg(ConanFile):
     generators = "CMakeDeps", #"CMakeToolchain",
     settings = "os", "arch", "compiler", "build_type"
+    options = {
+        "with_kokkos": [True, False],
+        "kokkos_backend": ["openmp", "cuda", "hip", "sycl"],
+        "kokkos_architecture": ["ANY"],
+    }
     default_options = {
+		'with_kokkos': False,
+		'kokkos_backend': 'openmp',
+		'kokkos_architecture': 'NONE',
 		'readline*:shared': 'True',
 		'arrow*:shared': 'False',
 		'arrow*:parquet': 'True',
@@ -53,6 +61,9 @@ class Pkg(ConanFile):
         self.options['arrow'].with_boost = True
         self.options['arrow'].parquet = True
         self.options['arrow'].with_thrift = True
+        if self.options.with_kokkos:
+            self.options['kokkos'].backend = self.options.kokkos_backend
+            self.options['kokkos'].architecture = self.options.kokkos_architecture
         
     def requirements(self):
         self.requires("spdlog/1.14.1", force=True)
@@ -67,6 +78,8 @@ class Pkg(ConanFile):
         # Version-locked, read-only export API for --gpu-physics-source
         # proposal-native. The patch does not change the scalar PROPOSAL path.
         self.requires("proposal/7.6.2@c8gpu/stable")
+        if self.options.with_kokkos:
+            self.requires("kokkos/4.7.03@c8gpu/stable")
 
     def build_requirements(self):
         self.tool_requires("readline/8.0")
@@ -75,5 +88,35 @@ class Pkg(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.absolute_paths = True
+        if self.options.with_kokkos:
+            tc.cache_variables["CORSIKA_KOKKOS_BACKEND"] = str(
+                self.options.kokkos_backend
+            ).upper()
+            architecture = str(self.options.kokkos_architecture).upper()
+            tc.cache_variables["CORSIKA_KOKKOS_ARCHITECTURE"] = architecture
+            cuda_architectures = {
+                "KEPLER35": "35",
+                "MAXWELL50": "50",
+                "MAXWELL52": "52",
+                "MAXWELL53": "53",
+                "PASCAL60": "60",
+                "PASCAL61": "61",
+                "VOLTA70": "70",
+                "VOLTA72": "72",
+                "TURING75": "75",
+                "AMPERE80": "80",
+                "AMPERE86": "86",
+                "ADA89": "89",
+                "HOPPER90": "90",
+            }
+            if str(self.options.kokkos_backend) == "cuda":
+                if architecture not in cuda_architectures:
+                    raise ValueError(
+                        "Kokkos CUDA requires a supported explicit "
+                        "kokkos_architecture (for example ADA89)"
+                    )
+                tc.cache_variables["CORSIKA_KOKKOS_CUDA_ARCHITECTURES"] = (
+                    cuda_architectures[architecture]
+                )
         tc.generate()
         

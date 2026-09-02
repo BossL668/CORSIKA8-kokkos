@@ -10,22 +10,12 @@
 #include <cstdint>
 #include <vector>
 
+#include <corsika/accelerator/em/RandomDomains.hpp>
 #include <corsika/gpu/em/Types.hpp>
 #include <corsika/gpu/em/detail/DeviceWorkspace.hpp>
 #include <corsika/gpu/em/tables/FlatRateTable.hpp>
 
 namespace corsika::gpu::em {
-
-  inline constexpr std::uint32_t
-      InteractionDistanceRandomProcessId = 0x454d0001U;
-  inline constexpr std::uint32_t
-      InteractionColumnRandomProcessId = 0x454d0002U;
-  inline constexpr std::uint32_t
-      ProposalSelectionRandomProcessId = 0x454d0003U;
-  inline constexpr std::uint64_t InteractionDistanceDrawId = 0;
-  inline constexpr std::uint64_t InteractionColumnDrawId = 0;
-  inline constexpr std::uint64_t ProposalSelectionDrawId = 0;
-  inline constexpr std::uint64_t InteractionLossDrawId = 0;
 
   /**
    * Validation bridge for the first physical selection kernel.
