@@ -1,0 +1,6 @@
+include(default)
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=openmp
+&:kokkos_architecture=NONE

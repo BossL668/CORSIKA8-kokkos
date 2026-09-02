@@ -24,6 +24,44 @@ project (
   LANGUAGES CXX
   )
 
+# Record the exact source revision in accelerator tuning keys.  A source tree
+# without Git metadata remains buildable, but such a binary deliberately uses
+# the explicit "unknown" key and cannot consume a cache made by a tagged
+# production build unless the cache carries the same value.
+execute_process (
+  COMMAND git rev-parse --verify HEAD
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  OUTPUT_VARIABLE CORSIKA8_PROJECT_REVISION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET
+  RESULT_VARIABLE CORSIKA8_GIT_REVISION_RESULT)
+if (NOT CORSIKA8_GIT_REVISION_RESULT EQUAL 0 OR
+    CORSIKA8_PROJECT_REVISION STREQUAL "")
+  set (CORSIKA8_PROJECT_REVISION "unknown")
+else ()
+  # A tuning record is only reusable for the source that produced it.  During
+  # development HEAD alone is insufficient because tracked edits do not alter
+  # the commit id.  Add a stable digest of the tracked diff; production builds
+  # made from a clean commit retain the compact commit-only key.  Untracked
+  # files are intentionally excluded because committed release builds must not
+  # depend on them.
+  execute_process (
+    COMMAND git diff --binary --no-ext-diff HEAD --
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CORSIKA8_TRACKED_SOURCE_DIFF
+    ERROR_QUIET
+    RESULT_VARIABLE CORSIKA8_TRACKED_SOURCE_DIFF_RESULT)
+  if (CORSIKA8_TRACKED_SOURCE_DIFF_RESULT EQUAL 0 AND
+      NOT CORSIKA8_TRACKED_SOURCE_DIFF STREQUAL "")
+    string (SHA256 CORSIKA8_TRACKED_SOURCE_DIFF_SHA256
+            "${CORSIKA8_TRACKED_SOURCE_DIFF}")
+    string (SUBSTRING "${CORSIKA8_TRACKED_SOURCE_DIFF_SHA256}" 0 16
+            CORSIKA8_TRACKED_SOURCE_DIFF_SHORT)
+    string (APPEND CORSIKA8_PROJECT_REVISION
+            "-dirty-${CORSIKA8_TRACKED_SOURCE_DIFF_SHORT}")
+  endif ()
+endif ()
+
 option (
   CORSIKA_ENABLE_CUDA
   "Build the experimental CUDA electromagnetic transport backend"

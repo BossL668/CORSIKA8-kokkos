@@ -8,12 +8,11 @@
 #pragma once
 
 #include "CudaAirShowerSetup.hpp"
-#include "CudaRunSession.hpp"
 #include "CudaShowerReport.hpp"
 #include "GpuCliOptions.hpp"
 
 #include <corsika/gpu/em/CorsikaOutputSink.hpp>
-#include <corsika/gpu/em/detail/CudaHybridCascadeRunner.hpp>
+#include <corsika/accelerator/em/detail/AcceleratedHybridCascadeRunner.hpp>
 #include <corsika/gpu/em/ProposalCpuFallbackHandler.hpp>
 
 #include <array>
@@ -29,7 +28,7 @@ namespace corsika::applications::air_shower {
    * the CUDA backend.  It owns no physics model and changes no random stream;
    * all models, writers and process ordering are supplied by c8_air_shower.
    */
-  template <
+  template <typename TRunSession,
       typename TEnvironment, typename TInjectionPosition, typename TSurface,
       typename TPropagationStep, typename TDetectorCoREAS,
       typename TDetectorZHS, typename TShowerAxis, typename TDepthStep,
@@ -48,7 +47,7 @@ namespace corsika::applications::air_shower {
       typename THighEnergyCounter, typename TLowEnergyCounter,
       typename TPhotoFallback>
   void runCudaAirShower(
-      CudaRunSession& cuda_session, GpuCliOptions const& gpu_cli,
+      TRunSession& cuda_session, GpuCliOptions const& gpu_cli,
       CudaEventConfig const& event, TEnvironment& env,
       CoordinateSystemPtr const& rootCS,
       TInjectionPosition const& injectionPos, TSurface const& surface_,
@@ -143,8 +142,9 @@ namespace corsika::applications::air_shower {
     using FallbackHandler =
         ProposalCpuFallbackHandler<StackType, TEmCascade, Sequence, EnvType>;
     auto& runtime_session = cuda_session.runtimeSession();
-    gpu::em::detail::CudaSessionBeginResult session_begin{};
-    auto begin_backend = [&]() -> CudaEmBackend& {
+    bool backend_reused_for_shower = false;
+    bool muon_transport_available = false;
+    auto begin_backend = [&]() -> decltype(auto) {
       if (gpu_config.physics_source == GpuPhysicsSource::ProposalNative) {
         std::vector<proposal::NativeInteractionCalculatorView> native_views;
         std::vector<proposal::NativeContinuousCalculatorView>
@@ -154,14 +154,19 @@ namespace corsika::applications::air_shower {
           native_continuous_views =
               emContinuousProposal.nativeCalculatorViews();
         }
-        session_begin = runtime_session.beginProposalNative(
+        auto session_begin = runtime_session.beginProposalNative(
             environment_snapshot, gpu_config, physics_requirements,
             native_views, native_continuous_views);
+        backend_reused_for_shower = session_begin.reused;
+        muon_transport_available = session_begin.muon_transport_available;
+        return *session_begin.backend;
       } else {
-        session_begin = runtime_session.beginC8EmRt(
+        auto session_begin = runtime_session.beginC8EmRt(
             environment_snapshot, gpu_config, physics_requirements);
+        backend_reused_for_shower = session_begin.reused;
+        muon_transport_available = session_begin.muon_transport_available;
+        return *session_begin.backend;
       }
-      return *session_begin.backend;
     };
 
     HadronicWorkClassifierConfig hadronic_work_classifier;
@@ -219,11 +224,11 @@ namespace corsika::applications::air_shower {
                   photoHadronicQgsjetFallback, high_energy_hadronic_model,
                   heHadronModelThreshold, emthinfrac, maxWeight,
                   automaticMaxWeight, thinningCanActivateFromUnitWeight,
-                  session_begin.reused,
-                  session_begin.muon_transport_available, gpu_radio_enabled,
+                  backend_reused_for_shower,
+                  muon_transport_available, gpu_radio_enabled,
                   gpu_config, beamCode, primaryTotalEnergy, output_shower_id);
         };
-    gpu::em::detail::runCudaHybridCascade<GpuEmStepRegistry>(
+    gpu::em::detail::runAcceleratedHybridCascade<GpuEmStepRegistry>(
         rootCS, environment_snapshot, env, tracking, sequence, output, stack,
         run_options, begin_backend, fallback_factory, output_sink_factory,
         configure_cascade, record_report);

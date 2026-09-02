@@ -15,6 +15,29 @@
 #include <stdexcept>
 #include <utility>
 
+#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP) && !defined(KOKKOS_ENABLE_OPENMP)
+#error "The Kokkos OpenMP build requires KOKKOS_ENABLE_OPENMP"
+#endif
+
+#if (defined(CORSIKA8_KOKKOS_BACKEND_CUDA) ||                         \
+     defined(CORSIKA8_KOKKOS_BACKEND_HIP) ||                         \
+     defined(CORSIKA8_KOKKOS_BACKEND_SYCL)) &&                       \
+    defined(KOKKOS_ENABLE_OPENMP)
+#error "Kokkos GPU builds must use Serial host and must not enable OpenMP"
+#endif
+
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && !defined(KOKKOS_ENABLE_CUDA)
+#error "The Kokkos CUDA build requires KOKKOS_ENABLE_CUDA"
+#endif
+
+#if defined(CORSIKA8_KOKKOS_BACKEND_HIP) && !defined(KOKKOS_ENABLE_HIP)
+#error "The Kokkos HIP build requires KOKKOS_ENABLE_HIP"
+#endif
+
+#if defined(CORSIKA8_KOKKOS_BACKEND_SYCL) && !defined(KOKKOS_ENABLE_SYCL)
+#error "The Kokkos SYCL build requires KOKKOS_ENABLE_SYCL"
+#endif
+
 namespace corsika::accelerator::em {
 
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
@@ -46,7 +69,7 @@ namespace corsika::accelerator::em {
   // host/device lambdas defined inside the private nested PIMPL class.
   template <class Execution>
   KokkosPrimitiveProbeResult runPrimitiveProbeImpl(
-      std::size_t const values) {
+      std::size_t const values, std::size_t const chunk_size) {
     using Memory = typename Execution::memory_space;
     using Policy = Kokkos::RangePolicy<Execution>;
     Kokkos::View<std::uint32_t*, Memory> flags("probe_flags", values);
@@ -55,15 +78,17 @@ namespace corsika::accelerator::em {
         "probe_compacted", values);
 
     Execution execution;
+    auto policy = Policy(execution, 0, values);
+    if (chunk_size != 0) policy.set_chunk_size(chunk_size);
     Kokkos::parallel_for(
-        "c8_kokkos_probe_flags", Policy(execution, 0, values),
+        "c8_kokkos_probe_flags", policy,
         KOKKOS_LAMBDA(std::size_t const i) {
           flags(i) = (i % 3U) != 1U ? 1U : 0U;
         });
 
     std::uint64_t selected{};
     Kokkos::parallel_scan(
-        "c8_kokkos_probe_scan", Policy(execution, 0, values),
+        "c8_kokkos_probe_scan", policy,
         KOKKOS_LAMBDA(std::size_t const i, std::uint64_t& update,
                       bool const final) {
           if (final) { offsets(i) = update; }
@@ -72,7 +97,7 @@ namespace corsika::accelerator::em {
         selected);
 
     Kokkos::parallel_for(
-        "c8_kokkos_probe_compact", Policy(execution, 0, values),
+        "c8_kokkos_probe_compact", policy,
         KOKKOS_LAMBDA(std::size_t const i) {
           if (flags(i) != 0U) { compacted(offsets(i)) = i + 1U; }
         });
@@ -90,6 +115,83 @@ namespace corsika::accelerator::em {
         static_cast<std::uint64_t>(values - (values + 1U) / 3U);
     return {values, selected, checksum,
             selected == expected_selected};
+  }
+
+  template <class Execution>
+  KokkosTilingProbeResult runTilingProbeImpl(
+      std::size_t const tracks, std::size_t const observers,
+      std::size_t const team_size, std::size_t const track_tile_size,
+      std::size_t const observer_tile_size) {
+    using Memory = typename Execution::memory_space;
+    auto const track_tiles =
+        (tracks + track_tile_size - 1) / track_tile_size;
+    auto const observer_tiles =
+        (observers + observer_tile_size - 1) / observer_tile_size;
+    auto const league_size = track_tiles * observer_tiles;
+    Kokkos::View<std::uint64_t*, Memory> values(
+        "c8_kokkos_tiling_probe_values", tracks * observers);
+    Execution execution;
+#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+    (void)team_size;
+    Kokkos::parallel_for(
+        "c8_kokkos_tiling_probe",
+        Kokkos::RangePolicy<Execution>(execution, 0, league_size),
+        KOKKOS_LAMBDA(std::size_t const league) {
+          auto const track_tile = league / observer_tiles;
+          auto const observer_tile = league % observer_tiles;
+          for (std::size_t track_lane = 0; track_lane < track_tile_size;
+               ++track_lane) {
+            auto const track = track_tile * track_tile_size + track_lane;
+            if (track >= tracks) continue;
+            for (std::size_t observer_lane = 0;
+                 observer_lane < observer_tile_size; ++observer_lane) {
+              auto const observer =
+                  observer_tile * observer_tile_size + observer_lane;
+              if (observer >= observers) continue;
+              values(track * observers + observer) =
+                  (track + 1U) * (observer + 3U);
+            }
+          }
+        });
+#else
+    using Policy = Kokkos::TeamPolicy<Execution>;
+    using Member = typename Policy::member_type;
+    auto const tile_lanes = track_tile_size * observer_tile_size;
+    auto const active_team_size = std::min(team_size, tile_lanes);
+    Kokkos::parallel_for(
+        "c8_kokkos_tiling_probe",
+        Policy(execution, league_size, active_team_size),
+        KOKKOS_LAMBDA(Member const& member) {
+          auto const league = static_cast<std::size_t>(member.league_rank());
+          auto const track_tile = league / observer_tiles;
+          auto const observer_tile = league % observer_tiles;
+          for (std::size_t lane = member.team_rank(); lane < tile_lanes;
+               lane += member.team_size()) {
+            auto const track_lane = lane / observer_tile_size;
+            auto const observer_lane = lane % observer_tile_size;
+            auto const track = track_tile * track_tile_size + track_lane;
+            auto const observer =
+                observer_tile * observer_tile_size + observer_lane;
+            if (track < tracks && observer < observers)
+              values(track * observers + observer) =
+                  (track + 1U) * (observer + 3U);
+          }
+        });
+#endif
+    std::uint64_t checksum{};
+    Kokkos::parallel_reduce(
+        "c8_kokkos_tiling_probe_reduce",
+        Kokkos::RangePolicy<Execution>(execution, 0, tracks * observers),
+        KOKKOS_LAMBDA(std::size_t const index, std::uint64_t& update) {
+          update += values(index);
+        },
+        checksum);
+    execution.fence("finish Kokkos tiling probe");
+    auto const track_sum = tracks * (tracks + 1U) / 2U;
+    auto const observer_sum = observers * (observers - 1U) / 2U +
+                              3U * observers;
+    auto const expected = track_sum * observer_sum;
+    return {tracks, observers, checksum, checksum == expected};
   }
 
   template <class Execution>
@@ -176,9 +278,54 @@ namespace corsika::accelerator::em {
           std::to_string(KOKKOS_VERSION_PATCH);
       info_.device = config.device;
       info_.concurrency = execution.concurrency();
+      info_.host_threads = SelectedIsGpu ? 1 : info_.concurrency;
       info_.gpu = SelectedIsGpu;
       info_.openmp = !SelectedIsGpu;
       info_.device_name = SelectedExecutionSpace::name();
+#ifdef CORSIKA8_PROJECT_REVISION
+      info_.project_revision = CORSIKA8_PROJECT_REVISION;
+#else
+      info_.project_revision = "unknown";
+#endif
+#ifdef __VERSION__
+      info_.compiler_version = __VERSION__;
+#else
+      info_.compiler_version = "unknown";
+#endif
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA)
+      cudaDeviceProp properties{};
+      if (cudaGetDeviceProperties(&properties, config.device) != cudaSuccess)
+        throw std::runtime_error("failed to query the Kokkos CUDA device");
+      info_.device_name = properties.name;
+      info_.architecture = "sm_" + std::to_string(properties.major) +
+                           std::to_string(properties.minor);
+      int driver{};
+      int runtime{};
+      if (cudaDriverGetVersion(&driver) != cudaSuccess ||
+          cudaRuntimeGetVersion(&runtime) != cudaSuccess)
+        throw std::runtime_error("failed to query CUDA driver/runtime versions");
+      info_.driver_version = std::to_string(driver);
+      info_.runtime_version = std::to_string(runtime);
+#elif defined(CORSIKA8_KOKKOS_BACKEND_HIP)
+      hipDeviceProp_t properties{};
+      if (hipGetDeviceProperties(&properties, config.device) != hipSuccess)
+        throw std::runtime_error("failed to query the Kokkos HIP device");
+      info_.device_name = properties.name;
+      info_.architecture = properties.gcnArchName;
+      int runtime{};
+      if (hipRuntimeGetVersion(&runtime) != hipSuccess)
+        throw std::runtime_error("failed to query the HIP runtime version");
+      info_.runtime_version = std::to_string(runtime);
+      info_.driver_version = info_.runtime_version;
+#elif defined(CORSIKA8_KOKKOS_BACKEND_SYCL)
+      info_.architecture = "sycl";
+      info_.driver_version = "kokkos-sycl";
+      info_.runtime_version = "kokkos-sycl";
+#else
+      info_.architecture = "host";
+      info_.driver_version = "not-applicable";
+      info_.runtime_version = "openmp";
+#endif
     }
 
     ~Impl() {
@@ -189,7 +336,7 @@ namespace corsika::accelerator::em {
     }
 
     KokkosPrimitiveProbeResult runPrimitiveProbe(
-        std::size_t const values) const {
+        std::size_t const values, std::size_t const chunk_size) const {
       if (values == 0 ||
           values > static_cast<std::size_t>(
                        std::numeric_limits<int>::max())) {
@@ -197,7 +344,7 @@ namespace corsika::accelerator::em {
             "Kokkos primitive probe size must be in [1, INT_MAX]");
       }
 
-      return runPrimitiveProbeImpl<SelectedExecutionSpace>(values);
+      return runPrimitiveProbeImpl<SelectedExecutionSpace>(values, chunk_size);
     }
 
     KokkosRuntimeInfo info_{};
@@ -216,8 +363,8 @@ namespace corsika::accelerator::em {
   }
 
   KokkosPrimitiveProbeResult KokkosRuntime::runPrimitiveProbe(
-      std::size_t const values) const {
-    return impl_->runPrimitiveProbe(values);
+      std::size_t const values, std::size_t const chunk_size) const {
+    return impl_->runPrimitiveProbe(values, chunk_size);
   }
 
   KokkosQueueProbeResult KokkosRuntime::runQueueProbe(
@@ -227,6 +374,17 @@ namespace corsika::accelerator::em {
           "Kokkos queue probe particle count must be positive");
     }
     return runQueueProbeImpl<SelectedExecutionSpace>(particles);
+  }
+
+  KokkosTilingProbeResult KokkosRuntime::runTilingProbe(
+      std::size_t const tracks, std::size_t const observers,
+      std::size_t const team_size, std::size_t const track_tile_size,
+      std::size_t const observer_tile_size) const {
+    if (tracks == 0 || observers == 0 || team_size == 0 ||
+        track_tile_size == 0 || observer_tile_size == 0 || team_size > 1024)
+      throw std::invalid_argument("invalid Kokkos tiling-probe dimensions");
+    return runTilingProbeImpl<SelectedExecutionSpace>(
+        tracks, observers, team_size, track_tile_size, observer_tile_size);
   }
 
 } // namespace corsika::accelerator::em

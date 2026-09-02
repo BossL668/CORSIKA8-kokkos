@@ -1,0 +1,17 @@
+include(default)
+
+# Intel Ponte Vecchio / oneAPI 2025 example. Kokkos SYCL is compiled by icpx
+# as the C++ compiler; update the version for the installed oneAPI toolkit.
+[settings]
+compiler=intel-cc
+compiler.version=2025.0
+compiler.libcxx=libstdc++11
+compiler.cppstd=17
+
+[conf]
+tools.build:compiler_executables={"c": "icx", "cpp": "icpx"}
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=sycl
+&:kokkos_architecture=INTEL_PVC

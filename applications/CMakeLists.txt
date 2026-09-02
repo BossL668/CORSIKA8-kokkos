@@ -13,6 +13,19 @@ if (CORSIKA_ENABLE_KOKKOS)
   add_executable (kokkos_backend_probe kokkos_backend_probe.cpp)
   target_link_libraries (
     kokkos_backend_probe PRIVATE CORSIKA8KokkosEm CLI11::CLI11)
+
+  add_executable (c8_kokkos_tune c8_kokkos_tune.cpp)
+  target_link_libraries (
+    c8_kokkos_tune PRIVATE CORSIKA8KokkosEm CLI11::CLI11)
+
+  target_sources (
+    c8_air_shower PRIVATE
+    detail/air_shower_cuda/KokkosRunSession.cpp)
+  target_link_libraries (c8_air_shower PRIVATE CORSIKA8KokkosEm)
+  target_compile_definitions (
+    c8_air_shower PRIVATE
+    CORSIKA8_WITH_KOKKOS_EM=1
+    CORSIKA8_KOKKOS_VERSION="${Kokkos_VERSION}")
 endif ()
 
 set_target_properties(c8_air_shower PROPERTIES
@@ -229,6 +242,9 @@ install (
 )
 if (TARGET c8_ice_cascade)
   install (TARGETS c8_ice_cascade DESTINATION bin)
+endif ()
+if (TARGET c8_kokkos_tune)
+  install (TARGETS c8_kokkos_tune DESTINATION bin)
 endif ()
 install (
   DIRECTORY "${CMAKE_SOURCE_DIR}/configs/media"

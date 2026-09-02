@@ -560,6 +560,27 @@ namespace corsika::gpu::em {
     bool reused_for_shower{};
     std::uint64_t static_host_to_device_bytes{};
     double one_time_initialization_ms{};
+    std::string accelerator_backend;
+    std::string accelerator_device_name;
+    std::string accelerator_architecture;
+    std::string accelerator_driver_version;
+    std::string accelerator_runtime_version;
+    std::string accelerator_compiler_version;
+    std::string accelerator_project_revision;
+    int accelerator_device{};
+    int accelerator_concurrency{};
+    int accelerator_host_threads{1};
+    bool accelerator_openmp{};
+    bool accelerator_gpu{};
+    bool tuning_cache_matched{};
+    bool tuning_cache_required{};
+    std::string tuning_cache_hash;
+    std::size_t tuning_batch_size{};
+    std::size_t tuning_chunk_size{};
+    std::size_t tuning_team_size{};
+    std::size_t tuning_track_tile_size{};
+    std::size_t tuning_observer_tile_size{};
+    std::size_t tuning_device_queues{};
     GpuPhysicsSource physics_source{GpuPhysicsSource::C8EmRt};
     std::string native_proposal_version;
     std::string native_cubic_interpolation_version;
@@ -971,6 +992,44 @@ namespace corsika::gpu::em {
   };
 
   /**
+   * Compact aggregate returned by a resident implementation when transport
+   * and final-state records intentionally remain on the execution space.
+   * This preserves production metadata without downloading the records that
+   * the device-resident profile/radio accumulators have already consumed.
+   */
+  struct ResidentEmProcessStatistics {
+    std::uint64_t gpu_final_states{};
+    std::uint64_t physical_secondaries_generated{};
+    std::uint64_t photon_pair_final_states{};
+    std::uint64_t brems_final_states{};
+    std::uint64_t compton_final_states{};
+    std::uint64_t photoelectric_final_states{};
+    std::uint64_t annihilation_final_states{};
+    std::uint64_t ionization_final_states{};
+    std::uint64_t electron_pair_final_states{};
+    std::uint64_t photon_pair_lpm_trials{};
+    std::uint64_t photon_pair_lpm_suppressions{};
+    std::uint64_t brems_lpm_trials{};
+    std::uint64_t brems_lpm_suppressions{};
+    std::uint64_t electron_pair_lpm_trials{};
+    std::uint64_t electron_pair_lpm_suppressions{};
+    std::uint64_t electron_pair_rejection_trials{};
+    std::uint64_t electron_pair_zero_weight_samples{};
+    std::uint64_t electron_pair_rejection_fallbacks{};
+    std::uint64_t electron_pair_envelope_violations{};
+    std::uint64_t thinning_hillas_vertices{};
+    std::uint64_t thinning_statistical_vertices{};
+    std::uint64_t thinning_particles_discarded{};
+    std::uint64_t moliere_trials{};
+    std::uint64_t moliere_deflections{};
+    std::uint64_t moliere_zero_deflections{};
+    std::uint64_t moliere_newton_iterations{};
+    std::uint32_t moliere_max_newton_iterations{};
+    std::uint32_t reserved{};
+    std::array<std::uint64_t, 8> lepton_transport_limits{};
+  };
+
+  /**
    * Host outputs of a multi-wavefront photon cascade whose boundary/LPM
    * continuation queue stays resident on the GPU.
    *
@@ -989,6 +1048,7 @@ namespace corsika::gpu::em {
     std::size_t layer_boundaries{};
     std::size_t particle_cuts{};
     std::size_t lpm_suppressions{};
+    ResidentEmProcessStatistics process_statistics{};
     bool below_minimum_batch_checkpoint{};
     bool workspace_limit_checkpoint{};
     bool completed{};
@@ -1019,6 +1079,7 @@ namespace corsika::gpu::em {
     std::size_t transport_records{};
     std::size_t interaction_vertices{};
     std::size_t lpm_suppressions{};
+    ResidentEmProcessStatistics process_statistics{};
     std::uint64_t secondary_history_ids_used{};
     bool history_range_exhausted{};
     bool below_minimum_batch_checkpoint{};

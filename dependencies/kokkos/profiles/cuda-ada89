@@ -1,0 +1,8 @@
+include(default)
+
+# RTX 40-series example. Replace ADA89 with the Kokkos architecture token for
+# the target NVIDIA device and use a separate build/install directory.
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda
+&:kokkos_architecture=ADA89

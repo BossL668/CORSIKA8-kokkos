@@ -22,6 +22,7 @@
 
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
 #include <corsika/gpu/radio/CudaRadioAccumulator.hpp>
+#include <corsika/accelerator/radio/detail/RadioProjectionStep.hpp>
 
 namespace corsika::gpu::radio {
 
@@ -87,65 +88,57 @@ namespace corsika::gpu::radio {
       return left * right;
     }
 
-    struct DeviceObserver {
-      double position_m[3]{};
-      double start_time_s{};
-      double duration_s{};
-      double sample_rate_Hz{};
-      double fixed_point_scale{};
-      double inverse_fixed_point_scale{};
-      std::uint64_t number_of_bins{};
-      std::uint64_t waveform_offset{};
+    using DeviceObserver = accelerator::radio::detail::DeviceObserver;
+    using DevicePropagation = accelerator::radio::detail::DevicePropagation;
+    using DeviceWaveforms = accelerator::radio::detail::DeviceWaveforms;
+    using DeviceRadioCounters =
+        accelerator::radio::detail::DeviceRadioCounters;
+    using Vec3 = accelerator::radio::detail::Vec3;
+    using SignalPath = accelerator::radio::detail::SignalPath;
+    using RadioTrackKinematics =
+        accelerator::radio::detail::RadioTrackKinematics;
+
+    struct CudaRadioAtomicOperations {
+      __device__ static long long add(long long* address, long long value) {
+        auto* storage = reinterpret_cast<unsigned long long*>(address);
+        auto const previous = atomicAdd(
+            storage, static_cast<unsigned long long>(value));
+        return static_cast<long long>(previous);
+      }
+      __device__ static unsigned long long add(
+          unsigned long long* address, unsigned long long value) {
+        return atomicAdd(address, value);
+      }
+      __device__ static double add(double* address, double value) {
+        return atomicAdd(address, value);
+      }
+      __device__ static void maximum(double* address, double value) {
+        auto* bits = reinterpret_cast<unsigned long long*>(address);
+        atomicMax(bits, __double_as_longlong(value));
+      }
     };
 
-    struct DevicePropagation {
-      double minimum_height_m{};
-      double maximum_height_m{};
-      double step_m{};
-      double inverse_step_per_m{};
-      double slope_refractivity_lower{};
-      double slope_integrated_refractivity_lower{};
-      double slope_refractivity_upper{};
-      double slope_integrated_refractivity_upper{};
-      double const* refractivity{};
-      double const* integrated_refractivity{};
-      std::size_t table_size{};
-      std::uint32_t zhs_subtrack_refinement{1};
-    };
+    __device__ void portableAccumulateCoREAS(
+        RadioTrackKinematics const& track,
+        DevicePropagation const& propagation,
+        DeviceObserver const& observer,
+        DeviceWaveforms const& waveforms,
+        DeviceRadioCounters* counters) {
+      accelerator::radio::detail::accumulateCoREAS<
+          CudaRadioAtomicOperations>(
+          track, propagation, observer, waveforms, counters);
+    }
 
-    struct DeviceWaveforms {
-      double* floating_x{};
-      double* floating_y{};
-      double* floating_z{};
-      long long* fixed_x{};
-      long long* fixed_y{};
-      long long* fixed_z{};
-    };
-
-    struct DeviceRadioCounters {
-      unsigned long long coreas_contributions{};
-      unsigned long long zhs_contributions{};
-      unsigned long long zhs_subtracks{};
-      unsigned long long valid_tracks{};
-      unsigned long long fixed_point_overflows{};
-      double weighted_segment_count{};
-      double track_length_m{};
-      double weighted_track_length_m{};
-      double electron_weighted_track_length_m{};
-      double positron_weighted_track_length_m{};
-      double signed_charge_weighted_track_length_m{};
-      double energy_weighted_track_length_GeV_m{};
-      double maximum_segment_length_m{};
-      double weighted_direction_change_rad{};
-      double weighted_direction_change_squared_rad2{};
-      double weighted_beta_deficit_track_length_m{};
-      double weighted_time_residual_s{};
-      double maximum_direction_change_rad{};
-      double signed_charge_weighted_direction_change[3]{};
-      double weighted_track_length_by_kinetic_energy_m[15]{};
-    };
-
-    struct RadioTrackKinematics;
+    __device__ void portableAccumulateZHS(
+        RadioTrackKinematics const& track,
+        DevicePropagation const& propagation,
+        DeviceObserver const& observer,
+        DeviceWaveforms const& waveforms,
+        DeviceRadioCounters* counters) {
+      accelerator::radio::detail::accumulateZHS<
+          CudaRadioAtomicOperations>(
+          track, propagation, observer, waveforms, counters);
+    }
 
     struct RadioChunkTimingEvents {
       cudaEvent_t precompute_start{};
@@ -165,65 +158,7 @@ namespace corsika::gpu::radio {
       bool active{};
     };
 
-    struct Vec3 {
-      double x{};
-      double y{};
-      double z{};
-    };
-
-    struct SignalPath {
-      double propagation_time_s{};
-      double refractive_index_source{};
-      double refractive_index_destination{};
-      double distance_m{};
-      Vec3 emit{};
-    };
-
-    struct RadioTrackKinematics {
-      Vec3 start{};
-      Vec3 end{};
-      Vec3 displacement{};
-      Vec3 beta{};
-      double start_time_s{};
-      double end_time_s{};
-      double duration_s{};
-      double track_length_m{};
-      double beta_module{};
-      double constant{};
-      std::uint32_t valid{};
-    };
-
-    __host__ __device__ Vec3 operator+(Vec3 a, Vec3 b) {
-      return {a.x + b.x, a.y + b.y, a.z + b.z};
-    }
-
-    __host__ __device__ Vec3 operator-(Vec3 a, Vec3 b) {
-      return {a.x - b.x, a.y - b.y, a.z - b.z};
-    }
-
-    __host__ __device__ Vec3 operator*(Vec3 a, double value) {
-      return {a.x * value, a.y * value, a.z * value};
-    }
-
-    __host__ __device__ Vec3 operator/(Vec3 a, double value) {
-      return {a.x / value, a.y / value, a.z / value};
-    }
-
-    __host__ __device__ double dot(Vec3 a, Vec3 b) {
-      return a.x * b.x + a.y * b.y + a.z * b.z;
-    }
-
-    __host__ __device__ Vec3 cross(Vec3 a, Vec3 b) {
-      return {a.y * b.z - a.z * b.y,
-              a.z * b.x - a.x * b.z,
-              a.x * b.y - a.y * b.x};
-    }
-
-    __host__ __device__ double norm(Vec3 value) {
-      return sqrt(dot(value, value));
-    }
-
-    __device__ bool makeRadioTrackKinematics(
+    __device__ bool legacyMakeRadioTrackKinematics(
         em::LeptonTransportRecord const& record,
         RadioTrackKinematics& track) {
       if (!em::isElectronOrPositronPid(record.start.pid)) {
@@ -265,7 +200,7 @@ namespace corsika::gpu::radio {
       return true;
     }
 
-    __device__ SignalPath propagate(
+    __device__ SignalPath legacyPropagate(
         DevicePropagation const& table, Vec3 source,
         DeviceObserver const& observer) {
       auto const destination =
@@ -350,8 +285,9 @@ namespace corsika::gpu::radio {
               refractive_index_destination, distance, emit};
     }
 
-    __device__ Vec3 transverseEndpoint(Vec3 emit, Vec3 beta) {
-      return cross(emit, cross(emit, beta));
+    __device__ Vec3 legacyTransverseEndpoint(Vec3 emit, Vec3 beta) {
+      return accelerator::radio::detail::cross(
+          emit, accelerator::radio::detail::cross(emit, beta));
     }
 
     __device__ bool checkedAtomicAdd(
@@ -483,9 +419,9 @@ namespace corsika::gpu::radio {
         DeviceWaveforms const& waveforms,
         DeviceRadioCounters* counters) {
       auto const path_start =
-          propagate(propagation, track.start, observer);
+          legacyPropagate(propagation, track.start, observer);
       auto const path_end =
-          propagate(propagation, track.end, observer);
+          legacyPropagate(propagation, track.end, observer);
       auto const pre_doppler =
           1. - path_start.refractive_index_source *
                    dot(track.beta, path_start.emit);
@@ -510,14 +446,14 @@ namespace corsika::gpu::radio {
              track.end_time_s) *
             0.5;
         auto const path_middle =
-            propagate(propagation, midpoint, observer);
+            legacyPropagate(propagation, midpoint, observer);
         auto const middle_receive =
             middle_time + path_middle.propagation_time_s;
         auto const middle_doppler =
             1. - path_middle.refractive_index_source *
                      dot(track.beta, path_middle.emit);
         auto field_start =
-            transverseEndpoint(
+            legacyTransverseEndpoint(
                 path_middle.emit, track.beta) *
             (track.constant * observer.sample_rate_Hz /
              (middle_doppler * path_middle.distance_m));
@@ -558,12 +494,12 @@ namespace corsika::gpu::radio {
       }
 
       auto field_start =
-          transverseEndpoint(
+          legacyTransverseEndpoint(
               path_start.emit, track.beta) *
           (track.constant * observer.sample_rate_Hz /
            (pre_doppler * path_start.distance_m));
       auto field_end =
-          transverseEndpoint(
+          legacyTransverseEndpoint(
               path_end.emit, track.beta) *
           (-track.constant * observer.sample_rate_Hz /
            (post_doppler * path_end.distance_m));
@@ -595,7 +531,7 @@ namespace corsika::gpu::radio {
         DeviceRadioCounters* counters, bool subdivided) {
       auto const midpoint = (point1 + point2) * 0.5;
       auto const path =
-          propagate(propagation, midpoint, observer);
+          legacyPropagate(propagation, midpoint, observer);
       auto const n_source = path.refractive_index_source;
       auto const beta_times_k = dot(beta, path.emit);
       auto const middle_time = (time1 + time2) * 0.5;
@@ -624,7 +560,9 @@ namespace corsika::gpu::radio {
               observer.sample_rate_Hz +
           0.5);
       auto const beta_perpendicular =
-          cross(path.emit, cross(beta, path.emit));
+          accelerator::radio::detail::cross(
+              path.emit,
+              accelerator::radio::detail::cross(beta, path.emit));
       auto const denominator =
           1. - n_source * beta_times_k;
 
@@ -701,7 +639,7 @@ namespace corsika::gpu::radio {
       auto const midpoint =
           (track.start + track.end) * 0.5;
       auto const middle_path =
-          propagate(propagation, midpoint, observer);
+          legacyPropagate(propagation, midpoint, observer);
       auto const u_times_k =
           dot(track.beta, middle_path.emit) /
           track.beta_module;
@@ -798,9 +736,14 @@ namespace corsika::gpu::radio {
       if (record_index >= record_count) {
         return;
       }
+      accelerator::radio::detail::recordTrack<CudaRadioAtomicOperations>(
+          records[record_index],
+          tracks != nullptr ? tracks + record_index : nullptr,
+          counters, collect_diagnostics);
+      return;
       auto const& record = records[record_index];
       RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(record, track)) {
+      if (!legacyMakeRadioTrackKinematics(record, track)) {
         if (tracks != nullptr) {
           tracks[record_index] = {};
         }
@@ -924,11 +867,11 @@ namespace corsika::gpu::radio {
       auto const record_index = pair_index / observer_count;
       auto const observer_index = pair_index % observer_count;
       RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
+      if (!accelerator::radio::detail::makeRadioTrackKinematics(
               records[record_index], track)) {
         return;
       }
-      accumulateCoREAS(
+      portableAccumulateCoREAS(
           track, propagation, observers[observer_index],
           waveforms, counters);
     }
@@ -950,11 +893,11 @@ namespace corsika::gpu::radio {
       auto const record_index = pair_index / observer_count;
       auto const observer_index = pair_index % observer_count;
       RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
+      if (!accelerator::radio::detail::makeRadioTrackKinematics(
               records[record_index], track)) {
         return;
       }
-      accumulateZHS(
+      portableAccumulateZHS(
           track, propagation, observers[observer_index],
           waveforms, counters);
     }
@@ -979,15 +922,15 @@ namespace corsika::gpu::radio {
       auto const record_index = pair_index / observer_count;
       auto const observer_index = pair_index % observer_count;
       RadioTrackKinematics track{};
-      if (!makeRadioTrackKinematics(
+      if (!accelerator::radio::detail::makeRadioTrackKinematics(
               records[record_index], track)) {
         return;
       }
-      accumulateCoREAS(
+      portableAccumulateCoREAS(
           track, propagation,
           coreas_observers[observer_index],
           coreas_waveforms, counters);
-      accumulateZHS(
+      portableAccumulateZHS(
           track, propagation,
           zhs_observers[observer_index],
           zhs_waveforms, counters);
@@ -1038,7 +981,7 @@ namespace corsika::gpu::radio {
           track_tile[track_lane].valid == 0) {
         return;
       }
-      accumulateCoREAS(
+      portableAccumulateCoREAS(
           track_tile[track_lane], propagation,
           observer_tile[observer_lane], waveforms, counters);
     }
@@ -1088,7 +1031,7 @@ namespace corsika::gpu::radio {
           track_tile[track_lane].valid == 0) {
         return;
       }
-      accumulateZHS(
+      portableAccumulateZHS(
           track_tile[track_lane], propagation,
           observer_tile[observer_lane], waveforms, counters);
     }
@@ -1145,11 +1088,11 @@ namespace corsika::gpu::radio {
           track_tile[track_lane].valid == 0) {
         return;
       }
-      accumulateCoREAS(
+      portableAccumulateCoREAS(
           track_tile[track_lane], propagation,
           coreas_observer_tile[observer_lane],
           coreas_waveforms, counters);
-      accumulateZHS(
+      portableAccumulateZHS(
           track_tile[track_lane], propagation,
           zhs_observer_tile[observer_lane],
           zhs_waveforms, counters);

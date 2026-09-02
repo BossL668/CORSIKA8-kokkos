@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "CudaRunSession.hpp"
 #include "GpuCliOptions.hpp"
 
 #include <corsika/framework/core/HadronicProcessPool.hpp>
@@ -20,7 +19,6 @@
 #include <corsika/gpu/em/PhysicalCudaEmRouter.hpp>
 #include <corsika/gpu/em/ProposalCpuFallbackHandler.hpp>
 #include <corsika/gpu/em/Types.hpp>
-#include <corsika/gpu/em/detail/DeviceWavefrontBucketing.hpp>
 #include <corsika/gpu/em/tables/Sha256.hpp>
 #include <corsika/validation/CudaReplayTrace.hpp>
 
@@ -49,15 +47,16 @@ namespace corsika::applications::air_shower {
    */
   struct CudaShowerReportBuilder {
     template <
-      typename TGpuEmStepRegistry, typename TSequence, typename TEas,
+      typename TGpuEmStepRegistry, typename TSequence, typename TRunSession,
+      typename TBackend, typename TEas,
       typename TRouter, typename TOutputSink, typename TFallbackHandler,
       typename TPhotoHighEnergy, typename TPhotoLowEnergy,
       typename TPhotoHighStatistics, typename TPhotoLowStatistics,
       typename THighEnergyCounter, typename TLowEnergyCounter,
       typename TPhotoFallback>
     static void record(
-      CudaRunSession& cuda_session, GpuCliOptions const& gpu_cli,
-      gpu::em::CudaEmBackend& backend, TEas& EAS, TRouter& router,
+      TRunSession& cuda_session, GpuCliOptions const& gpu_cli,
+      TBackend& backend, TEas& EAS, TRouter& router,
       TOutputSink& output_sink, TFallbackHandler& fallback_handler,
       TPhotoHighEnergy& photoHadronicHighEnergy,
       TPhotoLowEnergy& photoHadronicLowEnergy,
@@ -95,8 +94,10 @@ namespace corsika::applications::air_shower {
     auto const hadronic_max_batch = gpu_cli.hadronic_max_batch;
     auto const hadronic_initial_cost_ms =
         gpu_cli.hadronic_initial_cost_ms;
-    auto const gpu_deterministic = gpu_cli.gpu_deterministic;
-    auto const gpu_radio_field_limit = gpu_cli.gpu_radio_field_limit;
+      auto const gpu_deterministic = gpu_cli.gpu_deterministic;
+      auto const gpu_radio_field_limit = gpu_cli.gpu_radio_field_limit;
+      auto const accelerated_backend_name =
+          gpu_cli.em_backend == "kokkos" ? "kokkos" : "cuda";
 
       for (auto const& record : router.stepRecords()) {
         validation::CudaReplayTrace::instance().recordGpuStep(
@@ -362,13 +363,62 @@ namespace corsika::applications::air_shower {
           backend_stats.one_time_initialization_ms;
       shower_metadata["backend_lifecycle"]
                      ["static_host_to_device_bytes"] =
-          backend_stats.static_host_to_device_bytes;
+      backend_stats.static_host_to_device_bytes;
+      if (gpu_cli.em_backend == "kokkos") {
+        auto accelerator = shower_metadata["accelerator"];
+        accelerator["backend"] = backend_stats.accelerator_backend;
+        accelerator["device_name"] =
+            backend_stats.accelerator_device_name;
+        accelerator["architecture"] =
+            backend_stats.accelerator_architecture;
+        accelerator["driver_version"] =
+            backend_stats.accelerator_driver_version;
+        accelerator["runtime_version"] =
+            backend_stats.accelerator_runtime_version;
+        accelerator["compiler_version"] =
+            backend_stats.accelerator_compiler_version;
+        accelerator["project_revision"] =
+            backend_stats.accelerator_project_revision;
+        accelerator["device"] = backend_stats.accelerator_device;
+        accelerator["concurrency"] =
+            backend_stats.accelerator_concurrency;
+        accelerator["host_threads"] =
+            backend_stats.accelerator_host_threads;
+        accelerator["gpu"] = backend_stats.accelerator_gpu;
+        accelerator["openmp"] = backend_stats.accelerator_openmp;
+        auto tuning = accelerator["tuning"];
+        tuning["cache_matched"] = backend_stats.tuning_cache_matched;
+        tuning["cache_required"] = backend_stats.tuning_cache_required;
+        tuning["cache_hash"] = backend_stats.tuning_cache_hash;
+        tuning["batch_size"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_batch_size);
+        tuning["chunk_size"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_chunk_size);
+        tuning["team_size"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_team_size);
+        tuning["track_tile_size"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_track_tile_size);
+        tuning["observer_tile_size"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_observer_tile_size);
+        tuning["device_queues"] = static_cast<std::uint64_t>(
+            backend_stats.tuning_device_queues);
+      }
       shower_metadata["cpu_particle_steps"] =
           EAS.schedulerStatistics()
               .acquired_particle_steps -
           router_stats.particles_staged;
       shower_metadata["particles_staged"] =
           router_stats.particles_staged;
+      if (gpu_cli.em_backend == "kokkos") {
+        shower_metadata["routing"]["attempts"] =
+            router_stats.route_attempts;
+        shower_metadata["routing"]["non_em_rejections"] =
+            router_stats.route_non_em_rejections;
+        shower_metadata["routing"]["backend_rejections"] =
+            router_stats.route_backend_rejections;
+        shower_metadata["routing"]["environment_rejections"] =
+            router_stats.route_environment_rejections;
+      }
       shower_metadata["gpu_muon_transport_enabled"] =
           gpu_muon_transport_available;
       shower_metadata["wavefronts"] =
@@ -939,7 +989,7 @@ namespace corsika::applications::air_shower {
       shower_metadata["radio_tracks"] =
           sink_stats.radio_tracks;
       shower_metadata["radio"]["backend"] =
-          gpu_radio_enabled ? "cuda" : "cpu";
+          gpu_radio_enabled ? accelerated_backend_name : "cpu";
       shower_metadata["radio"]["track_observer_pairs"] =
           backend_stats.radio.track_observer_pairs;
       shower_metadata["radio"]["fused_track_observer_pairs"] =
@@ -1082,7 +1132,7 @@ namespace corsika::applications::air_shower {
       shower_metadata["radio"]["projection_device_time_ms"] =
           backend_stats.radio.projection_device_time_ms;
       shower_metadata["profile"]["backend"] =
-          backend_stats.profile.enabled ? "cuda" : "host";
+          backend_stats.profile.enabled ? accelerated_backend_name : "host";
       shower_metadata["profile"]["deterministic"] =
           backend_stats.profile.deterministic;
       shower_metadata["profile"]["bins"] =
@@ -1239,9 +1289,7 @@ namespace corsika::applications::air_shower {
       shower_metadata["wavefront_bucketing"]["stable"] = true;
       shower_metadata["wavefront_bucketing"]
                      ["minimum_radix_sort_size"] =
-          static_cast<std::uint64_t>(
-              corsika::gpu::em::detail::
-                  MinimumWavefrontRadixSortSize);
+          static_cast<std::uint64_t>(256);
       shower_metadata["wavefront_bucketing"]["batches"] =
           backend_stats.wavefront_bucketing_batches;
       shower_metadata["wavefront_bucketing"]["particles"] =

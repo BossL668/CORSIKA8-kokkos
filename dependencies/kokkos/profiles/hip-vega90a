@@ -1,0 +1,18 @@
+include(default)
+
+# MI200-series / ROCm 6.x example. hipcc must compile all Kokkos-enabled C++
+# translation units; update the Conan clang version when the target ROCm
+# release reports another bundled LLVM major.
+[settings]
+compiler=clang
+compiler.version=18
+compiler.libcxx=libstdc++11
+compiler.cppstd=17
+
+[conf]
+tools.build:compiler_executables={"c": "hipcc", "cpp": "hipcc"}
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=hip
+&:kokkos_architecture=VEGA90A

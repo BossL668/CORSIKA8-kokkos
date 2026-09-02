@@ -716,6 +716,17 @@ if (CORSIKA_ENABLE_CUDA)
 endif ()
 
 if (CORSIKA_ENABLE_KOKKOS)
+  add_test (
+    NAME checkKokkosAcceleratorBoundaries
+    COMMAND ${CMAKE_COMMAND}
+      -DC8_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/check_kokkos_accelerator_boundaries.cmake)
+
+  add_executable (testKokkosTuningCache testKokkosTuningCache.cpp)
+  target_link_libraries (
+    testKokkosTuningCache PRIVATE CORSIKA8KokkosEm)
+  add_test (NAME testKokkosTuningCache COMMAND testKokkosTuningCache)
+
   add_executable (
     testKokkosProposalNativeTable
     testKokkosProposalNativeTable.cpp

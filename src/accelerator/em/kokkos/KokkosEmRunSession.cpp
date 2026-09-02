@@ -67,7 +67,16 @@ namespace corsika::accelerator::em::detail {
     } else {
       impl_->backend_->beginShower(gpu::em::makeGpuEmShowerConfig(config));
     }
-    return {impl_->backend_.get(), reused, true};
+    return {impl_->backend_.get(), reused,
+            impl_->backend_->capabilities().muon_transport};
+  }
+
+  KokkosSessionBeginResult KokkosEmRunSession::beginC8EmRt(
+      gpu::em::EnvironmentSnapshot const&, gpu::em::GpuEmConfig const&,
+      AcceleratedPhysicsRequirements const&) {
+    throw std::invalid_argument(
+        "Kokkos EM supports proposal-native physics only; .c8emrt is a "
+        "native-CUDA compatibility path");
   }
 
   bool KokkosEmRunSession::initialized() const noexcept {

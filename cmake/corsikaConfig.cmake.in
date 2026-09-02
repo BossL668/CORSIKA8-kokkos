@@ -35,6 +35,22 @@ if (CORSIKA8_WITH_CUDA)
   # executables and must be materialized before corsikaTargets.cmake is read.
   find_dependency (CubicInterpolation REQUIRED)
 endif ()
+
+# A Kokkos build exports the compiled CORSIKA8KokkosEm static target.  Restore
+# the exact execution-space dependency before corsikaTargets.cmake is read;
+# otherwise an installed tree works for its applications but cannot be
+# consumed by a downstream find_package(corsika) project.  Kokkos-CUDA also
+# exposes CUDA runtime targets from the static backend archive even though the
+# mutually exclusive native-CUDA option is disabled for that build.
+set (CORSIKA8_WITH_KOKKOS @CORSIKA_ENABLE_KOKKOS@)
+set (CORSIKA8_KOKKOS_BACKEND "@CORSIKA_KOKKOS_BACKEND@")
+if (CORSIKA8_WITH_KOKKOS)
+  include (CMakeFindDependencyMacro)
+  find_dependency (Kokkos 4.7.3 CONFIG REQUIRED)
+  if (CORSIKA8_KOKKOS_BACKEND STREQUAL "CUDA")
+    find_dependency (CUDAToolkit 12 REQUIRED)
+  endif ()
+endif ()
 set (CMAKE_CXX_EXTENSIONS @CMAKE_CXX_EXTENSIONS@)
 set (COMPILE_OPTIONS @COMPILE_OPTIONS@)
 set (CMAKE_VERBOSE_MAKEFILE  @CMAKE_VERBOSE_MAKEFILE@) 

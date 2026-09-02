@@ -26,6 +26,7 @@
 #include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosWavefrontQueue.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosProfileAccumulator.hpp>
+#include <corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -190,6 +191,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       gpu::em::detail::DeviceProfileProjection const profile_projection = {},
       KokkosProfileAccumulator<ExecutionSpace>* const profile_accumulator =
           nullptr,
+      radio::kokkos_detail::KokkosRadioAccumulator<ExecutionSpace>* const
+          radio_accumulator = nullptr,
       ExecutionSpace const& execution = {}) {
     using Memory = typename ExecutionSpace::memory_space;
     using Policy = Kokkos::RangePolicy<ExecutionSpace>;
@@ -460,12 +463,21 @@ namespace corsika::accelerator::em::kokkos_detail {
         profile_accumulator->accumulateLepton(
             profile_projection, steps, totals[LeptonStepOffset], records,
             totals[LeptonRecordOffset], execution);
+      if (radio_accumulator != nullptr)
+        radio_accumulator->accumulateLeptonTracks(
+            steps, totals[LeptonStepOffset], execution);
       if (project_steps)
         append(result.projected_step_records, projected_steps,
                totals[LeptonStepOffset]);
       else if (profile_accumulator == nullptr)
         append(result.step_records, steps, totals[LeptonStepOffset]);
-      append(result.final_state_records, records, totals[LeptonRecordOffset]);
+      // Keep the same host/device ownership rule as native CUDA.  A
+      // device-resident profile accumulator consumes both transport and
+      // final-state records; neither half of that ledger may subsequently be
+      // replayed by the host router.
+      if (profile_accumulator == nullptr)
+        append(result.final_state_records, records,
+               totals[LeptonRecordOffset]);
       append(result.generated_photons, photons, totals[LeptonPhotonOffset]);
       append(result.fallback_events, fallbacks,
              totals[LeptonFallbackOffset]);
@@ -489,15 +501,71 @@ namespace corsika::accelerator::em::kokkos_detail {
           Kokkos::HostSpace(), Kokkos::subview(
               steps, std::make_pair<std::size_t>(0,
                                                  totals[LeptonStepOffset])));
-      for (std::size_t i = 0; i < totals[LeptonStepOffset]; ++i)
+      for (std::size_t i = 0; i < totals[LeptonStepOffset]; ++i) {
+        auto const& step = host_steps(i);
         result.interaction_vertices +=
-            host_steps(i).limit == LeptonTransportLimit::InteractionCandidate;
+            step.limit == LeptonTransportLimit::InteractionCandidate;
+        auto& statistics = result.process_statistics;
+        auto const limit_index = static_cast<std::size_t>(step.limit);
+        if (limit_index < statistics.lepton_transport_limits.size())
+          ++statistics.lepton_transport_limits[limit_index];
+        if (step.traversed_grammage_g_per_cm2 > 0.)
+          ++statistics.moliere_trials;
+        statistics.moliere_deflections +=
+            step.multiple_scattering_applied != 0;
+        statistics.moliere_zero_deflections +=
+            step.multiple_scattering_status ==
+            static_cast<std::uint16_t>(MoliereStatus::NoDeflection);
+        statistics.moliere_newton_iterations +=
+            step.multiple_scattering_iterations;
+        statistics.moliere_max_newton_iterations = std::max(
+            statistics.moliere_max_newton_iterations,
+            step.multiple_scattering_iterations);
+      }
       auto host_outcomes = Kokkos::create_mirror_view_and_copy(
           Kokkos::HostSpace(), Kokkos::subview(
               outcomes, std::make_pair<std::size_t>(0, current_count)));
-      for (std::size_t source = 0; source < current_count; ++source)
-        result.lpm_suppressions +=
-            host_outcomes(source).final_state.suppression_flag;
+      for (std::size_t source = 0; source < current_count; ++source) {
+        auto const& final = host_outcomes(source).final_state;
+        result.lpm_suppressions += final.suppression_flag;
+        auto& statistics = result.process_statistics;
+        statistics.gpu_final_states += final.record_flag;
+        if (final.record_flag != 0) {
+          statistics.physical_secondaries_generated += final.child_count;
+          statistics.brems_final_states += final.brems_flag;
+          statistics.annihilation_final_states += final.annihilation_flag;
+          statistics.ionization_final_states += final.ionization_flag;
+          statistics.electron_pair_final_states += final.electron_pair_flag;
+          auto const status = static_cast<EmThinningStatus>(
+              final.parameters.thinning_status);
+          statistics.thinning_hillas_vertices +=
+              status == EmThinningStatus::Hillas;
+          statistics.thinning_statistical_vertices +=
+              status == EmThinningStatus::Statistical;
+          auto const original_multiplicity =
+              final.parameters.process_id == ElectronPairProcessId ? 3U : 2U;
+          if (final.child_count <= original_multiplicity)
+            statistics.thinning_particles_discarded +=
+                original_multiplicity - final.child_count;
+        }
+        statistics.brems_lpm_trials +=
+            final.brems_flag + final.brems_suppression_flag;
+        statistics.brems_lpm_suppressions +=
+            final.brems_suppression_flag;
+        statistics.electron_pair_lpm_trials +=
+            final.electron_pair_flag +
+            final.electron_pair_suppression_flag;
+        statistics.electron_pair_lpm_suppressions +=
+            final.electron_pair_suppression_flag;
+        statistics.electron_pair_rejection_trials +=
+            final.electron_pair_rejection_trials;
+        statistics.electron_pair_zero_weight_samples +=
+            final.electron_pair_zero_weight_flag;
+        statistics.electron_pair_rejection_fallbacks +=
+            final.electron_pair_rejection_fallback_flag;
+        statistics.electron_pair_envelope_violations +=
+            final.electron_pair_envelope_violation_flag;
+      }
 
       result.transport_records += totals[LeptonStepOffset];
       next_history_id += totals[LeptonChildOffset];

@@ -22,7 +22,10 @@ int main(int argc, char** argv) {
   app.add_option("--values", values);
   CLI11_PARSE(app, argc, argv);
 
-  corsika::accelerator::em::KokkosRuntime runtime{{device, threads}};
+  corsika::accelerator::em::KokkosRuntimeConfig runtime_config;
+  runtime_config.device = device;
+  runtime_config.threads = threads;
+  corsika::accelerator::em::KokkosRuntime runtime{runtime_config};
   auto const probe = runtime.runPrimitiveProbe(values);
   auto const queue = runtime.runQueueProbe(4096);
   auto const& info = runtime.info();

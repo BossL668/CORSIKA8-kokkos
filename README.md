@@ -33,6 +33,7 @@ FLUKA pool are explicit opt-in features.
 
 [Chinese README](README_CN.md) ·
 [GPU production guide](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md) ·
+[Kokkos backend guide](documentation/cuda_em_refactor/kokkos_backend_user_guide.md) ·
 [CLI reference](documentation/cuda_em_refactor/cli_reference.md) ·
 [validation tools](validation/gpu_em/README.md) ·
 [upstream CORSIKA 8](https://gitlab.iap.kit.edu/AirShowerPhysics/corsika)
@@ -49,6 +50,7 @@ hybrid CPU/GPU execution path. The main additions are:
 | Hybrid scheduling | Stable routing between the original CPU stack and independent GPU structure-of-arrays queues |
 | Physics tables | Versioned PROPOSAL-derived rate, inverse-CDF, continuous-loss, LPM, and scattering tables |
 | Native PROPOSAL tables (experimental) | Direct read-only export of PROPOSAL 7.6.2/CubicInterpolation 0.1.5 spline state to resident GPU POD data; no complete `.c8emrt` preparation step |
+| Kokkos portable backend (experimental) | One-source proposal-native EM/profile/CoREAS/ZHS execution for mutually exclusive OpenMP-only or single-GPU builds; OpenMP and GPU never cooperate on one shower |
 | Automatic table preparation | Material YAML normalization, content hashing, cache lookup, locked generation, and validation |
 | Radio calculation | Selectable CPU or CUDA CoREAS/ZHS waveform projection for electromagnetic tracks |
 | Low-energy hadronic throughput | Optional persistent multi-process FLUKA final-state pool |

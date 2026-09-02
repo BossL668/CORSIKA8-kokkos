@@ -4,6 +4,7 @@ add_library (
   KokkosEmBackend.cpp
   KokkosEmRunSession.cpp
   KokkosRuntime.cpp
+  KokkosTuningCache.cpp
   )
 add_library (CORSIKA8::KokkosEm ALIAS CORSIKA8KokkosEm)
 
@@ -29,6 +30,7 @@ target_compile_definitions (
   CORSIKA8KokkosEm
   PUBLIC
   CORSIKA8_WITH_KOKKOS=1
+  CORSIKA8_PROJECT_REVISION="${CORSIKA8_PROJECT_REVISION}"
   CORSIKA8_KOKKOS_BACKEND_${CORSIKA_KOKKOS_BACKEND}=1
   )
 

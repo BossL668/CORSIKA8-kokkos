@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include <corsika/gpu/em/CudaEmBackend.hpp>
+#include <corsika/accelerator/em/IAcceleratedEmBackend.hpp>
 #include <corsika/gpu/em/CorsikaOutputSink.hpp>
 #include <corsika/gpu/em/PhotonPairKinematics.hpp>
 #include <corsika/gpu/em/ProcessCapabilities.hpp>
@@ -35,6 +35,10 @@ namespace corsika::gpu::em {
   struct ScalarProposalFallback {};
 
   struct PhysicalCudaEmRouterStatistics {
+    std::uint64_t route_attempts{};
+    std::uint64_t route_non_em_rejections{};
+    std::uint64_t route_backend_rejections{};
+    std::uint64_t route_environment_rejections{};
     std::uint64_t particles_staged{};
     std::uint64_t photons_advanced{};
     std::uint64_t leptons_advanced{};
@@ -105,7 +109,7 @@ namespace corsika::gpu::em {
       typename TProposalFallbackHandler =
           ScalarProposalFallback,
       typename TOutputSink = NullCorsikaOutputSink,
-      typename TBackend = CudaEmBackend>
+      typename TBackend = accelerator::em::IAcceleratedEmBackend>
   class PhysicalCudaEmRouter {
   public:
     using particle_type = typename TStack::particle_type;
@@ -165,6 +169,7 @@ namespace corsika::gpu::em {
     bool canRoute(
         particle_type const& particle,
         transport::StepId step_id) {
+      ++statistics_.route_attempts;
       auto const fallback_key =
           std::make_pair(particle.getHistoryId(), step_id);
       if (forced_decay_steps_.find(fallback_key) !=
@@ -197,6 +202,7 @@ namespace corsika::gpu::em {
       }
       if (!is_em(particle.getPID()) &&
           !is_muon(particle.getPID())) {
+        ++statistics_.route_non_em_rejections;
         return false;
       }
       auto const state = router_detail::toDeviceState(
@@ -205,10 +211,13 @@ namespace corsika::gpu::em {
           particle.getParentHistoryId(),
           particle.getGeneration(), step_id);
       if (!backend_.canTransport(state)) {
+        ++statistics_.route_backend_rejections;
         return false;
       }
       auto const layer = queryAtmosphereLayer(
           environment_, state.position_m, state.direction);
+      if (layer.status != AtmosphereStatus::Success)
+        ++statistics_.route_environment_rejections;
       return layer.status == AtmosphereStatus::Success;
     }
 
@@ -1469,8 +1478,9 @@ namespace corsika::gpu::em {
 
   /**
    * Device-neutral spelling for new Kokkos integrations.  The native CUDA
-   * spelling remains source compatible and keeps CudaEmBackend as its default
-   * fourth template argument.
+   * spelling remains source compatible.  The default is the host-wavefront
+   * interface, while the generic alias below preserves static concrete-backend
+   * dispatch for Kokkos and native CUDA.
    */
   template <
       typename TStack, typename TBackend,

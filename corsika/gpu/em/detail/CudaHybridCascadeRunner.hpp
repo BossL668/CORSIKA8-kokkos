@@ -34,7 +34,7 @@ namespace corsika::gpu::em::detail {
             typename TFallbackFactory,
             typename TOutputSinkFactory, typename TConfigureCascade,
             typename TOnComplete>
-  void runCudaHybridCascade(
+  void runAcceleratedHybridCascade(
       CoordinateSystemPtr const& root_cs,
       EnvironmentSnapshot const& environment_snapshot,
       TEnvironment& environment, TTracking& tracking, TSequence& sequence,
@@ -46,7 +46,7 @@ namespace corsika::gpu::em::detail {
       TOnComplete&& on_complete) {
     TProcessRegistry::template validateOrThrow<TSequence>();
     CORSIKA_LOG_INFO(
-        "CUDA EM process registry accepted {} process contracts "
+        "Accelerated EM process registry accepted {} process contracts "
         "({} device-replaced, {} record-replayed, {} deferred-to-CPU, "
         "{} inapplicable-to-routed-EM, {} diagnostic-only)",
         TProcessRegistry::registrationCount(),
@@ -63,10 +63,11 @@ namespace corsika::gpu::em::detail {
     auto output_sink =
         std::forward<TOutputSinkFactory>(output_sink_factory)();
     using Stack = std::remove_reference_t<TStack>;
+    using Backend = std::remove_reference_t<decltype(backend)>;
     using FallbackHandler = decltype(fallback_handler);
     using OutputSink = decltype(output_sink);
-    using Router =
-        PhysicalCudaEmRouter<Stack, FallbackHandler, OutputSink>;
+    using Router = PhysicalAcceleratedEmRouter<
+        Stack, Backend, FallbackHandler, OutputSink>;
     Router router{backend, root_cs, environment_snapshot, fallback_handler,
                   output_sink};
     router.setRetainRecords(options.retain_records);
@@ -82,6 +83,13 @@ namespace corsika::gpu::em::detail {
     cascade.run();
     std::forward<TOnComplete>(on_complete)(
         backend, cascade, router, output_sink, fallback_handler);
+  }
+
+  /** Backward-compatible native-CUDA spelling. */
+  template <typename TProcessRegistry, typename... TArguments>
+  void runCudaHybridCascade(TArguments&&... arguments) {
+    runAcceleratedHybridCascade<TProcessRegistry>(
+        std::forward<TArguments>(arguments)...);
   }
 
 } // namespace corsika::gpu::em::detail

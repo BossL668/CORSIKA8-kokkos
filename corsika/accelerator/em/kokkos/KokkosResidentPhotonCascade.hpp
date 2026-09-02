@@ -323,8 +323,14 @@ namespace corsika::accelerator::em::kokkos_detail {
                totals[PhotonStepOffset]);
       else if (profile_accumulator == nullptr)
         append(result.step_records, steps, totals[PhotonStepOffset]);
-      append(result.final_state_records, records,
-             totals[PhotonRecordOffset]);
+      // Match the native-CUDA resident-output contract: when the complete
+      // profile ledger is accumulated on the execution space, final-state
+      // records remain resident as well.  Returning them without their
+      // matching transport records would make the host router account the
+      // same vertex a second time and breaks the history ledger.
+      if (profile_accumulator == nullptr)
+        append(result.final_state_records, records,
+               totals[PhotonRecordOffset]);
       append(result.electromagnetic_secondaries, charged,
              totals[PhotonChargedOffset]);
       append(result.fallback_events, fallbacks,
@@ -360,9 +366,32 @@ namespace corsika::accelerator::em::kokkos_detail {
       auto host_outcomes = Kokkos::create_mirror_view_and_copy(
           Kokkos::HostSpace(), Kokkos::subview(
               outcomes, std::make_pair<std::size_t>(0, current_count)));
-      for (std::size_t source = 0; source < current_count; ++source)
-        result.lpm_suppressions +=
-            host_outcomes(source).final_state.suppression_flag;
+      for (std::size_t source = 0; source < current_count; ++source) {
+        auto const& final = host_outcomes(source).final_state;
+        result.lpm_suppressions += final.suppression_flag;
+        auto& statistics = result.process_statistics;
+        statistics.gpu_final_states += final.record_flag;
+        if (final.record_flag != 0) {
+          statistics.physical_secondaries_generated += final.child_count;
+          statistics.photon_pair_final_states += final.photon_pair_flag;
+          statistics.compton_final_states += final.compton_flag;
+          statistics.photoelectric_final_states += final.photoelectric_flag;
+          auto const status = static_cast<EmThinningStatus>(
+              final.parameters.thinning_status);
+          statistics.thinning_hillas_vertices +=
+              status == EmThinningStatus::Hillas;
+          statistics.thinning_statistical_vertices +=
+              status == EmThinningStatus::Statistical;
+          auto const original_multiplicity =
+              final.parameters.process_id == PhotoelectricProcessId ? 1U : 2U;
+          if (final.child_count <= original_multiplicity)
+            statistics.thinning_particles_discarded +=
+                original_multiplicity - final.child_count;
+        }
+        statistics.photon_pair_lpm_trials +=
+            final.photon_pair_flag + final.suppression_flag;
+        statistics.photon_pair_lpm_suppressions += final.suppression_flag;
+      }
       if (totals[PhotonChildOffset] >
           std::numeric_limits<std::uint64_t>::max() - next_history_id)
         throw std::overflow_error(

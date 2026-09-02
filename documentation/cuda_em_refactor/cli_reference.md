@@ -1,4 +1,4 @@
-# CORSIKA 8 CUDA/FLUKA 命令行参数参考
+# CORSIKA 8 CUDA/Kokkos/FLUKA 命令行参数参考
 
 本文记录本研究分支新增的生产参数、辅助程序参数和主要验收驱动参数。参数名称、
 默认值和约束以当前源码及当前构建的 `--help` 输出为准。
@@ -7,6 +7,7 @@
 
 - [项目中文说明](../../README_CN.md)
 - [CUDA 后端生产使用指南](cuda_em_backend_user_guide.md)
+- [Kokkos 独立后端指南](kokkos_backend_user_guide.md)
 - [验证工具说明](../../validation/gpu_em/README.md)
 - [重构阶段索引](README.md)
 
@@ -17,6 +18,9 @@
 - `--em-backend cuda` 只在 `CORSIKA_ENABLE_CUDA=ON` 的构建中可用，并且
   默认必须显式提供兼容的 `.c8emrt` 表；实验性的 `proposal-native`
   物理源改为复用当前 PROPOSAL calculator 的原生样条。
+- `--em-backend kokkos` 只在一个 `CORSIKA_ENABLE_KOKKOS=ON` 构建中可用，
+  强制使用 `proposal-native`，并要求射电同样选择 `kokkos`。OpenMP 与任一
+  GPU execution space 是不同二进制，不能在一个 shower 中组合。
 - 布尔 option 使用 `true` 或 `false`，例如
   `--gpu-deterministic true`。不带值的 flag 只需写参数名。
 - 表格、设备、介质、输出或进程池检查失败时，程序终止当前 shower；不会静默
@@ -34,6 +38,7 @@ gpu_em_table_prepare --help
 gpu_em_tablegen --help
 cuda_decision_replay --help
 fluka_batch_worker --help
+c8_kokkos_tune --help
 ```
 
 ## 2. `c8_air_shower` 新增参数
@@ -42,7 +47,7 @@ fluka_batch_worker --help
 
 | 参数 | 默认值 | 功能与使用边界 |
 |---|---:|---|
-| `--em-backend proposal\|cuda` | `proposal` | 选择原标量 PROPOSAL 或 HybridCascade CUDA 电磁输运。 |
+| `--em-backend proposal\|cuda\|kokkos` | `proposal` | 选择原标量 PROPOSAL、native CUDA 或构建时固定 execution space 的 Kokkos 电磁输运。 |
 | `--gpu-device INT` | `0` | CUDA device index。多 GPU 节点上每个进程应指定自己的 device。 |
 | `--gpu-min-batch UINT` | `4096` | CUDA 执行的最小前沿规模。更小前沿先做有界标量展开；该值需要按新 GPU 实测。 |
 | `--gpu-memory-fraction FLOAT` | `0.70` | 后端最多使用初始化时空闲显存的比例，范围为 0.01–1.0。 |
@@ -65,6 +70,19 @@ fluka_batch_worker --help
 磁盘 cache，但不再要求用户运行 `gpu_em_table_prepare`。不支持的参数化、轴或
 能区会直接终止，不会自动切换回 `c8emrt`。详见
 [Phase 113](phase_113_proposal_native_gpu_tables_CN.md)。
+
+#### Kokkos 独立后端参数
+
+| 参数 | 默认值 | 功能与门禁 |
+|---|---:|---|
+| `--kokkos-num-threads INT` | `0` | OpenMP-only 构建的线程数，0 使用 runtime/环境默认；GPU 构建只允许 0 或 1。 |
+| `--kokkos-device INT` | `0` | CUDA/HIP/SYCL 构建的设备编号。 |
+| `--kokkos-tuning-cache PATH` | 空 | 指定与 backend、设备、构建、线程数和 native 表哈希精确匹配的调优记录。 |
+| `--kokkos-require-tuning` | 关闭 | 缓存缺失或 key 不匹配时立即失败；未开启时使用保守默认值并警告。 |
+
+Kokkos-GPU 构建使用 Serial host，拒绝 `--hadronic-workers > 1`；Kokkos-OpenMP
+构建不链接或初始化 CUDA/HIP/SYCL。调优工具和四套独立构建方法见
+[Kokkos 后端指南](kokkos_backend_user_guide.md)。
 
 当前 canonical-v6 标准空气原生表包含 58 个随机过程列，占用 78,129,000
 bytes 显存，并在同一进程中按 SHA-256 复用。第一阶段只允许一种化学组成；
@@ -91,7 +109,7 @@ event duration 之和；profile、radio 与物理 pipeline 可以重叠，因而
 
 | 参数 | 默认值 | 功能与使用边界 |
 |---|---:|---|
-| `--radio-backend cpu\|cuda` | `cpu` | CUDA EM 轨迹使用 CPU 或 resident CUDA CoREAS/ZHS 投影。 |
+| `--radio-backend cpu\|cuda\|kokkos` | `cpu` | 选择标量、native CUDA 或与 Kokkos EM 相同 execution space 的 CoREAS/ZHS 投影。 |
 | `--gpu-radio-field-limit FLOAT` | `1.0` V/m | 确定性 fixed-point 波形累加器的检查范围；溢出会终止，不会环绕。 |
 | `--gpu-radio-track-diagnostics` | 关闭 | 收集与标量端一致的 \(e^\pm\) 轨迹统计，增加 GPU reduction 开销。 |
 | `--radio-sampling-rate-ghz FLOAT` | `1.0` | 时域采样率。50–350 MHz 精确波形比较建议至少 10 GHz。 |
@@ -100,7 +118,7 @@ event duration 之和；profile、radio 与物理 pipeline 可以重叠，因而
 | `--antenna-file PATH` | 本地 21CMA 路径 | NWU 坐标文件，三列依次为 North、West、Up，单位 m。 |
 | `--ring INT` | `0` | 原应用的星形同心环 observer 数；0 表示只使用天线文件。 |
 
-CPU 和 CUDA radio 都随 \(e^\pm\) 轨迹段在线累计，不是在 shower 完成后重新读取
+CPU、native CUDA 和 Kokkos radio 都随 \(e^\pm\) 轨迹段在线累计，不是在 shower 完成后重新读取
 整棵粒子树。`--radio-backend cuda` 不改变强子或电磁相互作用模型，只改变射电
 投影和波形累加所在设备。
 

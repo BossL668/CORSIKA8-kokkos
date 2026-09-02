@@ -7,12 +7,11 @@
 
 #pragma once
 
-#include "CudaRunSession.hpp"
 #include "GpuCliOptions.hpp"
 
+#include <corsika/accelerator/em/AcceleratedPhysicsRequirements.hpp>
 #include <corsika/gpu/em/EnvironmentSnapshotBuilder.hpp>
 #include <corsika/gpu/em/ProcessSequenceCompatibility.hpp>
-#include <corsika/gpu/em/detail/CudaEmRunSession.hpp>
 #include <corsika/gpu/radio/RadioSnapshotBuilder.hpp>
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
 
@@ -46,7 +45,7 @@ namespace corsika::applications::air_shower {
   struct PreparedCudaAirShower {
     gpu::em::EnvironmentSnapshot environment_snapshot;
     gpu::em::GpuEmConfig gpu_config;
-    gpu::em::detail::GpuPhysicsRequirements physics_requirements;
+    accelerator::em::AcceleratedPhysicsRequirements physics_requirements;
     HEPEnergyType proposal_stochastic_cut{};
     bool gpu_radio_enabled{};
   };
@@ -95,13 +94,13 @@ namespace corsika::applications::air_shower {
       gpu::em::GpuEmStepProcessRegistration<
           TCut, gpu::em::GpuEmStepProcessPolicy::ReplacedOnDevice>>;
 
-  template <
+  template <typename TRunSession,
       typename TEnvironment, typename TInjectionPosition, typename TSurface,
       typename TPropagationStep, typename TDetectorCoREAS,
       typename TDetectorZHS, typename TShowerAxis, typename TDepthStep,
       typename TEnergyLossWriter, typename TLongitudinalWriter>
   PreparedCudaAirShower prepareCudaAirShower(
-      CudaRunSession const& cuda_session, GpuCliOptions const& gpu_cli,
+      TRunSession const& cuda_session, GpuCliOptions const& gpu_cli,
       CudaEventConfig const& event, TEnvironment& environment,
       CoordinateSystemPtr const& root_cs,
       TInjectionPosition const& injection_position,
@@ -135,7 +134,9 @@ namespace corsika::applications::air_shower {
         {0., 0., 1.});
 
     auto& config = prepared.gpu_config;
-    config.device = gpu_cli.gpu_device;
+    config.device = gpu_cli.em_backend == "kokkos"
+                        ? gpu_cli.kokkos_device
+                        : gpu_cli.gpu_device;
     config.min_batch_size = gpu_cli.gpu_min_batch;
     config.memory_fraction = gpu_cli.gpu_memory_fraction;
     config.table_tolerance = gpu_cli.gpu_table_tolerance;
@@ -160,7 +161,8 @@ namespace corsika::applications::air_shower {
     config.resident_cross_species = gpu_cli.gpu_resident_cross_species;
 
     prepared.gpu_radio_enabled =
-        gpu_cli.radio_backend == "cuda" && detector_coreas.size() != 0;
+        gpu_cli.radio_backend == gpu_cli.em_backend &&
+        gpu_cli.em_backend != "proposal" && detector_coreas.size() != 0;
     if (prepared.gpu_radio_enabled && !cuda_session.hasBackend()) {
       config.radio = gpu::radio::makeGpuRadioConfig(
           environment, injection_position, surface, propagation_step,

@@ -57,6 +57,8 @@ namespace corsika::accelerator::em {
     generateLeptonFinalStatesForValidation(
         std::vector<gpu::em::EmInteractionRecord> const&,
         std::uint64_t first_secondary_history_id);
+    gpu::radio::GpuRadioWaveforms projectRadioForValidation(
+        std::vector<gpu::em::LeptonTransportRecord> const&);
 
     void beginShower(AcceleratedEmShowerConfig const&) override;
     bool canTransport(gpu::em::EmParticleState const&) const override;

@@ -111,6 +111,9 @@
 #ifdef CORSIKA8_WITH_CUDA_EM
 #include "detail/air_shower_cuda/CudaRunSession.hpp"
 #include "detail/air_shower_cuda/CudaAirShowerRunner.hpp"
+#elif defined(CORSIKA8_WITH_KOKKOS_EM)
+#include "detail/air_shower_cuda/KokkosRunSession.hpp"
+#include "detail/air_shower_cuda/CudaAirShowerRunner.hpp"
 #endif
 
 using namespace corsika;
@@ -189,8 +192,9 @@ namespace {
 
   void addGpuCliOptions(CLI::App& app, GpuCliOptions& options) {
     app.add_option("--em-backend", options.em_backend,
-                   "Electromagnetic transport backend: proposal or cuda")
-        ->check(CLI::IsMember({"proposal", "cuda"}))->group("GPU EM");
+                   "Electromagnetic transport backend: proposal, cuda, or kokkos")
+        ->check(CLI::IsMember({"proposal", "cuda", "kokkos"}))
+        ->group("GPU EM");
     app.add_option("--gpu-device", options.gpu_device, "CUDA device index")
         ->check(CLI::NonNegativeNumber)->group("GPU EM");
     app.add_option("--gpu-min-batch", options.gpu_min_batch,
@@ -233,9 +237,21 @@ namespace {
            "Keep photon-to-lepton and lepton-to-photon secondaries in "
            "persistent device queues")
         ->group("GPU EM");
+    app.add_option("--kokkos-num-threads", options.kokkos_num_threads,
+                   "OpenMP thread count for an OpenMP-only Kokkos build; zero uses the runtime default")
+        ->check(CLI::NonNegativeNumber)->group("Kokkos");
+    app.add_option("--kokkos-device", options.kokkos_device,
+                   "Device index for a GPU-only Kokkos build")
+        ->check(CLI::NonNegativeNumber)->group("Kokkos");
+    app.add_option("--kokkos-tuning-cache", options.kokkos_tuning_cache,
+                   "Device-specific Kokkos tuning cache")
+        ->group("Kokkos");
+    app.add_flag("--kokkos-require-tuning", options.kokkos_require_tuning,
+                 "Fail unless an exactly matching Kokkos tuning cache exists")
+        ->group("Kokkos");
     app.add_option("--radio-backend", options.radio_backend,
-                   "Radio projection backend for CUDA EM tracks: cpu or cuda")
-        ->check(CLI::IsMember({"cpu", "cuda"}))->group("Radio");
+                   "Radio projection backend: cpu, cuda, or kokkos")
+        ->check(CLI::IsMember({"cpu", "cuda", "kokkos"}))->group("Radio");
     app.add_option(
            "--gpu-radio-field-limit", options.gpu_radio_field_limit,
            "Checked fixed-point waveform range in V/m for deterministic "
@@ -354,6 +370,40 @@ namespace {
       }
 #endif
     }
+    if (options.em_backend == "kokkos") {
+#ifndef CORSIKA8_WITH_KOKKOS_EM
+      CORSIKA_LOG_CRITICAL(
+          "--em-backend kokkos was requested, but this c8_air_shower binary "
+          "was built without CORSIKA_ENABLE_KOKKOS");
+      return false;
+#else
+      if (options.gpu_physics_source != "proposal-native") {
+        CORSIKA_LOG_CRITICAL(
+            "--em-backend kokkos requires --gpu-physics-source proposal-native");
+        return false;
+      }
+      if (options.radio_backend != "kokkos") {
+        CORSIKA_LOG_CRITICAL(
+            "--em-backend kokkos requires --radio-backend kokkos; portable "
+            "EM and radio execution spaces cannot be mixed");
+        return false;
+      }
+      if (options.hadronic_backend != "scalar") {
+        CORSIKA_LOG_CRITICAL(
+            "Kokkos EM is mutually exclusive with the shower-internal "
+            "hadronic worker pool; use --hadronic-backend scalar");
+        return false;
+      }
+#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if (options.kokkos_num_threads > 1) {
+        CORSIKA_LOG_CRITICAL(
+            "A GPU Kokkos build uses Serial host scheduling and rejects "
+            "--kokkos-num-threads > 1");
+        return false;
+      }
+#endif
+#endif
+    }
     if (options.radio_backend == "cuda") {
       if (options.em_backend != "cuda") {
         CORSIKA_LOG_CRITICAL(
@@ -363,6 +413,18 @@ namespace {
 #ifndef CORSIKA8_WITH_CUDA_EM
       CORSIKA_LOG_CRITICAL(
           "--radio-backend cuda was requested, but CUDA support is unavailable");
+      return false;
+#endif
+    }
+    if (options.radio_backend == "kokkos") {
+      if (options.em_backend != "kokkos") {
+        CORSIKA_LOG_CRITICAL(
+            "--radio-backend kokkos requires --em-backend kokkos");
+        return false;
+      }
+#ifndef CORSIKA8_WITH_KOKKOS_EM
+      CORSIKA_LOG_CRITICAL(
+          "--radio-backend kokkos was requested, but Kokkos support is unavailable");
       return false;
 #endif
     }
@@ -628,11 +690,12 @@ int main(int argc, char** argv) {
   // initialize random number sequence(s)
   auto seed = registerRandomStreams(app["--seed"]->as<long>());
 
-#ifdef CORSIKA8_WITH_CUDA_EM
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
   // fork/exec the process-isolated FLUKA workers before the parent touches the
   // CUDA runtime. Forking after CUDA context creation is unsupported.
   std::unique_ptr<HadronicProcessPool>
       hadronic_process_pool;
+#ifdef CORSIKA8_WITH_CUDA_EM
   if (gpu_cli.hadronic_backend == "fluka-process") {
     try {
       hadronic_process_pool =
@@ -647,6 +710,7 @@ int main(int argc, char** argv) {
       return EXIT_FAILURE;
     }
   }
+#endif
 #endif
 
   /* === START: SETUP ENVIRONMENT AND ROOT COORDINATE SYSTEM === */
@@ -769,9 +833,9 @@ int main(int argc, char** argv) {
   std::stringstream args;
   for (int i = 0; i < argc; ++i) { args << argv[i] << " "; }
 
-#ifdef CORSIKA8_WITH_CUDA_EM
-  corsika::applications::air_shower::CudaRunEnvironmentConfig
-      cuda_run_environment{
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
+  corsika::applications::air_shower::AcceleratedRunEnvironmentConfig
+      accelerated_run_environment{
           geomagnetic_model,
           geomagnetic_year,
           cma21_latitude_deg,
@@ -784,17 +848,24 @@ int main(int argc, char** argv) {
           {showerCoreX / 1_m, showerCoreY / 1_m,
            observationHeight / 1_m},
           app["--antenna-file"]->as<std::string>()};
-  corsika::applications::air_shower::CudaRunSession
-      cuda_session{gpu_cli, cuda_run_environment};
+#ifdef CORSIKA8_WITH_CUDA_EM
+  using AcceleratedRunSession =
+      corsika::applications::air_shower::CudaRunSession;
+#else
+  using AcceleratedRunSession =
+      corsika::applications::air_shower::KokkosRunSession;
+#endif
+  AcceleratedRunSession accelerated_session{
+      gpu_cli, accelerated_run_environment};
 #endif
 
   // create the output manager that we then register outputs with
   OutputManager output(app["--filename"]->as<std::string>(), seed, args.str(),
                        compressOutput);
 
-#ifdef CORSIKA8_WITH_CUDA_EM
-  if (cuda_session.runOutput()) {
-    output.add("gpu_em", *cuda_session.runOutput());
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
+  if (accelerated_session.runOutput()) {
+    output.add("gpu_em", *accelerated_session.runOutput());
   }
 #endif
 
@@ -931,7 +1002,7 @@ int main(int argc, char** argv) {
 // for ICRC2023
 #ifdef WITH_FLUKA
   corsika::fluka::Interaction leIntModel{all_elements};
-#ifdef CORSIKA8_WITH_CUDA_EM
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
   if (hadronic_process_pool) {
     // FLUKA's fpenab_ installs a SIGALRM handler that performs fopen/fwrite
     // every 60 seconds.  Those operations are not async-signal-safe: when the
@@ -1126,7 +1197,7 @@ int main(int argc, char** argv) {
         leIntCounted.getTimingSamples().size();
     auto const high_energy_hadronic_timings_before =
         heCounted.getTimingSamples().size();
-#ifdef CORSIKA8_WITH_CUDA_EM
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
     auto const hadronic_pool_statistics_before =
         hadronic_process_pool
             ? hadronic_process_pool->statistics()
@@ -1245,7 +1316,7 @@ int main(int argc, char** argv) {
               photo_hadronic_before.fallback_interactions,
           photoHadronicQgsjetFallback.initialized());
     } else {
-#ifdef CORSIKA8_WITH_CUDA_EM
+#if defined(CORSIKA8_WITH_CUDA_EM) || defined(CORSIKA8_WITH_KOKKOS_EM)
       try {
         corsika::applications::air_shower::CudaEventConfig cuda_event{
             static_cast<std::uint64_t>(seed),
@@ -1266,7 +1337,7 @@ int main(int argc, char** argv) {
             app["--hadronModel"]->as<std::string>(),
             app["--max-deflection-angle"]->as<double>()};
         corsika::applications::air_shower::runCudaAirShower(
-            cuda_session, gpu_cli, cuda_event, env, rootCS, injectionPos,
+            accelerated_session, gpu_cli, cuda_event, env, rootCS, injectionPos,
             surface_, step, detectorCoREAS, detectorZHS, showerAxis, dX,
             observationHeight / 1_m, showerCoreX / 1_m,
             showerCoreY / 1_m,
@@ -1289,8 +1360,8 @@ int main(int argc, char** argv) {
             hadronic_pool_statistics_before,
             photoHadronicQgsjetFallback);
       } catch (std::exception const& error) {
-        if (cuda_session.runOutput()) {
-          cuda_session.runOutput()->recordIncomplete(
+        if (accelerated_session.runOutput()) {
+          accelerated_session.runOutput()->recordIncomplete(
               output_shower_id, error.what());
         }
         if (output.showerInProgress()) {
@@ -1298,7 +1369,7 @@ int main(int argc, char** argv) {
         }
         output.endOfLibrary();
         CORSIKA_LOG_CRITICAL(
-            "CUDA EM shower {} aborted; output is marked incomplete: {}",
+            "Accelerated EM shower {} aborted; output is marked incomplete: {}",
             i_shower, error.what());
         return EXIT_FAILURE;
       }

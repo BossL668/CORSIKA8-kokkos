@@ -30,6 +30,7 @@
 #include <corsika/accelerator/em/detail/MoliereStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonFinalStateStep.hpp>
 #include <corsika/accelerator/em/detail/PhotonTransportStep.hpp>
+#include <corsika/accelerator/radio/detail/RadioProjectionStep.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/gpu/em/EnvironmentSnapshotBuilder.hpp>
 #include <corsika/gpu/em/tables/ProposalNativeTableExporter.hpp>
@@ -92,10 +93,121 @@ namespace {
   bool sameOrClose(double const left, double const right) {
     return left == right || closeEnough(left, right);
   }
+
+  struct HostRadioAtomicOperations {
+    static long long add(long long* address, long long value) {
+      auto const previous = *address;
+      *address += value;
+      return previous;
+    }
+    static unsigned long long add(unsigned long long* address,
+                                  unsigned long long value) {
+      auto const previous = *address;
+      *address += value;
+      return previous;
+    }
+    static double add(double* address, double value) {
+      auto const previous = *address;
+      *address += value;
+      return previous;
+    }
+    static void maximum(double* address, double value) {
+      *address = std::max(*address, value);
+    }
+  };
+
+  gpu::radio::GpuRadioWaveforms projectRadioOnHost(
+      gpu::radio::GpuRadioConfig const& config,
+      std::vector<gpu::em::LeptonTransportRecord> const& records) {
+    namespace radio_detail = accelerator::radio::detail;
+    auto make_observer = [&](gpu::radio::RadioObserverSnapshot const& input,
+                             bool zhs) {
+      radio_detail::DeviceObserver result{};
+      for (int axis = 0; axis < 3; ++axis)
+        result.position_m[axis] = input.position_m[axis];
+      result.start_time_s = input.start_time_s;
+      result.duration_s = input.duration_s;
+      result.sample_rate_Hz = input.sample_rate_Hz;
+      auto const factor = zhs ? input.sample_rate_Hz : 1.;
+      result.fixed_point_scale =
+          radio_detail::FixedPointHeadroom * factor /
+          config.fixed_point_field_limit_V_per_m;
+      result.inverse_fixed_point_scale = 1. / result.fixed_point_scale;
+      result.number_of_bins = input.number_of_bins;
+      return result;
+    };
+    auto coreas_observer = make_observer(config.coreas_observers.front(), false);
+    auto zhs_observer = make_observer(config.zhs_observers.front(), true);
+    auto const bins = static_cast<std::size_t>(coreas_observer.number_of_bins);
+    std::vector<long long> coreas_fixed(3 * bins);
+    std::vector<long long> zhs_fixed(3 * bins);
+    radio_detail::DeviceWaveforms coreas_waveforms{};
+    coreas_waveforms.fixed_x = coreas_fixed.data();
+    coreas_waveforms.fixed_y = coreas_fixed.data() + bins;
+    coreas_waveforms.fixed_z = coreas_fixed.data() + 2 * bins;
+    radio_detail::DeviceWaveforms zhs_waveforms{};
+    zhs_waveforms.fixed_x = zhs_fixed.data();
+    zhs_waveforms.fixed_y = zhs_fixed.data() + bins;
+    zhs_waveforms.fixed_z = zhs_fixed.data() + 2 * bins;
+    radio_detail::DevicePropagation propagation{};
+    propagation.minimum_height_m = config.propagation.minimum_height_m;
+    propagation.maximum_height_m = config.propagation.maximum_height_m;
+    propagation.step_m = config.propagation.step_m;
+    propagation.inverse_step_per_m = config.propagation.inverse_step_per_m;
+    propagation.slope_refractivity_lower =
+        config.propagation.slope_refractivity_lower;
+    propagation.slope_integrated_refractivity_lower =
+        config.propagation.slope_integrated_refractivity_lower;
+    propagation.slope_refractivity_upper =
+        config.propagation.slope_refractivity_upper;
+    propagation.slope_integrated_refractivity_upper =
+        config.propagation.slope_integrated_refractivity_upper;
+    propagation.refractivity = config.propagation.refractivity.data();
+    propagation.integrated_refractivity =
+        config.propagation.integrated_refractivity.data();
+    propagation.table_size = config.propagation.refractivity.size();
+    propagation.zhs_subtrack_refinement = config.zhs_subtrack_refinement;
+    radio_detail::DeviceRadioCounters counters{};
+    for (auto const& record : records) {
+      radio_detail::RadioTrackKinematics track{};
+      if (!radio_detail::recordTrack<HostRadioAtomicOperations>(
+              record, &track, &counters, config.track_diagnostics))
+        continue;
+      radio_detail::accumulateCoREAS<HostRadioAtomicOperations>(
+          track, propagation, coreas_observer, coreas_waveforms, &counters);
+      radio_detail::accumulateZHS<HostRadioAtomicOperations>(
+          track, propagation, zhs_observer, zhs_waveforms, &counters);
+    }
+    gpu::radio::GpuRadioWaveforms output{};
+    output.coreas.resize(1);
+    output.zhs.resize(1);
+    auto fill = [&](gpu::radio::RadioWaveform& waveform,
+                    std::vector<long long> const& fixed, double inverse_scale) {
+      waveform.x.resize(bins);
+      waveform.y.resize(bins);
+      waveform.z.resize(bins);
+      for (std::size_t bin = 0; bin < bins; ++bin) {
+        waveform.x[bin] = static_cast<double>(fixed[bin]) * inverse_scale;
+        waveform.y[bin] =
+            static_cast<double>(fixed[bins + bin]) * inverse_scale;
+        waveform.z[bin] =
+            static_cast<double>(fixed[2 * bins + bin]) * inverse_scale;
+      }
+    };
+    fill(output.coreas.front(), coreas_fixed,
+         coreas_observer.inverse_fixed_point_scale);
+    fill(output.zhs.front(), zhs_fixed,
+         zhs_observer.inverse_fixed_point_scale);
+    return output;
+  }
 }
 
 int main(int argc, char** argv) {
   try {
+    auto checkpoint = [](char const* label) {
+      if (std::getenv("C8_KOKKOS_TEST_TRACE") != nullptr)
+        std::cerr << "[kokkos-test] " << label << std::endl;
+    };
     std::size_t samples = 16384;
     if (argc == 2) samples = std::stoull(argv[1]);
     if (argc > 2 || samples == 0) {
@@ -138,6 +250,33 @@ int main(int argc, char** argv) {
     backend_config.profile_projection.output_bin_width_g_per_cm2 = 8.;
     backend_config.profile_projection.fixed_point_weight_limit = 1.e12;
     backend_config.profile_projection.fixed_point_energy_limit_GeV = 1.e12;
+    backend_config.radio.enabled = true;
+    backend_config.radio.coreas_enabled = true;
+    backend_config.radio.zhs_enabled = true;
+    backend_config.radio.deterministic = true;
+    backend_config.radio.track_diagnostics = true;
+    backend_config.radio.fixed_point_field_limit_V_per_m = 1.;
+    backend_config.radio.propagation.minimum_height_m = earth_radius_m;
+    backend_config.radio.propagation.maximum_height_m = earth_radius_m + 1.e5;
+    backend_config.radio.propagation.step_m = 1000.;
+    backend_config.radio.propagation.inverse_step_per_m = 1. / 1000.;
+    for (std::size_t index = 0; index <= 100; ++index) {
+      auto const height_m = static_cast<double>(index) * 1000.;
+      auto const exponential = std::exp(-height_m / 8000.);
+      backend_config.radio.propagation.refractivity.push_back(
+          3.e-4 * exponential);
+      backend_config.radio.propagation.integrated_refractivity.push_back(
+          3.e-4 * 8000. * (1. - exponential));
+    }
+    gpu::radio::RadioObserverSnapshot observer{};
+    observer.position_m[0] = 500.;
+    observer.position_m[2] = earth_radius_m + 100.;
+    observer.start_time_s = 0.;
+    observer.duration_s = 2.e-4;
+    observer.sample_rate_Hz = 10.e6;
+    observer.number_of_bins = 2001;
+    backend_config.radio.coreas_observers.push_back(observer);
+    backend_config.radio.zhs_observers.push_back(observer);
     auto const environment = gpu::em::makeCorsika7AtmosphereSnapshot(
         AtmosphereId::USStdBK, {0., 0., 0.}, 0, earth_radius_m + 100.);
     auto const auxiliary = loadOrCreateProposalNativeAux(interactions);
@@ -150,6 +289,7 @@ int main(int argc, char** argv) {
         host_moliere_table.polynomials.data(),
         host_moliere_table.initial_guess_delta.data());
     backend.initialize(environment, source, auxiliary, backend_config);
+    checkpoint("initialized");
 
     std::vector<ProposalNativeQuery> queries;
     queries.reserve(samples);
@@ -167,6 +307,7 @@ int main(int argc, char** argv) {
 
     auto const device_output =
         accelerator::em::testing::runKokkosProposalNativeQueries(source, queries);
+    checkpoint("native queries");
     if (device_output.source_content_hash != source.content_hash ||
         device_output.device_bytes != proposalNativeTableBytes(source)) {
       throw std::runtime_error("Kokkos native-table identity changed on upload");
@@ -217,6 +358,12 @@ int main(int argc, char** argv) {
       particles[i].step_id = i % 29;
     }
     auto selected = backend.selectInteractionsForValidation(particles);
+    checkpoint("photon selection");
+    for (auto const& particle : particles) {
+      if (!backend.canTransport(particle))
+        throw std::runtime_error(
+            "Kokkos production gate rejected a validated photon");
+    }
     gpu::em::tables::FlatRateTableView host_physics{};
     host_physics.proposal_native = host_view;
     host_physics.physics_source = 1u;
@@ -273,6 +420,7 @@ int main(int argc, char** argv) {
 
     auto transported = backend.transportPhotonsForValidation(
         selected.interactions);
+    checkpoint("photon transport");
     std::vector<gpu::em::PhotonTransportRecord> expected_records;
     std::vector<gpu::em::ProposalFallbackEvent> expected_transport_fallbacks;
     for (auto const& interaction : selected.interactions) {
@@ -316,6 +464,7 @@ int main(int argc, char** argv) {
     auto const first_secondary_history_id = 10000000ULL;
     auto final_states = backend.generatePhotonFinalStatesForValidation(
         vertex_interactions, first_secondary_history_id);
+    checkpoint("photon final states");
     gpu::em::EmFinalStateBatchResult expected_final_states{};
     expected_final_states.input_interactions = vertex_interactions.size();
     std::uint64_t child_offset = 0;
@@ -438,6 +587,7 @@ int main(int argc, char** argv) {
     auto lepton_selection = backend.selectInteractionsForValidation(leptons);
     auto lepton_transport = backend.transportLeptonsForValidation(
         lepton_selection.interactions);
+    checkpoint("lepton transport");
     std::vector<gpu::em::LeptonTransportRecord> expected_lepton_records;
     std::vector<gpu::em::ProposalFallbackEvent> expected_lepton_fallbacks;
     for (auto const& interaction : lepton_selection.interactions) {
@@ -526,6 +676,7 @@ int main(int argc, char** argv) {
     }
     auto lepton_vertices =
         backend.selectLeptonVerticesForValidation(lepton_candidates);
+    checkpoint("lepton vertices");
     gpu::em::LeptonVertexSelectionBatchResult expected_vertices{};
     expected_vertices.input_candidates = lepton_candidates.size();
     for (auto const& candidate : lepton_candidates) {
@@ -568,6 +719,7 @@ int main(int argc, char** argv) {
     auto constexpr first_lepton_secondary_history_id = 2000000ULL;
     auto lepton_final_states = backend.generateLeptonFinalStatesForValidation(
         lepton_vertices.interactions, first_lepton_secondary_history_id);
+    checkpoint("lepton final states");
     gpu::em::BremsFinalStateBatchResult expected_lepton_final_states{};
     expected_lepton_final_states.input_interactions =
         lepton_vertices.interactions.size();
@@ -748,6 +900,7 @@ int main(int argc, char** argv) {
         resident_photons, 30000000ULL, 4, 1);
     auto resident_photon_repeat = backend.runPhotonWavefront(
         resident_photons, 30000000ULL, 4, 1);
+    checkpoint("resident photon");
     if (resident_photon.wavefronts == 0 ||
         resident_photon.input_particles != resident_photon_count ||
         !resident_photon.step_records.empty() ||
@@ -785,6 +938,7 @@ int main(int argc, char** argv) {
         resident_leptons, 40000000ULL, 3, 50000000ULL, 1);
     auto resident_lepton_repeat = backend.runLeptonWavefront(
         resident_leptons, 40000000ULL, 3, 50000000ULL, 1);
+    checkpoint("resident lepton");
     if (resident_lepton.wavefronts == 0 ||
         resident_lepton.input_particles != resident_lepton_count ||
         !resident_lepton.step_records.empty() ||
@@ -816,6 +970,7 @@ int main(int argc, char** argv) {
             "Kokkos resident lepton checkpoint changed on replay");
     }
     auto const profile = backend.downloadProfile();
+    checkpoint("profile download");
     auto const expected_profile_steps =
         resident_photon.transport_records +
         resident_photon_repeat.transport_records +
@@ -828,6 +983,27 @@ int main(int argc, char** argv) {
         !(profile.weighted_deposited_energy_GeV >= 0.)) {
       throw std::runtime_error(
           "Kokkos resident deterministic profile accumulation failed");
+    }
+
+    auto const radio_oracle =
+        projectRadioOnHost(backend_config.radio, lepton_transport.records);
+    auto const radio =
+        backend.projectRadioForValidation(lepton_transport.records);
+    checkpoint("radio projection");
+    auto compare_waveform = [](gpu::radio::RadioWaveform const& actual,
+                               gpu::radio::RadioWaveform const& expected) {
+      return actual.x == expected.x && actual.y == expected.y &&
+             actual.z == expected.z;
+    };
+    if (radio.coreas.size() != 1 || radio.zhs.size() != 1 ||
+        !compare_waveform(radio.coreas.front(), radio_oracle.coreas.front()) ||
+        !compare_waveform(radio.zhs.front(), radio_oracle.zhs.front()) ||
+        backend.statistics().radio.lepton_tracks == 0 ||
+        backend.statistics().radio.coreas_contributions == 0 ||
+        backend.statistics().radio.zhs_contributions == 0 ||
+        backend.statistics().radio.fixed_point_overflows != 0) {
+      throw std::runtime_error(
+          "Kokkos CoREAS/ZHS projection differs from the host oracle");
     }
 
     std::cout << "Kokkos proposal-native table passed " << queries.size()

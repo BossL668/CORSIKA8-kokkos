@@ -17,6 +17,7 @@
 
 - [新增命令行参数完整参考](documentation/cuda_em_refactor/cli_reference.md)
 - [CUDA 后端生产使用指南](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md)
+- [Kokkos 独立后端构建与使用](documentation/cuda_em_refactor/kokkos_backend_user_guide.md)
 - [验证脚本和复现实验](validation/gpu_em/README.md)
 - [架构文档与阶段记录索引](documentation/cuda_em_refactor/README.md)
 - [英文主 README 与新服务器部署](README.md#build-from-source)
@@ -32,6 +33,25 @@
 [英文主 README](README.md#build-from-source)；物理覆盖、表格、
 fallback 和输出字段见
 [CUDA 后端生产指南](documentation/cuda_em_refactor/cuda_em_backend_user_guide.md)。
+
+### 实验性 Kokkos 独立后端
+
+当前源码另加入了 Kokkos 4.7.03 的可移植实现，但它与 native CUDA 是两个独立
+构建产品，并且仍处于验收阶段。运行模式严格互斥：
+
+```text
+Kokkos-OpenMP：多个 CPU 核完成 EM 输运和 CoREAS/ZHS，不初始化 GPU
+Kokkos-CUDA/HIP/SYCL：一个 GPU execution space 完成 EM 和射电，host 只用 Serial
+```
+
+不会重新引入 beta3 中“OpenMP 强子 worker 与 GPU 同时推进同一 shower”的路径；
+GPU 构建会拒绝 `--hadronic-workers > 1`。Kokkos 后端只使用
+`proposal-native`，共享相同的 PROPOSAL 样条语义、Philox history key、球形大气、
+磁场传播、EM/μ 子过程、fixed-point profile 和 CoREAS/ZHS 公式。当前已经在
+OpenMP 和 NVIDIA CUDA 上完成编译、逐过程 oracle、确定性队列、射电以及完整应用
+冒烟测试；HIP/SYCL 只有版本化 profile 和 fail-closed 构建入口，尚未在对应硬件
+上完成验收。完整命令和真实状态见
+[Kokkos 后端指南](documentation/cuda_em_refactor/kokkos_backend_user_guide.md)。
 
 ## beta4 修复与验收状态
 

@@ -10,6 +10,8 @@
 |---|---|
 | [命令行参数参考](cli_reference.md) | 新增 executable、表格工具、replay、FLUKA worker 和验收 runner 的参数、默认值与约束 |
 | [生产使用指南](cuda_em_backend_user_guide.md) | 构建、物理表、运行、fallback、输出和生产流程 |
+| [Kokkos 后端指南](kokkos_backend_user_guide.md) | OpenMP/GPU 互斥构建、proposal-native、运行门禁和调优 |
+| [Phase 116](phase_116_beta4_kokkos_independent_backend_CN.md) | Kokkos 独立后端实现、已完成证据和未完成生产门禁 |
 | [最终验收报告](final_acceptance_report.md) | 当前验收矩阵和仍需保留的限制 |
 | [原始计划逐条审计](original_plan_requirement_audit.md) | 实施计划要求与当前实现的映射 |
 | [CoREAS/ZHS 在线累计](coreas_zhs_online_accumulation.md) | 射电计算与粒子输运的执行时序 |

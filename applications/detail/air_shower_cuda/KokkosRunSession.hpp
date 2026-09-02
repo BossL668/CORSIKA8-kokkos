@@ -10,41 +10,36 @@
 #include "AcceleratedRunEnvironmentConfig.hpp"
 #include "GpuCliOptions.hpp"
 
-#include <corsika/gpu/em/detail/CudaEmRunSession.hpp>
+#include <corsika/accelerator/em/detail/KokkosEmRunSession.hpp>
 #include <corsika/gpu/em/GpuEmRunOutput.hpp>
 #include <corsika/gpu/em/tables/RateTable.hpp>
 
 #include <memory>
-#include <optional>
-#include <string>
 
 namespace corsika::applications::air_shower {
 
-  /** Owns CUDA objects whose lifetime spans every shower in one library. */
-  class CudaRunSession {
+  /** Application-owned YAML/lifecycle wrapper for the portable backend. */
+  class KokkosRunSession {
   public:
-    CudaRunSession(GpuCliOptions const& options,
-                   CudaRunEnvironmentConfig const& environment);
+    KokkosRunSession(GpuCliOptions const&,
+                     AcceleratedRunEnvironmentConfig const&);
 
     bool enabled() const noexcept { return run_output_ != nullptr; }
-
     gpu::em::GpuEmRunOutput* runOutput() noexcept {
       return run_output_.get();
     }
-
     gpu::em::tables::RateTableSet const* loadedRateTable() const noexcept {
-      return runtime_session_ ? runtime_session_->loadedRateTable() : nullptr;
+      return nullptr;
     }
-
     bool hasBackend() const noexcept {
       return runtime_session_ && runtime_session_->initialized();
     }
-
-    gpu::em::detail::CudaEmRunSession& runtimeSession();
+    accelerator::em::detail::KokkosEmRunSession& runtimeSession();
 
   private:
-    std::unique_ptr<gpu::em::detail::CudaEmRunSession> runtime_session_;
-    std::unique_ptr<gpu::em::GpuEmRunOutput> run_output_;
+    std::unique_ptr<accelerator::em::detail::KokkosEmRunSession>
+        runtime_session_{};
+    std::unique_ptr<gpu::em::GpuEmRunOutput> run_output_{};
   };
 
 } // namespace corsika::applications::air_shower
