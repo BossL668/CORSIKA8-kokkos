@@ -27,7 +27,7 @@ namespace corsika::accelerator::em::kokkos_detail {
    */
   template <class ExecutionSpace>
   gpu::em::LeptonTransportBatchResult transportLeptons(
-      gpu::em::tables::FlatRateTableView const physics,
+      gpu::em::tables::NativePhysicsView const physics,
       gpu::em::EnvironmentSnapshot const environment,
       gpu::em::MoliereSnapshot const electron_moliere,
       gpu::em::MoliereSnapshot const muon_moliere,

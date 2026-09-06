@@ -11,9 +11,9 @@
 #include <cstdint>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
-#include <corsika/gpu/em/ObservationPlane.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
-#include <corsika/gpu/em/SphericalAtmosphere.hpp>
+#include <corsika/accelerator/em/common/ObservationPlane.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
 
 namespace corsika::accelerator::em::detail {
 

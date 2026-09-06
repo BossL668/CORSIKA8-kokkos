@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include <corsika/gpu/em/tables/ProposalNativeQueries.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeQueries.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -165,6 +165,11 @@ namespace corsika::accelerator::em::kokkos_detail {
     using execution_space = ExecutionSpace;
     using memory_space = typename ExecutionSpace::memory_space;
 
+    static std::size_t projectedDeviceBytes(
+        table::ProposalNativeTableSet const& source) {
+      return table::proposalNativeTableBytes(source);
+    }
+
     void initialize(
         table::ProposalNativeTableSet const& source,
         std::size_t const maximum_bytes =
@@ -178,7 +183,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         throw std::invalid_argument(
             "PROPOSAL native-table content hash does not match its payload");
       }
-      auto const requested = table::proposalNativeTableBytes(source);
+      auto const requested = projectedDeviceBytes(source);
       if (requested > maximum_bytes) {
         throw std::runtime_error(
             "PROPOSAL native table exceeds the configured Kokkos memory budget");

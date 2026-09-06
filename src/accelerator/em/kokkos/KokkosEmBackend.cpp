@@ -16,6 +16,7 @@
 #include <limits>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 #include <corsika/accelerator/em/kokkos/KokkosInteractionSelector.hpp>
@@ -30,8 +31,9 @@
 #include <corsika/accelerator/em/kokkos/KokkosProposalNativeTable.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentLeptonCascade.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentPhotonCascade.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosResidentCapacity.hpp>
 #include <corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp>
-#include <corsika/gpu/em/tables/Sha256.hpp>
+#include <corsika/accelerator/em/common/tables/Sha256.hpp>
 
 namespace corsika::accelerator::em {
 
@@ -74,6 +76,159 @@ namespace corsika::accelerator::em {
       }
     }
 
+    void refreshCrossSpeciesStorageStatistics() {
+      statistics_.cross_species_queue_device_bytes =
+          pending_photons_.deviceBytes() + pending_leptons_.deviceBytes();
+      statistics_.cross_species_queue_capacity_per_pid =
+          config_.resident_cross_species ? maximum_pending_particles_
+                                         : std::size_t{};
+      statistics_.peak_pending_photons = std::max(
+          statistics_.peak_pending_photons, pending_photons_.size());
+      statistics_.peak_pending_leptons = std::max(
+          statistics_.peak_pending_leptons, pending_leptons_.size());
+    }
+
+    struct StaticDeviceMemoryProjection {
+      std::size_t proposal_native_table{};
+      std::size_t moliere_interpolation{};
+      std::size_t profile_projection{};
+      std::size_t profile_accumulator{};
+      std::size_t radio_accumulator{};
+      std::size_t physics_context{};
+      kokkos_detail::KokkosMemoryProjection aggregate{};
+    };
+
+    static StaticDeviceMemoryProjection projectStaticDeviceMemory(
+        gpu::em::tables::ProposalNativeTableSet const& table,
+        gpu::em::GpuEmConfig const& config) {
+      StaticDeviceMemoryProjection result{};
+      result.proposal_native_table =
+          kokkos_detail::KokkosProposalNativeTable<
+              BackendExecutionSpace>::projectedDeviceBytes(table);
+      result.moliere_interpolation =
+          kokkos_detail::KokkosMoliereInterpolation<
+              BackendExecutionSpace>::projectedDeviceBytes();
+      result.profile_projection =
+          kokkos_detail::KokkosProfileProjection<
+              BackendExecutionSpace>::projectedDeviceBytes(
+              config.profile_projection);
+      result.profile_accumulator =
+          kokkos_detail::KokkosProfileAccumulator<
+              BackendExecutionSpace>::projectedDeviceBytes(
+              config.profile_projection);
+      result.radio_accumulator =
+          radio::kokkos_detail::KokkosRadioAccumulator<
+              BackendExecutionSpace>::projectedDeviceBytes(config.radio);
+      result.physics_context =
+          kokkos_detail::KokkosPhysicsContext<
+              BackendExecutionSpace>::projectedDeviceBytes();
+
+      kokkos_detail::KokkosMemoryProjectionBuilder projection{0};
+      projection.replace(0, result.proposal_native_table);
+      projection.replace(0, result.moliere_interpolation);
+      projection.replace(0, result.profile_projection);
+      projection.replace(0, result.profile_accumulator);
+      projection.replace(0, result.radio_accumulator);
+      projection.replace(0, result.physics_context);
+      result.aggregate = projection.result();
+      return result;
+    }
+
+    void requireStaticDeviceMemory(
+        StaticDeviceMemoryProjection const& projection) const {
+      if (memory_budget_bytes_ == 0 ||
+          projection.aggregate.transient_peak_bytes <= memory_budget_bytes_)
+        return;
+      throw std::runtime_error(
+          "Kokkos initialization preflight requires " +
+          std::to_string(projection.aggregate.transient_peak_bytes) +
+          " bytes of device memory (proposal-native=" +
+          std::to_string(projection.proposal_native_table) +
+          ", Moliere=" +
+          std::to_string(projection.moliere_interpolation) +
+          ", profile-projection=" +
+          std::to_string(projection.profile_projection) +
+          ", profile-accumulator=" +
+          std::to_string(projection.profile_accumulator) +
+          ", radio=" +
+          std::to_string(projection.radio_accumulator) +
+          ", context=" + std::to_string(projection.physics_context) +
+          "), exceeding the configured " +
+          std::to_string(memory_budget_bytes_) +
+          " byte device-memory budget before any static upload");
+    }
+
+    std::size_t retainedDeviceBytes() const {
+      auto bytes = table_.deviceBytes();
+      auto const append = [&bytes](std::size_t const amount) {
+        bytes = kokkos_detail::checkedMemoryAdd(bytes, amount);
+      };
+      append(moliere_interpolation_.deviceBytes());
+      append(physics_context_.deviceBytes());
+      append(profile_projection_.deviceBytes());
+      append(profile_accumulator_.deviceBytes());
+      append(radio_accumulator_.deviceBytes());
+      append(photon_workspace_.deviceBytes());
+      append(lepton_workspace_.deviceBytes());
+      append(pending_photons_.deviceBytes());
+      append(pending_leptons_.deviceBytes());
+      return bytes;
+    }
+
+    bool permitsResidentGrowth(
+        std::size_t const current_owner_bytes,
+        kokkos_detail::KokkosMemoryProjection const& projection,
+        char const* const) const {
+      if (memory_budget_bytes_ == 0) return true;
+      auto const retained = retainedDeviceBytes();
+      if (current_owner_bytes > retained)
+        throw std::logic_error(
+            "Kokkos resident-memory projection owner exceeds total storage");
+      auto const other = retained - current_owner_bytes;
+      auto const retained_after = kokkos_detail::checkedMemoryAdd(
+          other, projection.retained_bytes);
+      auto const transient_peak = kokkos_detail::checkedMemoryAdd(
+          other, projection.transient_peak_bytes);
+      return std::max(retained_after, transient_peak) <= memory_budget_bytes_;
+    }
+
+    static bool residentMemoryGateCallback(
+        void* context, std::size_t const current_owner_bytes,
+        kokkos_detail::KokkosMemoryProjection const& projection,
+        char const* const stage) {
+      if (context == nullptr)
+        throw std::logic_error(
+            "Kokkos resident-memory gate has no backend context");
+      return static_cast<Impl*>(context)->permitsResidentGrowth(
+          current_owner_bytes, projection, stage);
+    }
+
+    kokkos_detail::KokkosResidentMemoryBudgetGate residentMemoryGate() {
+      return {this, &Impl::residentMemoryGateCallback};
+    }
+
+    void refreshDeviceMemoryStatistics() {
+      refreshCrossSpeciesStorageStatistics();
+      statistics_.physical_workspace_bytes =
+          photon_workspace_.deviceBytes() + lepton_workspace_.deviceBytes();
+      statistics_.profile.device_bytes =
+          profile_projection_.deviceBytes() +
+          profile_accumulator_.deviceBytes();
+      statistics_.radio.device_bytes = radio_accumulator_.deviceBytes();
+      auto const resident_bytes = retainedDeviceBytes();
+      statistics_.peak_device_bytes =
+          std::max(statistics_.peak_device_bytes, resident_bytes);
+      if (memory_budget_bytes_ != 0 &&
+          resident_bytes > memory_budget_bytes_) {
+        throw std::runtime_error(
+            "Kokkos resident allocation requires " +
+            std::to_string(resident_bytes) +
+            " bytes, exceeding the configured " +
+            std::to_string(memory_budget_bytes_) +
+            " byte device-memory budget");
+      }
+    }
+
     KokkosRuntime runtime_;
     KokkosRuntimeConfig runtime_config_{};
     KokkosTuningCacheResult tuning_{};
@@ -87,17 +242,30 @@ namespace corsika::accelerator::em {
         profile_accumulator_{};
     radio::kokkos_detail::KokkosRadioAccumulator<BackendExecutionSpace>
         radio_accumulator_{};
+    kokkos_detail::KokkosResidentPhotonWorkspace<BackendExecutionSpace>
+        photon_workspace_{};
+    kokkos_detail::KokkosResidentLeptonWorkspace<BackendExecutionSpace>
+        lepton_workspace_{};
+    kokkos_detail::KokkosPhysicsContext<BackendExecutionSpace>
+        physics_context_{};
+    kokkos_detail::KokkosPendingParticleQueue<BackendExecutionSpace>
+        pending_photons_{"c8_kokkos_pending_photons"};
+    kokkos_detail::KokkosPendingParticleQueue<BackendExecutionSpace>
+        pending_leptons_{"c8_kokkos_pending_leptons"};
     gpu::em::tables::ProposalNativeTableSet host_table_{};
     gpu::em::tables::ProposalNativeAuxData auxiliary_{};
     gpu::em::EnvironmentSnapshot environment_{};
     gpu::em::GpuEmConfig config_{};
     gpu::em::GpuEmStatistics statistics_{};
-    gpu::em::tables::FlatRateTableView physics_{};
+    gpu::em::tables::NativePhysicsView physics_{};
     std::optional<gpu::em::GpuFirstInteractionSnapshot> first_interaction_{};
     std::uint64_t proposal_medium_hash_{};
     std::vector<std::pair<std::int32_t, std::uint64_t>> interaction_hashes_{};
     bool initialized_{};
     std::size_t maximum_resident_batch_size_{};
+    std::size_t maximum_pending_particles_{};
+    std::size_t memory_budget_bytes_{};
+    bool automatic_gpu_capacity_{};
   };
 
   KokkosEmBackend::KokkosEmBackend(KokkosRuntimeConfig const& config)
@@ -114,6 +282,7 @@ namespace corsika::accelerator::em {
       gpu::em::tables::ProposalNativeTableSet const& table,
       gpu::em::tables::ProposalNativeAuxData const& auxiliary,
       gpu::em::GpuEmConfig const& config) {
+    Kokkos::Timer initialization_timer;
     if (impl_->initialized_) {
       throw std::logic_error("Kokkos EM backend is already initialized");
     }
@@ -121,6 +290,14 @@ namespace corsika::accelerator::em {
       throw std::invalid_argument(
           "Kokkos EM backend supports proposal-native physics only");
     }
+    if (!(config.memory_fraction > 0.) || !(config.memory_fraction <= 1.))
+      throw std::invalid_argument(
+          "Kokkos device memory fraction must be in the interval (0, 1]");
+    gpu::em::tables::validateProposalNativeTable(table);
+    if (gpu::em::tables::calculateProposalNativeHash(table) !=
+        table.content_hash)
+      throw std::invalid_argument(
+          "PROPOSAL native-table content hash does not match its payload");
     impl_->environment_ = environment;
     impl_->config_ = config;
     impl_->host_table_ = table;
@@ -134,6 +311,20 @@ namespace corsika::accelerator::em {
       impl_->interaction_hashes_.emplace_back(
           identity.pdg_id, identity.interaction_hash);
     auto const& runtime = impl_->runtime_.info();
+    if (runtime.gpu) {
+      if (runtime.device_free_memory_bytes_at_initialization == 0)
+        throw std::runtime_error(
+            "Kokkos GPU backend cannot establish a device-memory budget");
+      impl_->memory_budget_bytes_ = static_cast<std::size_t>(
+          config.memory_fraction *
+          static_cast<double>(
+              runtime.device_free_memory_bytes_at_initialization));
+      if (impl_->memory_budget_bytes_ == 0)
+        throw std::runtime_error(
+            "Kokkos GPU device-memory budget is zero");
+    }
+    auto const static_memory = Impl::projectStaticDeviceMemory(table, config);
+    impl_->requireStaticDeviceMemory(static_memory);
     KokkosTuningKey const tuning_key{
         runtime.backend,
         runtime.device_name,
@@ -181,6 +372,15 @@ namespace corsika::accelerator::em {
     impl_->physics_.physics_source = 1u;
     impl_->physics_.em_transport_cut_MeV = config.em_transport_cut_MeV;
     impl_->physics_.muon_transport_cut_MeV = config.muon_transport_cut_MeV;
+    impl_->physics_context_.initialize(
+        impl_->physics_, impl_->environment_,
+        impl_->auxiliary_.electron_moliere, impl_->auxiliary_.muon_moliere,
+        impl_->moliere_interpolation_.deviceView(),
+        impl_->auxiliary_.has_muon_moliere != 0,
+        impl_->auxiliary_.photon_pair_lpm, impl_->auxiliary_.brems_lpm,
+        impl_->config_.thinning, impl_->profile_projection_.deviceView(),
+        impl_->config_.random_seed, impl_->config_.shower_id,
+        impl_->execution_);
     impl_->statistics_.shower_ordinal = 1;
     impl_->statistics_.accelerator_backend = runtime.backend;
     impl_->statistics_.accelerator_device_name = runtime.device_name;
@@ -236,24 +436,113 @@ namespace corsika::accelerator::em {
     impl_->statistics_.radio = impl_->radio_accumulator_.statistics();
     impl_->statistics_.auxiliary_cache_hit = auxiliary.cache_hit;
     impl_->statistics_.reused_for_shower = false;
-    // This is a routing checkpoint, not a preallocation.  Kokkos Views are
-    // still sized to the active wavefront.  A conservative cap prevents one
-    // unusually large shower front from exhausting a device before the
-    // portable memory-pool implementation lands.
-    impl_->maximum_resident_batch_size_ =
-        impl_->runtime_.info().gpu ? std::size_t{262144}
-                                  : std::size_t{65536};
+    // OpenMP retains its separately validated capacity policy. GPU automatic
+    // capacity is derived below from both arenas and the byte budget; an
+    // explicit replay checkpoint keeps the original grow-only behavior.
+    impl_->automatic_gpu_capacity_ =
+        runtime.gpu && config.resident_batch_limit == 0;
     // The tuning batch is an execution/workspace sizing hint.  It must not
     // replace the router's minimum resident-wavefront checkpoint: changing
     // that checkpoint changes when histories return to the host stack and can
     // therefore change history-id allocation and the Philox stream.
-    impl_->maximum_resident_batch_size_ = std::max(
-        {impl_->maximum_resident_batch_size_, impl_->config_.min_batch_size,
-         impl_->tuning_.parameters.batch_size});
+    if (impl_->config_.resident_batch_limit != 0) {
+      if (impl_->config_.resident_batch_limit <
+          impl_->config_.min_batch_size) {
+        throw std::invalid_argument(
+            "configured Kokkos resident batch limit is smaller than the "
+            "minimum execution batch");
+      }
+      impl_->maximum_resident_batch_size_ =
+          impl_->config_.resident_batch_limit;
+    } else if (!runtime.gpu) {
+      impl_->maximum_resident_batch_size_ = std::max(
+          {std::size_t{65536}, impl_->config_.min_batch_size,
+           impl_->tuning_.parameters.batch_size});
+    }
     impl_->statistics_.maximum_resident_photon_batch =
         impl_->maximum_resident_batch_size_;
     impl_->statistics_.maximum_resident_lepton_batch =
         impl_->maximum_resident_batch_size_;
+    // Match native CUDA's conservative policy: at the default 70% device
+    // budget, at most 512 MiB in total is devoted to the two cross-species
+    // queues.  Smaller configured fractions scale that allowance down;
+    // larger fractions leave the cap unchanged so transport workspaces retain
+    // headroom.
+    constexpr auto MaximumCrossSpeciesBytes = std::size_t{512} * 1024 * 1024;
+    auto const scaled_cross_species_bytes = static_cast<std::size_t>(
+        static_cast<double>(MaximumCrossSpeciesBytes) *
+        std::min(1.0, config.memory_fraction / 0.70));
+    impl_->maximum_pending_particles_ =
+        config.resident_cross_species
+            ? std::max(
+                  config.min_batch_size,
+                  scaled_cross_species_bytes /
+                      (2 * sizeof(gpu::em::EmParticleState)))
+            : std::size_t{};
+    if (impl_->automatic_gpu_capacity_) {
+      // Reserve at most 1/8 of the budget (512 MiB maximum) for two pending
+      // queues, and account for replacement of one full queue during compact.
+      impl_->maximum_pending_particles_ = config.resident_cross_species
+          ? std::min(MaximumCrossSpeciesBytes, impl_->memory_budget_bytes_ / 8) /
+                (2 * sizeof(gpu::em::EmParticleState))
+          : 0;
+      bool const project_steps = impl_->profile_projection_.enabled() &&
+                                 !impl_->profile_accumulator_.enabled();
+      auto const retained = impl_->retainedDeviceBytes();
+      auto const plan = kokkos_detail::selectResidentCapacity(
+          impl_->memory_budget_bytes_, config.min_batch_size,
+          impl_->maximum_pending_particles_, [&](std::size_t count) {
+            return kokkos_detail::projectResidentArenas(
+                count, retained, impl_->photon_workspace_,
+                impl_->lepton_workspace_, impl_->radio_accumulator_,
+                project_steps, impl_->execution_);
+          });
+      impl_->maximum_resident_batch_size_ = plan.input_particles;
+      // Pre-reserve once, after the complete projection passed. There is no
+      // per-particle allocation and no allocation-driven RNG consumption.
+      kokkos_detail::reserveResidentArenas(
+          plan.input_particles, impl_->photon_workspace_,
+          impl_->lepton_workspace_, impl_->radio_accumulator_,
+          project_steps, impl_->execution_);
+      impl_->pending_photons_.ensureTailCapacity(
+          plan.pending_particles_per_species, plan.pending_particles_per_species,
+          impl_->execution_);
+      impl_->pending_leptons_.ensureTailCapacity(
+          plan.pending_particles_per_species, plan.pending_particles_per_species,
+          impl_->execution_);
+      if (impl_->retainedDeviceBytes() != plan.retained_bytes)
+        throw std::logic_error(
+            "Kokkos automatic resident-capacity projection disagrees with allocation");
+      impl_->statistics_.automatic_capacity_budget_bytes = impl_->memory_budget_bytes_;
+      impl_->statistics_.automatic_capacity_planned_bytes = plan.retained_bytes;
+      impl_->statistics_.automatic_capacity_peak_bytes = plan.transient_peak_bytes;
+      impl_->statistics_.automatic_capacity_allocator_reserve_bytes =
+          plan.allocator_reserve_bytes;
+      impl_->statistics_.maximum_resident_photon_batch = plan.input_particles;
+      impl_->statistics_.maximum_resident_lepton_batch = plan.input_particles;
+    }
+    impl_->statistics_.cross_species_queue_capacity_per_pid =
+        impl_->maximum_pending_particles_;
+    impl_->refreshDeviceMemoryStatistics();
+    // Complete asynchronous initialization before stopping the lifecycle
+    // timer, otherwise the first shower would inherit part of the setup cost.
+    impl_->execution_.fence("complete Kokkos EM backend initialization");
+    if (runtime.gpu) {
+      using kokkos_detail::checkedMemoryAdd;
+      auto static_upload_bytes = impl_->table_.deviceBytes();
+      static_upload_bytes = checkedMemoryAdd(
+          static_upload_bytes, impl_->moliere_interpolation_.deviceBytes());
+      static_upload_bytes = checkedMemoryAdd(
+          static_upload_bytes, impl_->profile_projection_.deviceBytes());
+      static_upload_bytes = checkedMemoryAdd(
+          static_upload_bytes,
+          impl_->radio_accumulator_.staticHostToDeviceBytes());
+      static_upload_bytes = checkedMemoryAdd(
+          static_upload_bytes, impl_->physics_context_.deviceBytes());
+      impl_->statistics_.static_host_to_device_bytes = static_upload_bytes;
+    }
+    impl_->statistics_.one_time_initialization_ms =
+        1000. * initialization_timer.seconds();
     impl_->initialized_ = true;
   }
 
@@ -437,16 +726,24 @@ namespace corsika::accelerator::em {
         device_records, records.size(), impl_->execution_);
     auto result = impl_->radio_accumulator_.download(impl_->execution_);
     impl_->statistics_.radio = impl_->radio_accumulator_.statistics();
+    impl_->refreshDeviceMemoryStatistics();
     return result;
   }
 
   void KokkosEmBackend::beginShower(
       AcceleratedEmShowerConfig const& shower) {
     impl_->requireInitialized();
+    if (!impl_->pending_photons_.empty() ||
+        !impl_->pending_leptons_.empty())
+      throw std::logic_error(
+          "cannot begin a new Kokkos shower with pending cross-species particles");
     auto const static_statistics = impl_->statistics_;
     impl_->config_.random_seed = shower.random_seed;
     impl_->config_.shower_id = shower.shower_id;
     impl_->config_.thinning = shower.thinning;
+    impl_->physics_context_.beginShower(
+        shower.thinning, shower.random_seed, shower.shower_id,
+        impl_->execution_);
     auto const ordinal = impl_->statistics_.shower_ordinal + 1;
     auto const static_bytes = impl_->statistics_.native_table_device_bytes;
     auto const all_table_bytes = impl_->statistics_.table_device_bytes;
@@ -491,6 +788,10 @@ namespace corsika::accelerator::em {
     impl_->statistics_.accelerator_openmp =
         static_statistics.accelerator_openmp;
     impl_->statistics_.accelerator_gpu = static_statistics.accelerator_gpu;
+    impl_->statistics_.static_host_to_device_bytes =
+        static_statistics.static_host_to_device_bytes;
+    impl_->statistics_.one_time_initialization_ms =
+        static_statistics.one_time_initialization_ms;
     impl_->statistics_.tuning_cache_matched =
         static_statistics.tuning_cache_matched;
     impl_->statistics_.tuning_cache_required =
@@ -520,6 +821,16 @@ namespace corsika::accelerator::em {
         impl_->maximum_resident_batch_size_;
     impl_->statistics_.maximum_resident_lepton_batch =
         impl_->maximum_resident_batch_size_;
+    impl_->statistics_.automatic_capacity_budget_bytes =
+        static_statistics.automatic_capacity_budget_bytes;
+    impl_->statistics_.automatic_capacity_planned_bytes =
+        static_statistics.automatic_capacity_planned_bytes;
+    impl_->statistics_.automatic_capacity_peak_bytes =
+        static_statistics.automatic_capacity_peak_bytes;
+    impl_->statistics_.automatic_capacity_allocator_reserve_bytes =
+        static_statistics.automatic_capacity_allocator_reserve_bytes;
+    impl_->statistics_.cross_species_queue_capacity_per_pid =
+        impl_->maximum_pending_particles_;
     impl_->statistics_.native_table_hash = table_hash;
     impl_->statistics_.auxiliary_cache_hash = auxiliary_hash;
     impl_->statistics_.native_table_device_bytes = static_bytes;
@@ -536,7 +847,10 @@ namespace corsika::accelerator::em {
         shower.profile_fixed_point_weight_limit,
         shower.profile_fixed_point_energy_limit_GeV, impl_->execution_);
     impl_->radio_accumulator_.reset(impl_->execution_);
+    impl_->pending_photons_.clear();
+    impl_->pending_leptons_.clear();
     impl_->first_interaction_.reset();
+    impl_->refreshDeviceMemoryStatistics();
   }
 
   bool KokkosEmBackend::canTransport(
@@ -572,8 +886,16 @@ namespace corsika::accelerator::em {
     impl_->requireInitialized();
     return impl_->maximum_resident_batch_size_;
   }
-  std::size_t KokkosEmBackend::pendingPhotonCount() const noexcept { return 0; }
-  std::size_t KokkosEmBackend::pendingLeptonCount() const noexcept { return 0; }
+  std::size_t KokkosEmBackend::pendingPhotonCount() const noexcept {
+    return impl_->config_.resident_cross_species
+               ? impl_->pending_photons_.size()
+               : std::size_t{};
+  }
+  std::size_t KokkosEmBackend::pendingLeptonCount() const noexcept {
+    return impl_->config_.resident_cross_species
+               ? impl_->pending_leptons_.size()
+               : std::size_t{};
+  }
 
   gpu::em::ResidentPhotonCascadeResult KokkosEmBackend::runPhotonWavefront(
       std::vector<gpu::em::EmParticleState> const& particles,
@@ -582,10 +904,21 @@ namespace corsika::accelerator::em {
       std::size_t minimum_resident_batch_size) {
     using namespace gpu::em;
     impl_->requireInitialized();
+    if (particles.size() > impl_->maximum_resident_batch_size_)
+      throw std::length_error(
+          "Kokkos photon input exceeds the advertised resident batch limit");
+    auto const retain_cross_species = impl_->config_.resident_cross_species;
+    auto const pending_photon_input =
+        retain_cross_species
+            ? std::min(
+                  impl_->pending_photons_.size(),
+                  particles.size() < impl_->maximum_resident_batch_size_
+                      ? impl_->maximum_resident_batch_size_ - particles.size()
+                      : std::size_t{})
+            : std::size_t{};
+    auto const pending_leptons_before = impl_->pending_leptons_.size();
     auto resident = kokkos_detail::runResidentPhotonCascade(
-        impl_->physics_, impl_->auxiliary_.photon_pair_lpm,
-        impl_->config_.thinning, impl_->environment_, particles,
-        impl_->config_.random_seed, impl_->config_.shower_id,
+        impl_->physics_context_.deviceView(), particles,
         first_secondary_history_id, maximum_wavefronts,
         minimum_resident_batch_size, impl_->first_interaction_,
         impl_->profile_projection_.enabled() &&
@@ -594,11 +927,56 @@ namespace corsika::accelerator::em {
         impl_->profile_accumulator_.enabled()
             ? &impl_->profile_accumulator_
             : nullptr,
-        impl_->execution_);
+        &impl_->photon_workspace_,
+        retain_cross_species ? &impl_->pending_photons_ : nullptr,
+        retain_cross_species ? &impl_->pending_leptons_ : nullptr,
+        pending_photon_input, impl_->maximum_pending_particles_,
+        impl_->execution_, impl_->config_.diagnostic_interaction_records,
+        impl_->tuning_.parameters.chunk_size,
+        impl_->residentMemoryGate());
+    if (resident.input_particles !=
+        pending_photon_input + particles.size())
+      throw std::logic_error(
+          "Kokkos photon pending-input accounting disagrees with the router");
+    if (retain_cross_species &&
+        !resident.electromagnetic_secondaries.empty())
+      throw std::logic_error(
+          "resident Kokkos photon cascade returned retained leptons twice");
+    auto const pending_leptons_added =
+        impl_->pending_leptons_.size() - pending_leptons_before;
+    impl_->statistics_.physical_host_to_device_bytes +=
+        particles.size() * sizeof(EmParticleState);
+    impl_->statistics_.cross_species_particles_kept_on_device +=
+        pending_leptons_added;
+    impl_->statistics_.cross_species_device_to_device_bytes +=
+        (pending_photon_input + pending_leptons_added) *
+        sizeof(EmParticleState);
+    if (retain_cross_species && !resident.cpu_spill_particles.empty()) {
+      ++impl_->statistics_.cross_species_host_spills;
+      impl_->statistics_.cross_species_particles_spilled_to_cpu +=
+          resident.cpu_spill_particles.size();
+    }
+    impl_->refreshDeviceMemoryStatistics();
     impl_->statistics_.physical_photon_wavefronts += resident.wavefronts;
+    impl_->statistics_.wavefront_bucketing_batches +=
+        resident.wavefront_bucketing_batches;
+    impl_->statistics_.wavefront_bucketing_particles +=
+        resident.wavefront_bucketing_particles;
+    impl_->statistics_.wavefront_bucketing_small_batches +=
+        resident.wavefront_bucketing_small_batches;
+    impl_->statistics_.wavefront_bucketing_small_particles +=
+        resident.wavefront_bucketing_small_particles;
+    impl_->statistics_.native_newton_iterations +=
+        resident.native_newton_iterations;
+    impl_->statistics_.native_bisection_iterations +=
+        resident.native_bisection_iterations;
+    impl_->statistics_.native_inverse_failures +=
+        resident.native_inverse_failures;
     impl_->statistics_.interaction_selection_batches += resident.wavefronts;
     impl_->statistics_.photon_transport_batches += resident.wavefronts;
-    impl_->statistics_.interactions_selected += resident.transport_records;
+    impl_->statistics_.interactions_selected += resident.selected_interactions;
+    impl_->statistics_.final_state_batches +=
+        resident.interaction_bearing_wavefronts;
     impl_->statistics_.photon_transport_interactions +=
         resident.interaction_vertices;
     impl_->statistics_.photon_transport_boundaries +=
@@ -664,6 +1042,7 @@ namespace corsika::accelerator::em {
         break;
       }
       auto selected = selectInteractionsForValidation(current);
+      result.selected_interactions += selected.interactions.size();
       auto transported = transportPhotonsForValidation(selected.interactions);
       std::vector<EmInteractionRecord> vertices;
       vertices.reserve(transported.records.size());
@@ -671,6 +1050,7 @@ namespace corsika::accelerator::em {
         if (record.limit == PhotonTransportLimit::Interaction)
           vertices.push_back(record.interaction);
       }
+      result.interaction_bearing_wavefronts += !vertices.empty();
       auto final_states = generatePhotonFinalStatesForValidation(
           vertices, next_history_id);
       if (final_states.secondaries.size() >
@@ -780,13 +1160,23 @@ namespace corsika::accelerator::em {
       std::size_t minimum_resident_batch_size) {
     using namespace gpu::em;
     impl_->requireInitialized();
+    if (particles.size() > impl_->maximum_resident_batch_size_)
+      throw std::length_error(
+          "Kokkos lepton input exceeds the advertised resident batch limit");
+    auto const retain_cross_species = impl_->config_.resident_cross_species;
+    auto const pending_lepton_input =
+        retain_cross_species
+            ? std::min(
+                  impl_->pending_leptons_.size(),
+                  particles.size() < impl_->maximum_resident_batch_size_
+                      ? impl_->maximum_resident_batch_size_ - particles.size()
+                      : std::size_t{})
+            : std::size_t{};
+    auto const pending_photons_before = impl_->pending_photons_.size();
     auto resident = kokkos_detail::runResidentLeptonCascade(
-        impl_->physics_, impl_->environment_,
-        impl_->auxiliary_.electron_moliere, impl_->auxiliary_.muon_moliere,
-        impl_->moliere_interpolation_.deviceView(),
-        impl_->auxiliary_.has_muon_moliere != 0,
-        impl_->auxiliary_.brems_lpm, impl_->config_.thinning, particles,
-        impl_->config_.random_seed, impl_->config_.shower_id,
+        impl_->physics_context_.deviceView(),
+        impl_->auxiliary_.brems_lpm.lepton_mass_MeV / 1000.,
+        impl_->auxiliary_.electron_moliere.component_count <= 4u, particles,
         first_secondary_history_id, maximum_wavefronts,
         secondary_history_id_limit_exclusive, minimum_resident_batch_size,
         impl_->first_interaction_,
@@ -799,13 +1189,56 @@ namespace corsika::accelerator::em {
         impl_->radio_accumulator_.enabled()
             ? &impl_->radio_accumulator_
             : nullptr,
-        impl_->execution_);
+        &impl_->lepton_workspace_,
+        retain_cross_species ? &impl_->pending_leptons_ : nullptr,
+        retain_cross_species ? &impl_->pending_photons_ : nullptr,
+        pending_lepton_input, impl_->maximum_pending_particles_,
+        impl_->execution_, impl_->config_.diagnostic_interaction_records,
+        impl_->tuning_.parameters.chunk_size,
+        impl_->residentMemoryGate(),
+        impl_->automatic_gpu_capacity_ ? impl_->maximum_resident_batch_size_ : 0);
+    if (resident.input_particles !=
+        pending_lepton_input + particles.size())
+      throw std::logic_error(
+          "Kokkos lepton pending-input accounting disagrees with the router");
+    if (retain_cross_species && !resident.generated_photons.empty())
+      throw std::logic_error(
+          "resident Kokkos lepton cascade returned retained photons twice");
+    auto const pending_photons_added =
+        impl_->pending_photons_.size() - pending_photons_before;
+    impl_->statistics_.physical_host_to_device_bytes +=
+        particles.size() * sizeof(EmParticleState);
+    impl_->statistics_.cross_species_particles_kept_on_device +=
+        pending_photons_added;
+    impl_->statistics_.cross_species_device_to_device_bytes +=
+        (pending_lepton_input + pending_photons_added) *
+        sizeof(EmParticleState);
+    if (retain_cross_species && !resident.cpu_spill_particles.empty()) {
+      ++impl_->statistics_.cross_species_host_spills;
+      impl_->statistics_.cross_species_particles_spilled_to_cpu +=
+          resident.cpu_spill_particles.size();
+    }
+    impl_->refreshDeviceMemoryStatistics();
     impl_->statistics_.physical_lepton_wavefronts += resident.wavefronts;
+    impl_->statistics_.wavefront_bucketing_batches +=
+        resident.wavefront_bucketing_batches;
+    impl_->statistics_.wavefront_bucketing_particles +=
+        resident.wavefront_bucketing_particles;
+    impl_->statistics_.wavefront_bucketing_small_batches +=
+        resident.wavefront_bucketing_small_batches;
+    impl_->statistics_.wavefront_bucketing_small_particles +=
+        resident.wavefront_bucketing_small_particles;
     impl_->statistics_.interaction_selection_batches += resident.wavefronts;
     impl_->statistics_.lepton_transport_batches += resident.wavefronts;
-    impl_->statistics_.lepton_vertex_selection_batches += resident.wavefronts;
-    impl_->statistics_.final_state_batches += resident.wavefronts;
-    impl_->statistics_.interactions_selected += resident.transport_records;
+    impl_->statistics_.lepton_vertex_selection_batches +=
+        resident.interaction_bearing_wavefronts;
+    impl_->statistics_.lepton_vertex_interactions_selected +=
+        resident.vertex_interactions_selected;
+    impl_->statistics_.lepton_vertex_no_interaction_continuations +=
+        resident.vertex_no_interaction_continuations;
+    impl_->statistics_.final_state_batches +=
+        resident.final_state_bearing_wavefronts;
+    impl_->statistics_.interactions_selected += resident.selected_interactions;
     impl_->statistics_.proposal_fallbacks += resident.fallback_events.size();
     auto const& process = resident.process_statistics;
     impl_->statistics_.gpu_final_states += process.gpu_final_states;
@@ -914,6 +1347,13 @@ namespace corsika::accelerator::em {
         result.history_range_exhausted = true;
         break;
       }
+      result.selected_interactions += selected.interactions.size();
+      result.interaction_bearing_wavefronts += !candidates.empty();
+      result.vertex_interactions_selected += vertices.interactions.size();
+      result.vertex_no_interaction_continuations +=
+          vertices.continuations.size();
+      result.final_state_bearing_wavefronts +=
+          !vertices.interactions.empty();
       next_history_id += final_states.secondaries.size();
 
       struct SourceChildren {
@@ -1067,6 +1507,7 @@ namespace corsika::accelerator::em {
     impl_->requireInitialized();
     auto result = impl_->radio_accumulator_.download(impl_->execution_);
     impl_->statistics_.radio = impl_->radio_accumulator_.statistics();
+    impl_->refreshDeviceMemoryStatistics();
     return result;
   }
   std::optional<gpu::em::GpuFirstInteractionSnapshot>

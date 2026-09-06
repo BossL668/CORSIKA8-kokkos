@@ -14,7 +14,7 @@
 #include <vector>
 
 #include <corsika/accelerator/em/AcceleratorKind.hpp>
-#include <corsika/gpu/em/Types.hpp>
+#include <corsika/accelerator/em/common/Types.hpp>
 
 namespace corsika::accelerator::em {
 
@@ -22,7 +22,7 @@ namespace corsika::accelerator::em {
   using AcceleratedEmStatistics = gpu::em::GpuEmStatistics;
 
   struct BackendCapabilities {
-    AcceleratorKind kind{AcceleratorKind::NativeCuda};
+    AcceleratorKind kind{AcceleratorKind::KokkosOpenMP};
     bool photon_transport{};
     bool electron_transport{};
     bool positron_transport{};

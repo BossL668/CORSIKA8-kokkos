@@ -11,7 +11,7 @@
 #include <cstdint>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -75,13 +75,13 @@ namespace corsika::accelerator::em::detail {
    */
   C8_ACCELERATOR_INLINE_FUNCTION inline LeptonContinuousPreparation
   prepareLeptonContinuousStep(
-      gpu::em::tables::FlatRateTableView const& table,
+      gpu::em::tables::NativePhysicsView const& table,
       gpu::em::EmInteractionRecord const& interaction) {
     using namespace gpu::em;
     using namespace gpu::em::tables;
     LeptonContinuousPreparation output{};
     auto const& start = interaction.particle;
-    auto const mass = queryContinuousMass(table, start.pid);
+    auto const mass = queryContinuousTransportMass(table, start.pid);
     auto const minimum_energy = queryContinuousMinimumEnergy(table, start.pid);
     if (mass.status != TableLookupStatus::Success) {
       output.fallback = makeLeptonTableFallback(interaction, mass.status, 1.);
@@ -103,9 +103,10 @@ namespace corsika::accelerator::em::detail {
       output.fallback_flag = 1;
       return output;
     }
-    output.transport_cut_MeV =
-        (minimum_energy.value - mass.value) / ContinuousCutSafetyFactor;
-    if (!leptonContinuousFinite(output.transport_cut_MeV) ||
+    auto const transport_cut = queryContinuousTransportCut(table, start.pid);
+    output.transport_cut_MeV = transport_cut.value;
+    if (transport_cut.status != TableLookupStatus::Success ||
+        !leptonContinuousFinite(output.transport_cut_MeV) ||
         !(output.transport_cut_MeV > 0.)) {
       output.fallback = makeLeptonTransportFallback(
           interaction, ProposalFallbackReason::InvalidTableQuery);
@@ -166,7 +167,7 @@ namespace corsika::accelerator::em::detail {
   /** Evaluate the post-step range inversion and scalar ParticleCut state. */
   C8_ACCELERATOR_INLINE_FUNCTION inline LeptonContinuousLoss
   evaluateLeptonContinuousLoss(
-      gpu::em::tables::FlatRateTableView const& table,
+      gpu::em::tables::NativePhysicsView const& table,
       gpu::em::EmInteractionRecord const& interaction,
       LeptonContinuousPreparation const& preparation,
       double const traversed_grammage_g_per_cm2,

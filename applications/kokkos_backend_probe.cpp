@@ -29,12 +29,24 @@ int main(int argc, char** argv) {
   auto const probe = runtime.runPrimitiveProbe(values);
   auto const queue = runtime.runQueueProbe(4096);
   auto const& info = runtime.info();
+  auto const memory_query_valid =
+      !info.gpu ||
+      (info.device_total_memory_bytes != 0 &&
+       info.device_free_memory_bytes_at_initialization != 0 &&
+       info.device_free_memory_bytes_at_initialization <=
+           info.device_total_memory_bytes);
   std::cout << "backend=" << info.backend << '\n'
             << "kokkos_version=" << info.kokkos_version << '\n'
             << "device_name=" << info.device_name << '\n'
             << "concurrency=" << info.concurrency << '\n'
             << "gpu=" << (info.gpu ? "true" : "false") << '\n'
             << "openmp=" << (info.openmp ? "true" : "false") << '\n'
+            << "device_total_memory_bytes="
+            << info.device_total_memory_bytes << '\n'
+            << "device_free_memory_bytes_at_initialization="
+            << info.device_free_memory_bytes_at_initialization << '\n'
+            << "memory_query_valid="
+            << (memory_query_valid ? "true" : "false") << '\n'
             << "values=" << probe.values << '\n'
             << "selected=" << probe.selected << '\n'
             << "checksum=" << probe.checksum << '\n'
@@ -47,7 +59,8 @@ int main(int argc, char** argv) {
             << "queue_roundtrip_exact="
             << (queue.roundtrip_exact ? "true" : "false")
             << '\n';
-  return probe.scan_valid && queue.stable_order && queue.roundtrip_exact
+  return probe.scan_valid && queue.stable_order && queue.roundtrip_exact &&
+                 memory_query_valid
              ? 0
              : 2;
 }

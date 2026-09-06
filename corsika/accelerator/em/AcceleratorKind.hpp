@@ -12,7 +12,6 @@
 namespace corsika::accelerator::em {
 
   enum class AcceleratorKind : std::uint32_t {
-    NativeCuda = 0,
     KokkosOpenMP = 1,
     KokkosCuda = 2,
     KokkosHip = 3,

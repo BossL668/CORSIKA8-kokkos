@@ -37,6 +37,8 @@ namespace corsika::accelerator::em {
     int device{};
     int concurrency{};
     int host_threads{1};
+    std::size_t device_total_memory_bytes{};
+    std::size_t device_free_memory_bytes_at_initialization{};
     bool gpu{};
     bool openmp{};
   };

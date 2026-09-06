@@ -47,9 +47,7 @@ namespace corsika::accelerator::em::detail {
         std::vector<proposal::NativeContinuousCalculatorView> const&);
 
     /** Fail-closed compatibility entry point for generic application code. */
-    KokkosSessionBeginResult beginC8EmRt(
-        gpu::em::EnvironmentSnapshot const&, gpu::em::GpuEmConfig const&,
-        AcceleratedPhysicsRequirements const&);
+
 
     bool initialized() const noexcept;
     KokkosEmBackend& backend();

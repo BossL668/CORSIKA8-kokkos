@@ -13,8 +13,8 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/RandomDomains.hpp>
-#include <corsika/gpu/em/Philox.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/Philox.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -32,7 +32,7 @@ namespace corsika::accelerator::em::detail {
 
   C8_ACCELERATOR_INLINE_FUNCTION inline InteractionSelectionOutcome
   selectDiscreteInteraction(
-      table::FlatRateTableView const& physics,
+      table::NativePhysicsView const& physics,
       gpu::em::EmParticleState const& particle,
       std::uint64_t const input_index, std::uint64_t const random_seed,
       std::uint64_t const shower_id) {
@@ -64,31 +64,34 @@ namespace corsika::accelerator::em::detail {
     }
     if (charged_lepton) {
       auto const mass = table::queryContinuousMass(physics, particle.pid);
+      auto const transport_mass =
+          table::queryContinuousTransportMass(physics, particle.pid);
       if (mass.status == table::TableLookupStatus::Success) {
         record.particle_mass_GeV = mass.value / 1000.;
         if (isMuonPid(particle.pid) &&
-            particle.energy_GeV > record.particle_mass_GeV) {
+            transport_mass.status == table::TableLookupStatus::Success &&
+            particle.energy_GeV > transport_mass.value / 1000.) {
           RandomNumberKey const decay_key{
               random_seed, shower_id, particle.history_id, particle.step_id,
               MuonDecayRandomProcessId, MuonDecayDrawId};
           record.decay_uniform = uniformOpen01(decay_key);
           record.decay_draw_id = MuonDecayDrawId;
           auto const momentum_GeV = ::sqrt(
-              (particle.energy_GeV - record.particle_mass_GeV) *
-              (particle.energy_GeV + record.particle_mass_GeV));
+              (particle.energy_GeV - transport_mass.value / 1000.) *
+              (particle.energy_GeV + transport_mass.value / 1000.));
           record.decay_distance_m =
               -::log(record.decay_uniform) * MuonDecaySpeedOfLightMPerS *
-              MuonMeanLifetimeS * momentum_GeV / record.particle_mass_GeV;
+              MuonMeanLifetimeS * momentum_GeV / (transport_mass.value / 1000.);
         }
       }
       auto const minimum_energy =
           table::queryContinuousMinimumEnergy(physics, particle.pid);
+      auto const transport_cut =
+          table::queryContinuousTransportCut(physics, particle.pid);
       auto const below_cut =
-          mass.status == table::TableLookupStatus::Success &&
-          minimum_energy.status == table::TableLookupStatus::Success &&
-          energy_MeV - mass.value <
-              (minimum_energy.value - mass.value) /
-                  table::ContinuousCutSafetyFactor;
+          transport_mass.status == table::TableLookupStatus::Success &&
+          transport_cut.status == table::TableLookupStatus::Success &&
+          energy_MeV - transport_mass.value < transport_cut.value;
       if (below_cut ||
           (minimum_energy.status == table::TableLookupStatus::Success &&
            energy_MeV <= minimum_energy.value)) {
@@ -133,9 +136,9 @@ namespace corsika::accelerator::em::detail {
       return output;
     }
 
-    auto const proposal_native = physics.physics_source == 1u;
+    constexpr bool proposal_native = true;
     table::RateColumnSelectionResult selection{};
-    if (proposal_native) {
+    
       RandomNumberKey const proposal_key{
           random_seed, shower_id, particle.history_id, particle.step_id,
           ProposalSelectionRandomProcessId, ProposalSelectionDrawId};
@@ -146,16 +149,12 @@ namespace corsika::accelerator::em::detail {
       selection = table::selectRateColumnByUniform(
           physics, particle.pid, energy_MeV,
           record.proposal_selection_uniform);
-    } else {
-      selection = table::selectRateColumnByThreshold(
-          physics, particle.pid, energy_MeV,
-          record.process_uniform * total.value);
-    }
+    
     if (selection.status != table::TableLookupStatus::Success) {
       auto const result = table::TableQueryResult{selection.status, 0, 0.};
       output.fallback = makeTableFallbackEvent(
           particle, total_query, result, 0, input_index);
-      if (proposal_native) {
+      
         output.fallback.selection_uniform =
             record.proposal_selection_uniform;
         output.fallback.outer_acceptance_uniform = record.process_uniform;
@@ -164,7 +163,7 @@ namespace corsika::accelerator::em::detail {
         output.fallback.outer_acceptance_random_process_id =
             InteractionColumnRandomProcessId;
         output.fallback.outer_acceptance_draw_id = InteractionColumnDrawId;
-      }
+      
       output.fallback_flag = 1;
       return output;
     }
@@ -178,7 +177,7 @@ namespace corsika::accelerator::em::detail {
 
     record.process_id = selection.process_id;
     record.component_hash = selection.component_hash;
-    if (proposal_native) {
+    
       record.loss_quantile = selection.residual_quantile;
       if (proposalNativeSelectionRequiresReplay(
               particle.pid, record.process_id, record.loss_quantile)) {
@@ -187,24 +186,18 @@ namespace corsika::accelerator::em::detail {
         output.fallback_flag = 1;
         return output;
       }
-    } else {
-      RandomNumberKey const loss_key{
-          random_seed, shower_id, particle.history_id, particle.step_id,
-          static_cast<std::uint32_t>(record.process_id),
-          InteractionLossDrawId};
-      record.loss_quantile = uniformOpen01(loss_key);
-    }
+    
     table::TableQuery const loss_query{
         table::TableQueryKind::LossFraction, particle.pid, record.process_id,
         record.component_hash, energy_MeV, record.loss_quantile};
     auto const loss = table::executeTableQuery(physics, loss_query);
-    if (proposal_native) {
+    
       output.native_newton_iterations = table::nativeNewtonIterations(loss);
       output.native_bisection_iterations =
           table::nativeBisectionIterations(loss);
       output.native_inverse_failures =
           loss.status == table::TableLookupStatus::Success ? 0u : 1u;
-    }
+    
     if (loss.status != table::TableLookupStatus::Success) {
       output.fallback = makeTableFallbackEvent(
           particle, loss_query, loss,

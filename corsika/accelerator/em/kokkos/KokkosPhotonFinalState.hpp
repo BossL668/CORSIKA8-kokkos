@@ -32,7 +32,7 @@ namespace corsika::accelerator::em::kokkos_detail {
    */
   template <class ExecutionSpace>
   KokkosPhotonFinalStateResult generatePhotonFinalStates(
-      gpu::em::tables::FlatRateTableView const physics,
+      gpu::em::tables::NativePhysicsView const physics,
       gpu::em::PhotonPairLpmSnapshot const lpm_snapshot,
       gpu::em::EmThinningConfig const thinning,
       std::vector<gpu::em::EmInteractionRecord> const& input,

@@ -1,10 +1,10 @@
 [submodule "modules/data"]
     path = modules/data
-    url = ../../AirShowerPhysics/corsika-data.git
+    url = https://gitlab.iap.kit.edu/AirShowerPhysics/corsika-data.git
     branch = master
     shallow = true
 [submodule "modules/conex"]
 	path = modules/conex/cxroot
-	url = ../../AirShowerPhysics/cxroot.git
+	url = https://gitlab.iap.kit.edu/AirShowerPhysics/cxroot.git
 	branch = master
 	shallow = true

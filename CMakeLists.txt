@@ -7,7 +7,7 @@
 # See file LICENSE for a full version of the license.
 #
 
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required (VERSION 3.24)
 
 #+++++++++++++++++++++++++++++
 # project name
@@ -20,7 +20,7 @@ set (c8_version 8.0.0.0)
 project (
   corsika
   VERSION ${c8_version}
-  DESCRIPTION "CORSIKA C++ project (alpha status)"
+  DESCRIPTION "CORSIKA 8 beta5: Kokkos EM and radio backend"
   LANGUAGES CXX
   )
 
@@ -62,16 +62,11 @@ else ()
   endif ()
 endif ()
 
-option (
-  CORSIKA_ENABLE_CUDA
-  "Build the experimental CUDA electromagnetic transport backend"
-  OFF
-  )
 
 option (
   CORSIKA_ENABLE_KOKKOS
   "Build one mutually exclusive Kokkos EM/radio execution backend"
-  OFF
+  ON
   )
 set (
   CORSIKA_KOKKOS_BACKEND "OPENMP" CACHE STRING
@@ -88,11 +83,11 @@ set (
   "Kokkos architecture token used to build the selected Conan package"
   )
 
-if (CORSIKA_ENABLE_CUDA AND CORSIKA_ENABLE_KOKKOS)
+if (CORSIKA_ENABLE_CUDA)
   message (
     FATAL_ERROR
     "| CORSIKA8 > Native CUDA and Kokkos are separate build products. "
-    "Configure only one of CORSIKA_ENABLE_CUDA or CORSIKA_ENABLE_KOKKOS."
+    "beta5 has no native CUDA backend; select CORSIKA_KOKKOS_BACKEND=CUDA."
     )
 endif ()
 
@@ -121,54 +116,7 @@ if (CORSIKA_ENABLE_KOKKOS)
   endif ()
 endif ()
 
-if (CORSIKA_ENABLE_CUDA)
-  if (${CMAKE_VERSION} VERSION_LESS "3.24")
-    message (
-      FATAL_ERROR
-      "| CORSIKA8 > CORSIKA_ENABLE_CUDA requires CMake 3.24 or newer."
-      )
-  endif ()
-  enable_language (CUDA)
-  set (CMAKE_CUDA_STANDARD 17)
-  set (CMAKE_CUDA_STANDARD_REQUIRED ON)
-  set (CMAKE_CUDA_EXTENSIONS OFF)
-  find_package (CUDAToolkit 12 REQUIRED)
 
-  # A Conda CUDA toolkit can make FindCUDAToolkit attach the compatibility
-  # sysroot's librt.so to CUDA::cudart_static_deps as an absolute path.  Mixing
-  # that old glibc object with a native host compiler fails on current
-  # Debian/Ubuntu systems with unresolved GLIBC_PRIVATE symbols.  Replace only
-  # that sysroot entry with the native (and, on modern glibc, intentionally
-  # minimal) librt archive.  All other CUDA usage requirements remain untouched.
-  get_target_property (
-    _c8_cudart_static_links
-    CUDA::cudart_static_deps
-    INTERFACE_LINK_LIBRARIES
-    )
-  set (_c8_host_librt
-       "/usr/lib/${CMAKE_CXX_LIBRARY_ARCHITECTURE}/librt.a")
-  if (_c8_cudart_static_links AND EXISTS "${_c8_host_librt}")
-    set (_c8_cudart_static_links_fixed "")
-    set (_c8_replaced_cuda_sysroot_librt OFF)
-    foreach (_c8_cudart_link IN LISTS _c8_cudart_static_links)
-      if (_c8_cudart_link MATCHES "/sysroot/.*/librt\\.so$")
-        list (APPEND _c8_cudart_static_links_fixed "${_c8_host_librt}")
-        set (_c8_replaced_cuda_sysroot_librt ON)
-      else ()
-        list (APPEND _c8_cudart_static_links_fixed "${_c8_cudart_link}")
-      endif ()
-    endforeach ()
-    if (_c8_replaced_cuda_sysroot_librt)
-      message (STATUS
-               "CUDA: replacing Conda sysroot librt with ${_c8_host_librt}")
-      set_property (
-        TARGET CUDA::cudart_static_deps
-        PROPERTY INTERFACE_LINK_LIBRARIES
-        "${_c8_cudart_static_links_fixed}"
-        )
-    endif ()
-  endif ()
-endif ()
 
 #+++++++++++++++++++++++++++++
 # for pre-defined standard path
@@ -474,12 +422,9 @@ target_link_libraries (
 
 # "src" is needed, since some headers (namely GeneratedParticleProperties.inc ec.) are produced by python script from e.g. ParticleData.xml
 add_subdirectory (src)
-add_subdirectory (src/gpu/em/tables)
-list (APPEND public_CORSIKA8_targets CORSIKA8GpuEmTables)
-if (CORSIKA_ENABLE_CUDA)
-  add_subdirectory (src/gpu/em)
-  list (APPEND public_CORSIKA8_targets CORSIKA8GpuEm)
-endif ()
+add_subdirectory (src/accelerator/em/tables)
+list (APPEND public_CORSIKA8_targets CORSIKA8ProposalNative)
+
 if (CORSIKA_ENABLE_KOKKOS)
   add_subdirectory (src/accelerator/em/kokkos)
   list (APPEND public_CORSIKA8_targets CORSIKA8KokkosEm)
@@ -549,21 +494,13 @@ install (
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}
   )
 install (
-  TARGETS CORSIKA8GpuEmTables
+  TARGETS CORSIKA8ProposalNative
   EXPORT CORSIKA8PublicTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
-if (CORSIKA_ENABLE_CUDA)
-  install (
-    TARGETS CORSIKA8GpuEm
-    EXPORT CORSIKA8PublicTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-endif ()
+
 if (CORSIKA_ENABLE_KOKKOS)
   install (
     TARGETS CORSIKA8KokkosEm
@@ -604,7 +541,7 @@ install (
   )
  if(DEFINED CONAN_CMAKE_DIR)
  install (
-  DIRECTORY conan_cmake/
+  DIRECTORY "${CONAN_CMAKE_DIR}/"
   DESTINATION lib/cmake/dependencies
   )
  endif(DEFINED CONAN_CMAKE_DIR)

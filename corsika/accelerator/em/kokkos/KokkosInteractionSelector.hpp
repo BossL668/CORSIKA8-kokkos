@@ -34,7 +34,7 @@ namespace corsika::accelerator::em::kokkos_detail {
    */
   template <class ExecutionSpace>
   KokkosInteractionSelectionResult selectInteractions(
-      gpu::em::tables::FlatRateTableView const physics,
+      gpu::em::tables::NativePhysicsView const physics,
       std::vector<gpu::em::EmParticleState> const& particles,
       std::uint64_t const random_seed, std::uint64_t const shower_id,
       ExecutionSpace const& execution = {}) {

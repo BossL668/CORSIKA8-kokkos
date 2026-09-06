@@ -12,14 +12,14 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/PhotonFinalStateRandomDomains.hpp>
-#include <corsika/gpu/em/EmThinning.hpp>
-#include <corsika/gpu/em/Philox.hpp>
-#include <corsika/gpu/em/PhotonPairFinalState.hpp>
-#include <corsika/gpu/em/PhotonPairKinematics.hpp>
-#include <corsika/gpu/em/PhotonPairLpm.hpp>
-#include <corsika/gpu/em/ProcessCapabilities.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
-#include <corsika/gpu/em/tables/FlatRateTable.hpp>
+#include <corsika/accelerator/em/common/EmThinning.hpp>
+#include <corsika/accelerator/em/common/Philox.hpp>
+#include <corsika/accelerator/em/common/PhotonPairFinalState.hpp>
+#include <corsika/accelerator/em/common/PhotonPairKinematics.hpp>
+#include <corsika/accelerator/em/common/PhotonPairLpm.hpp>
+#include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/tables/NativePhysicsQueries.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -287,7 +287,7 @@ namespace corsika::accelerator::em::detail {
 
   C8_ACCELERATOR_INLINE_FUNCTION inline PhotonFinalStateClassification
   classifyPhotonFinalState(
-      gpu::em::tables::FlatRateTableView const& table,
+      gpu::em::tables::NativePhysicsView const& table,
       gpu::em::PhotonPairLpmSnapshot const& lpm_snapshot,
       gpu::em::EmThinningConfig const& thinning,
       gpu::em::EmInteractionRecord const& interaction,
@@ -337,8 +337,9 @@ namespace corsika::accelerator::em::detail {
       if (!applyPhotonTwoChildThinning(
               thinning, parent, gpu::em::ComptonProcessId,
               parent.energy_GeV * (1. - sample.split_fraction),
-              gpu::em::ElectronMassGeV +
-                  parent.energy_GeV * sample.split_fraction,
+              gpu::em::proposalSecondaryTransportEnergyGeV(
+                  11, gpu::em::ElectronMassGeV + parent.energy_GeV * sample.split_fraction,
+                  gpu::em::ElectronMassGeV),
               random_seed, shower_id, sample, result.child_count)) {
         result.fallback = invalidPhotonFinalState(interaction, sample);
         result.fallback_flag = 1;
@@ -507,8 +508,10 @@ namespace corsika::accelerator::em::detail {
       return result;
     }
     if (!applyPhotonTwoChildThinning(
-            thinning, parent, gpu::em::PhotonPairProcessId, electron_energy,
-            positron_energy, random_seed, shower_id, sample,
+            thinning, parent, gpu::em::PhotonPairProcessId,
+            gpu::em::proposalSecondaryTransportEnergyGeV(11, electron_energy, gpu::em::ElectronMassGeV),
+            gpu::em::proposalSecondaryTransportEnergyGeV(-11, positron_energy, gpu::em::ElectronMassGeV),
+            random_seed, shower_id, sample,
             result.child_count)) {
       result.fallback = invalidPhotonFinalState(interaction, sample);
       result.fallback_flag = 1;
@@ -537,37 +540,96 @@ namespace corsika::accelerator::em::detail {
     }
   }
 
-  C8_ACCELERATOR_INLINE_FUNCTION inline PhotonFinalStateMaterialization
-  materializePhotonFinalState(
-      gpu::em::EmInteractionRecord const& interaction,
-      PhotonFinalStateClassification const& classification,
-      std::uint64_t child_offset, std::uint64_t first_history_id) {
-    PhotonFinalStateMaterialization output{};
-    if (classification.fallback_flag != 0) {
-      output.fallback = classification.fallback;
+  /** Compatibility sink for callers that still need the aggregate result. */
+  struct PhotonFinalStateMaterializationWriter {
+    PhotonFinalStateMaterialization& output;
+
+    C8_ACCELERATOR_INLINE_FUNCTION void fallback(
+        gpu::em::ProposalFallbackEvent const& value) {
+      output.fallback = value;
       output.has_fallback = 1;
-      return output;
     }
-    if (classification.continuation_flag != 0) {
-      output.continuation = interaction;
+
+    C8_ACCELERATOR_INLINE_FUNCTION void continuation(
+        gpu::em::EmInteractionRecord const& value) {
+      output.continuation = value;
       output.has_continuation = 1;
-      return output;
     }
-    if (classification.suppression_flag != 0) {
-      auto parent = interaction.particle;
-      ++parent.step_id;
-      auto const& sample = classification.parameters;
+
+    C8_ACCELERATOR_INLINE_FUNCTION void suppression(
+        gpu::em::EmParticleState const& parent,
+        gpu::em::EmInteractionRecord const& interaction,
+        PhotonFinalStateParameters const& sample) {
       output.suppression = {
           parent, interaction.input_index, interaction.component_hash,
           sample.lpm_survival_probability, sample.lpm_uniform,
           PhotonPairLpmDrawId};
       output.has_suppression = 1;
-      return output;
     }
-    if (classification.record_flag == 0) return output;
+
+    C8_ACCELERATOR_INLINE_FUNCTION void firstInteraction(
+        gpu::em::EmParticleState const& parent, std::int32_t process_id,
+        gpu::em::EmParticleState const& first,
+        gpu::em::EmParticleState const* second) {
+      fillFirstInteraction(parent, process_id, first, second, output);
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void secondary(
+        std::uint32_t index, gpu::em::EmParticleState const& particle) {
+      output.secondaries[index] = particle;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION gpu::em::PhotonPairFinalStateRecord&
+    record() {
+      return output.record;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void finishRecord(
+        std::uint32_t secondary_count) {
+      output.secondary_count = secondary_count;
+      output.has_record = 1;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void fail(std::uint32_t error) {
+      output.error = error;
+    }
+  };
+
+  /**
+   * Materialize directly into a caller-provided sink.
+   *
+   * The resident Kokkos path uses this overload to write the already-scanned
+   * output slots without first constructing the 1.6 KiB aggregate result in a
+   * per-thread CUDA stack frame.  The aggregate-return API below remains the
+   * compatibility and validation interface.
+   */
+  template <class Writer>
+  C8_ACCELERATOR_INLINE_FUNCTION inline void
+  materializePhotonFinalStateInPlace(
+      gpu::em::EmInteractionRecord const& interaction,
+      PhotonFinalStateClassification const& classification,
+      std::uint64_t child_offset, std::uint64_t first_history_id,
+      Writer& output) {
+    if (classification.fallback_flag != 0) {
+      output.fallback(classification.fallback);
+      return;
+    }
+    if (classification.continuation_flag != 0) {
+      output.continuation(interaction);
+      return;
+    }
+    if (classification.suppression_flag != 0) {
+      auto parent = interaction.particle;
+      ++parent.step_id;
+      auto const& sample = classification.parameters;
+      output.suppression(parent, interaction, sample);
+      return;
+    }
+    if (classification.record_flag == 0) return;
 
     auto const& parent = interaction.particle;
     auto const& sample = classification.parameters;
+    std::uint32_t secondary_count = 0;
     auto const azimuth =
         sample.azimuth_uniform * 6.283185307179586476925286766559;
     if (sample.process_id == gpu::em::ComptonProcessId) {
@@ -575,8 +637,8 @@ namespace corsika::accelerator::em::detail {
       double electron_cosine = 0.;
       if (!comptonCosines(parent.energy_GeV, sample.split_fraction,
                           photon_cosine, electron_cosine)) {
-        output.error = 1;
-        return output;
+        output.fail(1);
+        return;
       }
       auto photon = parent;
       photon.energy_GeV = parent.energy_GeV * (1. - sample.split_fraction);
@@ -589,8 +651,9 @@ namespace corsika::accelerator::em::detail {
                          photon.direction);
       auto electron = parent;
       electron.pid = static_cast<std::int32_t>(gpu::em::EmPid::Electron);
-      electron.energy_GeV = gpu::em::ElectronMassGeV +
-                            parent.energy_GeV * sample.split_fraction;
+      electron.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          electron.pid, gpu::em::ElectronMassGeV + parent.energy_GeV * sample.split_fraction,
+          gpu::em::ElectronMassGeV);
       electron.parent_history_id = parent.history_id;
       electron.generation = parent.generation + 1;
       electron.step_id = 0;
@@ -601,39 +664,40 @@ namespace corsika::accelerator::em::detail {
           photonFmod(azimuth + 3.1415926535897932384626433832795,
                      6.283185307179586476925286766559),
           electron.direction);
-      fillFirstInteraction(parent, gpu::em::ComptonProcessId, photon,
-                           &electron, output);
+      output.firstInteraction(parent, gpu::em::ComptonProcessId, photon,
+                              &electron);
       if ((sample.thinning_keep_mask & 0x1U) != 0) {
         photon.history_id = first_history_id + child_offset +
-                            output.secondary_count;
-        output.secondaries[output.secondary_count++] = photon;
+                            secondary_count;
+        output.secondary(secondary_count++, photon);
       }
       if ((sample.thinning_keep_mask & 0x2U) != 0) {
         electron.history_id = first_history_id + child_offset +
-                              output.secondary_count;
-        output.secondaries[output.secondary_count++] = electron;
+                              secondary_count;
+        output.secondary(secondary_count++, electron);
       }
-      output.record = {
+      output.record() = {
           interaction.input_index, parent.history_id, child_offset,
-          output.secondary_count, gpu::em::ComptonProcessId,
+          secondary_count, gpu::em::ComptonProcessId,
           sample.split_fraction, interaction.loss_quantile,
           sample.azimuth_uniform, 0., 0., 0., 0., interaction.loss_draw_id,
           ComptonAzimuthDrawId, 0, 0, 0};
     } else if (sample.process_id == gpu::em::PhotoelectricProcessId) {
       auto electron = parent;
       electron.pid = static_cast<std::int32_t>(gpu::em::EmPid::Electron);
-      electron.energy_GeV = gpu::em::ElectronMassGeV +
-                            parent.energy_GeV * sample.split_fraction;
+      electron.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          electron.pid, gpu::em::ElectronMassGeV + parent.energy_GeV * sample.split_fraction,
+          gpu::em::ElectronMassGeV);
       electron.parent_history_id = parent.history_id;
       electron.history_id = first_history_id + child_offset;
       electron.generation = parent.generation + 1;
       electron.step_id = 0;
       electron.reserved = 0;
-      fillFirstInteraction(parent, gpu::em::PhotoelectricProcessId, electron,
-                           nullptr, output);
-      output.secondaries[0] = electron;
-      output.secondary_count = 1;
-      output.record = {
+      output.firstInteraction(parent, gpu::em::PhotoelectricProcessId,
+                              electron, nullptr);
+      output.secondary(0, electron);
+      secondary_count = 1;
+      output.record() = {
           interaction.input_index, parent.history_id, child_offset, 1,
           gpu::em::PhotoelectricProcessId, sample.split_fraction,
           interaction.loss_quantile, 0., 0., 0., 0., 0.,
@@ -648,7 +712,8 @@ namespace corsika::accelerator::em::detail {
           sauterCosine(positron_energy, sample.positron_polar_uniform);
       auto electron = parent;
       electron.pid = static_cast<std::int32_t>(gpu::em::EmPid::Electron);
-      electron.energy_GeV = electron_energy;
+      electron.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          electron.pid, electron_energy, gpu::em::ElectronMassGeV);
       electron.parent_history_id = parent.history_id;
       electron.generation = parent.generation + 1;
       electron.step_id = 0;
@@ -658,7 +723,8 @@ namespace corsika::accelerator::em::detail {
                          electron.direction);
       auto positron = parent;
       positron.pid = static_cast<std::int32_t>(gpu::em::EmPid::Positron);
-      positron.energy_GeV = positron_energy;
+      positron.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          positron.pid, positron_energy, gpu::em::ElectronMassGeV);
       positron.parent_history_id = parent.history_id;
       positron.generation = parent.generation + 1;
       positron.step_id = 0;
@@ -669,21 +735,21 @@ namespace corsika::accelerator::em::detail {
           photonFmod(azimuth + 3.1415926535897932384626433832795,
                      6.283185307179586476925286766559),
           positron.direction);
-      fillFirstInteraction(parent, gpu::em::PhotonPairProcessId, electron,
-                           &positron, output);
+      output.firstInteraction(parent, gpu::em::PhotonPairProcessId, electron,
+                              &positron);
       if ((sample.thinning_keep_mask & 0x1U) != 0) {
         electron.history_id = first_history_id + child_offset +
-                              output.secondary_count;
-        output.secondaries[output.secondary_count++] = electron;
+                              secondary_count;
+        output.secondary(secondary_count++, electron);
       }
       if ((sample.thinning_keep_mask & 0x2U) != 0) {
         positron.history_id = first_history_id + child_offset +
-                              output.secondary_count;
-        output.secondaries[output.secondary_count++] = positron;
+                              secondary_count;
+        output.secondary(secondary_count++, positron);
       }
-      output.record = {
+      output.record() = {
           interaction.input_index, parent.history_id, child_offset,
-          output.secondary_count, gpu::em::PhotonPairProcessId,
+          secondary_count, gpu::em::PhotonPairProcessId,
           sample.split_fraction, sample.split_uniform,
           sample.azimuth_uniform, sample.electron_polar_uniform,
           sample.positron_polar_uniform, sample.lpm_survival_probability,
@@ -691,13 +757,40 @@ namespace corsika::accelerator::em::detail {
           PhotonPairElectronPolarDrawId, PhotonPairPositronPolarDrawId,
           PhotonPairLpmDrawId};
     }
-    output.record.thinning_status = sample.thinning_status;
-    output.record.thinning_keep_mask = sample.thinning_keep_mask;
-    output.record.thinning_first_uniform = sample.thinning_first_uniform;
-    output.record.thinning_second_uniform = sample.thinning_second_uniform;
-    output.record.thinning_first_draw_id = gpu::em::EmThinningFirstDrawId;
-    output.record.thinning_second_draw_id = gpu::em::EmThinningSecondDrawId;
-    output.has_record = 1;
+    auto& record = output.record();
+    double kept_lepton_weight = 0.;
+    if (sample.process_id == gpu::em::PhotoelectricProcessId) {
+      kept_lepton_weight = parent.weight;
+    } else if (sample.process_id == gpu::em::ComptonProcessId) {
+      if (sample.thinning_keep_mask & 0x2U)
+        kept_lepton_weight = sample.thinning_second_weight;
+    } else {
+      if (sample.thinning_keep_mask & 0x1U)
+        kept_lepton_weight += sample.thinning_first_weight;
+      if (sample.thinning_keep_mask & 0x2U)
+        kept_lepton_weight += sample.thinning_second_weight;
+    }
+    record.weighted_mass_convention_correction_GeV =
+        gpu::em::weightedProposalMassCorrectionGeV(
+            11, gpu::em::ElectronMassGeV, kept_lepton_weight);
+    record.thinning_status = sample.thinning_status;
+    record.thinning_keep_mask = sample.thinning_keep_mask;
+    record.thinning_first_uniform = sample.thinning_first_uniform;
+    record.thinning_second_uniform = sample.thinning_second_uniform;
+    record.thinning_first_draw_id = gpu::em::EmThinningFirstDrawId;
+    record.thinning_second_draw_id = gpu::em::EmThinningSecondDrawId;
+    output.finishRecord(secondary_count);
+  }
+
+  C8_ACCELERATOR_INLINE_FUNCTION inline PhotonFinalStateMaterialization
+  materializePhotonFinalState(
+      gpu::em::EmInteractionRecord const& interaction,
+      PhotonFinalStateClassification const& classification,
+      std::uint64_t child_offset, std::uint64_t first_history_id) {
+    PhotonFinalStateMaterialization output{};
+    PhotonFinalStateMaterializationWriter writer{output};
+    materializePhotonFinalStateInPlace(
+        interaction, classification, child_offset, first_history_id, writer);
     return output;
   }
 

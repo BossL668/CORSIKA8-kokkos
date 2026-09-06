@@ -13,8 +13,9 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
-#include <corsika/gpu/em/MoliereScattering.hpp>
-#include <corsika/gpu/em/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/MoliereScattering.hpp>
+#include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/TransportMass.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -202,6 +203,25 @@ namespace corsika::accelerator::em::detail {
   }
 
   template <class AtomicOperations>
+  C8_ACCELERATOR_INLINE_FUNCTION inline void accumulatePointEnergyProfile(
+      gpu::em::detail::DeviceProfileAccumulator const& accumulator,
+      long long* energy_loss, double grammage, double weighted_deposit_GeV) {
+    if (!(weighted_deposit_GeV > 0.) || accumulator.bins == 0) return;
+    // Mirror EnergyLossWriter::write(Point, ...), including a zero dX threshold.
+    // Reusing the segment overload with equal endpoints divides by zero when
+    // the configured continuous-track threshold is zero.
+    auto const maximum_bin = static_cast<int>(accumulator.bins - 1);
+    auto bin = static_cast<int>(grammage / accumulator.bin_width_g_per_cm2);
+    bin = bin < 0 ? 0 : bin;
+    bin = bin > maximum_bin ? maximum_bin : bin;
+    AtomicOperations::add(&accumulator.counters->deposited_steps, 1ULL);
+    addProfileFixedPoint<AtomicOperations>(energy_loss + bin,
+                                          weighted_deposit_GeV,
+                                          accumulator.energy_scale,
+                                          accumulator.counters);
+  }
+
+  template <class AtomicOperations>
   C8_ACCELERATOR_INLINE_FUNCTION inline void accumulateTerminalEnergy(
       gpu::em::detail::DeviceProfileAccumulator const& accumulator,
       double weighted_total_energy_GeV, bool observed) {
@@ -271,15 +291,20 @@ namespace corsika::accelerator::em::detail {
     auto const end = projectProfileGrammage(projection, record.end.position_m);
     accumulateParticleProfile<AtomicOperations>(
         accumulator, record.start.pid, start, end, record.start.weight);
-    accumulateEnergyProfile<AtomicOperations>(
-        accumulator, accumulator.energy_loss, start, end,
+    accumulatePointEnergyProfile<AtomicOperations>(
+        accumulator, accumulator.energy_loss, end,
         record.cut_deposited_energy_GeV * record.start.weight);
     AtomicOperations::add(&accumulator.counters->steps, 1ULL);
     if (record.limit == PhotonTransportLimit::ParticleCut) {
       AtomicOperations::add(&accumulator.counters->photon_cuts, 1ULL);
-      if (record.observation_surface_reached_before_cut != 0U)
+      if (record.observation_surface_reached_before_cut != 0U) {
+        addProfileFixedPoint<AtomicOperations>(
+            &accumulator.counters->weighted_observation_cut_overlap_energy,
+            record.cut_deposited_energy_GeV * record.start.weight,
+            accumulator.energy_scale, accumulator.counters);
         accumulateTerminalEnergy<AtomicOperations>(
             accumulator, record.end.energy_GeV * record.start.weight, true);
+      }
     } else if (record.limit == PhotonTransportLimit::ObservationSurface) {
       accumulateTerminalEnergy<AtomicOperations>(
           accumulator, record.end.energy_GeV * record.start.weight, true);
@@ -298,6 +323,10 @@ namespace corsika::accelerator::em::detail {
       gpu::em::PhotonPairFinalStateRecord const& record) {
     using namespace gpu::em;
     accumulateProfileThinning<AtomicOperations>(record, accumulator.counters);
+    addProfileFixedPoint<AtomicOperations>(
+        &accumulator.counters->weighted_mass_convention_correction,
+        record.weighted_mass_convention_correction_GeV,
+        accumulator.energy_scale, accumulator.counters);
     auto const atomic_electron_process =
         record.process_id == ComptonProcessId ||
         record.process_id == PhotoelectricProcessId;
@@ -321,18 +350,19 @@ namespace corsika::accelerator::em::detail {
       AtomicOperations::add(&accumulator.counters->invalid_records, 1ULL);
       return;
     }
-    auto const start =
-        projectProfileGrammage(projection, transport->start.position_m);
-    auto const end =
-        projectProfileGrammage(projection, transport->end.position_m);
     auto const deposit = transport->end.energy_GeV *
                          (1. - record.energy_split_fraction) *
                          transport->start.weight;
-    accumulateEnergyProfile<AtomicOperations>(
-        accumulator, accumulator.energy_loss, start, end, deposit);
+    // Preserve scalar PROPOSAL's legacy dE/dX definition. Its photoelectric
+    // secondary has this binding energy removed, but InteractionModel does
+    // not pass it to EnergyLossWriter. Track it as an explicit closure sink.
+    addProfileFixedPoint<AtomicOperations>(
+        &accumulator.counters->weighted_unwritten_photoelectric_binding_energy,
+        deposit, accumulator.energy_scale, accumulator.counters);
   }
 
-  template <class AtomicOperations>
+  template <class AtomicOperations,
+            bool AccumulateMoliereIterationCounters = true>
   C8_ACCELERATOR_INLINE_FUNCTION inline void accumulateLeptonProfileStep(
       gpu::em::detail::DeviceProfileProjection const& projection,
       gpu::em::detail::DeviceProfileAccumulator const& accumulator,
@@ -342,14 +372,15 @@ namespace corsika::accelerator::em::detail {
     auto const end = projectProfileGrammage(projection, record.end.position_m);
     accumulateParticleProfile<AtomicOperations>(
         accumulator, record.start.pid, start, end, record.start.weight);
+    auto* const energy_loss = isMuonPid(record.start.pid)
+                                  ? accumulator.muon_energy_loss
+                                  : accumulator.energy_loss;
     accumulateEnergyProfile<AtomicOperations>(
-        accumulator,
-        isMuonPid(record.start.pid) ? accumulator.muon_energy_loss
-                                    : accumulator.energy_loss,
-        start, end,
-        (record.continuous_deposited_energy_GeV +
-         record.cut_deposited_energy_GeV) *
-            record.start.weight);
+        accumulator, energy_loss, start, end,
+        record.continuous_deposited_energy_GeV * record.start.weight);
+    accumulatePointEnergyProfile<AtomicOperations>(
+        accumulator, energy_loss, end,
+        record.cut_deposited_energy_GeV * record.start.weight);
     AtomicOperations::add(&accumulator.counters->steps, 1ULL);
     auto const limit = static_cast<std::int32_t>(record.limit);
     if (limit < 0 || limit >= 8)
@@ -359,12 +390,17 @@ namespace corsika::accelerator::em::detail {
     if (record.limit == LeptonTransportLimit::ParticleCut) {
       addProfileFixedPoint<AtomicOperations>(
           &accumulator.counters->weighted_cut_rest_mass_energy,
-          (isMuonPid(record.start.pid) ? MuonMassGeV : ElectronMassGeV) *
-              record.start.weight,
+          transportMassGeV(record.start.pid) * record.start.weight,
           accumulator.energy_scale, accumulator.counters);
-      if (record.observation_surface_reached_before_cut != 0U)
+      if (record.observation_surface_reached_before_cut != 0U) {
+        addProfileFixedPoint<AtomicOperations>(
+            &accumulator.counters->weighted_observation_cut_overlap_energy,
+            (record.cut_deposited_energy_GeV + transportMassGeV(record.start.pid)) *
+                record.start.weight,
+            accumulator.energy_scale, accumulator.counters);
         accumulateTerminalEnergy<AtomicOperations>(
             accumulator, record.end.energy_GeV * record.start.weight, true);
+      }
     } else if (record.limit == LeptonTransportLimit::ObservationSurface) {
       accumulateTerminalEnergy<AtomicOperations>(
           accumulator, record.end.energy_GeV * record.start.weight, true);
@@ -373,12 +409,16 @@ namespace corsika::accelerator::em::detail {
           accumulator, record.end.energy_GeV * record.start.weight, false);
     }
     AtomicOperations::add(&accumulator.counters->moliere_trials, 1ULL);
-    AtomicOperations::add(&accumulator.counters->moliere_newton_iterations,
-                          static_cast<unsigned long long>(
-                              record.multiple_scattering_iterations));
-    AtomicOperations::maximum(
-        &accumulator.counters->moliere_max_newton_iterations,
-        static_cast<unsigned long long>(record.multiple_scattering_iterations));
+    if constexpr (AccumulateMoliereIterationCounters) {
+      AtomicOperations::add(
+          &accumulator.counters->moliere_newton_iterations,
+          static_cast<unsigned long long>(
+              record.multiple_scattering_iterations));
+      AtomicOperations::maximum(
+          &accumulator.counters->moliere_max_newton_iterations,
+          static_cast<unsigned long long>(
+              record.multiple_scattering_iterations));
+    }
     if (record.multiple_scattering_applied != 0)
       AtomicOperations::add(&accumulator.counters->moliere_deflections, 1ULL);
     else if (record.multiple_scattering_status ==
@@ -396,6 +436,10 @@ namespace corsika::accelerator::em::detail {
       gpu::em::BremsFinalStateRecord const& record) {
     using namespace gpu::em;
     accumulateProfileThinning<AtomicOperations>(record, accumulator.counters);
+    addProfileFixedPoint<AtomicOperations>(
+        &accumulator.counters->weighted_mass_convention_correction,
+        record.weighted_mass_convention_correction_GeV,
+        accumulator.energy_scale, accumulator.counters);
     auto const atomic_electron_process =
         record.process_id == IonizationProcessId ||
         record.process_id == AnnihilationProcessId;

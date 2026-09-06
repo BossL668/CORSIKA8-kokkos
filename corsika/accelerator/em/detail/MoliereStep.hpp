@@ -13,8 +13,8 @@
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/RandomDomains.hpp>
 #include <corsika/accelerator/em/detail/LeptonContinuousStep.hpp>
-#include <corsika/gpu/em/MoliereScattering.hpp>
-#include <corsika/gpu/em/Philox.hpp>
+#include <corsika/accelerator/em/common/MoliereScattering.hpp>
+#include <corsika/accelerator/em/common/Philox.hpp>
 
 namespace corsika::accelerator::em::detail {
 

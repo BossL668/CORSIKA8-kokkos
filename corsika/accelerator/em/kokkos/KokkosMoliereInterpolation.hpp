@@ -13,7 +13,7 @@
 #include <filesystem>
 #include <stdexcept>
 
-#include <corsika/gpu/em/MoliereScattering.hpp>
+#include <corsika/accelerator/em/common/MoliereScattering.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -22,6 +22,16 @@ namespace corsika::accelerator::em::kokkos_detail {
   class KokkosMoliereInterpolation {
   public:
     using memory_space = typename ExecutionSpace::memory_space;
+
+    static constexpr std::size_t projectedDeviceBytes() noexcept {
+      return gpu::em::MoliereInterpolationFunctionCount *
+                 gpu::em::MoliereInterpolationIntervalCount *
+                 sizeof(gpu::em::MoliereCubicPolynomial) +
+             gpu::em::MoliereInitialGuessBNodeCount *
+                 gpu::em::MoliereInitialGuessBetaSquaredNodeCount *
+                 gpu::em::MoliereInitialGuessCoordinateNodeCount *
+                 sizeof(double);
+    }
 
     void initialize(
         gpu::em::MoliereSnapshot const& snapshot,

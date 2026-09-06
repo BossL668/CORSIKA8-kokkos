@@ -7,7 +7,7 @@
 
 #include <corsika/accelerator/em/KokkosTuningCache.hpp>
 
-#include <corsika/gpu/em/tables/Sha256.hpp>
+#include <corsika/accelerator/em/common/tables/Sha256.hpp>
 
 #include <algorithm>
 #include <cctype>

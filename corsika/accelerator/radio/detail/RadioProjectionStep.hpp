@@ -13,7 +13,8 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/radio/detail/RadioProjectionData.hpp>
-#include <corsika/gpu/em/Types.hpp>
+#include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/common/TransportMass.hpp>
 
 namespace corsika::accelerator::radio::detail {
 
@@ -83,6 +84,16 @@ namespace corsika::accelerator::radio::detail {
     return left > right ? left : right;
   }
 
+  C8_ACCELERATOR_INLINE_FUNCTION inline double observerNearestBin(
+      double scaled_time) {
+    // Scalar TimeDomainObserver/CoREAS add 0.5L, not a double 0.5.  A
+    // double addition rounds nextafter(0.5,0)+0.5 to 1 and incorrectly
+    // moves that contribution into the next bin. Split integer/fraction
+    // to preserve scalar's extended-precision half-bin decision on GPUs.
+    auto const integral = radioFloor(scaled_time);
+    return integral + (scaled_time - integral >= 0.5 ? 1. : 0.);
+  }
+
   C8_ACCELERATOR_INLINE_FUNCTION inline Vec3 operator+(Vec3 a, Vec3 b) {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
   }
@@ -110,6 +121,45 @@ namespace corsika::accelerator::radio::detail {
 
   C8_ACCELERATOR_INLINE_FUNCTION inline double norm(Vec3 value) {
     return radioSqrt(dot(value, value));
+  }
+
+  /**
+   * Recover cancellation only where scalar CoREAS retries in long double.
+   * GPUs do not provide an extended-precision long double, so retain the
+   * product/sum round-off in a two-double expansion there.  This is not an
+   * epsilon floor: a mathematically zero denominator is still zero.
+   */
+  C8_ACCELERATOR_INLINE_FUNCTION inline double coReasDoppler(
+      double index, Vec3 beta, Vec3 emit) {
+    auto const ordinary = 1. - index * dot(beta, emit);
+    if (ordinary != 0.) return ordinary;
+#if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__) && \
+    !defined(__SYCL_DEVICE_ONLY__)
+    return static_cast<double>(
+        1.L - static_cast<long double>(index) *
+                  (static_cast<long double>(beta.x) * emit.x +
+                   static_cast<long double>(beta.y) * emit.y +
+                   static_cast<long double>(beta.z) * emit.z));
+#else
+    auto const px = beta.x * emit.x;
+    auto const py = beta.y * emit.y;
+    auto const pz = beta.z * emit.z;
+    auto const ex = ::fma(beta.x, emit.x, -px);
+    auto const ey = ::fma(beta.y, emit.y, -py);
+    auto const ez = ::fma(beta.z, emit.z, -pz);
+    auto const xy = px + py;
+    auto const xy_virtual = xy - px;
+    auto const xy_error = (px - (xy - xy_virtual)) + (py - xy_virtual);
+    auto const xyz = xy + pz;
+    auto const xyz_virtual = xyz - xy;
+    auto const xyz_error = (xy - (xyz - xyz_virtual)) + (pz - xyz_virtual);
+    auto const low = ex + ey + ez + xy_error + xyz_error;
+    auto const product = index * xyz;
+    auto const product_error = ::fma(index, xyz, -product) + index * low;
+    // Here product rounded to 1 in the ordinary calculation.  Sterbenz's
+    // lemma makes this subtraction exact before restoring its residual.
+    return (1. - product) - product_error;
+#endif
   }
 
   C8_ACCELERATOR_INLINE_FUNCTION inline bool makeRadioTrackKinematics(
@@ -157,7 +207,7 @@ namespace corsika::accelerator::radio::detail {
 
     double refractive_index_source = 1.;
     double integrated_source = 1.;
-    auto const refractive_index_destination =
+    auto refractive_index_destination =
         table.refractivity[destination_index] + 1.;
     auto const integrated_destination =
         table.integrated_refractivity[destination_index];
@@ -187,7 +237,11 @@ namespace corsika::accelerator::radio::detail {
           table.step_m;
       if (height == 0.) height = 1.;
     } else if (source_height == 0.) {
-      refractive_index_source = table.refractivity[0] + 1.;
+      // The scalar propagator shadows both index variables at its exact
+      // lower edge and returns their initial value, 1.  Preserve that
+      // released behavior rather than silently changing it on devices.
+      refractive_index_source = 1.;
+      refractive_index_destination = 1.;
       integrated_source = table.integrated_refractivity[0];
       height = destination_height - source_height;
     } else {
@@ -197,6 +251,8 @@ namespace corsika::accelerator::radio::detail {
       integrated_source =
           table.integrated_refractivity[0] +
           table.slope_integrated_refractivity_lower * radioAbs(source_height);
+      // Scalar's below-table branch likewise shadows the destination n.
+      refractive_index_destination = 1.;
       height = destination_height - radioAbs(source_height);
     }
 
@@ -241,9 +297,8 @@ namespace corsika::accelerator::radio::detail {
     if (time_s < observer.start_time_s ||
         time_s > observer.start_time_s + observer.duration_s)
       return;
-    auto const bin_value =
-        radioFloor((time_s - observer.start_time_s) * observer.sample_rate_Hz +
-                   0.5);
+    auto const bin_value = observerNearestBin(
+        (time_s - observer.start_time_s) * observer.sample_rate_Hz);
     if (!(bin_value >= 0.)) return;
     auto const bin = static_cast<std::uint64_t>(bin_value);
     if (bin >= observer.number_of_bins) return;
@@ -274,9 +329,9 @@ namespace corsika::accelerator::radio::detail {
       double& start_time, double& end_time, double grid_resolution,
       bool signed_order) {
     auto const start_bin = static_cast<long long>(
-        radioFloor(start_time / grid_resolution + 0.5));
+        observerNearestBin(start_time / grid_resolution));
     auto const end_bin = static_cast<long long>(
-        radioFloor(end_time / grid_resolution + 0.5));
+        observerNearestBin(end_time / grid_resolution));
     if (start_bin != end_bin) return;
     auto const start_fraction =
         start_time / grid_resolution - radioFloor(start_time / grid_resolution);
@@ -311,11 +366,10 @@ namespace corsika::accelerator::radio::detail {
       DeviceRadioCounters* counters) {
     auto const path_start = propagate(propagation, track.start, observer);
     auto const path_end = propagate(propagation, track.end, observer);
-    auto const pre_doppler =
-        1. - path_start.refractive_index_source *
-                 dot(track.beta, path_start.emit);
-    auto const post_doppler =
-        1. - path_end.refractive_index_source * dot(track.beta, path_end.emit);
+    auto const pre_doppler = coReasDoppler(
+        path_start.refractive_index_source, track.beta, path_start.emit);
+    auto const post_doppler = coReasDoppler(
+        path_end.refractive_index_source, track.beta, path_end.emit);
     auto start_receive = track.start_time_s + path_start.propagation_time_s;
     auto end_receive = track.end_time_s + path_end.propagation_time_s;
 
@@ -326,9 +380,8 @@ namespace corsika::accelerator::radio::detail {
       auto const middle_time = (track.start_time_s + track.end_time_s) * 0.5;
       auto const path_middle = propagate(propagation, midpoint, observer);
       auto const middle_receive = middle_time + path_middle.propagation_time_s;
-      auto const middle_doppler =
-          1. - path_middle.refractive_index_source *
-                   dot(track.beta, path_middle.emit);
+      auto const middle_doppler = coReasDoppler(
+          path_middle.refractive_index_source, track.beta, path_middle.emit);
       auto field_start = transverseEndpoint(path_middle.emit, track.beta) *
                          (track.constant * observer.sample_rate_Hz /
                           (middle_doppler * path_middle.distance_m));
@@ -553,7 +606,7 @@ namespace corsika::accelerator::radio::detail {
     auto const length_m = track.track_length_m;
     auto const weight = record.start.weight;
     auto const kinetic_energy_GeV =
-        record.start.energy_GeV - gpu::em::ElectronMassGeV;
+        record.start.energy_GeV - gpu::em::TransportElectronMassGeV;
     if (!radioFinite(length_m) || !(length_m > 0.) || !radioFinite(weight) ||
         weight < 0. || !radioFinite(kinetic_energy_GeV) ||
         kinetic_energy_GeV < 0.)

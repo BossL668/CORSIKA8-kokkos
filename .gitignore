@@ -3,6 +3,12 @@
 **/*.bak
 build/
 install/
+/build-*/
+/install-*/
+.env
+.env.*
+*.c8emaux
+*.c8cache
 .vscode/
 Framework/Particles/GeneratedParticleProperties.inc
 flymd.html

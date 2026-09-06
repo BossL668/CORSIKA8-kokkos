@@ -215,8 +215,9 @@ namespace corsika::accelerator::em {
       input[i].step_id = i % 11;
     }
 
-    Queue queue(count);
-    queue.upload(input);
+    Execution execution{};
+    Queue queue(count, execution);
+    queue.upload(input, execution);
     typename Queue::FlagView flags("c8_queue_probe_flags", count);
     Kokkos::View<std::uint32_t*, Memory> counts(
         "c8_queue_probe_secondary_counts", count);
@@ -228,7 +229,6 @@ namespace corsika::accelerator::em {
       host_counts(i) = static_cast<std::uint32_t>(i % 4);
       expected_slots += host_counts(i);
     }
-    Execution execution;
     Kokkos::deep_copy(execution, flags, host_flags);
     Kokkos::deep_copy(execution, counts, host_counts);
     execution.fence("upload Kokkos queue probe inputs");
@@ -306,6 +306,10 @@ namespace corsika::accelerator::em {
         throw std::runtime_error("failed to query CUDA driver/runtime versions");
       info_.driver_version = std::to_string(driver);
       info_.runtime_version = std::to_string(runtime);
+      if (cudaMemGetInfo(
+              &info_.device_free_memory_bytes_at_initialization,
+              &info_.device_total_memory_bytes) != cudaSuccess)
+        throw std::runtime_error("failed to query available CUDA memory");
 #elif defined(CORSIKA8_KOKKOS_BACKEND_HIP)
       hipDeviceProp_t properties{};
       if (hipGetDeviceProperties(&properties, config.device) != hipSuccess)
@@ -317,10 +321,25 @@ namespace corsika::accelerator::em {
         throw std::runtime_error("failed to query the HIP runtime version");
       info_.runtime_version = std::to_string(runtime);
       info_.driver_version = info_.runtime_version;
+      if (hipMemGetInfo(
+              &info_.device_free_memory_bytes_at_initialization,
+              &info_.device_total_memory_bytes) != hipSuccess)
+        throw std::runtime_error("failed to query available HIP memory");
 #elif defined(CORSIKA8_KOKKOS_BACKEND_SYCL)
+      auto const sycl_device = execution.sycl_queue().get_device();
+      info_.device_name =
+          sycl_device.get_info<sycl::info::device::name>();
       info_.architecture = "sycl";
-      info_.driver_version = "kokkos-sycl";
+      info_.driver_version =
+          sycl_device.get_info<sycl::info::device::driver_version>();
       info_.runtime_version = "kokkos-sycl";
+      info_.device_total_memory_bytes =
+          sycl_device.get_info<sycl::info::device::global_mem_size>();
+      // Standard SYCL does not expose current free device memory. Use total
+      // global memory as the stable portable basis for the requested fraction;
+      // allocation failures still remain fail-closed.
+      info_.device_free_memory_bytes_at_initialization =
+          info_.device_total_memory_bytes;
 #else
       info_.architecture = "host";
       info_.driver_version = "not-applicable";

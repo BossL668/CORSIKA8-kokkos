@@ -12,9 +12,9 @@
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/RandomDomains.hpp>
 #include <corsika/accelerator/em/detail/LeptonContinuousStep.hpp>
-#include <corsika/gpu/em/Philox.hpp>
-#include <corsika/gpu/em/ProcessCapabilities.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/Philox.hpp>
+#include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -64,7 +64,7 @@ namespace corsika::accelerator::em::detail {
 
   C8_ACCELERATOR_INLINE_FUNCTION inline LeptonVertexSelectionOutcome
   selectLeptonVertex(
-      gpu::em::tables::FlatRateTableView const& table,
+      gpu::em::tables::NativePhysicsView const& table,
       gpu::em::EmInteractionRecord const& candidate,
       std::uint64_t const random_seed, std::uint64_t const shower_id) {
     using namespace gpu::em;
@@ -94,9 +94,9 @@ namespace corsika::accelerator::em::detail {
       auto const outer_threshold =
           record.process_uniform *
           record.total_rate_cm2_per_g;
-      auto const proposal_native = table.physics_source == 1u;
+      constexpr bool proposal_native = true;
       tables::RateColumnSelectionResult selection{};
-      if (proposal_native) {
+      
         auto const vertex_total = tables::queryTotalRate(
             table, particle.pid, energy_MeV);
         if (vertex_total.status != tables::TableLookupStatus::Success) {
@@ -139,10 +139,7 @@ namespace corsika::accelerator::em::detail {
         selection = tables::selectRateColumnByUniform(
             table, particle.pid, energy_MeV,
             record.proposal_selection_uniform);
-      } else {
-        selection = tables::selectRateColumnByThreshold(
-            table, particle.pid, energy_MeV, outer_threshold);
-      }
+      
       if (selection.status != tables::TableLookupStatus::Success) {
         record.process_id = selection.process_id;
         record.component_hash = selection.component_hash;
@@ -198,7 +195,7 @@ namespace corsika::accelerator::em::detail {
 
       record.process_id = selection.process_id;
       record.component_hash = selection.component_hash;
-      if (proposal_native) {
+      
         record.loss_quantile = selection.residual_quantile;
         record.loss_draw_id = ProposalSelectionDrawId;
         if (proposalNativeSelectionRequiresReplay(
@@ -210,15 +207,7 @@ namespace corsika::accelerator::em::detail {
           output.fallback_flag = 1;
           return output;
         }
-      } else {
-        RandomNumberKey const loss_key{
-            random_seed, shower_id, particle.history_id,
-            particle.step_id,
-            static_cast<std::uint32_t>(record.process_id),
-            InteractionLossDrawId};
-        record.loss_quantile = uniformOpen01(loss_key);
-        record.loss_draw_id = InteractionLossDrawId;
-      }
+      
       tables::TableQuery const loss_query{
           tables::TableQueryKind::LossFraction, particle.pid,
           record.process_id, record.component_hash,

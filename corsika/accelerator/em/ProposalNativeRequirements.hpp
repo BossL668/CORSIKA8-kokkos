@@ -8,7 +8,7 @@
 #pragma once
 
 #include <corsika/accelerator/em/AcceleratedPhysicsRequirements.hpp>
-#include <corsika/gpu/em/tables/ProposalNativeTable.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeTable.hpp>
 
 namespace corsika::accelerator::em {
 

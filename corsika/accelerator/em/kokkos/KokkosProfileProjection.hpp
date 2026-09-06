@@ -12,8 +12,9 @@
 #include <cstddef>
 #include <stdexcept>
 
-#include <corsika/gpu/em/Types.hpp>
-#include <corsika/gpu/em/detail/ProfileProjectionData.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
+#include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/common/detail/ProfileProjectionData.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -23,14 +24,22 @@ namespace corsika::accelerator::em::kokkos_detail {
   public:
     using memory_space = typename ExecutionSpace::memory_space;
 
-    void initialize(
-        gpu::em::GpuEmConfig::ProfileProjection const& source,
-        ExecutionSpace const& execution = {}) {
-      if (!source.enabled) return;
+    static std::size_t projectedDeviceBytes(
+        gpu::em::GpuEmConfig::ProfileProjection const& source) {
+      if (!source.enabled) return 0;
       if (!(source.axis_step_length_m > 0.) ||
           source.axis_grammage_g_per_cm2.size() < 2)
         throw std::invalid_argument(
             "Kokkos profile projection requires a valid ShowerAxis support");
+      return checkedMemoryMultiply(
+          source.axis_grammage_g_per_cm2.size(), sizeof(double));
+    }
+
+    void initialize(
+        gpu::em::GpuEmConfig::ProfileProjection const& source,
+        ExecutionSpace const& execution = {}) {
+      if (!source.enabled) return;
+      (void)projectedDeviceBytes(source);
       axis_ = Kokkos::View<double*, memory_space>(
           "c8_kokkos_profile_axis", source.axis_grammage_g_per_cm2.size());
       auto host = Kokkos::create_mirror_view(axis_);

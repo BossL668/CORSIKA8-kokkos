@@ -1,0 +1,6 @@
+# Demonstration observers at the default c8_air_shower observation altitude.
+# north_m west_m up_m; up_m is height above reference Earth radius, NOT AGL.
+# An installation example, not the production 21CMA antenna layout.
+25 0 2680.444195
+50 0 2680.444195
+100 0 2680.444195

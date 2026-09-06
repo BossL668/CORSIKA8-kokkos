@@ -11,8 +11,8 @@
 #include <cstdint>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
-#include <corsika/gpu/em/Types.hpp>
-#include <corsika/gpu/em/detail/ProfileProjectionData.hpp>
+#include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/common/detail/ProfileProjectionData.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -57,6 +57,9 @@ namespace corsika::accelerator::em::detail {
         projectProfileGrammage(projection, record.end.position_m);
     projected.end_energy_GeV = record.end.energy_GeV;
     projected.deposited_energy_GeV = record.cut_deposited_energy_GeV;
+    projected.cut_deposited_energy_GeV = record.cut_deposited_energy_GeV;
+    projected.observation_surface_reached_before_cut =
+        record.observation_surface_reached_before_cut;
     projected.weight = record.start.weight;
     return projected;
   }
@@ -86,6 +89,9 @@ namespace corsika::accelerator::em::detail {
     projected.deposited_energy_GeV =
         record.continuous_deposited_energy_GeV +
         record.cut_deposited_energy_GeV;
+    projected.cut_deposited_energy_GeV = record.cut_deposited_energy_GeV;
+    projected.observation_surface_reached_before_cut =
+        record.observation_surface_reached_before_cut;
     projected.weight = record.start.weight;
     return projected;
   }

@@ -1,5 +1,37 @@
 include (ExternalProject)
 
+# Optional reuse of an existing CORSIKA-layout TAUOLA 1.1.8 installation.
+# This is a dependency, not an alternative shower implementation. Fresh hosts
+# retain the pinned source build below when this option is empty.
+set (C8_TAUOLA_PREFIX "" CACHE PATH "Prebuilt TAUOLA in CORSIKA install layout")
+if (C8_TAUOLA_PREFIX)
+  foreach (_file include/corsika_modules/Tauola/Tauola.h
+                 lib/corsika/libTauolaCxxInterface.a
+                 lib/corsika/libTauolaFortran.a)
+    if (NOT EXISTS "${C8_TAUOLA_PREFIX}/${_file}")
+      message (FATAL_ERROR "Incomplete C8_TAUOLA_PREFIX: missing ${_file}")
+    endif ()
+  endforeach ()
+  add_library (C8::ext::tauola::CxxInterface STATIC IMPORTED GLOBAL)
+  add_library (C8::ext::tauola::Fortran STATIC IMPORTED GLOBAL)
+  add_library (C8::ext::tauola INTERFACE IMPORTED)
+  foreach (_lib CxxInterface Fortran)
+    set_target_properties (C8::ext::tauola::${_lib} PROPERTIES
+      IMPORTED_LOCATION "${C8_TAUOLA_PREFIX}/lib/corsika/libTauola${_lib}.a"
+      INTERFACE_INCLUDE_DIRECTORIES "${C8_TAUOLA_PREFIX}/include/corsika_modules")
+  endforeach ()
+  set_property (TARGET C8::ext::tauola PROPERTY INTERFACE_LINK_LIBRARIES
+                C8::ext::tauola::CxxInterface C8::ext::tauola::Fortran)
+  target_link_libraries (CORSIKA8 INTERFACE C8::ext::tauola)
+  set (TAUOLA_FOUND 1 PARENT_SCOPE)
+  set (TAUOLA_INCDIR "${C8_TAUOLA_PREFIX}/include/corsika_modules" PARENT_SCOPE)
+  set (TAUOLA_LIBDIR "${C8_TAUOLA_PREFIX}/lib/corsika" PARENT_SCOPE)
+  set (TAUOLA_INCDIR_INSTALL "${CMAKE_INSTALL_PREFIX}/include/corsika_modules" PARENT_SCOPE)
+  set (TAUOLA_LIBDIR_INSTALL "${CMAKE_INSTALL_PREFIX}/lib/corsika" PARENT_SCOPE)
+  install (DIRECTORY "${C8_TAUOLA_PREFIX}/" DESTINATION "${CMAKE_INSTALL_PREFIX}")
+  return ()
+endif ()
+
 add_library (C8::ext::tauola::CxxInterface STATIC IMPORTED GLOBAL)
 add_library (C8::ext::tauola::Fortran STATIC IMPORTED GLOBAL)
 add_library(C8::ext::tauola INTERFACE IMPORTED)

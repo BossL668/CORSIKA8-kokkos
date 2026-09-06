@@ -12,13 +12,14 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
-#include <corsika/gpu/em/BremsLpm.hpp>
-#include <corsika/gpu/em/EmThinning.hpp>
-#include <corsika/gpu/em/EpairFinalState.hpp>
-#include <corsika/gpu/em/EpairLpm.hpp>
-#include <corsika/gpu/em/Philox.hpp>
-#include <corsika/gpu/em/ProcessCapabilities.hpp>
-#include <corsika/gpu/em/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/BremsLpm.hpp>
+#include <corsika/accelerator/em/common/EmThinning.hpp>
+#include <corsika/accelerator/em/common/EpairFinalState.hpp>
+#include <corsika/accelerator/em/common/EpairLpm.hpp>
+#include <corsika/accelerator/em/common/Philox.hpp>
+#include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
+#include <corsika/accelerator/em/common/TransportMass.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -515,7 +516,9 @@ namespace corsika::accelerator::em::detail {
           IonizationAzimuthDrawId};
       sample.azimuth_uniform = uniformOpen01(azimuth_key);
       if (!applyLeptonTwoChildThinning(
-              thinning, parent, IonizationProcessId, outgoing, delta,
+              thinning, parent, IonizationProcessId,
+              proposalSecondaryTransportEnergyGeV(parent.pid, outgoing, lepton_mass_GeV),
+              proposalSecondaryTransportEnergyGeV(11, delta, electron_mass_GeV),
               random_seed, shower_id, sample, result.child_count)) {
         result.fallback = invalidLeptonFinalState(interaction, sample);
         result.fallback_flag = 1;
@@ -652,7 +655,9 @@ namespace corsika::accelerator::em::detail {
       return result;
     }
     if (!applyLeptonTwoChildThinning(
-            thinning, parent, BremsProcessId, lepton_energy, photon_energy,
+            thinning, parent, BremsProcessId,
+            proposalSecondaryTransportEnergyGeV(parent.pid, lepton_energy, lepton_mass_GeV),
+            photon_energy,
             random_seed, shower_id, sample, result.child_count)) {
       result.fallback = invalidLeptonFinalState(interaction, sample);
       result.fallback_flag = 1;
@@ -720,41 +725,100 @@ namespace corsika::accelerator::em::detail {
     record.thinning_second_draw_id = gpu::em::EmThinningSecondDrawId;
   }
 
-  C8_ACCELERATOR_INLINE_FUNCTION inline LeptonFinalStateMaterialization
-  materializeLeptonFinalState(
+  /** Compatibility sink for callers that still need the aggregate result. */
+  struct LeptonFinalStateMaterializationWriter {
+    LeptonFinalStateMaterialization& output;
+
+    C8_ACCELERATOR_INLINE_FUNCTION void fallback(
+        gpu::em::ProposalFallbackEvent const& value) {
+      output.fallback = value;
+      output.has_fallback = 1;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void continuation(
+        gpu::em::EmInteractionRecord const& value) {
+      output.continuation = value;
+      output.has_continuation = 1;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void suppression(
+        gpu::em::EmParticleState const& parent,
+        gpu::em::EmInteractionRecord const& interaction,
+        LeptonFinalStateParameters const& sample) {
+      output.suppression = {
+          parent, interaction.input_index, interaction.component_hash,
+          sample.lpm_survival_probability, sample.lpm_uniform,
+          sample.process_id == gpu::em::ElectronPairProcessId
+              ? EpairLpmDrawId
+              : BremsLpmDrawId};
+      output.has_suppression = 1;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void firstInteraction(
+        gpu::em::EmParticleState const& parent, std::int32_t process_id,
+        gpu::em::EmParticleState const& first,
+        gpu::em::EmParticleState const* second = nullptr,
+        gpu::em::EmParticleState const* third = nullptr) {
+      captureLeptonFirstInteraction(
+          output, parent, process_id, first, second, third);
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void secondary(
+        std::uint32_t index, gpu::em::EmParticleState const& particle) {
+      output.secondaries[index] = particle;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION gpu::em::BremsFinalStateRecord& record() {
+      return output.record;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void finishRecord(
+        std::uint32_t secondary_count) {
+      output.secondary_count = secondary_count;
+      output.has_record = 1;
+    }
+
+    C8_ACCELERATOR_INLINE_FUNCTION void fail(std::uint32_t error) {
+      output.error = error;
+    }
+  };
+
+  /**
+   * Materialize directly into a caller-provided sink.
+   *
+   * Resident kernels use this overload to avoid constructing the 1.7 KiB
+   * aggregate result in each CUDA thread.  The aggregate-return overload below
+   * remains the compatibility and validation interface.
+   */
+  template <class Writer>
+  C8_ACCELERATOR_INLINE_FUNCTION inline void
+  materializeLeptonFinalStateInPlace(
       gpu::em::EmInteractionRecord const& interaction,
       LeptonFinalStateClassification const& classification,
       std::uint64_t child_offset, std::uint64_t first_history_id,
-      double electron_mass_GeV) {
+      double electron_mass_GeV, Writer& output) {
     using namespace gpu::em;
-    LeptonFinalStateMaterialization output{};
     if (classification.fallback_flag) {
-      output.fallback = classification.fallback;
-      output.has_fallback = 1;
-      return output;
+      output.fallback(classification.fallback);
+      return;
     }
     if (classification.continuation_flag) {
-      output.continuation = interaction;
-      output.has_continuation = 1;
-      return output;
+      output.continuation(interaction);
+      return;
     }
     auto const sample = classification.parameters;
     if (classification.suppression_flag) {
       auto parent = interaction.particle;
       ++parent.step_id;
-      output.suppression = {
-          parent, interaction.input_index, interaction.component_hash,
-          sample.lpm_survival_probability, sample.lpm_uniform,
-          sample.process_id == ElectronPairProcessId ? EpairLpmDrawId
-                                                     : BremsLpmDrawId};
-      output.has_suppression = 1;
-      return output;
+      output.suppression(parent, interaction, sample);
+      return;
     }
-    if (!classification.record_flag) return output;
+    if (!classification.record_flag) return;
     auto const parent = interaction.particle;
     auto const lepton_mass_GeV = interaction.particle_mass_GeV > 0.
                                      ? interaction.particle_mass_GeV
                                      : electron_mass_GeV;
+    std::uint32_t secondary_count = 0;
     if (sample.process_id == AnnihilationProcessId) {
       auto const rho = sample.energy_split_fraction;
       auto const total = parent.energy_GeV + lepton_mass_GeV;
@@ -771,8 +835,8 @@ namespace corsika::accelerator::em::detail {
       if (!leptonFinite(first_energy) || !leptonFinite(second_energy) ||
           !(first_energy > 0.) || !(second_energy > 0.) ||
           !leptonFinite(first_cosine) || !leptonFinite(second_cosine)) {
-        output.error = 1;
-        return output;
+        output.fail(1);
+        return;
       }
       auto const azimuth = sample.azimuth_uniform * LeptonTwoPi;
       double first_direction[3]{};
@@ -797,34 +861,33 @@ namespace corsika::accelerator::em::detail {
         first.direction[axis] = first_direction[axis];
         second.direction[axis] = second_direction[axis];
       }
-      captureLeptonFirstInteraction(output, parent, AnnihilationProcessId,
-                                    first, &second);
+      output.firstInteraction(parent, AnnihilationProcessId, first, &second);
       if (sample.thinning_keep_mask & 0x1U) {
-        first.history_id = first_history_id + child_offset + output.secondary_count;
-        output.secondaries[output.secondary_count++] = first;
+        first.history_id = first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, first);
       }
       if (sample.thinning_keep_mask & 0x2U) {
-        second.history_id = first_history_id + child_offset + output.secondary_count;
-        output.secondaries[output.secondary_count++] = second;
+        second.history_id = first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, second);
       }
-      output.record = {interaction.input_index,
-                       parent.history_id,
-                       child_offset,
-                       output.secondary_count,
-                       AnnihilationProcessId,
-                       rho,
-                       sample.final_state_uniform,
-                       sample.azimuth_uniform,
-                       0.,
-                       1.,
-                       0.,
-                       AnnihilationRhoDrawId,
-                       AnnihilationAzimuthDrawId,
-                       0,
-                       0};
-      populateLeptonThinningRecord(output.record, sample);
-      output.has_record = 1;
-      return output;
+      output.record() = {interaction.input_index,
+                         parent.history_id,
+                         child_offset,
+                         secondary_count,
+                         AnnihilationProcessId,
+                         rho,
+                         sample.final_state_uniform,
+                         sample.azimuth_uniform,
+                         0.,
+                         1.,
+                         0.,
+                         AnnihilationRhoDrawId,
+                         AnnihilationAzimuthDrawId,
+                         0,
+                         0};
+      populateLeptonThinningRecord(output.record(), sample);
+      output.finishRecord(secondary_count);
+      return;
     }
     if (sample.process_id == IonizationProcessId) {
       auto const v = effectiveLossFraction(parent.energy_GeV,
@@ -852,8 +915,8 @@ namespace corsika::accelerator::em::detail {
            electron_mass_GeV * electron_mass_GeV) /
           (incoming_momentum * delta_momentum);
       if (!leptonFinite(outgoing_cosine) || !leptonFinite(delta_cosine)) {
-        output.error = 1;
-        return output;
+        output.fail(1);
+        return;
       }
       auto const azimuth = sample.azimuth_uniform * LeptonTwoPi;
       double outgoing_direction[3]{};
@@ -864,7 +927,8 @@ namespace corsika::accelerator::em::detail {
                          leptonFmod(azimuth + LeptonPi, LeptonTwoPi),
                          delta_direction);
       auto outgoing = parent;
-      outgoing.energy_GeV = outgoing_energy;
+      outgoing.energy_GeV = proposalSecondaryTransportEnergyGeV(
+          outgoing.pid, outgoing_energy, lepton_mass_GeV);
       outgoing.parent_history_id = parent.history_id;
       outgoing.generation = parent.generation + 1;
       outgoing.step_id = 0;
@@ -872,41 +936,46 @@ namespace corsika::accelerator::em::detail {
       outgoing.weight = sample.thinning_first_weight;
       auto delta = outgoing;
       delta.pid = static_cast<std::int32_t>(EmPid::Electron);
-      delta.energy_GeV = delta_energy;
+      delta.energy_GeV = proposalSecondaryTransportEnergyGeV(
+          delta.pid, delta_energy, electron_mass_GeV);
       delta.weight = sample.thinning_second_weight;
       for (int axis = 0; axis < 3; ++axis) {
         outgoing.direction[axis] = outgoing_direction[axis];
         delta.direction[axis] = delta_direction[axis];
       }
-      captureLeptonFirstInteraction(output, parent, IonizationProcessId,
-                                    outgoing, &delta);
+      output.firstInteraction(parent, IonizationProcessId, outgoing, &delta);
       if (sample.thinning_keep_mask & 0x1U) {
         outgoing.history_id =
-            first_history_id + child_offset + output.secondary_count;
-        output.secondaries[output.secondary_count++] = outgoing;
+            first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, outgoing);
       }
       if (sample.thinning_keep_mask & 0x2U) {
-        delta.history_id = first_history_id + child_offset + output.secondary_count;
-        output.secondaries[output.secondary_count++] = delta;
+        delta.history_id = first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, delta);
       }
-      output.record = {interaction.input_index,
-                       parent.history_id,
-                       child_offset,
-                       output.secondary_count,
-                       IonizationProcessId,
-                       interaction.energy_fraction,
-                       0.,
-                       sample.azimuth_uniform,
-                       0.,
-                       1.,
-                       0.,
-                       0,
-                       IonizationAzimuthDrawId,
-                       0,
-                       0};
-      populateLeptonThinningRecord(output.record, sample);
-      output.has_record = 1;
-      return output;
+      output.record() = {interaction.input_index,
+                         parent.history_id,
+                         child_offset,
+                         secondary_count,
+                         IonizationProcessId,
+                         interaction.energy_fraction,
+                         0.,
+                         sample.azimuth_uniform,
+                         0.,
+                         1.,
+                         0.,
+                         0,
+                         IonizationAzimuthDrawId,
+                         0,
+                         0};
+      populateLeptonThinningRecord(output.record(), sample);
+      output.record().weighted_mass_convention_correction_GeV =
+          weightedProposalMassCorrectionGeV(parent.pid, lepton_mass_GeV,
+              (sample.thinning_keep_mask & 0x1U) ? sample.thinning_first_weight : 0.) +
+          weightedProposalMassCorrectionGeV(11, electron_mass_GeV,
+              (sample.thinning_keep_mask & 0x2U) ? sample.thinning_second_weight : 0.);
+      output.finishRecord(secondary_count);
+      return;
     }
     if (sample.process_id == ElectronPairProcessId) {
       auto const v = effectiveLossFraction(parent.energy_GeV,
@@ -922,11 +991,12 @@ namespace corsika::accelerator::em::detail {
           electron_energy < lepton_mass_GeV ||
           !leptonFinite(positron_energy) ||
           positron_energy < lepton_mass_GeV) {
-        output.error = 1;
-        return output;
+        output.fail(1);
+        return;
       }
       auto surviving = parent;
-      surviving.energy_GeV = surviving_energy;
+      surviving.energy_GeV = proposalSecondaryTransportEnergyGeV(
+          surviving.pid, surviving_energy, lepton_mass_GeV);
       surviving.parent_history_id = parent.history_id;
       surviving.history_id = first_history_id + child_offset;
       surviving.generation = parent.generation + 1;
@@ -934,35 +1004,40 @@ namespace corsika::accelerator::em::detail {
       surviving.reserved = 0;
       auto electron = surviving;
       electron.pid = static_cast<std::int32_t>(EmPid::Electron);
-      electron.energy_GeV = electron_energy;
+      electron.energy_GeV = proposalSecondaryTransportEnergyGeV(
+          electron.pid, electron_energy, electron_mass_GeV);
       electron.history_id = first_history_id + child_offset + 1;
       auto positron = surviving;
       positron.pid = static_cast<std::int32_t>(EmPid::Positron);
-      positron.energy_GeV = positron_energy;
+      positron.energy_GeV = proposalSecondaryTransportEnergyGeV(
+          positron.pid, positron_energy, electron_mass_GeV);
       positron.history_id = first_history_id + child_offset + 2;
-      captureLeptonFirstInteraction(output, parent, ElectronPairProcessId,
-                                    surviving, &electron, &positron);
-      output.secondaries[0] = surviving;
-      output.secondaries[1] = electron;
-      output.secondaries[2] = positron;
-      output.secondary_count = 3;
-      output.record = {interaction.input_index,
-                       parent.history_id,
-                       child_offset,
-                       3,
-                       ElectronPairProcessId,
-                       interaction.energy_fraction,
-                       sample.final_state_uniform,
-                       sample.azimuth_uniform,
-                       sample.auxiliary_uniform,
-                       sample.lpm_survival_probability,
-                       sample.lpm_uniform,
-                       EpairRhoDrawId,
-                       EpairSignDrawId,
-                       EpairDirectionDrawId,
-                       EpairLpmDrawId};
-      output.has_record = 1;
-      return output;
+      output.firstInteraction(parent, ElectronPairProcessId, surviving,
+                              &electron, &positron);
+      output.secondary(0, surviving);
+      output.secondary(1, electron);
+      output.secondary(2, positron);
+      secondary_count = 3;
+      output.record() = {interaction.input_index,
+                         parent.history_id,
+                         child_offset,
+                         3,
+                         ElectronPairProcessId,
+                         interaction.energy_fraction,
+                         sample.final_state_uniform,
+                         sample.azimuth_uniform,
+                         sample.auxiliary_uniform,
+                         sample.lpm_survival_probability,
+                         sample.lpm_uniform,
+                         EpairRhoDrawId,
+                         EpairSignDrawId,
+                         EpairDirectionDrawId,
+                         EpairLpmDrawId};
+      output.record().weighted_mass_convention_correction_GeV =
+          weightedProposalMassCorrectionGeV(parent.pid, lepton_mass_GeV, parent.weight) +
+          weightedProposalMassCorrectionGeV(11, electron_mass_GeV, 2. * parent.weight);
+      output.finishRecord(secondary_count);
+      return;
     }
     auto const photon_energy =
         parent.energy_GeV * interaction.energy_fraction;
@@ -973,7 +1048,8 @@ namespace corsika::accelerator::em::detail {
     deflectLeptonChild(parent.direction, photon_cosine, azimuth,
                        photon_direction);
     auto lepton = parent;
-    lepton.energy_GeV = lepton_energy;
+    lepton.energy_GeV = proposalSecondaryTransportEnergyGeV(
+        lepton.pid, lepton_energy, lepton_mass_GeV);
     lepton.parent_history_id = parent.history_id;
     lepton.generation = parent.generation + 1;
     lepton.step_id = 0;
@@ -987,8 +1063,8 @@ namespace corsika::accelerator::em::detail {
                                photon_direction[axis] * photon_energy;
     }
     if (!normalizeLeptonDirection(lepton.direction)) {
-      output.error = 1;
-      return output;
+      output.fail(1);
+      return;
     }
     auto photon = parent;
     photon.pid = static_cast<std::int32_t>(EmPid::Photon);
@@ -1000,33 +1076,48 @@ namespace corsika::accelerator::em::detail {
     photon.weight = sample.thinning_second_weight;
     for (int axis = 0; axis < 3; ++axis)
       photon.direction[axis] = photon_direction[axis];
-    captureLeptonFirstInteraction(output, parent, BremsProcessId, lepton,
-                                  &photon);
+    output.firstInteraction(parent, BremsProcessId, lepton, &photon);
     if (sample.thinning_keep_mask & 0x1U) {
-      lepton.history_id = first_history_id + child_offset + output.secondary_count;
-      output.secondaries[output.secondary_count++] = lepton;
+      lepton.history_id = first_history_id + child_offset + secondary_count;
+      output.secondary(secondary_count++, lepton);
     }
     if (sample.thinning_keep_mask & 0x2U) {
-      photon.history_id = first_history_id + child_offset + output.secondary_count;
-      output.secondaries[output.secondary_count++] = photon;
+      photon.history_id = first_history_id + child_offset + secondary_count;
+      output.secondary(secondary_count++, photon);
     }
-    output.record = {interaction.input_index,
-                     parent.history_id,
-                     child_offset,
-                     output.secondary_count,
-                     BremsProcessId,
-                     interaction.energy_fraction,
-                     0.,
-                     sample.azimuth_uniform,
-                     0.,
-                     sample.lpm_survival_probability,
-                     sample.lpm_uniform,
-                     0,
-                     BremsAzimuthDrawId,
-                     0,
-                     BremsLpmDrawId};
-    populateLeptonThinningRecord(output.record, sample);
-    output.has_record = 1;
+    output.record() = {interaction.input_index,
+                       parent.history_id,
+                       child_offset,
+                       secondary_count,
+                       BremsProcessId,
+                       interaction.energy_fraction,
+                       0.,
+                       sample.azimuth_uniform,
+                       0.,
+                       sample.lpm_survival_probability,
+                       sample.lpm_uniform,
+                       0,
+                       BremsAzimuthDrawId,
+                       0,
+                       BremsLpmDrawId};
+    populateLeptonThinningRecord(output.record(), sample);
+    output.record().weighted_mass_convention_correction_GeV =
+        weightedProposalMassCorrectionGeV(parent.pid, lepton_mass_GeV,
+            (sample.thinning_keep_mask & 0x1U) ? sample.thinning_first_weight : 0.);
+    output.finishRecord(secondary_count);
+  }
+
+  C8_ACCELERATOR_INLINE_FUNCTION inline LeptonFinalStateMaterialization
+  materializeLeptonFinalState(
+      gpu::em::EmInteractionRecord const& interaction,
+      LeptonFinalStateClassification const& classification,
+      std::uint64_t child_offset, std::uint64_t first_history_id,
+      double electron_mass_GeV) {
+    LeptonFinalStateMaterialization output{};
+    LeptonFinalStateMaterializationWriter writer{output};
+    materializeLeptonFinalStateInPlace(
+        interaction, classification, child_offset, first_history_id,
+        electron_mass_GeV, writer);
     return output;
   }
 

@@ -12,8 +12,8 @@
 #include <utility>
 
 #include <corsika/accelerator/em/ProposalNativeRequirements.hpp>
-#include <corsika/gpu/em/tables/ProposalNativeAux.hpp>
-#include <corsika/gpu/em/tables/ProposalNativeTableExporter.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeAux.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeTableExporter.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -71,13 +71,7 @@ namespace corsika::accelerator::em::detail {
             impl_->backend_->capabilities().muon_transport};
   }
 
-  KokkosSessionBeginResult KokkosEmRunSession::beginC8EmRt(
-      gpu::em::EnvironmentSnapshot const&, gpu::em::GpuEmConfig const&,
-      AcceleratedPhysicsRequirements const&) {
-    throw std::invalid_argument(
-        "Kokkos EM supports proposal-native physics only; .c8emrt is a "
-        "native-CUDA compatibility path");
-  }
+
 
   bool KokkosEmRunSession::initialized() const noexcept {
     return impl_->backend_ != nullptr;

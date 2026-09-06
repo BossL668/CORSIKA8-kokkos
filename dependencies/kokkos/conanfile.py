@@ -92,6 +92,12 @@ class KokkosConan(ConanFile):
             self.cpp_info.cxxflags.append("-fopenmp")
             self.cpp_info.sharedlinkflags.append("-fopenmp")
             self.cpp_info.exelinkflags.append("-fopenmp")
+        if str(self.options.backend) == "sycl":
+            # CMakeDeps reconstructs the target instead of loading Kokkos' own
+            # exported target. Propagate SYCL compilation AND device linking.
+            self.cpp_info.cxxflags.append("-fsycl")
+            self.cpp_info.sharedlinkflags.append("-fsycl")
+            self.cpp_info.exelinkflags.append("-fsycl")
         self.cpp_info.defines.append(
             "C8_KOKKOS_PACKAGE_BACKEND_" + str(self.options.backend).upper()
         )

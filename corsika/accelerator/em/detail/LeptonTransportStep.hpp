@@ -11,9 +11,9 @@
 #include <cstdint>
 
 #include <corsika/accelerator/em/detail/LeptonContinuousStep.hpp>
-#include <corsika/gpu/em/ObservationPlane.hpp>
-#include <corsika/gpu/em/SphericalAtmosphere.hpp>
-#include <corsika/gpu/em/UniformMagneticField.hpp>
+#include <corsika/accelerator/em/common/ObservationPlane.hpp>
+#include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
+#include <corsika/accelerator/em/common/UniformMagneticField.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -32,7 +32,7 @@ namespace corsika::accelerator::em::detail {
    * bypass the split Moliere stage.
    */
   C8_ACCELERATOR_INLINE_FUNCTION inline std::uint32_t transportLepton(
-      gpu::em::tables::FlatRateTableView const& table,
+      gpu::em::tables::NativePhysicsView const& table,
       bool const apply_moliere,
       gpu::em::EnvironmentSnapshot const& environment,
       gpu::em::EmInteractionRecord const& interaction,
@@ -94,7 +94,7 @@ namespace corsika::accelerator::em::detail {
                 record = LeptonTransportRecord{};
         record.interaction = interaction;
         record.interaction.particle_mass_GeV =
-            mass_MeV / 1000.;
+            tables::queryContinuousMass(table, start.pid).value / 1000.;
         record.start = start;
         record.end = start;
         record.end.step_id++;
@@ -284,7 +284,7 @@ namespace corsika::accelerator::em::detail {
             record = LeptonTransportRecord{};
       record.interaction = interaction;
       record.interaction.particle_mass_GeV =
-          mass_MeV / 1000.;
+          tables::queryContinuousMass(table, start.pid).value / 1000.;
       record.start = start;
       record.input_index = interaction.input_index;
       record.start_layer_index = layer.layer_index;
@@ -475,23 +475,32 @@ namespace corsika::accelerator::em::detail {
           loss.transport_cut_reached != 0 ||
           final_energy_MeV - mass_MeV <
               transport_cut_MeV;
-      if (reaches_cut && !observation_reached) {
-        auto const end_layer = queryAtmosphereLayer(
-            environment, record.end.position_m,
-            record.end.direction);
-        if (end_layer.status != AtmosphereStatus::Success) {
-          fallback = makeLeptonTransportFallback(
-              interaction,
-              ProposalFallbackReason::UnsupportedGeometry);
-          return 1;
-        }
+      // ObservationPlane does not short-circuit the scalar process sequence:
+      // ParticleCut still observes the completed step after ground output.
+      // Retain both records, as for the existing time-cut branch above.
+      if (reaches_cut) {
         record.end.step_id++;
         record.limit = LeptonTransportLimit::ParticleCut;
-        record.end_layer_index = end_layer.layer_index;
-        record.end_density_g_per_cm3 =
-            end_layer.density_g_per_cm3;
+        if (observation_reached) {
+          // The absorbing surface may bound the supported medium. Do not
+          // require a new medium on the far side of a terminal observation.
+          record.end_layer_index = -1;
+          record.end_density_g_per_cm3 = layer.density_g_per_cm3;
+        } else {
+          auto const end_layer = queryAtmosphereLayer(
+              environment, record.end.position_m, record.end.direction);
+          if (end_layer.status != AtmosphereStatus::Success) {
+            fallback = makeLeptonTransportFallback(
+                interaction, ProposalFallbackReason::UnsupportedGeometry);
+            return 1;
+          }
+          record.end_layer_index = end_layer.layer_index;
+          record.end_density_g_per_cm3 = end_layer.density_g_per_cm3;
+        }
         record.cut_deposited_energy_GeV =
             (final_energy_MeV - mass_MeV) / 1000.;
+        record.observation_surface_reached_before_cut =
+            observation_reached ? 1U : 0U;
         return 0;
       }
 

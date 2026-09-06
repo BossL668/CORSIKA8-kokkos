@@ -10,26 +10,49 @@
 #include <Kokkos_Core.hpp>
 
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 
 #include <corsika/accelerator/em/detail/ProfileAccumulationStep.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
   struct KokkosProfileAtomicOperations {
     KOKKOS_INLINE_FUNCTION static long long add(
         long long* address, long long value) {
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+      // CUDA has a native unsigned 64-bit atomic add, while the signed
+      // overload selected through Kokkos/desul is implemented as a CAS retry
+      // loop.  Two's-complement signed addition has the same bit result as
+      // unsigned addition, and the returned pre-add bit pattern preserves the
+      // overflow check in checkedProfileAtomicAdd().  This deliberately
+      // mirrors the established native-CUDA profile projection path.
+      auto const previous = ::atomicAdd(
+          reinterpret_cast<unsigned long long*>(address),
+          static_cast<unsigned long long>(value));
+      return static_cast<long long>(previous);
+#else
       return Kokkos::atomic_fetch_add(address, value);
+#endif
     }
 
     KOKKOS_INLINE_FUNCTION static unsigned long long add(
         unsigned long long* address, unsigned long long value) {
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+      return ::atomicAdd(address, value);
+#else
       return Kokkos::atomic_fetch_add(address, value);
+#endif
     }
 
     KOKKOS_INLINE_FUNCTION static void maximum(
         unsigned long long* address, unsigned long long value) {
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+      ::atomicMax(address, value);
+#else
       Kokkos::atomic_max(address, value);
+#endif
     }
   };
 
@@ -37,6 +60,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   class KokkosProfileAccumulator {
   public:
     using memory_space = typename ExecutionSpace::memory_space;
+    using host_staging_space = Kokkos::SharedHostPinnedSpace;
     using PhotonStepView =
         Kokkos::View<gpu::em::PhotonTransportRecord*, memory_space>;
     using PhotonFinalView =
@@ -46,9 +70,9 @@ namespace corsika::accelerator::em::kokkos_detail {
     using LeptonFinalView =
         Kokkos::View<gpu::em::BremsFinalStateRecord*, memory_space>;
 
-    void initialize(gpu::em::GpuEmConfig::ProfileProjection const& config,
-                    ExecutionSpace const& execution = {}) {
-      if (!config.enabled || !config.accumulate_on_device) return;
+    static std::size_t projectedDeviceBytes(
+        gpu::em::GpuEmConfig::ProfileProjection const& config) {
+      if (!config.enabled || !config.accumulate_on_device) return 0;
       if (config.output_bin_count == 0 ||
           !(config.output_bin_width_g_per_cm2 > 0.) ||
           !(config.energy_loss_threshold_g_per_cm2 >= 0.) ||
@@ -56,12 +80,48 @@ namespace corsika::accelerator::em::kokkos_detail {
           !(config.fixed_point_energy_limit_GeV > 0.))
         throw std::invalid_argument(
             "Kokkos resident profile configuration is invalid");
+      auto const histograms = checkedMemoryMultiply(
+          gpu::em::detail::DeviceProfileHistogramCount,
+          config.output_bin_count);
+      return checkedMemoryAdd(
+          checkedMemoryMultiply(histograms, sizeof(long long)),
+          sizeof(gpu::em::detail::DeviceProfileCounters));
+    }
+
+    void initialize(gpu::em::GpuEmConfig::ProfileProjection const& config,
+                    ExecutionSpace const& execution = {}) {
+      if (!config.enabled || !config.accumulate_on_device) return;
+      (void)projectedDeviceBytes(config);
       bins_ = config.output_bin_count;
+      if (bins_ > std::numeric_limits<std::size_t>::max() /
+                      gpu::em::detail::DeviceProfileHistogramCount)
+        throw std::length_error(
+            "Kokkos resident profile histogram size overflow");
+      auto const histogram_values =
+          gpu::em::detail::DeviceProfileHistogramCount * bins_;
       histograms_ = Kokkos::View<long long*, memory_space>(
-          "c8_kokkos_profile_histograms",
-          gpu::em::detail::DeviceProfileHistogramCount * bins_);
+          Kokkos::view_alloc(
+              execution, Kokkos::WithoutInitializing,
+              "c8_kokkos_profile_histograms"),
+          histogram_values);
       counters_ = Kokkos::View<gpu::em::detail::DeviceProfileCounters*,
-                               memory_space>("c8_kokkos_profile_counters", 1);
+                               memory_space>(
+          Kokkos::view_alloc(
+              execution, Kokkos::WithoutInitializing,
+              "c8_kokkos_profile_counters"),
+          1);
+      host_histograms_ = Kokkos::View<long long*, host_staging_space>(
+          Kokkos::view_alloc(
+              Kokkos::WithoutInitializing,
+              "c8_kokkos_profile_host_histograms"),
+          histogram_values);
+      host_counters_ =
+          Kokkos::View<gpu::em::detail::DeviceProfileCounters*,
+                       host_staging_space>(
+              Kokkos::view_alloc(
+                  Kokkos::WithoutInitializing,
+                  "c8_kokkos_profile_host_counters"),
+              1);
       view_.photons = histograms_.data();
       view_.electrons = view_.photons + bins_;
       view_.positrons = view_.electrons + bins_;
@@ -99,6 +159,9 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
 
     bool enabled() const noexcept { return enabled_; }
+    gpu::em::detail::DeviceProfileAccumulator deviceView() const noexcept {
+      return view_;
+    }
     std::size_t deviceBytes() const noexcept {
       return histograms_.extent(0) * sizeof(long long) +
              counters_.extent(0) *
@@ -164,12 +227,10 @@ namespace corsika::accelerator::em::kokkos_detail {
       if (downloaded_)
         throw std::logic_error(
             "Kokkos resident profile was downloaded more than once");
-      execution.fence("finish Kokkos resident profile");
-      auto host_histograms = Kokkos::create_mirror_view_and_copy(
-          Kokkos::HostSpace(), histograms_);
-      auto host_counters = Kokkos::create_mirror_view_and_copy(
-          Kokkos::HostSpace(), counters_);
-      auto const& counters = host_counters(0);
+      Kokkos::deep_copy(execution, host_histograms_, histograms_);
+      Kokkos::deep_copy(execution, host_counters_, counters_);
+      execution.fence("download Kokkos resident profile");
+      auto const& counters = host_counters_(0);
       gpu::em::GpuProfileResult result{};
       result.photons.resize(bins_);
       result.electrons.resize(bins_);
@@ -180,28 +241,28 @@ namespace corsika::accelerator::em::kokkos_detail {
       result.energy_loss_GeV.resize(bins_);
       result.muon_energy_loss_GeV.resize(bins_);
       for (std::size_t bin = 0; bin < bins_; ++bin) {
-        result.photons[bin] = static_cast<double>(host_histograms(bin)) *
+        result.photons[bin] = static_cast<double>(host_histograms_(bin)) *
                               view_.inverse_weight_scale;
         result.electrons[bin] =
-            static_cast<double>(host_histograms(bins_ + bin)) *
+            static_cast<double>(host_histograms_(bins_ + bin)) *
             view_.inverse_weight_scale;
         result.positrons[bin] =
-            static_cast<double>(host_histograms(2 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(2 * bins_ + bin)) *
             view_.inverse_weight_scale;
         result.muons_minus[bin] =
-            static_cast<double>(host_histograms(3 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(3 * bins_ + bin)) *
             view_.inverse_weight_scale;
         result.muons_plus[bin] =
-            static_cast<double>(host_histograms(4 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(4 * bins_ + bin)) *
             view_.inverse_weight_scale;
         result.muon_parent_productions[bin] =
-            static_cast<double>(host_histograms(5 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(5 * bins_ + bin)) *
             view_.inverse_weight_scale;
         auto const electromagnetic_loss =
-            static_cast<double>(host_histograms(6 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(6 * bins_ + bin)) *
             view_.inverse_energy_scale;
         result.muon_energy_loss_GeV[bin] =
-            static_cast<double>(host_histograms(7 * bins_ + bin)) *
+            static_cast<double>(host_histograms_(7 * bins_ + bin)) *
             view_.inverse_energy_scale;
         result.energy_loss_GeV[bin] =
             electromagnetic_loss + result.muon_energy_loss_GeV[bin];
@@ -227,6 +288,16 @@ namespace corsika::accelerator::em::kokkos_detail {
       result.weighted_escaped_total_energy_GeV =
           static_cast<double>(counters.weighted_escaped_total_energy) *
           view_.inverse_energy_scale;
+      result.weighted_unwritten_photoelectric_binding_energy_GeV =
+          static_cast<double>(
+              counters.weighted_unwritten_photoelectric_binding_energy) *
+          view_.inverse_energy_scale;
+      result.weighted_observation_cut_overlap_energy_GeV =
+          static_cast<double>(counters.weighted_observation_cut_overlap_energy) *
+          view_.inverse_energy_scale;
+      result.weighted_mass_convention_correction_GeV =
+          static_cast<double>(counters.weighted_mass_convention_correction) *
+          view_.inverse_energy_scale;
       downloaded_ = true;
       return result;
     }
@@ -235,6 +306,10 @@ namespace corsika::accelerator::em::kokkos_detail {
     Kokkos::View<long long*, memory_space> histograms_{};
     Kokkos::View<gpu::em::detail::DeviceProfileCounters*, memory_space>
         counters_{};
+    Kokkos::View<long long*, host_staging_space> host_histograms_{};
+    Kokkos::View<gpu::em::detail::DeviceProfileCounters*,
+                 host_staging_space>
+        host_counters_{};
     gpu::em::detail::DeviceProfileAccumulator view_{};
     std::size_t bins_{};
     bool enabled_{};

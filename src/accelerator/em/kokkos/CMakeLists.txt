@@ -18,7 +18,7 @@ target_include_directories (
 # The implementation is PIMPL-isolated, but a static archive still needs the
 # Kokkos runtime and backend link flags at the final executable link step.
 target_link_libraries (
-  CORSIKA8KokkosEm PUBLIC Kokkos::kokkos CORSIKA8GpuEmTables
+  CORSIKA8KokkosEm PUBLIC Kokkos::kokkos CORSIKA8ProposalNative
   )
 target_compile_features (CORSIKA8KokkosEm PUBLIC cxx_std_17)
 set_target_properties (

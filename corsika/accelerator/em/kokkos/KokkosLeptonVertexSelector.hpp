@@ -28,7 +28,7 @@ namespace corsika::accelerator::em::kokkos_detail {
 
   template <class ExecutionSpace>
   KokkosLeptonVertexResult selectLeptonVertices(
-      gpu::em::tables::FlatRateTableView const physics,
+      gpu::em::tables::NativePhysicsView const physics,
       std::vector<gpu::em::EmInteractionRecord> const& input,
       std::uint64_t const random_seed, std::uint64_t const shower_id,
       ExecutionSpace const& execution = {}) {

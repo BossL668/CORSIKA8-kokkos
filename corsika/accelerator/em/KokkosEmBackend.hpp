@@ -12,8 +12,8 @@
 
 #include <corsika/accelerator/em/IAcceleratedEmBackend.hpp>
 #include <corsika/accelerator/em/KokkosRuntime.hpp>
-#include <corsika/gpu/em/tables/ProposalNativeAux.hpp>
-#include <corsika/gpu/em/tables/ProposalNativeTable.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeAux.hpp>
+#include <corsika/accelerator/em/common/tables/ProposalNativeTable.hpp>
 
 namespace corsika::accelerator::em {
 
@@ -50,6 +50,11 @@ namespace corsika::accelerator::em {
     gpu::em::LeptonVertexSelectionBatchResult
     selectLeptonVerticesForValidation(
         std::vector<gpu::em::EmInteractionRecord> const&);
+    gpu::em::LeptonVertexSelectionBatchResult
+    reselectLeptonInteractionsAtVertexForValidation(
+        std::vector<gpu::em::EmInteractionRecord> const& interactions) {
+      return selectLeptonVerticesForValidation(interactions);
+    }
     gpu::em::EmFinalStateBatchResult generatePhotonFinalStatesForValidation(
         std::vector<gpu::em::EmInteractionRecord> const&,
         std::uint64_t first_secondary_history_id);

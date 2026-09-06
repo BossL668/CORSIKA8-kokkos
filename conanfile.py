@@ -10,7 +10,7 @@ class Pkg(ConanFile):
         "kokkos_architecture": ["ANY"],
     }
     default_options = {
-		'with_kokkos': False,
+		'with_kokkos': True,
 		'kokkos_backend': 'openmp',
 		'kokkos_architecture': 'NONE',
 		'readline*:shared': 'True',
