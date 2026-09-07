@@ -14,6 +14,7 @@
 #include <limits>
 #include <stdexcept>
 #include <utility>
+#include <type_traits>
 
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP) && !defined(KOKKOS_ENABLE_OPENMP)
 #error "The Kokkos OpenMP build requires KOKKOS_ENABLE_OPENMP"
@@ -38,6 +39,11 @@
 #error "The Kokkos SYCL build requires KOKKOS_ENABLE_SYCL"
 #endif
 
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP) && \
+    (!defined(KOKKOS_ENABLE_CUDA) || !defined(KOKKOS_ENABLE_OPENMP))
+#error "The dual build requires both CUDA and OpenMP in the same Kokkos package"
+#endif
+
 namespace corsika::accelerator::em {
 
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
@@ -46,7 +52,7 @@ namespace corsika::accelerator::em {
       AcceleratorKind::KokkosOpenMP;
   constexpr char SelectedName[] = "openmp";
   constexpr bool SelectedIsGpu = false;
-#elif defined(CORSIKA8_KOKKOS_BACKEND_CUDA)
+#elif defined(CORSIKA8_KOKKOS_BACKEND_CUDA) || defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
   using SelectedExecutionSpace = Kokkos::Cuda;
   constexpr AcceleratorKind SelectedKind = AcceleratorKind::KokkosCuda;
   constexpr char SelectedName[] = "cuda";
@@ -131,7 +137,8 @@ namespace corsika::accelerator::em {
     Kokkos::View<std::uint64_t*, Memory> values(
         "c8_kokkos_tiling_probe_values", tracks * observers);
     Execution execution;
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+#if defined(KOKKOS_ENABLE_OPENMP)
+    if constexpr (std::is_same_v<Execution, Kokkos::OpenMP>) {
     (void)team_size;
     Kokkos::parallel_for(
         "c8_kokkos_tiling_probe",
@@ -153,7 +160,9 @@ namespace corsika::accelerator::em {
             }
           }
         });
-#else
+    } else
+#endif
+    {
     using Policy = Kokkos::TeamPolicy<Execution>;
     using Member = typename Policy::member_type;
     auto const tile_lanes = track_tile_size * observer_tile_size;
@@ -177,7 +186,7 @@ namespace corsika::accelerator::em {
                   (track + 1U) * (observer + 3U);
           }
         });
-#endif
+    }
     std::uint64_t checksum{};
     Kokkos::parallel_reduce(
         "c8_kokkos_tiling_probe_reduce",
@@ -263,24 +272,44 @@ namespace corsika::accelerator::em {
         throw std::logic_error(
             "KokkosRuntime requires sole ownership of Kokkos initialization");
       }
+      auto const selected = resolveKokkosExecutionBackend(config.execution_backend);
+      auto const selected_gpu = selected != "openmp";
+      if (selected_gpu && config.threads > 1)
+        throw std::invalid_argument("GPU execution requires at most one host thread");
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      int device_count{};
+      if (cudaGetDeviceCount(&device_count) != cudaSuccess || device_count == 0)
+        throw std::runtime_error(
+            "Experimental CUDA/OpenMP binary requires a working NVIDIA device "
+            "during Kokkos initialization, including in OpenMP mode; use the "
+            "independent OpenMP binary on CPU-only machines");
+#endif
       Kokkos::InitializationSettings settings;
       if (config.device >= 0) { settings.set_device_id(config.device); }
       if (config.threads > 0) { settings.set_num_threads(config.threads); }
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      // Compiled availability is not simultaneous shower execution. Keep the
+      // OpenMP host instance at one thread when selecting the GPU algorithm.
+      if (selected_gpu) settings.set_num_threads(1);
+#endif
       Kokkos::initialize(settings);
       owns_runtime_ = true;
 
       SelectedExecutionSpace execution;
-      info_.kind = SelectedKind;
-      info_.backend = SelectedName;
+      info_.kind = selected_gpu ? SelectedKind : AcceleratorKind::KokkosOpenMP;
+      info_.backend = selected;
       info_.kokkos_version =
           std::to_string(KOKKOS_VERSION_MAJOR) + "." +
           std::to_string(KOKKOS_VERSION_MINOR) + "." +
           std::to_string(KOKKOS_VERSION_PATCH);
       info_.device = config.device;
       info_.concurrency = execution.concurrency();
-      info_.host_threads = SelectedIsGpu ? 1 : info_.concurrency;
-      info_.gpu = SelectedIsGpu;
-      info_.openmp = !SelectedIsGpu;
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      if (!selected_gpu) info_.concurrency = Kokkos::OpenMP().concurrency();
+#endif
+      info_.host_threads = selected_gpu ? 1 : info_.concurrency;
+      info_.gpu = selected_gpu;
+      info_.openmp = !selected_gpu;
       info_.device_name = SelectedExecutionSpace::name();
 #ifdef CORSIKA8_PROJECT_REVISION
       info_.project_revision = CORSIKA8_PROJECT_REVISION;
@@ -292,7 +321,8 @@ namespace corsika::accelerator::em {
 #else
       info_.compiler_version = "unknown";
 #endif
-#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA)
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) || defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      if (selected_gpu) {
       cudaDeviceProp properties{};
       if (cudaGetDeviceProperties(&properties, config.device) != cudaSuccess)
         throw std::runtime_error("failed to query the Kokkos CUDA device");
@@ -310,6 +340,7 @@ namespace corsika::accelerator::em {
               &info_.device_free_memory_bytes_at_initialization,
               &info_.device_total_memory_bytes) != cudaSuccess)
         throw std::runtime_error("failed to query available CUDA memory");
+      }
 #elif defined(CORSIKA8_KOKKOS_BACKEND_HIP)
       hipDeviceProp_t properties{};
       if (hipGetDeviceProperties(&properties, config.device) != hipSuccess)
@@ -340,11 +371,13 @@ namespace corsika::accelerator::em {
       // allocation failures still remain fail-closed.
       info_.device_free_memory_bytes_at_initialization =
           info_.device_total_memory_bytes;
-#else
+#endif
+      if (!selected_gpu) {
+      info_.device_name = "OpenMP";
       info_.architecture = "host";
       info_.driver_version = "not-applicable";
       info_.runtime_version = "openmp";
-#endif
+      }
     }
 
     ~Impl() {
@@ -363,6 +396,9 @@ namespace corsika::accelerator::em {
             "Kokkos primitive probe size must be in [1, INT_MAX]");
       }
 
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      if (info_.openmp) return runPrimitiveProbeImpl<Kokkos::OpenMP>(values, chunk_size);
+#endif
       return runPrimitiveProbeImpl<SelectedExecutionSpace>(values, chunk_size);
     }
 
@@ -392,6 +428,9 @@ namespace corsika::accelerator::em {
       throw std::invalid_argument(
           "Kokkos queue probe particle count must be positive");
     }
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+    if (impl_->info_.openmp) return runQueueProbeImpl<Kokkos::OpenMP>(particles);
+#endif
     return runQueueProbeImpl<SelectedExecutionSpace>(particles);
   }
 
@@ -402,6 +441,11 @@ namespace corsika::accelerator::em {
     if (tracks == 0 || observers == 0 || team_size == 0 ||
         track_tile_size == 0 || observer_tile_size == 0 || team_size > 1024)
       throw std::invalid_argument("invalid Kokkos tiling-probe dimensions");
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+    if (impl_->info_.openmp)
+      return runTilingProbeImpl<Kokkos::OpenMP>(
+          tracks, observers, team_size, track_tile_size, observer_tile_size);
+#endif
     return runTilingProbeImpl<SelectedExecutionSpace>(
         tracks, observers, team_size, track_tile_size, observer_tile_size);
   }

@@ -90,6 +90,7 @@ int main(int argc, char** argv) {
     corsika::accelerator::em::KokkosRuntimeConfig runtime_config;
     runtime_config.device = device;
     runtime_config.threads = threads;
+    runtime_config.execution_backend = requested_backend;
     corsika::accelerator::em::KokkosRuntime runtime{runtime_config};
     auto const& info = runtime.info();
     if (requested_backend != info.backend)

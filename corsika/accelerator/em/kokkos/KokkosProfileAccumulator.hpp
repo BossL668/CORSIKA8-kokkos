@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosMemorySpace.hpp>
 
 #include <cstddef>
 #include <limits>
@@ -21,7 +22,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   struct KokkosProfileAtomicOperations {
     KOKKOS_INLINE_FUNCTION static long long add(
         long long* address, long long value) {
-#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+#if defined(KOKKOS_ENABLE_CUDA) && defined(__CUDA_ARCH__)
       // CUDA has a native unsigned 64-bit atomic add, while the signed
       // overload selected through Kokkos/desul is implemented as a CAS retry
       // loop.  Two's-complement signed addition has the same bit result as
@@ -39,7 +40,7 @@ namespace corsika::accelerator::em::kokkos_detail {
 
     KOKKOS_INLINE_FUNCTION static unsigned long long add(
         unsigned long long* address, unsigned long long value) {
-#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+#if defined(KOKKOS_ENABLE_CUDA) && defined(__CUDA_ARCH__)
       return ::atomicAdd(address, value);
 #else
       return Kokkos::atomic_fetch_add(address, value);
@@ -48,7 +49,7 @@ namespace corsika::accelerator::em::kokkos_detail {
 
     KOKKOS_INLINE_FUNCTION static void maximum(
         unsigned long long* address, unsigned long long value) {
-#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && defined(__CUDA_ARCH__)
+#if defined(KOKKOS_ENABLE_CUDA) && defined(__CUDA_ARCH__)
       ::atomicMax(address, value);
 #else
       Kokkos::atomic_max(address, value);
@@ -60,7 +61,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   class KokkosProfileAccumulator {
   public:
     using memory_space = typename ExecutionSpace::memory_space;
-    using host_staging_space = Kokkos::SharedHostPinnedSpace;
+    using host_staging_space = HostStagingSpace<ExecutionSpace>;
     using PhotonStepView =
         Kokkos::View<gpu::em::PhotonTransportRecord*, memory_space>;
     using PhotonFinalView =

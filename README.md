@@ -9,8 +9,10 @@ branch, not an official CORSIKA release. Installation does not require an older
 beta project, an existing build tree or manually prepared `.c8emrt` tables.
 
 This guide starts with **Ubuntu 24.04 x86-64, Bash and an empty Conda environment**.
-Build OpenMP and run a small example first; add CUDA if needed. HIP/SYCL setup
-is described separately and still needs target-hardware acceptance.
+After the common setup, choose an independent backend or the new single-binary
+experiment. OpenMP is the simplest CPU-only starting point; NVIDIA users can
+proceed directly to section 8.2 for the combined executable. HIP/SYCL setup is
+described separately and still needs target-hardware acceptance.
 
 ## 1. What the program does
 
@@ -26,35 +28,52 @@ The scientific build below uses SIBYLL-2.3d and separately licensed FLUKA.
 Not every CORSIKA process runs on the GPU. One shower uses OpenMP **or** a GPU;
 there is no combined OpenMP/GPU EM scheduling, MPI or multi-GPU particle stack.
 
-## 2. One source tree, separate binaries, one entry point
+## 2. Choose a build: portable installations or a single CUDA/OpenMP binary
 
-```text
-           applications/c8_air_shower.cpp + shared Kokkos EM/radio
-                                      |
-                         compiler + backend + architecture
-                                      |
-          +----------------+----------------+----------------+
-          |                |                |                |
-        OpenMP            CUDA             HIP             SYCL
-      multicore CPU    NVIDIA GPU        AMD GPU       supported device
-          |                |                |                |
-    build/openmp      build/cuda       build/hip       build/sycl
-          |                |                |                |
-   install/openmp    install/cuda     install/hip     install/sycl
-          +----------------+----------------+----------------+
-                                      |
-                         install/bin/c8_air_shower
-                        manifest -> probe -> select -> exec
-                                      |
-                          one backend executable
+### 2.1 Two deployment options, the same physics sources
+
+| Need | Build helper | How to select execution |
+|---|---|---|
+| CPU-only server | `build_kokkos.sh openmp` | Launcher: `--backend openmp` |
+| Portable CPU/GPU installations | `build_kokkos.sh openmp,cuda` (HIP/SYCL separately) | Launcher selects one installed executable |
+| One executable containing CUDA **and** OpenMP | `build_kokkos_dual.sh` | Direct executable: `--kokkos-execution cuda\|openmp` |
+
+Independent installations remain the production/deployment baseline. The new
+single-executable option is an experiment for a machine with a working NVIDIA
+device; it is not a universal CPU/NVIDIA/AMD/Intel executable.
+
+```mermaid
+flowchart TD
+    SRC["One c8_air_shower application and shared Kokkos EM/radio templates"]
+    SRC --> SEP["build_kokkos.sh: independent configurations"]
+    SEP --> BINS["Separate OpenMP / CUDA / HIP / SYCL executables"]
+    BINS --> LAUNCH["install/bin/c8_air_shower --backend ..."]
+    LAUNCH --> EXEC["Probe, then exec one installed backend"]
+    SRC --> DUAL["build_kokkos_dual.sh: CUDA_OPENMP configuration"]
+    DUAL --> INST["Compile Cuda and OpenMP instances; link both"]
+    INST --> ELF["install/cuda-openmp/bin/c8_air_shower"]
+    ELF --> SELECT["--kokkos-execution cuda or openmp at startup"]
+    SELECT --> ONE["Run ONE EM/radio instance for the process"]
 ```
 
 Backend specialization happens at compile time. The launcher selects an
 installed executable; it does not compile physics code at startup or schedule
-individual particles. CPU and GPU variants may coexist on disk. Each GPU
-binary uses a Kokkos Serial host backend, while the OpenMP binary requires no
+individual particles. CPU and GPU variants may coexist on disk. Each independent
+GPU binary uses a Kokkos Serial host backend, while the OpenMP binary requires no
 GPU runtime. This is this project's deployment choice, not a universal Kokkos
 restriction.
+
+An **experimental single CUDA/OpenMP executable** is also available through
+`tools/build_kokkos_dual.sh`. It selects one execution space at startup using
+`--kokkos-execution cuda|openmp`; it does not run the two shower algorithms
+concurrently. Unlike the independent OpenMP build, it currently requires a
+working NVIDIA device/driver even in OpenMP mode. It installs separately under
+`install/cuda-openmp` and is not selected by the normal launcher. Section 8.2
+below provides the complete build/run steps after environment setup. See the
+[dual-backend experiment](documentation/cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md)
+for the detailed validation record and limitations.
+
+### 2.2 Directory layout
 
 ```text
 corsika-21cma-kokkos-beta5/
@@ -62,17 +81,89 @@ corsika-21cma-kokkos-beta5/
 ├── build/
 │   ├── openmp/deps/            OpenMP build and Conan/CMake descriptors
 │   ├── cuda/deps/              separate CUDA equivalents
-│   └── ...                    other backends or audit records
+│   ├── cuda-openmp/deps/       combined experiment's own dependency graph
+│   └── ...                    HIP/SYCL or audit records
 └── install/
     ├── bin/c8_air_shower       common Python launcher
     ├── openmp/                binaries, libraries, model data and manifest
-    └── cuda/                  GPU equivalents; HIP/SYCL added as needed
+    ├── cuda/                  GPU equivalents; HIP/SYCL added as needed
+    └── cuda-openmp/           optional single-binary experiment, separate prefix
 ```
 
 `deps` contains dependency locations and compiler settings, not another source
 project or physics tables. Actual Conan packages live in the user cache.
 Configured CMake trees contain absolute paths: do not copy their caches between
 backends or machines. All variants use the same application source.
+
+### 2.3 Algorithm: resident wavefront transport and online radio accumulation
+
+The following is the **accelerated** path. Scalar `proposal/cpu` keeps the
+original serial Cascade/PROPOSAL route. The arrows describe data ownership and
+dependencies, not simultaneous CPU/GPU execution.
+
+```mermaid
+flowchart TD
+    INIT["Environment, cuts, fields and observer configuration"]
+    INIT --> TABLE["CPU PROPOSAL calculators and native cache"]
+    TABLE --> EXPORT["Read-only spline export, auxiliary cache and hash/range checks"]
+    EXPORT --> DATA["Immutable Kokkos Views in selected memory space"]
+    INIT --> HOST["Primary and CPU stack: HybridCascade + router"]
+    HOST --> CPU["CPU hadrons, decays and explicit fallback"]
+    CPU -->|"Products and continuations are routed again"| HOST
+    HOST -->|"Supported photons / leptons"| QUEUE["Resident wavefront queues"]
+    DATA --> STEP["Propagation, competing limits, losses and sampled interactions"]
+    QUEUE --> STEP
+    STEP -->|"Survivors and supported secondaries; scan/compaction"| QUEUE
+    STEP -->|"Unsupported process or designated CPU work"| CPU
+    STEP --> TRACK["Charged-lepton track records"]
+    TRACK --> RADIO["CoREAS/ZHS in the SAME execution space"]
+    STEP --> PROFILE["Profiles, deposits, cuts and observation records"]
+    HOST --> DONE{"CPU stack, resident queues and pending fallback empty?"}
+    DONE -->|"No"| HOST
+    DONE -->|"Yes"| CLOSE["Drain accumulators, write outputs and close shower"]
+    RADIO --> CLOSE
+    PROFILE --> CLOSE
+```
+
+1. **Prepare once, reuse per process.** PROPOSAL remains the physics provider.
+   Exported native splines, environment data and auxiliary distributions are
+   placed in the selected execution space; a new shower resets event state
+   through `beginShower()` while reusing compatible tables/workspaces.
+2. **Advance a front, not only a final state.** Particle batches undergo
+   propagation, geometry/observation checks, continuous losses, discrete
+   interactions, scattering, cuts and thinning. Survivors and supported
+   secondaries continue in resident queues; they do not return to the host
+   individually after every reaction. Explicit fallback/checkpoints remain.
+3. **One source, compile-time execution-space specialization.** Kokkos Views,
+   kernels and scan/compaction run in OpenMP HostSpace or the chosen GPU memory
+   space. History-keyed Philox draws do not depend on thread completion order;
+   this does not promise identical shower trees across hardware.
+4. **CPU work is not discarded.** Hadronic products, decays and unsupported
+   accelerated processes are handled explicitly on the CPU and routed again.
+   EM/radio acceleration is not multi-threaded hadronic model execution.
+5. **Radio is accumulated during transport in batches**, rather than waiting
+   for the full shower tree. Track precomputation and observer tiling amortize
+   projection work; OpenMP uses host blocking/thread-local accumulation, while
+   GPUs use device policies. Checked fixed-point accumulation preserves the
+   existing determinism/overflow checks. Final waveform download/writing occurs
+   after all pending work is drained. Window completeness still needs validation.
+
+Where this logic lives:
+
+| Responsibility | Source |
+|---|---|
+| Models, CLI and output lifecycle | [c8_air_shower.cpp](applications/c8_air_shower.cpp) |
+| Session, native export and reuse | [KokkosEmRunSession.hpp](corsika/accelerator/em/detail/KokkosEmRunSession.hpp) |
+| CPU / accelerated particle routing | [PhysicalAcceleratedEmRouter.hpp](corsika/accelerator/em/PhysicalAcceleratedEmRouter.hpp) |
+| Host-side instance selection | [KokkosEmBackend.cpp](src/accelerator/em/kokkos/KokkosEmBackend.cpp) |
+| Shared instantiated implementation | [KokkosBackendInstance.inl](src/accelerator/em/kokkos/KokkosBackendInstance.inl) |
+| Photon/lepton transport and native tables | [Kokkos EM templates](corsika/accelerator/em/kokkos) |
+| CoREAS/ZHS projection and accumulation | [KokkosRadioAccumulator.hpp](corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp) |
+
+The dual build compiles `KokkosCudaBackendInstance.cpp` and
+`KokkosOpenMPBackendInstance.cpp` against that same implementation, then links
+both into one program. Selection/virtual dispatch is at host batch boundaries;
+per-particle kernels remain statically specialized templates.
 
 ## 3. Prepare an empty development environment
 
@@ -332,6 +423,8 @@ This installs developer tools, not a repaired system driver. The old runtime-onl
 its `bin` on PATH; do not mix headers, compilers and libraries from different
 Toolkit installations.
 
+### 8.1 Independent CUDA executable (production baseline)
+
 ```bash
 cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
 export CC=/usr/bin/gcc
@@ -375,6 +468,99 @@ Both commands access the GPU. Do not request multiple Kokkos host threads in
 GPU mode. The default memory budget is a ceiling of 70% of available device
 memory at initialization, not a requirement to fill it with a small shower.
 
+### 8.2 New option: build CUDA and OpenMP into one executable
+
+Complete sections 3–5 and the CUDA Toolkit setup above first. You do **not**
+need to build the independent OpenMP/CUDA applications before this experiment.
+From the source directory, with the same environment and licensed FLUPRO:
+
+```bash
+cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+conda activate corsika_venv
+test -f tools/build_kokkos_dual.sh
+test -r "$FLUPRO/libflukahp.a"
+nvcc --version
+nvidia-smi
+C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
+```
+
+If the script is absent, obtain a source revision containing the dual-backend
+experiment. Do not substitute `build_kokkos.sh openmp,cuda`: that builds **two**
+independent executables. The dual helper installs its own dependency graph,
+configures `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`, compiles both EM/radio instances,
+then installs to `../install/cuda-openmp`; existing installs are not overwritten.
+
+**Target architecture is explicit for this helper.** Unlike `build_kokkos.sh
+cuda`, it does not query the GPU to select an architecture: the default is
+`dependencies/kokkos/profiles/cuda-openmp-ada89` (RTX 40 / Ada 8.9).
+For another NVIDIA target, create a profile such as this A100 example, saved as
+`~/conan-profiles/cuda-openmp-ampere80`:
+
+```ini
+include(default)
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda_openmp
+&:kokkos_architecture=AMPERE80
+```
+
+Check its compiler/ABI against the environment and use the **dual-specific**
+variable with an absolute path:
+
+```bash
+conan profile show -pr:h "$HOME/conan-profiles/cuda-openmp-ampere80" -pr:b default
+C8_KOKKOS_DUAL_PROFILE="$HOME/conan-profiles/cuda-openmp-ampere80" \
+  C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
+```
+
+Use the Ada command **or** the matching custom-profile command, not both in
+the same existing build cache. A new machine needs a fresh build tree.
+`C8_KOKKOS_PROFILE` controls the independent helper, not this helper.
+
+After a successful build, these commands use the **same binary**, from the
+project container directory. No private antenna file is needed:
+
+```bash
+cd ..
+export CORSIKA_DATA="$PWD/install/cuda-openmp/share/corsika/data"
+install/cuda-openmp/bin/kokkos_backend_probe --backend cuda --threads 1
+install/cuda-openmp/bin/kokkos_backend_probe --backend openmp --threads 4
+mkdir -p "$HOME/CorsikaData"
+
+install/cuda-openmp/bin/c8_air_shower \
+  --em-backend kokkos --radio-backend kokkos --kokkos-execution cuda \
+  -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+
+install/cuda-openmp/bin/c8_air_shower \
+  --em-backend kokkos --radio-backend kokkos --kokkos-execution openmp \
+  --kokkos-num-threads 4 \
+  -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+```
+
+The direct application retains scalar defaults, so keep both `--em-backend
+kokkos` and `--radio-backend kokkos`. Native PROPOSAL is already the only
+accelerated physics source. Omitting `--kokkos-execution` in the combined build
+selects CUDA **only when accelerated mode is requested**. Do not pass the
+launcher's `--backend` to the application; the separate **probe** has its own
+`--backend` option, as shown above.
+
+- The combined program links/initializes CUDA even for OpenMP execution. A
+  working visible NVIDIA device is required; hiding all GPUs is not a CPU-only
+  deployment solution. Use `install/openmp` for that use case.
+- A process chooses one execution space for EM **and** radio. It does not switch
+  between showers in `-N N` or run OpenMP EM together with GPU radio. CUDA mode
+  limits the compiled OpenMP host runtime to one thread; do not request 16.
+- The common launcher does not register `cuda-openmp`; call this executable
+  directly. HIP/SYCL remain independent target-specific builds, not members of
+  this experimental executable.
+- Release install, primitive/runtime gates and short `-N 2` photon/proton
+  regressions passed locally against the corresponding independent backends.
+  This is not a 500-event acceptance or a demonstrated speedup of the combined
+  executable. See the [test record](documentation/cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md).
+
 ## 9. Minimal commands and important parameters
 
 From the project container directory:
@@ -403,7 +589,8 @@ YAML or `.c8emrt` file is needed for this application.
 
 | Parameter | Meaning / default |
 |---|---|
-| `--backend openmp/cuda/hip/sycl` | Installed executable to select; omitted means `auto` |
+| `--backend openmp/cuda/hip/sycl` | Launcher only: installed executable to select; omitted means `auto` |
+| `--kokkos-execution cuda\|openmp` | Combined application: select an in-binary instance; implicit CUDA in accelerated mode |
 | `-p`, `-E` | PDG code and total energy in GeV; photon 22, electron 11, proton 2212 |
 | `-z`, `-a` | Zenith and azimuth in degrees; 0 / 0 |
 | `-s`, `-N` | Seed / sequential showers in one process; automatic seed / 1 |
@@ -421,7 +608,8 @@ YAML or `.c8emrt` file is needed for this application.
 
 `auto` probes installed GPUs, then announces OpenMP if none is usable; multiple
 usable GPU backends require explicit selection. It does not guarantee the
-fastest device. Explicit OpenMP never probes a GPU. Explicit selection failures
+fastest device. The launcher's explicit independent OpenMP never probes a GPU;
+this guarantee does not apply to the combined executable. Explicit selection failures
 and shower errors never trigger backend substitution. `--list-backends` is
 metadata-only; `--check-backends` and `--dry-run` run probes.
 
@@ -497,11 +685,15 @@ and `gpu_em` metadata; the name "beta5" alone does not identify an exact binary.
 | `nvcc` missing | Install development tools, not just a driver; check PATH |
 | NVML driver/library mismatch | Administrator must reconcile driver versions; explicit architecture is not a repair |
 | Manifest present, probe fails | Check environment, device permissions and shared libraries; do not combine arbitrary libraries |
+| Dual OpenMP fails with GPUs hidden | Expected current limitation; use the independent OpenMP executable |
+| `--backend` rejected by application | Use it on the launcher/probe; use `--kokkos-execution` on the combined application |
 | Output directory exists | Choose another `-f`; preserve existing scientific data |
 | Empty/clipped radio signal | Check observers, coordinate height and time window; weak low-energy signals are also possible |
 | VRAM below 70% | Budget ceiling, dependent on workload/workspace and available memory |
 
-Run the relevant build helper after source updates to rebuild and install.
+Run the relevant build helper after source updates to rebuild and install:
+`build_kokkos.sh <backend>` for independent installs, `build_kokkos_dual.sh` for
+the combined experiment. Do not reconfigure one variant's cache as another.
 Editing README does not update binaries. Do not move old CMake caches to a new
 machine. Reusing prebuilt Pythia/TAUOLA is an advanced same-version/ABI option,
 not a fresh-install prerequisite.

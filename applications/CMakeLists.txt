@@ -112,7 +112,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     GenParticlesHeaders
     GenMediaProperties
     )
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       ../validation/accelerator/KokkosProposalNativeOracleDevice.cpp
       PROPERTIES LANGUAGE CUDA

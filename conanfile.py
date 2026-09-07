@@ -6,7 +6,7 @@ class Pkg(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "with_kokkos": [True, False],
-        "kokkos_backend": ["openmp", "cuda", "hip", "sycl"],
+        "kokkos_backend": ["openmp", "cuda", "cuda_openmp", "hip", "sycl"],
         "kokkos_architecture": ["ANY"],
     }
     default_options = {
@@ -109,7 +109,7 @@ class Pkg(ConanFile):
                 "ADA89": "89",
                 "HOPPER90": "90",
             }
-            if str(self.options.kokkos_backend) == "cuda":
+            if str(self.options.kokkos_backend) in ("cuda", "cuda_openmp"):
                 if architecture not in cuda_architectures:
                     raise ValueError(
                         "Kokkos CUDA requires a supported explicit "

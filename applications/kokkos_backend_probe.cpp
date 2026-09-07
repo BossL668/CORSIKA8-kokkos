@@ -16,8 +16,10 @@ int main(int argc, char** argv) {
   CLI::App app{"CORSIKA 8 mutually exclusive Kokkos backend probe"};
   int threads{};
   int device{};
+  std::string backend;
   std::size_t values{1U << 20U};
   app.add_option("--threads", threads);
+  app.add_option("--backend", backend);
   app.add_option("--device", device);
   app.add_option("--values", values);
   CLI11_PARSE(app, argc, argv);
@@ -25,6 +27,7 @@ int main(int argc, char** argv) {
   corsika::accelerator::em::KokkosRuntimeConfig runtime_config;
   runtime_config.device = device;
   runtime_config.threads = threads;
+  runtime_config.execution_backend = backend;
   corsika::accelerator::em::KokkosRuntime runtime{runtime_config};
   auto const probe = runtime.runPrimitiveProbe(values);
   auto const queue = runtime.runQueueProbe(4096);

@@ -22,7 +22,13 @@ namespace corsika::accelerator::em {
     int threads{0};
     std::filesystem::path tuning_cache;
     bool require_tuning{};
+    // Empty selects the build default. The experimental dual build defaults
+    // to CUDA; it does not fall back to OpenMP after a device failure.
+    std::string execution_backend;
   };
+
+  // Validates selection without initializing either runtime or allocating data.
+  std::string resolveKokkosExecutionBackend(std::string const& requested);
 
   struct KokkosRuntimeInfo {
     AcceleratorKind kind{AcceleratorKind::KokkosOpenMP};
@@ -68,8 +74,10 @@ namespace corsika::accelerator::em {
   /**
    * Process-level Kokkos lifetime for a single, compile-time-selected backend.
    *
-   * A CORSIKA build contains either OpenMP or one GPU execution space with a
-   * Serial host.  It never initializes OpenMP and a GPU for the same shower.
+   * Independent builds contain OpenMP or one GPU with a Serial host. The
+   * experimental CUDA_OPENMP build links and initializes both runtimes, but
+   * executes shower kernels in exactly one selected space. Its CUDA mode
+   * initializes the OpenMP host instance with one thread.
    */
   class KokkosRuntime {
   public:

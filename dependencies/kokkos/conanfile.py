@@ -16,7 +16,7 @@ class KokkosConan(ConanFile):
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
-        "backend": ["openmp", "cuda", "hip", "sycl"],
+        "backend": ["openmp", "cuda", "cuda_openmp", "hip", "sycl"],
         "architecture": ["ANY"],
         "fPIC": [True, False],
     }
@@ -55,12 +55,12 @@ class KokkosConan(ConanFile):
         tc.cache_variables["Kokkos_ENABLE_BENCHMARKS"] = False
         tc.cache_variables["Kokkos_ENABLE_DEPRECATED_CODE_4"] = False
         tc.cache_variables["Kokkos_ENABLE_SERIAL"] = backend != "openmp"
-        tc.cache_variables["Kokkos_ENABLE_OPENMP"] = backend == "openmp"
-        tc.cache_variables["Kokkos_ENABLE_CUDA"] = backend == "cuda"
+        tc.cache_variables["Kokkos_ENABLE_OPENMP"] = backend in ("openmp", "cuda_openmp")
+        tc.cache_variables["Kokkos_ENABLE_CUDA"] = backend in ("cuda", "cuda_openmp")
         tc.cache_variables["Kokkos_ENABLE_HIP"] = backend == "hip"
         tc.cache_variables["Kokkos_ENABLE_SYCL"] = backend == "sycl"
         tc.cache_variables["Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE"] = (
-            backend in ("cuda", "hip")
+            backend in ("cuda", "cuda_openmp", "hip")
         )
         tc.cache_variables["Kokkos_ENABLE_CUDA_UVM"] = False
         tc.cache_variables["Kokkos_ENABLE_IMPL_CUDA_MALLOC_ASYNC"] = False
@@ -88,7 +88,7 @@ class KokkosConan(ConanFile):
             "kokkoscore",
         ]
         self.cpp_info.system_libs = ["dl", "pthread"]
-        if str(self.options.backend) == "openmp":
+        if str(self.options.backend) in ("openmp", "cuda_openmp"):
             self.cpp_info.cxxflags.append("-fopenmp")
             self.cpp_info.sharedlinkflags.append("-fopenmp")
             self.cpp_info.exelinkflags.append("-fopenmp")

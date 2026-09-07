@@ -231,6 +231,11 @@ namespace {
            "Keep photon-to-lepton and lepton-to-photon secondaries in "
            "persistent device queues")
         ->group("GPU EM");
+    app.add_option("--kokkos-execution", options.kokkos_execution,
+                   "Execution space in this binary: cuda or openmp for the "
+                   "experimental dual build; empty selects the build default")
+        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl"}))
+        ->group("GPU EM");
     app.add_option("--kokkos-num-threads", options.kokkos_num_threads,
                    "OpenMP thread count for an OpenMP-only Kokkos build; zero uses the runtime default")
         ->check(CLI::NonNegativeNumber)->group("Kokkos");
@@ -330,6 +335,10 @@ namespace {
 
   bool validateGpuCliOptions(GpuCliOptions& options,
                              std::filesystem::path const& executable) {
+    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos") {
+      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos");
+      return false;
+    }
     if (!options.cuda_replay_trace.empty()) {
       options.gpu_full_step_records = true;
       validation::CudaReplayTrace::instance().open(
@@ -369,14 +378,20 @@ namespace {
             "hadronic worker pool; use --hadronic-backend scalar");
         return false;
       }
-#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
-      if (options.kokkos_num_threads > 1) {
+      std::string selected_execution;
+      try {
+        selected_execution = accelerator::em::resolveKokkosExecutionBackend(
+            options.kokkos_execution);
+      } catch (std::exception const& error) {
+        CORSIKA_LOG_CRITICAL("{}", error.what());
+        return false;
+      }
+      if (selected_execution != "openmp" && options.kokkos_num_threads > 1) {
         CORSIKA_LOG_CRITICAL(
             "A GPU Kokkos build uses Serial host scheduling and rejects "
             "--kokkos-num-threads > 1");
         return false;
       }
-#endif
 #endif
     }
     

@@ -35,6 +35,7 @@ namespace corsika::applications::air_shower {
     bool gpu_resident_cross_species{true};
 
     int kokkos_num_threads{0};
+    std::string kokkos_execution;
     int kokkos_device{0};
     std::filesystem::path kokkos_tuning_cache;
     bool kokkos_require_tuning{false};

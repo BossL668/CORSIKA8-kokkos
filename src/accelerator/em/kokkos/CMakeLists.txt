@@ -2,6 +2,7 @@ add_library (
   CORSIKA8KokkosEm
   STATIC
   KokkosEmBackend.cpp
+  KokkosBackendSelection.cpp
   KokkosEmRunSession.cpp
   KokkosRuntime.cpp
   KokkosTuningCache.cpp
@@ -34,9 +35,11 @@ target_compile_definitions (
   CORSIKA8_KOKKOS_BACKEND_${CORSIKA_KOKKOS_BACKEND}=1
   )
 
-if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA" OR
+    CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+  target_sources(CORSIKA8KokkosEm PRIVATE KokkosCudaBackendInstance.cpp)
+  set_source_files_properties(KokkosCudaBackendInstance.cpp PROPERTIES LANGUAGE CUDA)
   set_source_files_properties (
-    KokkosEmBackend.cpp
     KokkosRuntime.cpp
     PROPERTIES LANGUAGE CUDA
     )
@@ -52,9 +55,24 @@ if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
     CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}"
     )
 elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+  target_sources(CORSIKA8KokkosEm PRIVATE KokkosHipBackendInstance.cpp)
   set_source_files_properties (
-    KokkosEmBackend.cpp
+    KokkosHipBackendInstance.cpp
     KokkosRuntime.cpp
     PROPERTIES LANGUAGE HIP
     )
+endif ()
+
+if (CORSIKA_KOKKOS_BACKEND STREQUAL "OPENMP" OR
+    CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+  target_sources(CORSIKA8KokkosEm PRIVATE KokkosOpenMPBackendInstance.cpp)
+  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+    set_source_files_properties(KokkosOpenMPBackendInstance.cpp PROPERTIES LANGUAGE CUDA)
+    # Conan's cxxflags apply to CXX sources only. NVCC must also enable its
+    # host OpenMP pass when compiling the dual execution-space instances.
+    target_compile_options(CORSIKA8KokkosEm PUBLIC
+      $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+  endif ()
+elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "SYCL")
+  target_sources(CORSIKA8KokkosEm PRIVATE KokkosSyclBackendInstance.cpp)
 endif ()

@@ -4,7 +4,7 @@
 
 本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧 beta 项目、已有构建目录或手工生成的 `.c8emrt` 表。
 
-本文面向初学者，以 **Ubuntu 24.04 x86-64、Bash、空 Conda 环境**为例：先完成 OpenMP 安装和一个小事件，再按需增加 CUDA。HIP/SYCL 工具链单独说明，不能将配置支持等同于硬件验收通过。
+本文面向初学者，以 **Ubuntu 24.04 x86-64、Bash、空 Conda 环境**为例：完成公共环境准备后，选择独立后端或新增单二进制实验。无 GPU 从独立 OpenMP 开始；已有可用 NVIDIA 设备也可直接按第 7.2 节构建组合程序。HIP/SYCL 工具链单独说明，不能将配置支持等同于硬件验收通过。
 
 ## 1. 功能与构建逻辑
 
@@ -13,29 +13,35 @@
 - 强子模型、衰变及不支持的末态仍走 CPU，保留单核标量 PROPOSAL 对照。本文科研配置采用 SIBYLL-2.3d + 用户合法安装的 FLUKA。
 - 一次 shower 选择 OpenMP **或** GPU，不叠加多核强子调度，不做 MPI/多卡粒子栈分发。不是所有物理过程都已 GPU 化。
 
-```text
-               同一套源码：c8_air_shower.cpp
-                + Kokkos 电磁输运 / 射电算法
-                             |
-               选择编译器、后端和目标架构
-                             |
-        +--------------+--------------+--------------+
-        |              |              |              |
-      OpenMP          CUDA           HIP            SYCL
-     多核 CPU      NVIDIA GPU      AMD GPU       受支持的设备
-        |              |              |              |
-  build/openmp    build/cuda      build/hip      build/sycl
-        |              |              |              |
- install/openmp  install/cuda    install/hip    install/sycl
-        +--------------+--------------+--------------+
-                             |
-                 install/bin/c8_air_shower
-                 读清单 → 检查 → 选择 → exec
-                             |
-                    运行一个后端二进制
+### 1.1 两种构建方式，共用同一套物理源码
+
+| 使用场景 | 构建脚本 | 运行时如何选择 |
+|---|---|---|
+| 无 GPU 服务器 | `build_kokkos.sh openmp` | 统一入口 `--backend openmp` |
+| 便于跨 CPU/GPU 机器部署 | `build_kokkos.sh openmp,cuda`；HIP/SYCL 分别构建 | 统一入口选择一个已安装的独立程序 |
+| 希望同一个程序包含 CUDA **和** OpenMP | `build_kokkos_dual.sh` | 直接调用组合程序，用 `--kokkos-execution cuda\|openmp` 选择实例 |
+
+独立后端仍是当前生产和跨设备部署基准。新增单二进制适合在有可用 NVIDIA 设备的机器上试用，**不是一个文件通吃无 GPU、NVIDIA、AMD、Intel 的通用二进制**。
+
+```mermaid
+flowchart TD
+    SRC["同一个 c8_air_shower 应用和 Kokkos EM/radio 模板"]
+    SRC --> SEP["build_kokkos.sh：独立后端构建"]
+    SEP --> BINS["OpenMP / CUDA / HIP / SYCL 各自的可执行文件"]
+    BINS --> LAUNCH["install/bin/c8_air_shower --backend ..."]
+    LAUNCH --> EXEC["探测后 exec 一个已安装的后端"]
+    SRC --> DUAL["build_kokkos_dual.sh：CUDA_OPENMP 组合构建"]
+    DUAL --> INST["分别编译 Cuda 和 OpenMP 实例，再链接"]
+    INST --> ELF["install/cuda-openmp/bin/c8_air_shower"]
+    ELF --> SELECT["启动参数 --kokkos-execution cuda 或 openmp"]
+    SELECT --> ONE["整个进程只运行所选的一个 EM/radio 实例"]
 ```
 
-这是“同一源码、独立二进制、统一入口”：编译时生成后端实例，运行时选择已经安装的程序，不临时编译。OpenMP 与 GPU 可同时安装，但每个 GPU 程序使用 Kokkos Serial host，OpenMP 程序不需要 GPU runtime。这是本项目的组织方式，不是声称 Kokkos 只能这样使用。
+默认部署是“同一源码、独立二进制、统一入口”：编译时生成后端实例，运行时选择已经安装的程序，不临时编译。OpenMP 与 GPU 可同时安装，但独立 GPU 程序使用 Kokkos Serial host，独立 OpenMP 程序不需要 GPU runtime。这是本项目的组织方式，不是声称 Kokkos 只能这样使用。
+
+实验性的 **CUDA/OpenMP 单二进制**即上图右侧路径：它目前即使选择 OpenMP 也需要可用的 NVIDIA 设备和驱动，不能替代无 GPU 服务器上的独立 OpenMP 版。安装位置为 `install/cuda-openmp`，不会覆盖正常启动器和独立后端。从空环境准备好后，按第 7.2 节构建和运行；完整测试边界参见[实验说明与验收](documentation/cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md)。
+
+### 1.2 目录结构
 
 ```text
 corsika-21cma-kokkos-beta5/
@@ -43,14 +49,64 @@ corsika-21cma-kokkos-beta5/
 ├── build/                编译产物，不是第二份项目
 │   ├── openmp/deps/       OpenMP 的 Conan/CMake 工具链
 │   ├── cuda/deps/         CUDA 的独立工具链
-│   └── ...               其他后端或审计记录
+│   ├── cuda-openmp/deps/  组合实验自己的 Conan/CMake 工具链
+│   └── ...               HIP/SYCL 或审计记录
 └── install/
     ├── bin/c8_air_shower  统一启动器
     ├── openmp/           CPU 二进制、库、模型数据、安装清单
-    └── cuda/             GPU 对应产物；HIP/SYCL 按需增加
+    ├── cuda/             GPU 对应产物；HIP/SYCL 按需增加
+    └── cuda-openmp/      可选单二进制实验的独立安装位置
 ```
 
 `deps` 描述依赖位置与编译选项，实际 Conan 包在用户缓存；它不是物理插值表。配置好的 `CMakeCache.txt` 含绝对路径，不能跨后端或跨机器复制使用。所有后端使用同一个应用源码文件。
+
+### 1.3 算法逻辑：驻留波前输运与分批在线射电累积
+
+下图描述**加速路径**；`proposal/cpu` 标量模式仍走原来的串行 Cascade/PROPOSAL。箭头表示数据流和依赖，**不表示 CPU 多核与 GPU 同时演化一个 shower**。
+
+```mermaid
+flowchart TD
+    INIT["环境、cut、磁场、观测面和天线配置"]
+    INIT --> TABLE["CPU PROPOSAL calculator 与原生缓存"]
+    TABLE --> EXPORT["只读样条导出、辅助缓存、哈希和能区校验"]
+    EXPORT --> DATA["所选内存空间内的只读 Kokkos Views"]
+    INIT --> HOST["初级与 CPU 主栈：HybridCascade 和 router"]
+    HOST --> CPU["CPU 强子、衰变与显式回退"]
+    CPU -->|"产物和继续传播的粒子重新分流"| HOST
+    HOST -->|"受支持的光子和轻子"| QUEUE["驻留波前队列"]
+    DATA --> STEP["传播与步长竞争、连续能损、抽样反应"]
+    QUEUE --> STEP
+    STEP -->|"存活粒子和受支持次级，scan 与压紧"| QUEUE
+    STEP -->|"不支持的过程或指定 CPU 工作"| CPU
+    STEP --> TRACK["带电轻子轨迹段"]
+    TRACK --> RADIO["同一 execution space 中的 CoREAS/ZHS 累积"]
+    STEP --> PROFILE["profile、能量沉积、cut 和观测记录"]
+    HOST --> DONE{"CPU 栈、驻留队列、待回退工作是否全部清空？"}
+    DONE -->|"否"| HOST
+    DONE -->|"是"| CLOSE["完成累积器，写出结果，关闭本次 shower"]
+    RADIO --> CLOSE
+    PROFILE --> CLOSE
+```
+
+1. **进程初始化时准备，后续事件复用。** PROPOSAL 仍负责物理数据；原生样条、环境快照及辅助分布进入所选后端的内存空间。新 shower 通过 `beginShower()` 重置事件状态，复用兼容的表和工作区，不重新手工制表。
+2. **并行的是传播过程，不只是反应末态。** 每批粒子执行传播、几何/观测边界与步长竞争、连续能损、离散反应、散射、cut 和 thinning；存活粒子与受支持次级继续留在驻留队列。不是每次反应都逐粒子送回 CPU，但仍存在显式 fallback 和调度检查点。
+3. **一份源码，在编译时指定执行空间。** Kokkos View、kernel、scan/压紧分别在 OpenMP HostSpace 或 GPU 内存空间工作。Philox 按 history 等键取数，不按线程完成先后取数；这不意味着不同硬件一定产生逐位相同的 shower tree。
+4. **回退不是丢弃物理。** 强子产物、衰变、不受加速路径支持的过程交回 CPU 处理，再把产物按能力重新分流。EM/radio 多核加速不等于强子模型已经多线程化。
+5. **射电随输运分批累积，不等待整棵 shower tree 完成。** 轨迹预计算与天线分块复用计算；GPU 用设备执行策略，OpenMP 用主机分块及线程私有累积。带溢出检查的定点累积保留可重复性约束，清空待处理工作后再汇总/写出波形。时间窗是否完整仍需单独检查。
+
+源码对应关系：
+
+| 职责 | 位置 |
+|---|---|
+| 参数、模型装配与输出生命周期 | [c8_air_shower.cpp](applications/c8_air_shower.cpp) |
+| session、原生表准备与跨 shower 复用 | [KokkosEmRunSession.hpp](corsika/accelerator/em/detail/KokkosEmRunSession.hpp) |
+| CPU 与加速粒子分流 | [PhysicalAcceleratedEmRouter.hpp](corsika/accelerator/em/PhysicalAcceleratedEmRouter.hpp) |
+| 主机侧选择/转发到实例 | [KokkosEmBackend.cpp](src/accelerator/em/kokkos/KokkosEmBackend.cpp) |
+| 被各执行空间实例化的共享实现 | [KokkosBackendInstance.inl](src/accelerator/em/kokkos/KokkosBackendInstance.inl) |
+| 光子、轻子、驻留队列与原生表模板 | [Kokkos EM 模块](corsika/accelerator/em/kokkos) |
+| CoREAS/ZHS 投影和累积 | [KokkosRadioAccumulator.hpp](corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp) |
+
+组合版的 `KokkosCudaBackendInstance.cpp` 和 `KokkosOpenMPBackendInstance.cpp` 分别编译同一实现，再链接到同一程序。实例选择/虚函数转发只在主机批次边界发生，逐粒子 kernel 仍由模板静态实例化。
 
 ## 2. 从空环境开始
 
@@ -230,6 +286,8 @@ nvidia-smi
 
 这不安装/修复系统驱动。不要用只有运行库的老 `cudatoolkit` 包代替完整开发工具。已有系统 Toolkit 时将其 `bin` 放入 PATH，别混用不同版本头文件和库。
 
+### 7.1 独立 CUDA 二进制（当前生产基准）
+
 ```bash
 cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
 export CC=/usr/bin/gcc
@@ -267,6 +325,71 @@ install/bin/c8_air_shower --backend cuda \
 
 这两条命令会访问 GPU。GPU 模式不要加 `--kokkos-num-threads 16`。默认显存预算为初始化时可用显存的 70% 上限，不要求小事件占满。
 
+### 7.2 新方式：CUDA 和 OpenMP 编译进同一个可执行文件
+
+先完成第 2–4 节和本节开头的 CUDA Toolkit 配置。**不必先编译独立 OpenMP/CUDA 应用**，可以直接构建组合版。保持相同 Conda 环境与已授权的 `FLUPRO`：
+
+```bash
+cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+conda activate corsika_venv
+test -f tools/build_kokkos_dual.sh
+test -r "$FLUPRO/libflukahp.a"
+nvcc --version
+nvidia-smi
+C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
+```
+
+若没有该脚本，需要取得包含单二进制实验的源码版本；不要用 `build_kokkos.sh openmp,cuda` 替代，它生成的是**两个独立程序**。组合脚本建立自己的依赖图，设置 `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`，分别编译两套 EM/radio 实例再链接，安装到 `../install/cuda-openmp`，不覆盖已有后端。
+
+**组合脚本目前不会自动探测 GPU 架构。** 它默认使用 `dependencies/kokkos/profiles/cuda-openmp-ada89`，针对 RTX 40 / Ada 8.9；这与独立版 `build_kokkos.sh cuda` 的自动架构选择不同。其他 NVIDIA 机器需要匹配的组合 profile，例如将下面 A100 配置保存为 `~/conan-profiles/cuda-openmp-ampere80`：
+
+```ini
+include(default)
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda_openmp
+&:kokkos_architecture=AMPERE80
+```
+
+核对 default 中的编译器/ABI 与本机一致，再使用**组合版专用变量**及绝对路径：
+
+```bash
+conan profile show -pr:h "$HOME/conan-profiles/cuda-openmp-ampere80" -pr:b default
+C8_KOKKOS_DUAL_PROFILE="$HOME/conan-profiles/cuda-openmp-ampere80" \
+  C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
+```
+
+根据机器选择默认 Ada 命令或自定义架构命令，不在同一个已有缓存中交替执行两种架构构建；换机器重新构建。独立版使用的 `C8_KOKKOS_PROFILE` 不控制这个组合脚本。
+
+构建成功后回到项目根目录，以下两条 shower 命令调用的是**完全相同的可执行文件**。使用源码附带的演示天线，不依赖私人数据：
+
+```bash
+cd ..
+export CORSIKA_DATA="$PWD/install/cuda-openmp/share/corsika/data"
+install/cuda-openmp/bin/kokkos_backend_probe --backend cuda --threads 1
+install/cuda-openmp/bin/kokkos_backend_probe --backend openmp --threads 4
+mkdir -p "$HOME/CorsikaData"
+
+install/cuda-openmp/bin/c8_air_shower \
+  --em-backend kokkos --radio-backend kokkos --kokkos-execution cuda \
+  -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+
+install/cuda-openmp/bin/c8_air_shower \
+  --em-backend kokkos --radio-backend kokkos --kokkos-execution openmp \
+  --kokkos-num-threads 4 \
+  -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+```
+
+直接调用应用仍保留标量默认值，因此要显式保留 `--em-backend kokkos --radio-backend kokkos`。原生 PROPOSAL 已是唯一加速物理源，不需另给制表参数。组合版**在请求加速时**省略 `--kokkos-execution` 默认 CUDA；没有请求加速则仍是标量路径。不要把启动器的 `--backend` 传给应用；上面的独立**探针**有自己的 `--backend` 参数。
+
+- 组合程序即使选 OpenMP，也会加载/初始化 CUDA，要求可见且可用的 NVIDIA 设备。不能通过隐藏全部 GPU 把它变成 CPU-only 安装；无 GPU 机器用独立 `install/openmp`。
+- 每个进程的 EM 和射电共同选择一个执行空间；不在 `-N N` 的事件之间切换，也不混用 OpenMP EM 与 GPU 射电。选择 CUDA 时，已编译的 OpenMP host runtime 限为1线程，不要请求16线程。
+- 统一启动器不注册 `cuda-openmp`；组合版直接调用其路径。HIP/SYCL 仍是目标平台独立构建，不在本实验的单程序中。
+- 已在本机完成 Release 安装、基础/运行时门禁及短程 `-N 2` 光子/质子回归，与各自对应的独立旧版比较通过。**不等于组合版已完成500例统计或高能性能验收**；详见[验收记录](documentation/cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md)。
+
 ## 8. 最简命令、参数与正式模拟
 
 项目根目录的最简加速调用：
@@ -290,7 +413,8 @@ install/bin/c8_air_shower --backend openmp \
 
 | 参数 | 含义 / 默认 |
 |---|---|
-| `--backend openmp/cuda/hip/sycl` | 选择已安装后端；省略为 `auto` |
+| `--backend openmp/cuda/hip/sycl` | 统一启动器参数：选择已安装程序；省略为 `auto` |
+| `--kokkos-execution cuda\|openmp` | 组合应用参数：选择同一程序内实例；加速模式下省略默认 CUDA |
 | `-p`、`-E` | 初级 PDG、总能量 GeV；光子 22、电子 11、质子 2212 |
 | `-z`、`-a` | 天顶角/方位角，度；默认 0/0 |
 | `-s`、`-N` | seed / 同进程顺序事件数；默认自动 seed / 1 |
@@ -306,7 +430,7 @@ install/bin/c8_air_shower --backend openmp \
 | `--radio-window-duration-ns`、`--radio-pretrigger-ns` | 默认 400 ns / 10 ns |
 | `--kokkos-tuning-cache`、`--kokkos-require-tuning` | 可选调优缓存；require 模式下不匹配即失败 |
 
-`auto` 探测已装 GPU，不可用时提示并选 OpenMP；多个可用 GPU 后端要求明确选择，不保证自动找最快者。显式 OpenMP 不探测 GPU；显式后端失败不换后端重跑。`--list-backends` 只读清单，`--check-backends` 和 `--dry-run` 会运行探针。跨机器迁移的是源码，不是让 NVIDIA 二进制直接在 AMD 上运行。
+`auto` 探测已装 GPU，不可用时提示并选 OpenMP；多个可用 GPU 后端要求明确选择，不保证自动找最快者。**启动器显式选择独立 OpenMP** 不探测 GPU，这项隔离保证不适用于组合版。显式后端失败不换后端重跑。`--list-backends` 只读清单，`--check-backends` 和 `--dry-run` 会运行探针。跨机器迁移的是源码，不是让 NVIDIA 二进制直接在 AMD 上运行。
 
 正式实验固定 seed 清单、天线、模型、能量、角度、cut、窗口。高能/倾斜事件不能假设默认 400 ns 足够：先画脉冲，扩大窗口检查边缘能量及重叠区收敛，再冻结设置。低能自动最大权重可能小于 1，非零 `--emthin` 不一定实际薄化。
 
@@ -356,10 +480,12 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 | nvcc 找不到 | 需要开发工具而不只是驱动，检查 PATH |
 | NVML driver/library mismatch | 管理员协调驱动；指定架构不能修复运行时 |
 | 清单存在但探针失败 | 检查环境、设备权限、动态库，不随意拼接陌生库 |
+| 组合版 OpenMP 在隐藏 GPU 后失败 | 当前预期限制；改用独立 OpenMP 程序 |
+| 应用不接受 `--backend` | 它是启动器/探针参数；组合应用选择实例用 `--kokkos-execution` |
 | 输出目录已存在 | 换 `-f`，不要删除科研数据为测试让路 |
 | 射电为空/截断 | 检查有效天线数、高度、时间窗口；低能本身也可能无信号 |
 | 显存不到 70% | 是上限，取决于粒子量、工作区和当时可用显存 |
 
-更新源码后重跑对应 `build_kokkos.sh` 才会编译安装，编辑 README 不改变二进制。新机器重新构建，不复制旧 CMakeCache。复用预构建 Pythia/TAUOLA 仅限同版本/ABI 的高级部署，不是从零安装前提。
+更新源码后，独立版重跑对应 `build_kokkos.sh <backend>`，组合实验重跑 `build_kokkos_dual.sh` 才会编译安装；不要把一种构建的缓存改配置成另一种。编辑 README 不改变二进制。新机器重新构建，不复制旧 CMakeCache。复用预构建 Pythia/TAUOLA 仅限同版本/ABI 的高级部署，不是从零安装前提。
 
 实现/审计另见[目录边界与验收记录](documentation/BETA5_EXTRACTION_CN.md)、[统一入口审查](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md)。核心许可见 [LICENSE](LICENSE)，模型与依赖许可独立；不向仓库提交 FLUKA、构建产物、缓存和私人数据。

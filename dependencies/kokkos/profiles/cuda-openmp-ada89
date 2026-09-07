@@ -1,0 +1,8 @@
+include(default)
+
+# Experimental single executable: select CUDA OR OpenMP at process startup.
+# Both runtimes are linked; a working NVIDIA driver is required even for OpenMP.
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda_openmp
+&:kokkos_architecture=ADA89

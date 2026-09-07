@@ -15,6 +15,12 @@ if (CORSIKA_ENABLE_KOKKOS)
   set (_c8_launcher_host "serial")
   if (_c8_launcher_backend STREQUAL "openmp")
     set (_c8_launcher_host "openmp")
+  elseif (_c8_launcher_backend STREQUAL "cuda_openmp")
+    set (_c8_launcher_host "openmp")
+    if (CORSIKA_LAUNCHER_PREFIX)
+      message(FATAL_ERROR
+        "The experimental dual executable is installed separately; leave CORSIKA_LAUNCHER_PREFIX empty.")
+    endif ()
   endif ()
   configure_file (backend.json.in backend.json @ONLY)
   install (FILES "${CMAKE_CURRENT_BINARY_DIR}/backend.json"

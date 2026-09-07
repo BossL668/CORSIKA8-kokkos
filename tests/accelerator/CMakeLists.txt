@@ -1,10 +1,16 @@
 if (CORSIKA_ENABLE_KOKKOS)
+  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+    add_test(NAME Beta5DualBackendRuntime
+      COMMAND ${PYTHON_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_dual_backend_runtime.py
+        --probe $<TARGET_FILE:kokkos_backend_probe>)
+  endif ()
   # These tests compare portable kernels with actual scalar CORSIKA modules,
   # not with a host invocation of the same portable implementation.
   add_executable(testKokkosScalarRadioAlignment testKokkosScalarRadioAlignment.cpp
     ScalarRadioAlignmentDriver.cpp)
   target_link_libraries(testKokkosScalarRadioAlignment PRIVATE CORSIKA8 CORSIKA8KokkosEm)
-  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties(ScalarRadioAlignmentDriver.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options(testKokkosScalarRadioAlignment PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     set_target_properties(testKokkosScalarRadioAlignment PROPERTIES CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
@@ -15,7 +21,7 @@ if (CORSIKA_ENABLE_KOKKOS)
   add_executable(testKokkosCpuDepositionAlignment testKokkosCpuDepositionAlignment.cpp
     KokkosCpuDepositionAlignmentDriver.cpp)
   target_link_libraries(testKokkosCpuDepositionAlignment PRIVATE CORSIKA8 CORSIKA8KokkosEm)
-  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties(KokkosCpuDepositionAlignmentDriver.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options(testKokkosCpuDepositionAlignment PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     set_target_properties(testKokkosCpuDepositionAlignment PROPERTIES CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
@@ -26,7 +32,7 @@ if (CORSIKA_ENABLE_KOKKOS)
   add_executable(testKokkosScalarThinningAlignment testKokkosScalarThinningAlignment.cpp
     KokkosScalarThinningDriver.cpp)
   target_link_libraries(testKokkosScalarThinningAlignment PRIVATE CORSIKA8 CORSIKA8KokkosEm)
-  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties(KokkosScalarThinningDriver.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options(testKokkosScalarThinningAlignment PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     set_target_properties(testKokkosScalarThinningAlignment PROPERTIES CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
@@ -39,7 +45,7 @@ if (CORSIKA_ENABLE_KOKKOS)
   target_link_libraries(testKokkosCpuTransportAlignment PRIVATE CORSIKA8 CORSIKA8KokkosEm
     CORSIKA8ProposalNative PROPOSAL::PROPOSAL spdlog::spdlog CorsikaTestingCommon)
   add_dependencies(testKokkosCpuTransportAlignment GenParticlesHeaders GenMediaProperties)
-  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties(KokkosCpuTransportAlignmentDriver.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options(testKokkosCpuTransportAlignment PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     set_target_properties(testKokkosCpuTransportAlignment PROPERTIES CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
@@ -69,7 +75,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     testKokkosPendingParticleQueue testKokkosPendingParticleQueue.cpp)
   target_link_libraries (
     testKokkosPendingParticleQueue PRIVATE CORSIKA8KokkosEm)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       testKokkosPendingParticleQueue.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (
@@ -90,7 +96,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     testKokkosWavefrontBucketing testKokkosWavefrontBucketing.cpp)
   target_link_libraries (
     testKokkosWavefrontBucketing PRIVATE CORSIKA8KokkosEm)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       testKokkosWavefrontBucketing.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (
@@ -112,7 +118,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     testKokkosResidentMemoryProjection.cpp)
   target_link_libraries (
     testKokkosResidentMemoryProjection PRIVATE CORSIKA8KokkosEm)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       testKokkosResidentMemoryProjection.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (
@@ -134,7 +140,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     testKokkosCompositeExclusiveScan.cpp)
   target_link_libraries (
     testKokkosCompositeExclusiveScan PRIVATE CORSIKA8KokkosEm)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       testKokkosCompositeExclusiveScan.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (
@@ -156,7 +162,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     testKokkosFusedProfileStatistics.cpp)
   target_link_libraries (
     testKokkosFusedProfileStatistics PRIVATE CORSIKA8KokkosEm)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       testKokkosFusedProfileStatistics.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (
@@ -173,7 +179,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     NAME testKokkosFusedProfileStatistics
     COMMAND testKokkosFusedProfileStatistics)
 
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     add_executable (
       benchmarkKokkosWavefrontBucketing
       benchmarkKokkosWavefrontBucketing.cpp)
@@ -202,7 +208,7 @@ if (CORSIKA_ENABLE_KOKKOS)
     PROPOSAL::PROPOSAL
     spdlog::spdlog
     )
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA")
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
     set_source_files_properties (
       KokkosProposalNativeTableTestDriver.cpp PROPERTIES LANGUAGE CUDA)
     target_compile_options (

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <type_traits>
 
 #include <algorithm>
 #include <cmath>
@@ -77,7 +78,6 @@ namespace corsika::accelerator::radio::kokkos_detail {
     }
   };
 
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
   struct KokkosRadioOpenMpThreadLocalOperations {
     KOKKOS_INLINE_FUNCTION static long long add(long long* address,
                                                 long long value) {
@@ -109,11 +109,36 @@ namespace corsika::accelerator::radio::kokkos_detail {
       if (value > *address) *address = value;
     }
   };
-#endif
+
+  // A named functor also compiles in a CUDA-enabled Kokkos package when the
+  // caller uses OpenMP. NVCC forbids extended lambdas in private members.
+  template <class ThreadView, class OutputView>
+  struct MergeThreadWaveformKernel {
+    ThreadView private_waveform;
+    OutputView waveform;
+    std::size_t thread_slots;
+    KOKKOS_INLINE_FUNCTION void operator()(
+        std::size_t const index, unsigned long long& local_overflows) const {
+      long long sum{};
+      for (std::size_t slot = 0; slot < thread_slots; ++slot) {
+        auto const increment = private_waveform(slot, index);
+        auto const previous = KokkosRadioOpenMpThreadLocalOperations::add(&sum, increment);
+        if ((increment > 0 && previous > detail::SignedIntegerMaximum - increment) ||
+            (increment < 0 && previous < detail::SignedIntegerMinimum - increment))
+          ++local_overflows;
+      }
+      waveform(index) = sum;
+    }
+  };
 
   template <class ExecutionSpace>
   class KokkosRadioAccumulator {
   public:
+#if defined(KOKKOS_ENABLE_OPENMP)
+    static constexpr bool IsOpenMP = std::is_same_v<ExecutionSpace, Kokkos::OpenMP>;
+#else
+    static constexpr bool IsOpenMP = false;
+#endif
     using memory_space = typename ExecutionSpace::memory_space;
     using TrackInputView =
         Kokkos::View<gpu::em::LeptonTransportRecord*, memory_space>;
@@ -121,12 +146,10 @@ namespace corsika::accelerator::radio::kokkos_detail {
     using ObserverView = Kokkos::View<detail::DeviceObserver*, memory_space>;
     using FixedWaveformView = Kokkos::View<long long*, memory_space>;
     using FloatingWaveformView = Kokkos::View<double*, memory_space>;
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     using ThreadFixedWaveformView =
         Kokkos::View<long long**, Kokkos::LayoutRight, memory_space>;
     using ThreadCounterView =
         Kokkos::View<detail::DeviceRadioCounters*, memory_space>;
-#endif
     using CounterView =
         Kokkos::View<detail::DeviceRadioCounters*, memory_space>;
 
@@ -159,7 +182,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
             checkedMemoryMultiply(
                 values, requested.deterministic ? sizeof(long long)
                                                 : sizeof(double)));
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
         if (requested.deterministic) {
           auto const thread_slots = static_cast<std::size_t>(
               std::max(1, ExecutionSpace().concurrency()));
@@ -169,12 +192,12 @@ namespace corsika::accelerator::radio::kokkos_detail {
                   checkedMemoryMultiply(values, thread_slots),
                   sizeof(long long)));
         }
-#endif
+      }
       };
       append_waveforms(requested.coreas_observers);
       append_waveforms(requested.zhs_observers);
       total = checkedMemoryAdd(total, sizeof(detail::DeviceRadioCounters));
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
       if (requested.deterministic) {
         auto const thread_slots = static_cast<std::size_t>(
             std::max(1, ExecutionSpace().concurrency()));
@@ -183,16 +206,12 @@ namespace corsika::accelerator::radio::kokkos_detail {
             checkedMemoryMultiply(
                 thread_slots, sizeof(detail::DeviceRadioCounters)));
       }
-#endif
+      }
       return total;
     }
 
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
-    static constexpr std::size_t TrackTileSize = 4;
-    static constexpr std::size_t ObserverTileSize = 4;
-#else
-    static constexpr std::size_t TrackTileSize = 8;
-    static constexpr std::size_t ObserverTileSize = 32;
+    static constexpr std::size_t TrackTileSize = IsOpenMP ? 4 : 8;
+    static constexpr std::size_t ObserverTileSize = IsOpenMP ? 4 : 32;
     static constexpr std::size_t MaximumTrackTileSize = 16;
     static constexpr std::size_t MaximumObserverTileSize = 64;
 
@@ -208,7 +227,6 @@ namespace corsika::accelerator::radio::kokkos_detail {
     // wavefronts: it exposes all track/observer pairs directly and avoids the
     // TeamPolicy overhead of mostly empty tiles.
     static constexpr std::size_t DirectProjectionTrackThreshold = 16384;
-#endif
 
     void initialize(
                     gpu::radio::GpuRadioConfig const& requested,
@@ -226,12 +244,12 @@ namespace corsika::accelerator::radio::kokkos_detail {
       if (track_tile_size_ == 0 || observer_tile_size_ == 0 ||
           team_size_ == 0 || team_size_ > 1024)
         throw std::invalid_argument("Kokkos radio tuning is invalid");
-#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (!IsOpenMP) {
       if (track_tile_size_ > MaximumTrackTileSize ||
           observer_tile_size_ > MaximumObserverTileSize)
         throw std::invalid_argument(
             "Kokkos GPU radio tiling exceeds the validated scratch limits");
-#endif
+      }
       if (!requested.enabled) return;
       validate(requested);
       coreas_observers_host_ = makeObservers(
@@ -272,7 +290,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
                         coreas_waveforms_, "c8_kokkos_coreas_waveforms");
       allocateWaveforms(zhs_bins_, zhs_fixed_, zhs_floating_, zhs_waveforms_,
                         "c8_kokkos_zhs_waveforms");
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
       if (requested.deterministic) {
         Kokkos::Experimental::UniqueToken<ExecutionSpace> tokens(execution);
         openmp_thread_slots_ = std::max<std::size_t>(1, tokens.size());
@@ -285,7 +303,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
         thread_counters_ = ThreadCounterView(
             "c8_kokkos_radio_thread_counters", openmp_thread_slots_);
       }
-#endif
+      }
       counters_ = CounterView("c8_kokkos_radio_counters", 1);
       fuse_coreas_zhs_ =
           requested.coreas_enabled && requested.zhs_enabled &&
@@ -305,7 +323,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
         Kokkos::deep_copy(execution, coreas_floating_, 0.);
       if (zhs_floating_.extent(0))
         Kokkos::deep_copy(execution, zhs_floating_, 0.);
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
       if (coreas_thread_fixed_.extent(0))
         Kokkos::deep_copy(execution, coreas_thread_fixed_, 0LL);
       if (zhs_thread_fixed_.extent(0))
@@ -313,7 +331,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
       if (thread_counters_.extent(0))
         Kokkos::deep_copy(
             execution, thread_counters_, detail::DeviceRadioCounters{});
-#endif
+      }
       Kokkos::deep_copy(execution, counters_, detail::DeviceRadioCounters{});
       execution.fence("reset Kokkos radio accumulator");
       statistics_ = {};
@@ -331,7 +349,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
       if (!enabled() || count == 0) return;
       if (count > records.extent(0))
         throw std::out_of_range("Kokkos radio track count exceeds input view");
-#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (!IsOpenMP) {
       if (count < DirectProjectionTrackThreshold) {
         auto counters = counters_;
         auto const collect_diagnostics = config_.track_diagnostics;
@@ -364,7 +382,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
         downloaded_ = false;
         return;
       }
-#endif
+      }
       ensureTrackCapacity(count, execution);
       auto tracks = tracks_;
       auto counters = counters_;
@@ -407,11 +425,11 @@ namespace corsika::accelerator::radio::kokkos_detail {
       // lepton wavefront.  All kernels use the same execution-space instance,
       // so overwriting the reusable track workspace remains stream ordered.
       // The explicit fence in download() is the owning completion boundary.
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
       mergeThreadWaveforms(execution);
-#else
+      } else {
       (void)execution;
-#endif
+      }
       auto host_counters = Kokkos::create_mirror_view_and_copy(
           Kokkos::HostSpace(), counters_);
       copyStatistics(host_counters(0));
@@ -443,11 +461,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
              zhs_fixed_.span() * sizeof(long long) +
              coreas_floating_.span() * sizeof(double) +
              zhs_floating_.span() * sizeof(double) +
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
              coreas_thread_fixed_.span() * sizeof(long long) +
              zhs_thread_fixed_.span() * sizeof(long long) +
              thread_counters_.span() * sizeof(detail::DeviceRadioCounters) +
-#endif
              tracks_.span() * sizeof(detail::RadioTrackKinematics) +
              counters_.span() * sizeof(detail::DeviceRadioCounters);
     }
@@ -475,9 +491,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
     void reserveTrackCapacity(std::size_t const count,
                               ExecutionSpace const& execution) {
       if (!enabled() || count == 0) return;
-#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (!IsOpenMP) {
       if (count < DirectProjectionTrackThreshold) return;
-#endif
+      }
       ensureTrackCapacity(count, execution);
     }
 
@@ -487,9 +503,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
           KokkosMemoryProjectionBuilder;
       auto const current = deviceBytes();
       if (!enabled() || count == 0) return {current, current};
-#if !defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (!IsOpenMP) {
       if (count < DirectProjectionTrackThreshold) return {current, current};
-#endif
+      }
       auto const old_capacity = tracks_.extent(0);
       if (count <= old_capacity) return {current, current};
       if (old_capacity > std::numeric_limits<std::size_t>::max() / 2)
@@ -586,7 +602,6 @@ namespace corsika::accelerator::radio::kokkos_detail {
       }
     }
 
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     void allocateThreadWaveforms(
         std::size_t bins, ThreadFixedWaveformView& fixed,
         std::size_t thread_slots, ExecutionSpace const& execution,
@@ -615,22 +630,8 @@ namespace corsika::accelerator::radio::kokkos_detail {
           label,
           Kokkos::RangePolicy<ExecutionSpace>(
               execution, 0, private_waveform.extent(1)),
-          KOKKOS_LAMBDA(std::size_t const index,
-                        unsigned long long& local_overflows) {
-            long long sum{};
-            for (std::size_t slot = 0; slot < thread_slots; ++slot) {
-              auto const increment = private_waveform(slot, index);
-              auto const previous =
-                  KokkosRadioOpenMpThreadLocalOperations::add(
-                      &sum, increment);
-              if ((increment > 0 &&
-                   previous > detail::SignedIntegerMaximum - increment) ||
-                  (increment < 0 &&
-                   previous < detail::SignedIntegerMinimum - increment))
-                ++local_overflows;
-            }
-            waveform(index) = sum;
-          },
+          MergeThreadWaveformKernel<ThreadFixedWaveformView, FixedWaveformView>{
+              private_waveform, waveform, thread_slots},
           overflow_count);
       return overflow_count;
     }
@@ -655,7 +656,6 @@ namespace corsika::accelerator::radio::kokkos_detail {
       }
       global.fixed_point_overflows += overflow_count;
     }
-#endif
 
     void ensureTrackCapacity(std::size_t count,
                              ExecutionSpace const& execution) {
@@ -747,7 +747,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
       auto const observer_tile_size = observer_tile_size_;
       using Policy = Kokkos::TeamPolicy<ExecutionSpace>;
       using Member = typename Policy::member_type;
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+      if constexpr (IsOpenMP) {
       // A Kokkos OpenMP team consumes threads from the process-wide OpenMP
       // pool.  Requiring TrackTileSize * ObserverTileSize members would make
       // the kernel invalid whenever the user selects fewer than 16 threads.
@@ -836,7 +836,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
             }
             thread_tokens.release(thread_slot);
           });
-#else
+      } else {
       auto const tile_lanes = track_tile_size * observer_tile_size;
       auto const team_size = std::min(team_size_, tile_lanes);
       auto policy = Policy(execution, league_size, team_size);
@@ -901,7 +901,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
                     counters.data());
             }
           });
-#endif
+      }
       auto const pairs = track_count * observer_count;
       statistics_.track_observer_pairs +=
           pairs * static_cast<std::size_t>(Coreas + Zhs);
@@ -1070,12 +1070,10 @@ namespace corsika::accelerator::radio::kokkos_detail {
     FixedWaveformView zhs_fixed_{};
     FloatingWaveformView coreas_floating_{};
     FloatingWaveformView zhs_floating_{};
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     ThreadFixedWaveformView coreas_thread_fixed_{};
     ThreadFixedWaveformView zhs_thread_fixed_{};
     ThreadCounterView thread_counters_{};
     std::size_t openmp_thread_slots_{};
-#endif
     detail::DeviceWaveforms coreas_waveforms_{};
     detail::DeviceWaveforms zhs_waveforms_{};
     detail::DevicePropagation propagation_{};
@@ -1087,15 +1085,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
     bool fuse_coreas_zhs_{};
     bool initialized_{};
     bool downloaded_{};
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     std::size_t track_tile_size_{TrackTileSize};
     std::size_t observer_tile_size_{ObserverTileSize};
-    std::size_t team_size_{1};
-#else
-    std::size_t track_tile_size_{TrackTileSize};
-    std::size_t observer_tile_size_{ObserverTileSize};
-    std::size_t team_size_{256};
-#endif
+    std::size_t team_size_{IsOpenMP ? 1U : 256U};
   };
 
 } // namespace corsika::accelerator::radio::kokkos_detail

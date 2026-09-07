@@ -32,6 +32,7 @@ namespace corsika::applications::air_shower {
     accelerator::em::KokkosRuntimeConfig runtime_config{};
     runtime_config.device = options.kokkos_device;
     runtime_config.threads = options.kokkos_num_threads;
+    runtime_config.execution_backend = options.kokkos_execution;
     runtime_config.tuning_cache = options.kokkos_tuning_cache;
     runtime_config.require_tuning = options.kokkos_require_tuning;
     runtime_session_ =
@@ -44,7 +45,13 @@ namespace corsika::applications::air_shower {
     configuration["rng_domain_version"] = gpu::em::RandomDomainVersion;
     configuration["physics_alignment_revision"] = "2026-09-06";
     configuration["gpu_physics_source"] = "proposal-native";
-#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+    configuration["execution_space"] =
+        accelerator::em::resolveKokkosExecutionBackend(options.kokkos_execution) ==
+                "openmp" ? "OpenMP" : "CUDA";
+    configuration["compiled_execution_spaces"] = "CUDA,OpenMP";
+    configuration["experimental_dual_runtime"] = true;
+#elif defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     configuration["execution_space"] = "OpenMP";
 #elif defined(CORSIKA8_KOKKOS_BACKEND_CUDA)
     configuration["execution_space"] = "CUDA";

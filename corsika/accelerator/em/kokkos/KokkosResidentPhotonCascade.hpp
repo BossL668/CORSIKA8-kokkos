@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosMemorySpace.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -488,7 +489,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   class KokkosResidentPhotonWorkspace {
   public:
     using Memory = typename ExecutionSpace::memory_space;
-    using HostMemory = Kokkos::SharedHostPinnedSpace;
+    using HostMemory = HostStagingSpace<ExecutionSpace>;
     using Unmanaged = Kokkos::MemoryTraits<Kokkos::Unmanaged>;
     using InteractionCountView =
         Kokkos::View<std::uint64_t, Memory, Unmanaged>;
@@ -852,7 +853,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     ErrorView error{};
     InteractionCountView interaction_count{};
     ScanTotalsView scan_totals{};
-    Kokkos::View<ResidentPhotonFrontControl, Kokkos::SharedHostPinnedSpace>
+    Kokkos::View<ResidentPhotonFrontControl, HostStagingSpace<ExecutionSpace>>
         host_front_control{};
     HostProjectedStepView host_projected_steps{};
     HostStepView host_steps{};

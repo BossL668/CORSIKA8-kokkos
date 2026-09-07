@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosMemorySpace.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -453,7 +454,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     using OffsetView = Kokkos::View<std::uint64_t*, memory_space>;
     using ParticleView =
         Kokkos::View<gpu::em::EmParticleState*, memory_space>;
-    using host_staging_space = Kokkos::SharedHostPinnedSpace;
+    using host_staging_space = HostStagingSpace<ExecutionSpace>;
     using HostStagingView =
         Kokkos::View<gpu::em::EmParticleState*, host_staging_space>;
 

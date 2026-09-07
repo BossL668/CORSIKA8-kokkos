@@ -21,9 +21,10 @@ namespace corsika::accelerator::em {
    * Execution-space-specific Kokkos electromagnetic backend.
    *
    * Its public surface intentionally contains no Kokkos type.  The selected
-   * execution space is fixed at build time and hidden by the implementation,
+   * execution-space instances are compiled ahead of time and hidden by the implementation,
    * which keeps ordinary C++ application translation units compatible with a
-   * Kokkos-CUDA/HIP build.
+   * Kokkos-CUDA/HIP build. Independent builds contain one instance; the
+   * experimental CUDA_OPENMP build selects one instance at process startup.
    */
   class KokkosEmBackend final : public IAcceleratedEmBackend {
   public:
