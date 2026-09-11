@@ -10,12 +10,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 
 #include <corsika/accelerator/em/AcceleratorKind.hpp>
 
 namespace corsika::accelerator::em {
+
+  // Opaque process lifetime. Only an explicitly cooperative owner may lend it.
+  class KokkosRuntimeLease;
 
   struct KokkosRuntimeConfig {
     int device{0};
@@ -25,6 +29,15 @@ namespace corsika::accelerator::em {
     // Empty selects the build default. The experimental dual build defaults
     // to CUDA; it does not fall back to OpenMP after a device failure.
     std::string execution_backend;
+    // Internal opt-in; does not enable an application-level hybrid scheduler.
+    bool cooperative_owner{};
+    std::shared_ptr<KokkosRuntimeLease> runtime_lease;
+    // Optional diagnostic observer on the coordinator thread. true/false
+    // bracket CPU slices submitted while CUDA's stream event is incomplete.
+    // Empty in applications; physics and scheduling must not depend on it.
+    std::function<void(bool)> cooperative_slice_observer;
+    // Experimental queue policy; ignored by no backend and rejected on single ends.
+    std::string cooperative_policy{"legacy"};
   };
 
   // Validates selection without initializing either runtime or allocating data.
@@ -47,6 +60,7 @@ namespace corsika::accelerator::em {
     std::size_t device_free_memory_bytes_at_initialization{};
     bool gpu{};
     bool openmp{};
+    bool cooperative_runtime{};
   };
 
   struct KokkosPrimitiveProbeResult {
@@ -72,12 +86,15 @@ namespace corsika::accelerator::em {
   };
 
   /**
-   * Process-level Kokkos lifetime for a single, compile-time-selected backend.
+   * Process-level Kokkos lifetime, with an explicit internal cooperative lease.
    *
    * Independent builds contain OpenMP or one GPU with a Serial host. The
-   * experimental CUDA_OPENMP build links and initializes both runtimes, but
-   * executes shower kernels in exactly one selected space. Its CUDA mode
-   * initializes the OpenMP host instance with one thread.
+   * experimental CUDA_OPENMP build normally selects one execution space;
+   * ordinary CUDA mode still initializes OpenMP with one thread. An explicitly
+   * cooperative owner may instead lend the process lifetime to CUDA/OpenMP
+   * instances on the same coordinator thread. All instances and the final
+   * lease must be destroyed on that thread, after their views and work finish.
+   * This lifetime facility alone does not enable a cooperative air shower.
    */
   class KokkosRuntime {
   public:
@@ -90,6 +107,7 @@ namespace corsika::accelerator::em {
     KokkosRuntime& operator=(KokkosRuntime&&) noexcept;
 
     KokkosRuntimeInfo const& info() const noexcept;
+    std::shared_ptr<KokkosRuntimeLease> shareCooperativeLifetime() const;
     KokkosPrimitiveProbeResult runPrimitiveProbe(
         std::size_t values, std::size_t chunk_size = 0) const;
     KokkosQueueProbeResult runQueueProbe(std::size_t particles) const;

@@ -16,6 +16,7 @@
 #include <utility>
 
 #include <corsika/output/BaseOutput.hpp>
+#include <corsika/output/ShowerSummary.hpp>
 
 namespace corsika {
 
@@ -37,15 +38,15 @@ namespace corsika {
         : configuration_(std::move(configuration)) {}
 
     void startOfLibrary(
-        boost::filesystem::path const&) final {
+        boost::filesystem::path const& directory) final {
+      summary_.open(directory);
       setInit(true);
     }
 
     void startOfShower(
         unsigned int const shower_id) final {
       auto shower =
-          summary_["shower_" +
-                   std::to_string(shower_id)];
+          summary_.event(shower_id);
       shower["closed"] = false;
       shower["status"] = "in_progress";
       active_shower_ = shower_id;
@@ -56,12 +57,12 @@ namespace corsika {
     void endOfShower(
         unsigned int const shower_id) final {
       auto shower =
-          summary_["shower_" +
-                   std::to_string(shower_id)];
+          summary_.event(shower_id);
       if (!running_ || shower_id != active_shower_) {
         shower["closed"] = false;
         shower["status"] = "invalid_callback_order";
         running_ = false;
+        summary_.flush();
         return;
       }
       shower["wall_time_ms"] =
@@ -71,14 +72,14 @@ namespace corsika {
       shower["closed"] = true;
       shower["status"] = "closed";
       running_ = false;
+      summary_.flush();
     }
 
     void endOfLibrary() final {
       if (running_ &&
           active_shower_ != InvalidShower) {
         auto shower =
-            summary_["shower_" +
-                     std::to_string(active_shower_)];
+            summary_.event(active_shower_);
         shower["closed"] = false;
         shower["status"] =
             "library_ended_during_shower";
@@ -87,6 +88,7 @@ namespace corsika {
                 Clock::now() - start_)
                 .count();
         running_ = false;
+        summary_.flush();
       }
       setInit(false);
     }
@@ -96,7 +98,11 @@ namespace corsika {
     }
 
     YAML::Node getSummary() const final {
-      return summary_;
+      return summary_.snapshot();
+    }
+
+    void writeSummary(boost::filesystem::path const& path) const final {
+      summary_.writeSummary(path);
     }
 
   private:
@@ -105,7 +111,7 @@ namespace corsika {
         std::numeric_limits<unsigned int>::max();
 
     YAML::Node configuration_{};
-    YAML::Node summary_{};
+    mutable ShowerSummary summary_;
     Clock::time_point start_{};
     unsigned int active_shower_{InvalidShower};
     bool running_{};

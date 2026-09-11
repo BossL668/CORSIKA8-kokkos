@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/output/ShowerSummary.hpp>
+
 #include <corsika/framework/process/SecondariesProcess.hpp>
 
 #include <corsika/media/ShowerAxis.hpp>
@@ -56,6 +58,10 @@ namespace corsika {
     YAML::Node getConfig() const override;
     YAML::Node getSummary() const override;
 
+    void writeSummary(boost::filesystem::path const& path) const override {
+      summary_.writeSummary(path);
+    }
+
     auto getInteractionCounter() { return interactionCounter_; }
 
   private:
@@ -68,7 +74,7 @@ namespace corsika {
     unsigned int showerId_;
 
     ParquetStreamer output_;
-    YAML::Node summary_;
+    ShowerSummary summary_;
 
   }; // namespace corsika
 

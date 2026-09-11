@@ -14,7 +14,9 @@
 #include <limits>
 #include <stdexcept>
 
+#include <corsika/accelerator/em/common/PhotonPairKinematics.hpp>
 #include <corsika/accelerator/em/detail/ProfileAccumulationStep.hpp>
+#include <corsika/accelerator/em/detail/CooperativeProfileMerge.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
@@ -93,6 +95,7 @@ namespace corsika::accelerator::em::kokkos_detail {
                     ExecutionSpace const& execution = {}) {
       if (!config.enabled || !config.accumulate_on_device) return;
       (void)projectedDeviceBytes(config);
+      fixed_snapshot_config_ = config;
       bins_ = config.output_bin_count;
       if (bins_ > std::numeric_limits<std::size_t>::max() /
                       gpu::em::detail::DeviceProfileHistogramCount)
@@ -152,14 +155,21 @@ namespace corsika::accelerator::em::kokkos_detail {
       view_.inverse_weight_scale = 1. / view_.weight_scale;
       view_.energy_scale = FixedPointHeadroom / energy_limit_GeV;
       view_.inverse_energy_scale = 1. / view_.energy_scale;
+      fixed_snapshot_config_.fixed_point_weight_limit = weight_limit;
+      fixed_snapshot_config_.fixed_point_energy_limit_GeV = energy_limit_GeV;
       Kokkos::deep_copy(execution, histograms_, 0LL);
       Kokkos::deep_copy(
           execution, counters_, gpu::em::detail::DeviceProfileCounters{});
       execution.fence("reset Kokkos resident profile");
       downloaded_ = false;
+      fixed_snapshot_sealed_ = false;
     }
 
     bool enabled() const noexcept { return enabled_; }
+    void requireOpenForAccumulation() const {
+      if (fixed_snapshot_sealed_)
+        throw std::logic_error("profile endpoint already committed; reset before new tracks");
+    }
     gpu::em::detail::DeviceProfileAccumulator deviceView() const noexcept {
       return view_;
     }
@@ -176,6 +186,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         std::size_t const final_state_count,
         ExecutionSpace const& execution = {}) {
       if (!enabled_) return;
+      requireOpenForAccumulation();
       auto const accumulator = view_;
       Kokkos::parallel_for(
           "c8_kokkos_accumulate_photon_profile_steps",
@@ -202,6 +213,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         std::size_t const final_state_count,
         ExecutionSpace const& execution = {}) {
       if (!enabled_) return;
+      requireOpenForAccumulation();
       auto const accumulator = view_;
       Kokkos::parallel_for(
           "c8_kokkos_accumulate_lepton_profile_steps",
@@ -219,6 +231,34 @@ namespace corsika::accelerator::em::kokkos_detail {
                 projection, accumulator, steps.data(), step_count,
                 final_states(index));
           });
+    }
+
+    detail::FixedProfileSnapshot downloadFixed(
+        std::string const& identity, detail::CooperativeEndpoint endpoint,
+        ExecutionSpace const& execution = {}) {
+      if (!enabled_ || downloaded_)
+        throw std::logic_error("fixed profile snapshot unavailable/already committed");
+      if (identity.empty() || static_cast<unsigned>(endpoint)>1)
+        throw std::invalid_argument("invalid cooperative profile snapshot identity");
+      // Final export: a failed copy must not be accepted as a fresh ledger.
+      downloaded_ = true;
+      fixed_snapshot_sealed_ = true;
+      try {
+        Kokkos::deep_copy(execution, host_histograms_, histograms_);
+        Kokkos::deep_copy(execution, host_counters_, counters_);
+        execution.fence("download cooperative fixed profile endpoint");
+      } catch (...) {
+        try { execution.fence("unwind cooperative profile endpoint copy"); } catch (...) {}
+        throw;
+      }
+      detail::FixedProfileSnapshot out;
+      out.shower_identity=identity;out.endpoint=endpoint;out.config=fixed_snapshot_config_;
+      out.weight_units=view_.inverse_weight_scale;out.energy_units=view_.inverse_energy_scale;
+      out.counters=host_counters_(0);
+      out.histograms.resize(histograms_.extent(0));
+      for(std::size_t i=0;i<out.histograms.size();++i) out.histograms[i]=host_histograms_(i);
+      detail::validateFixedProfile(out);
+      return out;
     }
 
     gpu::em::GpuProfileResult download(
@@ -304,6 +344,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
 
   private:
+    gpu::em::GpuEmConfig::ProfileProjection fixed_snapshot_config_{};
     Kokkos::View<long long*, memory_space> histograms_{};
     Kokkos::View<gpu::em::detail::DeviceProfileCounters*, memory_space>
         counters_{};
@@ -315,6 +356,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     std::size_t bins_{};
     bool enabled_{};
     bool downloaded_{};
+    bool fixed_snapshot_sealed_{};
   };
 
 } // namespace corsika::accelerator::em::kokkos_detail

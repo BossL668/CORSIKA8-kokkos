@@ -6,6 +6,7 @@
  */
 
 #include "KokkosCpuTransportAlignmentDriver.hpp"
+#include "MagneticLinearGateChecks.hpp"
 
 #include <corsika/accelerator/em/KokkosRuntime.hpp>
 #include <corsika/accelerator/em/common/tables/ProposalNativeTableExporter.hpp>
@@ -66,7 +67,11 @@ int main() {
     PROPOSAL::Logging::SetGlobalLoglevel(spdlog::level::warn);
     RNGManager<>::getInstance().registerRandomStream("proposal");
     accelerator::em::KokkosRuntimeConfig runtime_config;
+#if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
     runtime_config.threads = 2;
+#else
+    runtime_config.threads = 1;
+#endif
     accelerator::em::KokkosRuntime runtime(runtime_config);
 
     // Real CORSIKA medium and scalar ContinuousProcess; no synthetic dE/dX
@@ -349,6 +354,7 @@ int main() {
     require(legacy_equal == random_outputs.size(), "legacy RNG collision reproduction failed");
     require(new_equal == 0, "Moliere and native process selection still reuse a random draw");
     require(std::abs(correlation) < 0.03L, "new independent RNG domains unexpectedly correlated");
+    magnetic_linear_gate_test::run(source);
     std::cout << std::setprecision(17)
               << "backend=" << runtime.info().backend << " scalar_step_cases=" << expected.size()
               << " terminal_cases=" << output.size() << " dual_observation_cut=" << dual_hits

@@ -232,10 +232,13 @@ namespace {
            "persistent device queues")
         ->group("GPU EM");
     app.add_option("--kokkos-execution", options.kokkos_execution,
-                   "Execution space in this binary: cuda or openmp for the "
+                   "Execution space in this binary: cuda, openmp or cuda-openmp for the "
                    "experimental dual build; empty selects the build default")
-        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl"}))
+        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl", "cuda-openmp"}))
         ->group("GPU EM");
+    app.add_option("--kokkos-cooperative-policy", options.kokkos_cooperative_policy,
+                   "Cooperative queue scheduling: legacy or experimental adaptive")
+        ->check(CLI::IsMember({"legacy", "adaptive"}))->group("Kokkos");
     app.add_option("--kokkos-num-threads", options.kokkos_num_threads,
                    "OpenMP thread count for an OpenMP-only Kokkos build; zero uses the runtime default")
         ->check(CLI::NonNegativeNumber)->group("Kokkos");
@@ -354,6 +357,11 @@ namespace {
       return false;
     }
     
+    if (options.kokkos_cooperative_policy != "legacy" &&
+        (options.em_backend != "kokkos" || options.kokkos_execution != "cuda-openmp")) {
+      CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
+      return false;
+    }
     if (options.em_backend == "kokkos") {
 #ifndef CORSIKA8_WITH_KOKKOS_EM
       CORSIKA_LOG_CRITICAL(
@@ -386,7 +394,13 @@ namespace {
         CORSIKA_LOG_CRITICAL("{}", error.what());
         return false;
       }
-      if (selected_execution != "openmp" && options.kokkos_num_threads > 1) {
+      if (selected_execution == "cuda-openmp" && options.hadronic_workers != 1) {
+        CORSIKA_LOG_CRITICAL(
+            "Cooperative EM requires scalar hadrons: --hadronic-workers must be 1");
+        return false;
+      }
+      if (selected_execution != "openmp" && selected_execution != "cuda-openmp" &&
+          options.kokkos_num_threads > 1) {
         CORSIKA_LOG_CRITICAL(
             "A GPU Kokkos build uses Serial host scheduling and rejects "
             "--kokkos-num-threads > 1");
@@ -605,6 +619,9 @@ int main(int argc, char** argv) {
       ->group("Radio");
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
+  if (gpu_cli.kokkos_execution == "cuda-openmp" &&
+      app.count("--hadronic-workers") == 0)
+    gpu_cli.hadronic_workers = 1;
 
   if (!validateGpuCliOptions(gpu_cli, argv[0])) {
     return EXIT_FAILURE;
@@ -1328,6 +1345,11 @@ int main(int argc, char** argv) {
       save_hist(hists.labHist(), labHist_file, true);
       save_hist(hists.CMSHist(), cMSHist_file, true);
     }
+
+    // Reports above have consumed this shower's samples. Do not retain one
+    // entry per hadronic interaction over the entire multi-shower library.
+    leIntCounted.releaseTimingSamples();
+    heCounted.releaseTimingSamples();
   }
 
   // and finalize the output on disk

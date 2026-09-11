@@ -103,13 +103,17 @@ namespace corsika {
   inline void TimeDomainObserver::receive(const TimeType time, SignalPath const& path,
                                           const VectorPotential& vectorP) {
 
-    if (time < start_time_ || time > (start_time_ + duration_)) {
+    // ZHS contributes bin-integrated potentials, not instantaneous fields.
+    // A label just outside the nominal time window can still round into its
+    // first/last potential bin. Discarding it before binning leaves those bins
+    // incomplete and creates an artificial pulse when RadioProcess computes
+    // E[i] = -(A[i+1] - A[i]) / dt. Clip the bin, not the contribution label;
+    // keep the existing array length, output time axis and CoREAS semantics.
+    auto const bin = std::floor((time - start_time_) * sample_rate_ + 0.5l);
+    if (!(bin >= 0 && bin < num_bins_)) {
       return;
     } else {
-      // figure out the correct timebin to store the E-field value.
-      // NOTE: static cast is implicitly flooring
-      auto timebin{static_cast<std::size_t>(
-          std::floor((time - start_time_) * sample_rate_ + 0.5l))};
+      auto const timebin = static_cast<std::size_t>(bin);
       CORSIKA_LOG_TRACE(
           "Receiving particle - time {} (bin {}), emit {}, receive {}, vector {}", time,
           timebin, path.emit_, path.receive_, vectorP);

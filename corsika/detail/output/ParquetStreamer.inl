@@ -45,6 +45,9 @@ namespace corsika {
     // and build the writer
     writer_ = std::make_shared<parquet::StreamWriter>(
         parquet::ParquetFileWriter::Open(outfile_, schema_, builder_.build()));
+    // Bound per-writer buffering even within a single large shower. This is
+    // an encoded row-group target, not a hard process-memory limit.
+    writer_->SetMaxRowGroupSize(16 * 1024 * 1024);
 
     //  only now this object is ready to stream
     isInit_ = true;
@@ -54,6 +57,13 @@ namespace corsika {
     writer_.reset();
     [[maybe_unused]] auto status = outfile_->Close();
     isInit_ = false;
+  }
+
+  inline void ParquetStreamer::flushStreamer() {
+    auto writer = getWriter();
+    if (writer->current_column() != 0)
+      throw std::logic_error("Cannot flush a partial Parquet row");
+    writer->EndRowGroup();
   }
 
   inline std::shared_ptr<parquet::StreamWriter> ParquetStreamer::getWriter() {

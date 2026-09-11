@@ -570,6 +570,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
     ParticleSoA<memory_space> const& current() const noexcept { return current_; }
     ParticleSoA<memory_space>& next() noexcept { return next_; }
+    ParticleSoA<memory_space> const& next() const noexcept { return next_; }
 
     void commitNext(std::size_t const next_size) {
       validateNextSize(next_size);

@@ -8,6 +8,7 @@
 
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/output/ParquetStreamer.hpp>
+#include <corsika/output/ShowerSummary.hpp>
 #include <corsika/framework/process/ContinuousProcess.hpp>
 #include <corsika/framework/core/Step.hpp>
 #include <corsika/setup/SetupStack.hpp>
@@ -71,7 +72,7 @@ namespace corsika {
     std::array<double, 3>
         diagnosticSignedChargeWeightedDirectionChange_{};
     std::array<double, 15> diagnosticEnergyBinnedTrackLengthM_{};
-    YAML::Node diagnosticSummary_;
+    ShowerSummary diagnosticSummary_;
 
     inline static constexpr std::array<double, 15>
         diagnosticEnergyUpperEdgesGeV_{
@@ -145,6 +146,10 @@ namespace corsika {
      * CoREAS/ZHS projection differences.
      */
     YAML::Node getSummary() const final;
+
+    void writeSummary(boost::filesystem::path const& path) const final {
+      diagnosticSummary_.writeSummary(path);
+    }
 
   }; // END: class RadioProcess
 

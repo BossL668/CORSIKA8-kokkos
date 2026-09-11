@@ -15,8 +15,12 @@ namespace corsika::accelerator::em {
     static std::unique_ptr<detail::KokkosBackendInstance> make(
         KokkosRuntimeConfig const& config) {
       auto const selected = resolveKokkosExecutionBackend(config.execution_backend);
+      if (config.cooperative_policy != "legacy" &&
+          (config.cooperative_policy != "adaptive" || selected != "cuda-openmp"))
+        throw std::invalid_argument("Adaptive scheduling requires Kokkos cuda-openmp execution");
       (void)selected;
 #if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+    if (selected == "cuda-openmp") return detail::makeCooperativeBackendInstance(config);
     if (selected == "openmp") return detail::makeOpenMPBackendInstance(config);
     return detail::makeCudaBackendInstance(config);
 #elif defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
@@ -125,6 +129,18 @@ namespace corsika::accelerator::em {
 
   std::size_t KokkosEmBackend::pendingLeptonCount() const noexcept {
     return impl_->backend->pendingLeptonCount();
+  }
+
+  bool KokkosEmBackend::independentSubshowersEnabled() const noexcept {
+    return impl_->backend->independentSubshowersEnabled();
+  }
+  bool KokkosEmBackend::independentSubshowersReady() const noexcept {
+    return impl_->backend->independentSubshowersReady();
+  }
+  std::size_t KokkosEmBackend::advanceIndependentSubshowers(
+      std::vector<gpu::em::EmParticleState> const& particles,
+      detail::SubshowerCallbacks const& callbacks) {
+    return impl_->backend->advanceIndependentSubshowers(particles, callbacks);
   }
 
   gpu::em::ResidentPhotonCascadeResult KokkosEmBackend::runPhotonWavefront(

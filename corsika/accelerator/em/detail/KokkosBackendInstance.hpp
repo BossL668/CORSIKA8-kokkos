@@ -8,6 +8,9 @@
 #pragma once
 
 #include <corsika/accelerator/em/KokkosEmBackend.hpp>
+#include <corsika/accelerator/em/detail/CooperativeProfileMerge.hpp>
+#include <corsika/accelerator/radio/detail/CooperativeRadioMerge.hpp>
+#include <functional>
 
 namespace corsika::accelerator::em::detail {
 
@@ -43,6 +46,16 @@ class KokkosBackendInstance : public IAcceleratedEmBackend {
   virtual gpu::radio::GpuRadioWaveforms projectRadioForValidation(
       std::vector<gpu::em::LeptonTransportRecord> const& records) = 0;
   virtual KokkosRuntimeInfo const& runtimeInfo() const noexcept = 0;
+  // Cooperative host boundary only; no callback runs inside a physics kernel.
+  virtual void setCooperativeProgress(std::function<bool()> progress) = 0;
+  virtual void prepareCooperativeWorkspace() = 0;
+  virtual void setCooperativePendingInputLimit(std::size_t count) = 0;
+  virtual std::vector<gpu::em::EmParticleState> takeCooperativePending(
+      bool photons, std::size_t count) = 0;
+  virtual FixedProfileSnapshot downloadFixedProfile(
+      std::string const& identity, CooperativeEndpoint endpoint) = 0;
+  virtual radio::detail::FixedRadioSnapshot downloadFixedRadio(
+      std::string const& identity, CooperativeEndpoint endpoint) = 0;
 };
 
 std::unique_ptr<KokkosBackendInstance> makeCudaBackendInstance(
@@ -52,6 +65,8 @@ std::unique_ptr<KokkosBackendInstance> makeOpenMPBackendInstance(
 std::unique_ptr<KokkosBackendInstance> makeHipBackendInstance(
     KokkosRuntimeConfig const&);
 std::unique_ptr<KokkosBackendInstance> makeSyclBackendInstance(
+    KokkosRuntimeConfig const&);
+std::unique_ptr<KokkosBackendInstance> makeCooperativeBackendInstance(
     KokkosRuntimeConfig const&);
 
 } // namespace corsika::accelerator::em::detail

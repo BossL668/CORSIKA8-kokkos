@@ -12,6 +12,7 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/common/ObservationPlane.hpp>
+#include <corsika/accelerator/em/common/ExternalTransportBoundary.hpp>
 #include <corsika/accelerator/em/common/ProposalFallback.hpp>
 #include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
 
@@ -60,7 +61,8 @@ namespace corsika::accelerator::em::detail {
   C8_ACCELERATOR_INLINE_FUNCTION inline PhotonTransportOutcome
   transportPhoton(
       gpu::em::EnvironmentSnapshot const& environment,
-      gpu::em::EmInteractionRecord const& interaction) {
+      gpu::em::EmInteractionRecord const& interaction,
+      gpu::em::ExternalTransportBoundary const external = {}) {
     using namespace gpu::em;
     PhotonTransportOutcome output{};
     auto const start = interaction.particle;
@@ -110,6 +112,7 @@ namespace corsika::accelerator::em::detail {
     auto const has_atmosphere_boundary =
         atmosphere_boundary.status == AtmosphereStatus::Success;
     auto const has_observation =
+        !external.disable_observation &&
         observation.status == ObservationPlaneStatus::Success;
     if (!has_atmosphere_boundary && !has_observation) {
       output.fallback = makePhotonTransportFallback(
@@ -121,14 +124,17 @@ namespace corsika::accelerator::em::detail {
         has_observation &&
         (!has_atmosphere_boundary ||
          observation.distance_m < atmosphere_boundary.distance_m);
-    auto const boundary_distance_m =
+    auto boundary_distance_m =
         observation_wins ? observation.distance_m
                          : atmosphere_boundary.distance_m;
+    auto const material_wins = external.enabled &&
+        external.distance_m > 0. && external.distance_m < boundary_distance_m;
+    if (material_wins) boundary_distance_m = external.distance_m;
     auto const limiting_radius_m =
         observation_wins ? 0. : atmosphere_boundary.radius_m;
-    auto const boundary_grammage = atmosphereGrammage(
+    auto const boundary_grammage = geometryCompetitionGrammage(
         environment, layer.layer_index, start.position_m, start.direction,
-        boundary_distance_m);
+        boundary_distance_m, external);
     if (boundary_grammage.status != AtmosphereStatus::Success) {
       output.fallback = makePhotonTransportFallback(
           interaction, ProposalFallbackReason::AtmosphereGrammageFailed);
@@ -207,7 +213,11 @@ namespace corsika::accelerator::em::detail {
     record.end.step_id++;
     record.distance_m = boundary_distance_m;
     record.traversed_grammage_g_per_cm2 = boundary_grammage.value;
-    if (observation_wins) {
+    if (material_wins) {
+      record.limit = PhotonTransportLimit::MaterialBoundary;
+      record.end_layer_index = layer.layer_index;
+      record.end_density_g_per_cm3 = layer.density_g_per_cm3;
+    } else if (observation_wins) {
       double radial[3]{};
       record.limiting_radius_m = atmosphere_detail::radiusVector(
           environment, record.end.position_m, radial);
@@ -218,7 +228,8 @@ namespace corsika::accelerator::em::detail {
       auto const outermost =
           environment.atmosphere_layers[environment.number_of_layers - 1]
               .outer_radius_m;
-      if (transportRadiusClose(atmosphere_boundary.radius_m, outermost)) {
+      if (environment.geometry == EnvironmentGeometry::HomogeneousConvexPolyhedron ||
+          transportRadiusClose(atmosphere_boundary.radius_m, outermost)) {
         record.limit = PhotonTransportLimit::EscapedEnvironment;
         record.end_layer_index = -1;
         record.end_density_g_per_cm3 = 0.;

@@ -115,6 +115,11 @@ namespace corsika::gpu::em {
          maximum_distance_m != infinity())) {
       return {};
     }
+    if (environment.geometry ==
+        EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+      return {ObservationPlaneStatus::NoForwardIntersection, 0,
+              infinity(), 0.};
+    }
     double displacement[3]{};
     for (int axis = 0; axis < 3; ++axis) {
       if (!finite(position_m[axis]) || !finite(direction[axis])) {

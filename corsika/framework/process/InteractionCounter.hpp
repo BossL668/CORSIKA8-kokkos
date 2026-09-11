@@ -159,6 +159,9 @@ namespace corsika {
      */
     std::vector<InteractionTimingSample> const& getTimingSamples() const;
 
+    /** Release consumed samples only; retain cumulative counts and ledgers. */
+    void releaseTimingSamples() { std::vector<InteractionTimingSample>{}.swap(timing_samples_); }
+
     double getTotalFinalStateTimeMs() const;
 
     InteractionEnergyLedgerStatistics const&

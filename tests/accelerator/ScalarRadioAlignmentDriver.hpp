@@ -21,7 +21,8 @@ namespace scalar_radio_test {
   std::array<double, 3> doppler();
   std::vector<double> observerWindow(
       std::vector<double> const& times,
-      corsika::accelerator::radio::detail::DeviceObserver observer);
+      corsika::accelerator::radio::detail::DeviceObserver observer,
+      bool vector_potential = false);
   corsika::gpu::radio::GpuRadioWaveforms project(
       corsika::gpu::radio::GpuRadioConfig const& config,
       corsika::gpu::em::LeptonTransportRecord const& record, bool tiled);

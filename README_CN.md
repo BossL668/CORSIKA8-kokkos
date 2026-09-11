@@ -392,6 +392,13 @@ install/cuda-openmp/bin/c8_air_shower \
 
 ## 8. 最简命令、参数与正式模拟
 
+空气程序另有显式 `--kokkos-execution cuda-openmp` 的**协同实验**：
+独立 CUDA 驱动与 OpenMP 协调线程复用两端原物理实现。新的独立子级联队列
+让次级留在本端，只领取已完成的 CUDA 结果；OpenMP 可以连续推进多段，
+不再每批等待另一端。标量 fallback 和最终定点 profile/射电合并仍由协调器管理。
+它不同于上面的单端模式，不是生产默认，也不用于山体输运。
+隔离构建、回归结果和性能限制见[独立子级联队列验收记录](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md)。
+
 项目根目录的最简加速调用：
 
 ```bash
@@ -435,6 +442,12 @@ install/bin/c8_air_shower --backend openmp \
 正式实验固定 seed 清单、天线、模型、能量、角度、cut、窗口。高能/倾斜事件不能假设默认 400 ns 足够：先画脉冲，扩大窗口检查边缘能量及重叠区收敛，再冻结设置。低能自动最大权重可能小于 1，非零 `--emthin` 不一定实际薄化。
 
 `C8_BUILD_JOBS` 控制编译；`--kokkos-num-threads` 控制 OpenMP 计算；`-N` 控制同进程顺序事件数，三者不同。多进程 × 线程数不超过分配资源并留内存余量；长批次先验证 `-N 1`、`-N 2` 和 RSS 趋势，一次探针不证明长期稳定性。
+
+2026-09-07 已完成组合程序的同进程 `N=16/64/256` 补测：输运分配趋于稳定，但主机 RSS 仍随写出缓冲和逐事件报告增加，**不代表任意大 N 下内存恒定**。内存紧张时使用带保护的小批次或逐事件独立进程；详见[内存实测、原因与限制](documentation/cuda_em_refactor/beta5_nmulti_memory_acceptance_20260907_CN.md)。
+
+随后加入[逐事件内存释放修复](documentation/cuda_em_refactor/beta5_event_memory_release_20260907_CN.md)：每个 shower 结束后将 YAML 报告流式写入磁盘、提交 Parquet 缓冲、释放已消费的强子计时明细；原生 PROPOSAL 表及有界的输运/射电工作区继续复用。**修复需重新编译才生效，不会改变正在运行的归档程序。** Parquet 分块会改变，但物理数据列、数值和事件顺序保持不变。长批次仍需内存保护：分配器缓存和文件 footer 元数据可能继续小幅增长。
+
+另加入 [ZHS 窗口边界修复](documentation/cuda_em_refactor/beta5_zhs_window_edge_fix_20260907_CN.md)：标量 observer 与 Kokkos 射电公共代码均先完整累积首末矢势 bin，再求导，避免旧时间戳裁剪制造第一个/最后一个电场离群点。这不是平滑波形或删掉端点；真实脉冲、输出时间轴和点数保留，CoREAS 时间门禁及粒子输运不变。重新编译后生效；历史数据和正在运行的归档程序不自动改变。真实脉冲超出记录范围的问题仍需用加宽时间窗检查。
 
 ## 9. HIP / SYCL：目标机器上的进阶构建
 
@@ -489,3 +502,76 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 更新源码后，独立版重跑对应 `build_kokkos.sh <backend>`，组合实验重跑 `build_kokkos_dual.sh` 才会编译安装；不要把一种构建的缓存改配置成另一种。编辑 README 不改变二进制。新机器重新构建，不复制旧 CMakeCache。复用预构建 Pythia/TAUOLA 仅限同版本/ABI 的高级部署，不是从零安装前提。
 
 实现/审计另见[目录边界与验收记录](documentation/BETA5_EXTRACTION_CN.md)、[统一入口审查](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md)。核心许可见 [LICENSE](LICENSE)，模型与依赖许可独立；不向仓库提交 FLUKA、构建产物、缓存和私人数据。
+
+## 独立有限山体应用
+
+### 一站式真实地形准备（2026-09-09）
+
+在源码目录安装 Python 准备工具，只给经纬度即可下载/复用 DEM 与高度基准网格，
+生成供 `c8_terrain_cascade` 读取的原生 USStdBK 五层大气 + 闭合山体场景：
+
+```bash
+conda activate corsika_venv
+python -m pip install ./python
+c8-terrain --bounds 86.700 42.930 86.710 42.940 \
+  --output "$HOME/CorsikaData/terrain/demo"
+```
+
+未给天线时只有一个 DEM 上方 1 m 的**演示观测点**，不是实际阵列。
+实际站位用 `--antennas-csv FILE` 或 `--station-directory DIR`；
+`--estimate-only` 不下载，`--offline` 只用校验过的缓存。
+`--check-with /path/to/c8_terrain_environment` 检查 C++ 场景，
+`--run --application /path/to/c8_terrain_cascade -- ...` 显式接入标量/Kokkos 输运。
+应用仍需按山体说明单独构建；安装 Python 包不生成 C++ 二进制。
+
+该入口复用从 mountain 迁移的地形模块，不修改空气应用。
+当前只支持局部、海拔 0–7 km 内的有限 SiO₂ 岩体，不是全球固体地球；
+**DEM 应用跨界射电仍未接通**。
+详见[准备、天线高度、完整命令与实测](documentation/terrain_preparation_workflow_CN.md)，
+以及[21CMA 准备配置](configs/mountain/terrain_region_21cma.yaml)。
+
+新增仅用于 shower 的[通用双侧介质界面接口](documentation/generic_material_interface_transport_CN.md)：
+分离闭合网格求交、逻辑区域编号、native PROPOSAL 材料 bank 与 HybridCascade 路由。
+山体默认仍为 SiO₂，应用另接受 `Water`、`Ice`；不支持的快照或 calculator 键冲突明确报错。
+这不是任意多体积导航器，本轮不包含跨界射电。
+
+### 有限凸体与多介质输运范围
+
+新增可选 `c8_mountain_neutrino`，在有限凸、均匀 SiO₂ 山体中复用 beta5 的 Kokkos EM
+输运与 CoREAS/ZHS 累积，另提供标量 PROPOSAL 对照。它使用独立 YAML 和输出，不改变
+原大气应用；编译要求 FLUKA。首版仅 CC、出山吸收/记录、内部 observer 射电，不含
+岩石—空气折射传播，也不提供中微子事件率权重；功能接入不代表大样本验收已完成。
+详见[山体应用使用与示例](documentation/mountain_neutrino_user_guide_CN.md)及
+[通用几何 API](documentation/mountain_geometry_CN.md)。
+
+另已开始迁移原 mountain 的真实非凸 DEM/地理天线/USStdBK 场景，提供
+`c8_terrain_environment`（场景门禁）、`c8_terrain_cascade`（CPU/有界 Kokkos 跨界输运）和
+`c8_terrain_device_probe`（Kokkos 几何 oracle）。真实 21CMA 场景与百万射线已测试，
+现已接通两套 native PROPOSAL 表下的岩气 γ/e± 输运、CPU 中微子/强子与指定回退，
+完成 OpenMP/CUDA 小事例检查。现默认空气使用局地均匀 IGRF14/2027 磁场，岩石 B=0，
+CPU/Kokkos 均接入 leapfrog 曲线/DEM 求交；`--magnetic-field none` 保留零场参考。
+带磁场集成测试已完成，但严格逐行浮点比较尚未全部通过。
+共享顶点直线求交与曲线路径中点审计现已修复；正式 CPU/Kokkos 接线、
+百万几何查询和 24 个小型配置 + 2 次重复的结果见[索引边界输运验收](documentation/terrain_indexed_transport_acceptance_CN.md)。
+非零曲率的共顶点、近切线双根、面内判定和最小步长问题也已修复；
+算法、真实 DEM 探针及验收边界见[曲线边界修复与验收](documentation/terrain_curved_boundary_acceptance_CN.md)。
+**此 DEM 应用仍关闭射电；跨界射电及大样本物理验收尚未完成**。
+新增模块、应用调用关系及验收限制见[空气磁场与山体边界验收](documentation/terrain_magnetic_application_validation_CN.md)。
+2026-09-09 的[常数与磁传播对齐](documentation/terrain_scalar_constants_alignment_CN.md)
+统一了当前标量 CPU / Kokkos 的磁偏系数，并修正 DEM 求交与实际推进的质量约定；
+常数版本写入输出，旧归档二进制和已有数据不会自动改变。
+实现、显存限制、逐轨迹差异和使用方法见[多介质 Kokkos 输运验收](documentation/terrain_multimaterial_kokkos_transport_validation_CN.md)。
+该独立示例不修改大气生产应用，也不替换生产安装目录。
+真实 DEM 应用现已补入六种中微子和 μ±/τ± 初级入口，并在 CC 顶点局部保留 τ，
+交给原生输运/衰变；详见[ντ 粒子支持、原 mountain 控制与诊断图](documentation/terrain_nutau_particle_support_CN.md)。
+后续已加入 CC+NC 竞争、NC 中微子续传及再生链 history 审计，并提供显式纵向
+τ 极化衰变控制，见[NC、再生与极化扩展验收](documentation/terrain_neutrino_CC_NC_regeneration_polarization_CN.md)。
+进一步参考原版后，DEM 应用默认采用 TAUOLA 处理 τ、Pythia 处理其他衰变；
+新增专用随机流接线、高能 TAUOLA 稳定变换及弱反应能区审计。
+旧结果用 `--tau-decay-model pythia` 复现；`--require-neutrino-model-coverage`
+可拒绝超出物理模型能区的次级。详见[原版模块对齐与实际测试](documentation/terrain_original_neutrino_alignment_CN.md)。
+**不能标记为完整中微子物理已验收**：低于 10 TeV 的弱输运、CC 自旋密度矩阵、
+穿岩退极化和自然再生通量的独立参考对照仍未完成；DEM 跨界射电仍关闭。
+构建、结果和未完成项见[真实山体迁移记录](documentation/terrain_native_scene_build_CN.md)。
+后续常驻几何会话、逻辑侧边界候选已通过 OpenMP 参考测试；最新结果及 PSR 显卡驱动阻塞见
+[常驻会话与 PSR 验收](documentation/terrain_resident_session_psr_validation_CN.md)。

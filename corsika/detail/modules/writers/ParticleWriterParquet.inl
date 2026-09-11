@@ -19,6 +19,8 @@ namespace corsika {
   inline void ParticleWriterParquet::startOfLibrary(
       boost::filesystem::path const& directory) {
 
+    summary_.open(directory);
+
     // setup the streamer
     output_.initStreamer((directory / "particles.parquet").string());
 
@@ -75,29 +77,31 @@ namespace corsika {
   }
 
   inline void ParticleWriterParquet::endOfShower(unsigned int const) {
-    summary_["shower_" + std::to_string(showerId_)]["hadron"]["count"] = countHadrons_;
-    summary_["shower_" + std::to_string(showerId_)]["hadron"]["kinetic_energy"] =
+    output_.flushStreamer();
+    summary_.event(showerId_)["hadron"]["count"] = countHadrons_;
+    summary_.event(showerId_)["hadron"]["kinetic_energy"] =
         kineticEnergyHadrons_ / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["hadron"]["total_energy"] =
+    summary_.event(showerId_)["hadron"]["total_energy"] =
         totalEnergyHadrons_ / 1_GeV;
 
-    summary_["shower_" + std::to_string(showerId_)]["muon"]["count"] = countMuons_;
-    summary_["shower_" + std::to_string(showerId_)]["muon"]["kinetic_energy"] =
+    summary_.event(showerId_)["muon"]["count"] = countMuons_;
+    summary_.event(showerId_)["muon"]["kinetic_energy"] =
         kineticEnergyMuons_ / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["muon"]["total_energy"] =
+    summary_.event(showerId_)["muon"]["total_energy"] =
         totalEnergyMuons_ / 1_GeV;
 
-    summary_["shower_" + std::to_string(showerId_)]["em"]["count"] = countEM_;
-    summary_["shower_" + std::to_string(showerId_)]["em"]["kinetic_energy"] =
+    summary_.event(showerId_)["em"]["count"] = countEM_;
+    summary_.event(showerId_)["em"]["kinetic_energy"] =
         kineticEnergyEM_ / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["em"]["total_energy"] =
+    summary_.event(showerId_)["em"]["total_energy"] =
         totalEnergyEM_ / 1_GeV;
 
-    summary_["shower_" + std::to_string(showerId_)]["other"]["count"] = countOthers_;
-    summary_["shower_" + std::to_string(showerId_)]["other"]["kinetic_energy"] =
+    summary_.event(showerId_)["other"]["count"] = countOthers_;
+    summary_.event(showerId_)["other"]["kinetic_energy"] =
         kineticEnergyOthers_ / 1_GeV;
-    summary_["shower_" + std::to_string(showerId_)]["other"]["total_energy"] =
+    summary_.event(showerId_)["other"]["total_energy"] =
         totalEnergyOthers_ / 1_GeV;
+    summary_.flush();
   }
 
   inline void ParticleWriterParquet::endOfLibrary() { output_.closeStreamer(); }
@@ -145,6 +149,6 @@ namespace corsika {
   /**
    * Return collected library-level summary for output.
    */
-  inline YAML::Node ParticleWriterParquet::getSummary() const { return summary_; }
+  inline YAML::Node ParticleWriterParquet::getSummary() const { return summary_.snapshot(); }
 
 } // namespace corsika

@@ -8,6 +8,7 @@
 
 #include <corsika/framework/core/Logging.hpp>
 #include <corsika/output/Configurable.hpp>
+#include <corsika/output/YAMLStreamer.hpp>
 #include <boost/filesystem.hpp>
 #include <yaml-cpp/yaml.h>
 
@@ -62,6 +63,12 @@ namespace corsika {
      * Provide YAML Summary for this BaseOutput.
      */
     virtual YAML::Node getSummary() const { return YAML::Node(); }
+
+    /** Serialize summaries without requiring a whole-library YAML graph. */
+    virtual void writeSummary(boost::filesystem::path const& path) const {
+      auto const summary = getSummary();
+      if (!summary.IsNull()) YAMLStreamer{}.writeYAML(summary, path);
+    }
 
   protected:
     /**

@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/output/ShowerSummary.hpp>
+
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
@@ -182,6 +184,10 @@ namespace corsika {
      */
     YAML::Node getSummary() const override;
 
+    void writeSummary(boost::filesystem::path const& path) const override {
+      summary_.writeSummary(path);
+    }
+
     /**
      * Return the configuration of this output.
      */
@@ -194,7 +200,7 @@ namespace corsika {
     GrammageType dX_threshold_;    ///< too short tracks are discarded.
     std::vector<dEdX_output::Profile> profile_; // longitudinal profile
     HEPEnergyType electromagneticEnergyLost_{HEPEnergyType::zero()};
-    YAML::Node summary_;
+    ShowerSummary summary_;
   }; // namespace corsika
 
 } // namespace corsika

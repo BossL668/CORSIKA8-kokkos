@@ -36,33 +36,34 @@ namespace corsika {
     auto const ny = direction.dot(obsPlane_.getYAxis());
     auto const nz = direction.dot(obsPlane_.getPlane().getNormal());
 
-    output_["shower_" + std::to_string(showerId_)]["pdg"] =
+    output_.event(showerId_)["pdg"] =
         static_cast<int>(get_PDG(pID));
-    output_["shower_" + std::to_string(showerId_)]["name"] =
+    output_.event(showerId_)["name"] =
         static_cast<std::string>(get_name(pID));
-    output_["shower_" + std::to_string(showerId_)]["total_energy"] =
+    output_.event(showerId_)["total_energy"] =
         (kineticEnergy + get_mass(pID)) / 1_GeV;
-    output_["shower_" + std::to_string(showerId_)]["kinetic_energy"] =
+    output_.event(showerId_)["kinetic_energy"] =
         kineticEnergy / 1_GeV;
-    output_["shower_" + std::to_string(showerId_)]["x"] = x / 1_m;
-    output_["shower_" + std::to_string(showerId_)]["y"] = y / 1_m;
-    output_["shower_" + std::to_string(showerId_)]["z"] = z / 1_m;
-    output_["shower_" + std::to_string(showerId_)]["nx"] = static_cast<double>(nx);
-    output_["shower_" + std::to_string(showerId_)]["ny"] = static_cast<double>(ny);
-    output_["shower_" + std::to_string(showerId_)]["nz"] = static_cast<double>(nz);
-    output_["shower_" + std::to_string(showerId_)]["time"] = time / 1_s;
+    output_.event(showerId_)["x"] = x / 1_m;
+    output_.event(showerId_)["y"] = y / 1_m;
+    output_.event(showerId_)["z"] = z / 1_m;
+    output_.event(showerId_)["nx"] = static_cast<double>(nx);
+    output_.event(showerId_)["ny"] = static_cast<double>(ny);
+    output_.event(showerId_)["nz"] = static_cast<double>(nz);
+    output_.event(showerId_)["time"] = time / 1_s;
   }
 
   template <typename TTracking, typename TOutput>
   inline void PrimaryWriter<TTracking, TOutput>::startOfLibrary([
       [maybe_unused]] boost::filesystem::path const& directory) {
-    output_ = YAML::Node();
+    output_.open(directory);
     showerId_ = 0;
   }
 
   template <typename TTracking, typename TOutput>
   inline void PrimaryWriter<TTracking, TOutput>::endOfShower([
       [maybe_unused]] unsigned int const showerId) {
+    output_.flush();
     ++showerId_;
   }
 
@@ -109,7 +110,7 @@ namespace corsika {
 
   template <typename TTracking, typename TOutput>
   inline YAML::Node PrimaryWriter<TTracking, TOutput>::getSummary() const {
-    return output_;
+    return output_.snapshot();
   }
 
 } // namespace corsika

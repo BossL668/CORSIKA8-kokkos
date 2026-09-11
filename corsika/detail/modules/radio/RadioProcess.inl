@@ -141,6 +141,8 @@ namespace corsika {
   inline void RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::startOfLibrary(
       const boost::filesystem::path& directory) {
 
+    diagnosticSummary_.open(directory);
+
     // setup the streamer
     output_.initStreamer((directory / ("observers.parquet")).string());
 
@@ -219,7 +221,8 @@ namespace corsika {
       observer.reset();
     }
 
-    auto shower = diagnosticSummary_["shower_" + std::to_string(showerId_)];
+    output_.flushStreamer();
+    auto shower = diagnosticSummary_.event(showerId_);
     shower["segment_count"] = diagnosticSegmentCount_;
     shower["weighted_segment_count"] = diagnosticWeightedSegmentCount_;
     shower["track_length_m"] = diagnosticTrackLengthM_;
@@ -260,6 +263,8 @@ namespace corsika {
       energy_bins["weighted_track_length_m"].push_back(
           diagnosticEnergyBinnedTrackLengthM_[index]);
     }
+
+    diagnosticSummary_.flush();
 
     diagnosticSegmentCount_ = 0;
     diagnosticWeightedSegmentCount_ = 0.;
@@ -327,7 +332,7 @@ namespace corsika {
   template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
   inline YAML::Node
   RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::getSummary() const {
-    return diagnosticSummary_;
+    return diagnosticSummary_.snapshot();
   }
 
 } // namespace corsika

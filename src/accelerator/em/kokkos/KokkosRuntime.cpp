@@ -15,6 +15,11 @@
 #include <stdexcept>
 #include <utility>
 #include <type_traits>
+#include <thread>
+#include <algorithm>
+#ifdef __linux__
+#include <sched.h>
+#endif
 
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP) && !defined(KOKKOS_ENABLE_OPENMP)
 #error "The Kokkos OpenMP build requires KOKKOS_ENABLE_OPENMP"
@@ -45,6 +50,31 @@
 #endif
 
 namespace corsika::accelerator::em {
+
+  class KokkosRuntimeLease {
+  public:
+    std::thread::id owner_thread{std::this_thread::get_id()};
+    int device{};
+    int threads{};
+    bool cooperative{};
+    bool initialized{};
+    ~KokkosRuntimeLease() {
+      if (initialized && Kokkos::is_initialized() && !Kokkos::is_finalized())
+        Kokkos::finalize();
+    }
+  };
+
+  namespace {
+    int defaultCooperativeThreads() {
+      int available = static_cast<int>(std::thread::hardware_concurrency());
+#ifdef __linux__
+      cpu_set_t affinity;
+      if (sched_getaffinity(0, sizeof(affinity), &affinity) == 0)
+        available = CPU_COUNT(&affinity);
+#endif
+      return std::max(1, std::min(8, available - 2));
+    }
+  }
 
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
   using SelectedExecutionSpace = Kokkos::OpenMP;
@@ -268,14 +298,32 @@ namespace corsika::accelerator::em {
   class KokkosRuntime::Impl {
   public:
     explicit Impl(KokkosRuntimeConfig const& config) {
-      if (Kokkos::is_initialized()) {
+      if (Kokkos::is_initialized() && !config.runtime_lease) {
         throw std::logic_error(
             "KokkosRuntime requires sole ownership of Kokkos initialization");
       }
       auto const selected = resolveKokkosExecutionBackend(config.execution_backend);
+      if (selected == "cuda-openmp")
+        throw std::invalid_argument("cuda-openmp requires the cooperative backend coordinator");
       auto const selected_gpu = selected != "openmp";
-      if (selected_gpu && config.threads > 1)
+      if (config.cooperative_owner && config.runtime_lease)
+        throw std::invalid_argument("A cooperative runtime borrower cannot own initialization");
+#if !defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+      if (config.cooperative_owner || config.runtime_lease)
+        throw std::invalid_argument("Cooperative runtime requires a CUDA_OPENMP build");
+#endif
+      if (config.cooperative_owner && selected != "cuda")
+        throw std::invalid_argument("Cooperative runtime owner must select cuda");
+      bool const cooperative = config.cooperative_owner || bool(config.runtime_lease);
+      if (selected_gpu && config.threads > 1 && !cooperative)
         throw std::invalid_argument("GPU execution requires at most one host thread");
+      if (config.runtime_lease) {
+        auto const& lease = *config.runtime_lease;
+        if (!lease.cooperative || !lease.initialized || !Kokkos::is_initialized() ||
+            Kokkos::is_finalized() || lease.owner_thread != std::this_thread::get_id() ||
+            config.device != lease.device || (config.threads > 0 && config.threads != lease.threads))
+          throw std::invalid_argument("Incompatible cooperative runtime lease (thread/device/lifetime)");
+      }
 #if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
       int device_count{};
       if (cudaGetDeviceCount(&device_count) != cudaSuccess || device_count == 0)
@@ -290,10 +338,22 @@ namespace corsika::accelerator::em {
 #if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
       // Compiled availability is not simultaneous shower execution. Keep the
       // OpenMP host instance at one thread when selecting the GPU algorithm.
-      if (selected_gpu) settings.set_num_threads(1);
+      if (selected_gpu && !cooperative) settings.set_num_threads(1);
+      if (config.cooperative_owner)
+        settings.set_num_threads(config.threads > 0 ? config.threads : defaultCooperativeThreads());
 #endif
-      Kokkos::initialize(settings);
-      owns_runtime_ = true;
+      if (config.runtime_lease) {
+        lifetime_ = config.runtime_lease;
+      } else {
+        lifetime_ = std::make_shared<KokkosRuntimeLease>();
+        lifetime_->cooperative = config.cooperative_owner;
+        lifetime_->device = config.device;
+        Kokkos::initialize(settings);
+        lifetime_->initialized = true;
+#if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
+        lifetime_->threads = Kokkos::OpenMP().concurrency();
+#endif
+      }
 
       SelectedExecutionSpace execution;
       info_.kind = selected_gpu ? SelectedKind : AcceleratorKind::KokkosOpenMP;
@@ -310,6 +370,8 @@ namespace corsika::accelerator::em {
       info_.host_threads = selected_gpu ? 1 : info_.concurrency;
       info_.gpu = selected_gpu;
       info_.openmp = !selected_gpu;
+      info_.cooperative_runtime = cooperative;
+      if (cooperative) info_.host_threads = lifetime_->threads;
       info_.device_name = SelectedExecutionSpace::name();
 #ifdef CORSIKA8_PROJECT_REVISION
       info_.project_revision = CORSIKA8_PROJECT_REVISION;
@@ -380,12 +442,7 @@ namespace corsika::accelerator::em {
       }
     }
 
-    ~Impl() {
-      if (owns_runtime_ && Kokkos::is_initialized() &&
-          !Kokkos::is_finalized()) {
-        Kokkos::finalize();
-      }
-    }
+    ~Impl() = default;
 
     KokkosPrimitiveProbeResult runPrimitiveProbe(
         std::size_t const values, std::size_t const chunk_size) const {
@@ -403,7 +460,7 @@ namespace corsika::accelerator::em {
     }
 
     KokkosRuntimeInfo info_{};
-    bool owns_runtime_{};
+    std::shared_ptr<KokkosRuntimeLease> lifetime_;
   };
 
   KokkosRuntime::KokkosRuntime(KokkosRuntimeConfig const& config)
@@ -415,6 +472,12 @@ namespace corsika::accelerator::em {
 
   KokkosRuntimeInfo const& KokkosRuntime::info() const noexcept {
     return impl_->info_;
+  }
+
+  std::shared_ptr<KokkosRuntimeLease> KokkosRuntime::shareCooperativeLifetime() const {
+    if (!impl_->lifetime_->cooperative)
+      throw std::logic_error("Only an explicit cooperative runtime may lend its lifetime");
+    return impl_->lifetime_;
   }
 
   KokkosPrimitiveProbeResult KokkosRuntime::runPrimitiveProbe(

@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/filesystem.hpp>
+
 #include <PROPOSAL/Constants.h>
 #include <PROPOSAL/medium/Medium.h>
 #include <PROPOSAL/particle/ParticleDef.h>
@@ -71,7 +73,23 @@ namespace {
                                     UnusedOutput, UnusedOutput, UnusedOutput,
                                     UnusedOutput>;
 
+  // Exercise the real writer lifecycle, including the disk-backed summary.
+  // Writers remove their private journals before this owned directory expires.
+  struct TemporaryOutputDirectory {
+    boost::filesystem::path path = boost::filesystem::temp_directory_path() /
+        boost::filesystem::unique_path("c8-deposition-test-%%%%-%%%%");
+    TemporaryOutputDirectory() {
+      if (!boost::filesystem::create_directory(path))
+        throw std::runtime_error("could not create deposition test output directory");
+    }
+    ~TemporaryOutputDirectory() {
+      boost::system::error_code ignored;
+      boost::filesystem::remove(path, ignored);
+    }
+  };
+
   struct Fixture {
+    TemporaryOutputDirectory output;
     Environment<IMediumModel> environment;
     CoordinateSystemPtr cs{environment.getCoordinateSystem()};
     std::unique_ptr<ShowerAxis> axis;
@@ -113,6 +131,7 @@ namespace {
     // A real CPU Step followed by the real ParticleCut calls the scalar
     // point-writer overload; the continuous deposit is provided independently.
     Writer cpu(*f.axis, Bins, 10_g / square(1_cm), threshold * 1_g / square(1_cm));
+    cpu.startOfLibrary(f.output.path);
     cpu.startOfShower(0);
     em::output_detail::RadioTrackParticle particle(code,
         (continuous_energy + cut_energy) * 1_GeV, direction, start, 0_ns, weight);
@@ -126,6 +145,7 @@ namespace {
     require(cut.doContinuous(step) == ProcessReturn::ParticleAbsorbed,
             "scalar ParticleCut must absorb fixture");
     cpu.endOfShower(0);
+    cpu.endOfLibrary();
 
     em::LeptonTransportRecord lepton{};
     lepton.start.pid = static_cast<std::int32_t>(get_PDG(code));
@@ -155,6 +175,7 @@ namespace {
                        threshold * 1_g / square(1_cm));
     UnusedOutput unused;
     Sink sink(f.cs, sink_writer, unused, unused, unused, unused, unused, unused, false);
+    sink_writer.startOfLibrary(f.output.path);
     sink_writer.startOfShower(0);
     em::EmStepRecord full{};
     full.pid = lepton.start.pid;
@@ -175,6 +196,7 @@ namespace {
             "projected record lost observation/cut marker");
     sink.onProjectedStep(actual.projected);
     sink_writer.endOfShower(1);
+    sink_writer.endOfLibrary();
     compareRows(sink_writer.rows, cpu.rows, "projected sink scalar writer oracle");
   }
 

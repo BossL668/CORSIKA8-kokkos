@@ -75,6 +75,11 @@ namespace corsika::accelerator::em {
     std::size_t maximumResidentInputBatchSize() const override;
     std::size_t pendingPhotonCount() const noexcept override;
     std::size_t pendingLeptonCount() const noexcept override;
+    bool independentSubshowersEnabled() const noexcept override;
+    bool independentSubshowersReady() const noexcept override;
+    std::size_t advanceIndependentSubshowers(
+        std::vector<gpu::em::EmParticleState> const&,
+        detail::SubshowerCallbacks const&) override;
     gpu::em::ResidentPhotonCascadeResult runPhotonWavefront(
         std::vector<gpu::em::EmParticleState> const&, std::uint64_t,
         std::size_t, std::size_t) override;

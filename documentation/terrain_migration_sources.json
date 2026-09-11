@@ -1,0 +1,121 @@
+{
+  "date": "2026-09-08",
+  "paths_relative_to": "workspace parent of both projects",
+  "scope": "Reusable geometry/geographic preparation and CPU scene only; full Kokkos multi-medium shower/radio migration pending",
+  "files": [
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/AABB.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/AABB.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "9064766b6689d5df8452b4885d5cd4b37575e2e87508671b1fe859ae83bbf065"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/detail/framework/geometry/AABB.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/AABB.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "4c74017f2639f333a0154db9b9103820270ee581203c2e204c330bb5bb17ce76"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/Triangle.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/Triangle.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "c58d6818e8e4059176374a439e754659c7efd197f619f331dd7ea6d492c35813"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/detail/framework/geometry/Triangle.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/Triangle.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "412f00ad1008a75630c7bbf8590f5599b0627913b6916548dd0c5350ab323142"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/BVH.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/BVH.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "7b711cb86f922f31b06c64f6db2569fdd10a98642ced733fdd30121f82015b6a"
+    },
+    {
+      "source": "corsika8-mountain/build/cpp/crossing_mesh_overlay/corsika/detail/framework/geometry/BVH.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/BVH.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "9dfa29d0b416ba5a46e95c24f5bf2e3bcce3870a8b25513d4ca8733db8c1f2ea"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/MeshLoader.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/MeshLoader.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "62a6831ada09bd6873695dd2c4d6385b2a44580429deb3dce1941682d5bdd664"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/detail/framework/geometry/MeshLoader.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/MeshLoader.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "4ca4ab8af2ef1f730549123f196ca4ce5564c50f1ec775e1d7cfb9bae420765b"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/TriangularMesh.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/TriangularMesh.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "863b21e84d23e93307fac328b28276ad6e4954f8a92d0eb289980d310176ef55"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/detail/framework/geometry/TriangularMesh.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/TriangularMesh.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "be9839a567cecc16637124b8410eb4ae9723f9d8307f7dd3ebc3d1503a299d46"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/framework/geometry/ClosedMesh.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/ClosedMesh.hpp",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "94fef2402be69d65f1cf336d02b4184958457dc053d93349371f3245b1c6c4b2"
+    },
+    {
+      "source": "corsika8-mountain/build/corsika-install/include/corsika/detail/framework/geometry/ClosedMesh.inl",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/geometry/terrain/detail/ClosedMesh.inl",
+      "adaptation": "isolated corsika::terrain namespace and include paths; TriangularMesh adapts beta5 IVolume without replacing it; BVH uses mountain crossing optimization",
+      "source_sha256": "47f54f0943ef230bd42a74559a200024c6bf79a55e60048c14efab4949038f46"
+    },
+    {
+      "source": "corsika8-mountain/src/cma21_askaryan/terrain.py",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/python/corsika_terrain/terrain.py",
+      "adaptation": "Reuse geographic preparation implementation; local package imports",
+      "source_sha256": "26a6859e862fe3408fb2427d929f240c87e70e86ae5d6e6b3aaf29ba243cc346"
+    },
+    {
+      "source": "corsika8-mountain/src/cma21_askaryan/terrain_download.py",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/python/corsika_terrain/terrain_download.py",
+      "adaptation": "Reuse geographic preparation implementation; local package imports",
+      "source_sha256": "cb460bb7b4ae0d17eafc0cf16ffcc8e6e6e011ebafed9954c006e070d6afdbff"
+    },
+    {
+      "source": "corsika8-mountain/src/cma21_askaryan/geographic_terrain.py",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/python/corsika_terrain/geographic_terrain.py",
+      "adaptation": "Reuse geographic preparation implementation; local package imports",
+      "source_sha256": "b1178048c16e6a9a53e0ffc59fd72e321c6fd06897bf9112c20f9ff176751722"
+    },
+    {
+      "source": "corsika8-mountain/src/cma21_askaryan/terrain_array.py",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/python/corsika_terrain/terrain_array.py",
+      "adaptation": "Extract ENU/station/triangulated-surface helpers only",
+      "source_sha256": "45be1d1c7bd8937828fbd37df0beb2e64392340e6fab6a6f690ce63efb5ab4c9"
+    },
+    {
+      "source": "corsika8-mountain/src/cma21_askaryan/terrain_validation.py",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/python/corsika_terrain/terrain_validation.py",
+      "adaptation": "Extract exact terrain triangulation/interpolation helpers only",
+      "source_sha256": "7ef1cd43ef3660d6cf824a9ee435e09f84224e70370c49954fa06b62209fbc00"
+    },
+    {
+      "source": "corsika8-mountain/cpp/TerrainAtmosphere.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/modules/terrain/TerrainAtmosphere.hpp",
+      "adaptation": "Native beta5 media namespace/interface, standalone config; no global mesh overlay",
+      "source_sha256": "d994d24da63bc4dbf5bbebbb4f5f0e4931306b466abe647fafb60abe38e3fc13"
+    },
+    {
+      "source": "corsika8-mountain/cpp/TerrainBoundaryTracking.hpp",
+      "destination": "corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5/corsika/modules/terrain/TerrainBoundaryTracking.hpp",
+      "adaptation": "Logical-side tracking class reused; unused dependencies removed",
+      "source_sha256": "bae2543e9610e465b543c409b91d5b095f1d68ac3df34bedeb756ae33b3d1c64"
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # beta5：CUDA/OpenMP 单二进制实验
 
+2026-09-10：已开始显式双端协同的底层开发，见[协同阶段 A 实施记录](beta5_cuda_openmp_cooperative_stage_a_CN.md)。目前下面的已安装应用仍是二选一；共享 runtime/重叠探针不等于协同 shower 已可用。
+
+后续轻子和射电合并的实现、实测重叠及 Fe 500 启动门禁，见[阶段 B2 验收记录](beta5_cuda_openmp_cooperative_lepton_radio_CN.md)。
+
 ## 目标与边界
 
 同一 ELF 可执行文件同时包含两种提前编译的 EM 和 CoREAS/ZHS 实例，启动时选择其中一种；不是包装器再启动其他后端文件，也不是一个 shower 同时由 CPU 多核与 GPU 执行 EM。
@@ -124,3 +128,5 @@ python validation/accelerator/run_dual_backend_acceptance.py \
 ```
 
 构建日志与 8 项运行时门禁报告保存在 `build/cuda-openmp/`。尚未进行组合版 500/2000 例统计验收、高能性能验收、长程内存验收或其他 GPU 架构验收；原独立后端继续作为生产路径。本轮未推送远端仓库。
+
+2026-09-07 后续：上述源码和 README 已推送私有分支 `kokkos-beta5`，提交 `d5eea700`。随后完成了独立的 [N=16/64/256 内存补测](beta5_nmulti_memory_acceptance_20260907_CN.md)，不再只有 N=2 的证据；但仍未证明高能长期运行内存恒定。本段记录不改变上文2026-09-06测试的历史范围。

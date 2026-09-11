@@ -141,6 +141,41 @@ namespace {
               " accelerated=" + std::to_string(host[i]));
   }
 
+  void testPotentialWindow() {
+    Env environment;
+    auto const cs = environment.getCoordinateSystem();
+    Point const position(cs, 0_m, 0_m, 0_m);
+    TimeDomainObserver observer("potential_window", position, cs, 0_s, 4_ns, 1_GHz, 0_s);
+    DirectionVector const emit(cs, {0., 0., 1.});
+    SignalPath path(0_s, 1., 1., 1., emit, -emit, 1_m, {position});
+    std::vector<double> const times{
+        -.75e-9, std::nextafter(-.5e-9, -1.), -.5e-9,
+        std::nextafter(-.5e-9, 0.), -.25e-9, 0.,
+        std::nextafter(.5e-9, 0.), .5e-9, std::nextafter(.5e-9, 1.),
+        4.e-9, 4.25e-9, std::nextafter(4.5e-9, 0.), 4.5e-9,
+        std::nextafter(4.5e-9, 1.), 4.75e-9,
+        -1.e100, 1.e100, std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()};
+    for (std::size_t i = 0; i < times.size(); ++i)
+      observer.receive(times[i] * 1_s, path,
+          VectorPotential(cs, static_cast<double>(1 << i) * 1_V * 1_s / 1_m,
+                          0_V * 1_s / 1_m, 0_V * 1_s / 1_m));
+    detail::DeviceObserver snapshot{};
+    snapshot.duration_s = 4.e-9;
+    snapshot.sample_rate_Hz = 1.e9;
+    snapshot.number_of_bins = observer.getWaveformX().size();
+    auto const result = scalar_radio_test::observerWindow(times, snapshot, true);
+    require(result == observer.getWaveformX(), "potential half-bin/invalid-time alignment");
+    require((static_cast<unsigned>(result.front()) & (1 << 4)) != 0,
+            "first potential bin must accept -0.25 ns");
+    require((static_cast<unsigned>(result.back()) & (1 << 10)) != 0,
+            "last potential bin must accept 4.25 ns");
+    auto const axis = observer.getAxis();
+    observer.reset();
+    require(observer.getAxis() == axis && peak(observer.getWaveformX()) == 0.,
+            "potential reset must preserve the output axis and clear every bin");
+  }
+
   struct Case {
     char const* name;
     std::array<double, 3> start;
@@ -213,6 +248,33 @@ namespace {
       record.start.direction[axis] = record.end.direction[axis] = u[axis];
     }
     auto const waveforms = scalar_radio_test::project(config, record, tiled);
+    if (std::string(test.name) == "ordinary" && table_step_m == 1.) {
+      // Exercise project<true,false> and project<false,true>, not only the
+      // fused project<true,true> entry. Compare to the fused result, which is
+      // independently checked against the real scalar modules below.
+      for (bool coreas_only : {true, false}) {
+        auto single = config;
+        single.coreas_enabled = coreas_only;
+        single.zhs_enabled = !coreas_only;
+        if (coreas_only) single.zhs_observers.clear();
+        else single.coreas_observers.clear();
+        auto const selected = scalar_radio_test::project(single, record, tiled);
+        auto const& actual = coreas_only ? selected.coreas : selected.zhs;
+        auto const& expected = coreas_only ? waveforms.coreas : waveforms.zhs;
+        require((coreas_only ? selected.zhs : selected.coreas).empty(),
+                "disabled radio algorithm produced observers");
+        require(actual.size() == expected.size(), "single-algorithm observer count");
+        auto const floor = coreas_only ? 2.e-18 : 2.e-27;
+        for (std::size_t i = 0; i < actual.size(); ++i) {
+          compare(expected[i].x, actual[i].x, floor, "single/fused x");
+          compare(expected[i].y, actual[i].y, floor, "single/fused y");
+          compare(expected[i].z, actual[i].z, floor, "single/fused z");
+        }
+        std::cout << (coreas_only ? "coreas_only" : "zhs_only")
+                  << " deterministic=" << deterministic << " tiled=" << tiled
+                  << " matches_fused=true\n";
+      }
+    }
     double coreas_error{}, zhs_error{};
     auto const& coreas_observers = coreas_detector.getObservers();
     auto const& zhs_observers = zhs_detector.getObservers();
@@ -239,15 +301,75 @@ namespace {
           gpu_field[bin] = -((*b[axis])[bin + 1] - (*b[axis])[bin]) * 1.e9;
         }
         compare(cpu_field, gpu_field, 4.e-18, label + " ZHS differentiated");
+        if ((std::string(test.name) == "edge_first" ||
+             std::string(test.name) == "edge_last") && i == 0) {
+          require(peak(cpu_field) == 0. && peak(gpu_field) == 0.,
+                  "constant-potential track must have zero E at every narrow-window bin");
+        }
         if (std::string(test.name) == "window_end" && i == 0 && axis == 1) {
           auto const last = cpu_field.size() - 1;
-          require(std::abs(cpu_field[last]) > 1.e-15,
-                  "window-end fixture must reproduce a nonzero scalar terminal pulse");
+          require(std::abs(cpu_field[last]) < 1.e-24,
+                  "window-end fixture must not create a terminal pulse from missing A");
           require(std::abs(cpu_field[last - 1]) < 1.e-24,
                   "window-end fixture must be flat before the terminal pulse");
           std::cout << "window_end actual_scalar_ZHS_Ey_previous="
                     << cpu_field[last - 1] << " last=" << cpu_field[last]
                     << " Kokkos_last=" << gpu_field[last] << '\n';
+        }
+      }
+    }
+
+    // A genuine signal stays at the same time when the recording window is
+    // extended. Compare against the actual scalar/GPU calculation in a wider
+    // window, including both edge A bins and the final differentiated E bin.
+    // The old time-label gate fails this check even though CPU and GPU agreed.
+    for (int padding : {2, 17}) {
+      Detector wide_coreas, wide_zhs;
+      for (auto const& observer : zhs_observers) {
+        TimeDomainObserver wide(observer.getName(), observer.getLocation(), cs,
+            -padding * 1_ns, test.duration_s * 1_s + 2 * padding * 1_ns, 1_GHz, 0_s);
+        wide_coreas.addObserver(wide);
+        wide_zhs.addObserver(wide);
+      }
+      ZHS<Detector, decltype(propagator)> wide_process(wide_zhs, propagator);
+      wide_process.doContinuous(step, true);
+      auto wide_config = gpu::radio::makeGpuRadioConfig(
+          environment, upper, lower, table_step_m * 1_m, wide_coreas, wide_zhs);
+      wide_config.deterministic = deterministic;
+      auto const wide_gpu = scalar_radio_test::project(wide_config, record, tiled);
+      for (std::size_t i = 0; i < zhs_observers.size(); ++i) {
+        auto const& narrow_cpu = zhs_observers[i];
+        auto const& full_cpu = wide_zhs.getObservers()[i];
+        auto const& narrow_gpu = waveforms.zhs[i];
+        auto const& full_gpu = wide_gpu.zhs[i];
+        std::array<std::vector<double> const*, 3> a{
+            &narrow_cpu.getWaveformX(), &narrow_cpu.getWaveformY(), &narrow_cpu.getWaveformZ()};
+        std::array<std::vector<double> const*, 3> b{
+            &full_cpu.getWaveformX(), &full_cpu.getWaveformY(), &full_cpu.getWaveformZ()};
+        std::array<std::vector<double> const*, 3> c{&narrow_gpu.x, &narrow_gpu.y, &narrow_gpu.z};
+        std::array<std::vector<double> const*, 3> d{&full_gpu.x, &full_gpu.y, &full_gpu.z};
+        for (int axis = 0; axis < 3; ++axis) {
+          require(b[axis]->size() == a[axis]->size() + 2 * padding,
+                  "window padding changed sample-grid shape");
+          auto const count = a[axis]->size();
+          std::vector<double> crop_cpu(b[axis]->begin() + padding,
+                                      b[axis]->begin() + padding + count);
+          std::vector<double> crop_gpu(d[axis]->begin() + padding,
+                                      d[axis]->begin() + padding + count);
+          auto const label = std::string(test.name) + " window-invariance";
+          compare(*a[axis], crop_cpu, 2.e-27, label + " scalar A");
+          compare(*c[axis], crop_gpu, 2.e-27, label + " Kokkos A");
+          std::vector<double> e0(count - 1), e1(count - 1);
+          for (std::size_t j = 0; j + 1 < count; ++j) {
+            e0[j] = -((*a[axis])[j + 1] - (*a[axis])[j]) * 1.e9;
+            e1[j] = -(crop_cpu[j + 1] - crop_cpu[j]) * 1.e9;
+          }
+          compare(e0, e1, 4.e-18, label + " scalar E");
+          for (std::size_t j = 0; j + 1 < count; ++j) {
+            e0[j] = -((*c[axis])[j + 1] - (*c[axis])[j]) * 1.e9;
+            e1[j] = -(crop_gpu[j + 1] - crop_gpu[j]) * 1.e9;
+          }
+          compare(e0, e1, 4.e-18, label + " Kokkos E");
         }
       }
     }
@@ -282,6 +404,9 @@ int main(int argc, char** argv) {
     logging::set_level(logging::level::err);
     testDoppler();
     testObserverWindow();
+    testPotentialWindow();
+    double const light_speed = constants::c / (1_m / 1_s);
+    double const half_length = .99 * light_speed * 20.e-9 / 2.;
     std::vector<Case> const cases{
         {"ordinary", {3., 4., 100.}, {4., 6., 99.}, .8, 0., 2.e-6, 1.0003},
         {"positron_weight", {3., 4., 100.}, {4., 6., 99.}, .8, 0., 2.e-6, 1.0003,
@@ -291,13 +416,27 @@ int main(int argc, char** argv) {
         {"lower_edge", {3., 4., -1000.}, {4., 6., -1001.}, .8, 0., 8.e-6, 1.0003},
         {"late_track", {3., 4., 100.}, {4., 6., 99.}, .8, 1.e-3, 4.e-7, 1.0003},
         {"window_end", {3., 4., 10.}, {8., 4., 10.}, .8, 7.181319171927605e-8, 4.e-7, 1.0003},
+        {"edge_first", {100. - half_length, 2., 1000.}, {100. + half_length, 2., 1000.},
+         .99, -1000. / light_speed - 5.25e-9, 10.e-9, 1.},
+        {"edge_last", {100. - half_length, 2., 1000.}, {100. + half_length, 2., 1000.},
+         .99, -1000. / light_speed - 5.75e-9, 10.e-9, 1.},
+        {"subbin_first", {100. - half_length / 100., 2., 1000.},
+         {100. + half_length / 100., 2., 1000.}, .99,
+         -1000. / light_speed - .35e-9, 10.e-9, 1.},
+        {"subbin_last", {100. - half_length / 100., 2., 1000.},
+         {100. + half_length / 100., 2., 1000.}, .99,
+         -1000. / light_speed + 10.15e-9, 10.e-9, 1.},
         {"vacuum", {3., 4., 100.}, {4., 6., 99.}, .8, 0., 2.e-6, 1.}};
     for (auto const& test : cases)
       for (bool deterministic : {false, true}) runCase(test, deterministic, 1.);
     runCase(cases.front(), false, .5);
     runCase(cases.front(), false, 2.);
     runCase(cases.front(), true, 1., true);
-    std::cout << "PASS: real scalar CoREAS/ZHS, window differentiation, and Doppler rescue\n";
+    runCase(cases.front(), false, 1., true);
+    runCase(cases[7], true, 1., true);
+    runCase(cases[8], false, 1., true);
+    std::cout << "PASS: real scalar CoREAS/ZHS, complete potential bins, widened-window "
+                 "invariance, reset/reuse, and Doppler rescue\n";
   } catch (std::exception const& error) {
     std::cerr << error.what() << '\n';
     status = 1;

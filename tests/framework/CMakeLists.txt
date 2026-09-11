@@ -14,6 +14,7 @@ set (test_framework_sources
   testFunctionTimer.cpp
   testSecondaryView.cpp
   testGeometry.cpp
+  testConvexPolyhedron.cpp
   testCombinedStack.cpp
   testUnits.cpp
   testCascade.cpp 

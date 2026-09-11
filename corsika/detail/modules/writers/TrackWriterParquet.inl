@@ -57,7 +57,7 @@ namespace corsika {
     showerId_ = showerId;
   }
 
-  inline void TrackWriterParquet::endOfShower(unsigned int const) {}
+  inline void TrackWriterParquet::endOfShower(unsigned int const) { output_.flushStreamer(); }
 
   inline void TrackWriterParquet::endOfLibrary() { output_.closeStreamer(); }
 

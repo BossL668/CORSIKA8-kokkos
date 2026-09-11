@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <corsika/accelerator/em/kokkos/ResidentExecutionWait.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosMemorySpace.hpp>
 
 #include <algorithm>
@@ -1168,6 +1169,466 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
   }
 
+  /** Enqueue one production lepton front. No allocation, host readback or
+   * fence: all selection, scattering, vertex and output scans stay on the
+   * caller's execution instance. The synchronous wrapper uses this too.
+   */
+  template <class ExecutionSpace>
+  void enqueueResidentLeptonFront(
+      KokkosPhysicsContextView<ExecutionSpace> const physics_context,
+      double const electron_mass_GeV, bool const air_moliere_fast_path,
+      ParticleSoARawView const current,
+      KokkosResidentLeptonWorkspace<ExecutionSpace>& active_workspace,
+      std::size_t const current_count, std::size_t const capacity,
+      std::size_t const photon_capacity, std::uint64_t const next_history_id,
+      std::uint64_t const secondary_history_id_limit_exclusive,
+      bool const project_steps, bool const capture_first_interaction,
+      ExecutionSpace const& execution, std::size_t const openmp_chunk_size) {
+    using namespace gpu::em;
+    auto const Policy = [openmp_chunk_size](ExecutionSpace const& ex,
+                                            std::size_t begin, std::size_t end) {
+      if (begin != 0 || end < begin)
+        throw std::invalid_argument("resident lepton RangePolicy requires a zero origin");
+      return makeKokkosRangePolicy(ex, end, openmp_chunk_size);
+    };
+    auto& queue = active_workspace.queue;
+    auto const& selections = active_workspace.selections;
+    auto const& transports = active_workspace.transports;
+    auto const& transport_fallbacks = active_workspace.transport_fallbacks;
+    auto const& vertices = active_workspace.vertices;
+    auto const& final_states = active_workspace.final_states;
+    auto const& counts = active_workspace.counts;
+    auto const& interaction_flags = active_workspace.interaction_flags;
+    auto const& transport_states = active_workspace.transport_states;
+    auto const& interaction_sources = active_workspace.interaction_sources;
+    auto const& offsets = active_workspace.offsets;
+    auto const& steps = active_workspace.steps;
+    auto const& projected_steps = active_workspace.projected_steps;
+    auto const& records = active_workspace.records;
+    auto const& photons = active_workspace.photons;
+    auto const& fallbacks = active_workspace.fallbacks;
+    auto const& observations = active_workspace.observations;
+    auto const& decays = active_workspace.decays;
+    auto const& first_snapshots = active_workspace.first_snapshots;
+    auto const& first_interaction_candidates =
+        active_workspace.first_interaction_candidates;
+    auto const& error = active_workspace.error;
+    auto const interaction_count_device = active_workspace.interaction_count;
+    auto const scan_totals_device = active_workspace.scan_totals;
+    auto const front_control_device = active_workspace.front_control;
+
+    // Keep rate inversion separate from geometry and multiple scattering.
+    // The three kernels execute in source order on the same execution-space
+    // instance, so splitting their register frames does not change source
+    // indices, history allocation, or any history-keyed Philox draw.
+    auto const selections_raw = rawDeviceView(selections);
+    auto const transports_raw = rawDeviceView(transports);
+    auto const transport_fallbacks_raw =
+        rawDeviceView(transport_fallbacks);
+    auto const vertices_raw = rawDeviceView(vertices);
+    auto const final_states_raw = rawDeviceView(final_states);
+    auto const counts_raw = rawDeviceView(counts);
+    auto const interaction_flags_raw = rawDeviceView(interaction_flags);
+    auto const transport_states_raw = rawDeviceView(transport_states);
+    auto const interaction_sources_raw = rawDeviceView(interaction_sources);
+    auto const select_kernel =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const& context = physics_context();
+          ResidentLeptonSourceCounts source_counts{};
+          auto& selection = selections_raw(source);
+          selection = detail::selectDiscreteInteraction(
+              context.physics, current.load(source), source,
+              context.random_seed, context.shower_id);
+          if (selection.fallback_flag != 0)
+            source_counts.fallback_stage = LeptonSelectionFallback;
+          counts_raw(source) = source_counts;
+          interaction_flags_raw(source) = 0;
+          transport_states_raw(source) =
+              selection.fallback_flag != 0 ? 1U : 0U;
+        };
+    static_assert(sizeof(select_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_lepton_select",
+        Policy(execution, 0, current_count),
+        select_kernel);
+
+    auto const transport_kernel =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const& context = physics_context();
+          auto const& selection = selections_raw(source);
+          if (selection.fallback_flag != 0) return;
+          transport_states_raw(source) = detail::transportLepton(
+              context.physics, true, context.environment,
+              selection.interaction, transports_raw(source),
+              transport_fallbacks_raw(source));
+        };
+    static_assert(sizeof(transport_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_lepton_transport",
+        Policy(execution, 0, current_count),
+        transport_kernel);
+
+    if (air_moliere_fast_path) {
+      auto const moliere_air_kernel =
+          KOKKOS_LAMBDA(std::size_t const source) {
+            auto const& context = physics_context();
+            auto const& selection = selections_raw(source);
+            auto& transport = transports_raw(source);
+            auto& transport_fallback = transport_fallbacks_raw(source);
+            auto& source_counts = counts_raw(source);
+            if (selection.fallback_flag != 0) return;
+            auto const state = detail::applyMoliereScatteringStage<4>(
+                context.electron_moliere, context.muon_moliere,
+                context.moliere_interpolation,
+                context.muon_moliere_available != 0, context.random_seed,
+                context.shower_id, transport, transport_fallback,
+                transport_states_raw(source));
+            transport_states_raw(source) = state;
+            if (state != 0) {
+              source_counts.fallback_stage = LeptonTransportFallback;
+              return;
+            }
+            classifyResidentLeptonTransportLimit(transport, source_counts);
+            interaction_flags_raw(source) =
+                transport.limit ==
+                LeptonTransportLimit::InteractionCandidate;
+          };
+      static_assert(sizeof(moliere_air_kernel) < 512);
+      Kokkos::parallel_for(
+          "c8_kokkos_resident_lepton_moliere_air",
+          Policy(execution, 0, current_count),
+          moliere_air_kernel);
+    } else {
+      auto const moliere_general_kernel =
+          KOKKOS_LAMBDA(std::size_t const source) {
+            auto const& context = physics_context();
+            auto const& selection = selections_raw(source);
+            auto& transport = transports_raw(source);
+            auto& transport_fallback = transport_fallbacks_raw(source);
+            auto& source_counts = counts_raw(source);
+            if (selection.fallback_flag != 0) return;
+            auto const state = detail::applyMoliereScatteringStage<
+                MaxMoliereComponents>(
+                context.electron_moliere, context.muon_moliere,
+                context.moliere_interpolation,
+                context.muon_moliere_available != 0, context.random_seed,
+                context.shower_id, transport, transport_fallback,
+                transport_states_raw(source));
+            transport_states_raw(source) = state;
+            if (state != 0) {
+              source_counts.fallback_stage = LeptonTransportFallback;
+              return;
+            }
+            classifyResidentLeptonTransportLimit(transport, source_counts);
+            interaction_flags_raw(source) =
+                transport.limit ==
+                LeptonTransportLimit::InteractionCandidate;
+          };
+      static_assert(sizeof(moliere_general_kernel) < 512);
+      Kokkos::parallel_for(
+          "c8_kokkos_resident_lepton_moliere_general",
+          Policy(execution, 0, current_count),
+          moliere_general_kernel);
+    }
+
+    // Stable interaction-candidate compaction.  This preserves increasing
+    // source order exactly, while ensuring that vertex selection and the
+    // comparatively register-heavy final-state classifier run only for
+    // actual interaction limits.
+    Kokkos::parallel_scan(
+        "c8_kokkos_scan_lepton_interactions",
+        Policy(execution, 0, current_count),
+        ResidentLeptonInteractionScanFunctor<ExecutionSpace>{
+            interaction_flags, interaction_sources},
+        active_workspace.interaction_count);
+    auto const interaction_count_raw = interaction_count_device.data();
+    auto const vertex_interaction_count_device =
+        active_workspace.vertex_interaction_count;
+    auto const classify_kernel =
+        KOKKOS_LAMBDA(std::size_t const candidate,
+                      std::uint64_t& vertex_interactions) {
+          auto const& context = physics_context();
+          auto const compacted_count =
+              static_cast<std::size_t>(*interaction_count_raw);
+          if (candidate >= compacted_count) return;
+          auto const source = interaction_sources_raw(candidate);
+          auto& source_counts = counts_raw(source);
+          classifyResidentLeptonInteractionSource(
+              context.physics, context.brems_lpm, context.thinning,
+              context.random_seed, context.shower_id,
+              transports_raw(source), vertices_raw(candidate),
+              final_states_raw(candidate), source_counts);
+          vertex_interactions +=
+              vertices_raw(candidate).interaction_flag != 0;
+        };
+    static_assert(sizeof(classify_kernel) < 512);
+    Kokkos::parallel_reduce(
+        "c8_kokkos_classify_lepton_interactions",
+        Policy(execution, 0, current_count),
+        classify_kernel, vertex_interaction_count_device);
+
+    Kokkos::parallel_scan(
+        "c8_kokkos_scan_lepton_outputs",
+        Policy(execution, 0, current_count),
+        ResidentLeptonScanFunctor<ExecutionSpace>{counts, offsets},
+        active_workspace.scan_totals);
+
+    auto const next = queue.next().rawDeviceView();
+    auto const offsets_raw = rawDeviceView(offsets);
+    auto const steps_raw = rawDeviceView(steps);
+    auto const projected_steps_raw = rawDeviceView(projected_steps);
+    auto const records_raw = rawDeviceView(records);
+    auto const photons_raw = rawDeviceView(photons);
+    auto const fallbacks_raw = rawDeviceView(fallbacks);
+    auto const observations_raw = rawDeviceView(observations);
+    auto const decays_raw = rawDeviceView(decays);
+    auto const first_snapshots_raw = rawDeviceView(first_snapshots);
+    auto const first_interaction_candidates_raw =
+        first_interaction_candidates.data();
+    auto const scan_totals_raw = scan_totals_device.data();
+    auto const error_raw = error.data();
+    auto const materialize_endpoint =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const device_totals = *scan_totals_raw;
+          if (device_totals.values[LeptonNextOffset] > capacity ||
+              device_totals.values[LeptonPhotonOffset] > photon_capacity ||
+              device_totals.values[LeptonChildOffset] >
+                  secondary_history_id_limit_exclusive - next_history_id)
+            return;
+          auto const& selection = selections_raw(source);
+          auto const& transport = transports_raw(source);
+          auto const& source_counts = counts_raw(source);
+          if (source_counts.fallback_stage > LeptonFinalStateFallback) {
+            Kokkos::atomic_compare_exchange(
+                error_raw, std::uint32_t{0}, std::uint32_t{31});
+            return;
+          }
+          if (source_counts.step) {
+            steps_raw(offsets_raw(source, LeptonStepOffset)) =
+                transport;
+            if (project_steps) {
+              auto const& context = physics_context();
+              projected_steps_raw(
+                  offsets_raw(source, LeptonStepOffset)) =
+                  detail::projectLeptonStep(
+                      context.profile_projection, transport);
+            }
+          }
+          if (selection.fallback_flag) {
+            if (source_counts.fallback_stage !=
+                LeptonSelectionFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{32});
+              return;
+            }
+            fallbacks_raw(
+                leptonFallbackOutputOffset(
+                    source_counts.fallback_stage,
+                    offsets_raw(source, LeptonSelectionFallbackOffset),
+                    offsets_raw(source, LeptonTransportFallbackOffset),
+                    offsets_raw(source, LeptonVertexFallbackOffset),
+                    offsets_raw(source, LeptonFinalStateFallbackOffset),
+                    device_totals)) =
+                selection.fallback;
+            return;
+          }
+          if (!source_counts.step) {
+            if (source_counts.fallback_stage !=
+                LeptonTransportFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{33});
+              return;
+            }
+            fallbacks_raw(
+                leptonFallbackOutputOffset(
+                    source_counts.fallback_stage,
+                    offsets_raw(source, LeptonSelectionFallbackOffset),
+                    offsets_raw(source, LeptonTransportFallbackOffset),
+                    offsets_raw(source, LeptonVertexFallbackOffset),
+                    offsets_raw(source, LeptonFinalStateFallbackOffset),
+                    device_totals)) =
+                transport_fallbacks_raw(source);
+            return;
+          }
+
+          auto const& step = transport;
+          if (source_counts.observation) {
+            ObservationRecord observation{};
+            observation.particle = step.end;
+            observation.status =
+                step.limit == LeptonTransportLimit::EscapedEnvironment
+                    ? ObservationStatus::EscapedEnvironment
+                    : ObservationStatus::ReachedObservationSurface;
+            observations_raw(
+                offsets_raw(source, LeptonObservationOffset)) =
+                observation;
+          }
+          if (source_counts.decay)
+            decays_raw(offsets_raw(source, LeptonDecayOffset)) =
+                step.end;
+          if (step.limit == LeptonTransportLimit::ContinuousStep ||
+              step.limit == LeptonTransportLimit::LayerBoundary ||
+              step.limit == LeptonTransportLimit::MagneticStep) {
+            next.store(offsets_raw(source, LeptonNextOffset),
+                       step.end);
+          }
+        };
+    static_assert(sizeof(materialize_endpoint) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_lepton_materialize_endpoints",
+        Policy(execution, 0, current_count), materialize_endpoint);
+
+    auto const materialize_kernel =
+        KOKKOS_LAMBDA(std::size_t const candidate) {
+          auto const device_totals = *scan_totals_raw;
+          if (device_totals.values[LeptonNextOffset] > capacity ||
+              device_totals.values[LeptonPhotonOffset] > photon_capacity ||
+              device_totals.values[LeptonChildOffset] >
+                  secondary_history_id_limit_exclusive - next_history_id)
+            return;
+          auto const compacted_count =
+              static_cast<std::size_t>(*interaction_count_raw);
+          if (candidate >= compacted_count) return;
+          auto const source = interaction_sources_raw(candidate);
+          auto const& vertex = vertices_raw(candidate);
+          auto const& final_state = final_states_raw(candidate);
+          auto const& source_counts = counts_raw(source);
+          if (vertex.fallback_flag) {
+            if (source_counts.fallback_stage != LeptonVertexFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{34});
+              return;
+            }
+            fallbacks_raw(
+                leptonFallbackOutputOffset(
+                    source_counts.fallback_stage,
+                    offsets_raw(source, LeptonSelectionFallbackOffset),
+                    offsets_raw(source, LeptonTransportFallbackOffset),
+                    offsets_raw(source, LeptonVertexFallbackOffset),
+                    offsets_raw(source, LeptonFinalStateFallbackOffset),
+                    device_totals)) =
+                vertex.fallback;
+            return;
+          }
+          if (vertex.continuation_flag) {
+            if (source_counts.fallback_stage != LeptonNoFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{35});
+              return;
+            }
+            next.store(offsets_raw(source, LeptonNextOffset),
+                       vertex.record.particle);
+            return;
+          }
+          if ((final_state.fallback_flag != 0) !=
+              (source_counts.fallback_stage ==
+               LeptonFinalStateFallback)) {
+            Kokkos::atomic_compare_exchange(
+                error_raw, std::uint32_t{0}, std::uint32_t{36});
+            return;
+          }
+
+          ResidentLeptonFinalStateWriter output{
+              next,
+              records_raw,
+              photons_raw,
+              fallbacks_raw,
+              first_snapshots_raw,
+              first_interaction_candidates_raw,
+              error_raw,
+              offsets_raw(source, LeptonNextOffset),
+              offsets_raw(source, LeptonPhotonOffset),
+              leptonFallbackOutputOffset(
+                  source_counts.fallback_stage,
+                  offsets_raw(source, LeptonSelectionFallbackOffset),
+                  offsets_raw(source, LeptonTransportFallbackOffset),
+                  offsets_raw(source, LeptonVertexFallbackOffset),
+                  offsets_raw(source, LeptonFinalStateFallbackOffset),
+                  device_totals),
+              offsets_raw(source, LeptonRecordOffset),
+              capture_first_interaction ? 1U : 0U};
+          detail::materializeLeptonFinalStateInPlace(
+              vertex.record, final_state,
+              offsets_raw(source, LeptonChildOffset),
+              next_history_id, electron_mass_GeV, output);
+        };
+    static_assert(sizeof(materialize_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_lepton_materialize_interactions",
+        Policy(execution, 0, current_count),
+        materialize_kernel);
+
+  }
+
+  /** Same post-materialization profile/statistics/radio kernels as the
+   * synchronous cascade. The caller has validated control and reserved radio
+   * workspace before any endpoint is in flight. No host result is consumed.
+   */
+  template <class ExecutionSpace>
+  void enqueueResidentLeptonAccumulation(
+      KokkosResidentLeptonWorkspace<ExecutionSpace> const& workspace,
+      std::size_t const current_count,
+      ResidentLeptonFrontControl const& control,
+      gpu::em::detail::DeviceProfileProjection const profile_projection,
+      KokkosProfileAccumulator<ExecutionSpace>* const profile_accumulator,
+      radio::kokkos_detail::KokkosRadioAccumulator<ExecutionSpace>* const radio_accumulator,
+      ExecutionSpace const& execution, std::size_t const openmp_chunk_size) {
+    auto const Policy = [openmp_chunk_size](ExecutionSpace const& ex,
+                                            std::size_t, std::size_t end) {
+      return makeKokkosRangePolicy(ex, end, openmp_chunk_size);
+    };
+    auto const& transports = workspace.transports;
+    auto const& counts = workspace.counts;
+    auto const& call_statistics = workspace.call_statistics;
+    auto const& vertices = workspace.vertices;
+    auto const& final_states = workspace.final_states;
+    auto const& steps = workspace.steps;
+    auto const& records = workspace.records;
+    auto const& totals = control.totals.values;
+    auto const interaction_count = static_cast<std::size_t>(control.interaction_count);
+    auto const resident_step_count = static_cast<std::size_t>(totals[LeptonStepOffset]);
+    auto const resident_record_count = static_cast<std::size_t>(totals[LeptonRecordOffset]);
+    if (profile_accumulator != nullptr) {
+      auto const device_profile = profile_accumulator->deviceView();
+      Kokkos::parallel_reduce(
+          "c8_kokkos_resident_lepton_transport_statistics",
+          Policy(execution, 0, current_count),
+          ResidentLeptonTransportStatisticsProfileFunctor<ExecutionSpace>{
+              {transports, counts, call_statistics},
+              profile_projection,
+              device_profile,
+              steps,
+              resident_step_count});
+      if (interaction_count != 0)
+        Kokkos::parallel_reduce(
+            "c8_kokkos_resident_lepton_interaction_statistics",
+            Policy(execution, 0, interaction_count),
+            ResidentLeptonInteractionStatisticsProfileFunctor<
+                ExecutionSpace>{{vertices, final_states, call_statistics},
+                                profile_projection,
+                                device_profile,
+                                steps,
+                                resident_step_count,
+                                records,
+                                resident_record_count});
+    } else {
+      Kokkos::parallel_reduce(
+          "c8_kokkos_resident_lepton_transport_statistics",
+          Policy(execution, 0, current_count),
+          ResidentLeptonTransportStatisticsFunctor<ExecutionSpace>{
+              transports, counts, call_statistics});
+      if (interaction_count != 0)
+        Kokkos::parallel_reduce(
+            "c8_kokkos_resident_lepton_interaction_statistics",
+            Policy(execution, 0, interaction_count),
+            ResidentLeptonInteractionStatisticsFunctor<ExecutionSpace>{
+                vertices, final_states, call_statistics});
+    }
+    if (radio_accumulator != nullptr)
+      radio_accumulator->accumulateLeptonTracks(
+          steps, totals[LeptonStepOffset], execution);
+  }
+
   template <class ExecutionSpace>
   gpu::em::ResidentLeptonCascadeResult runResidentLeptonCascade(
       KokkosPhysicsContextView<ExecutionSpace> const physics_context,
@@ -1198,7 +1659,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       bool const capture_diagnostic_interactions = false,
       std::size_t const openmp_chunk_size = 0,
       KokkosResidentMemoryBudgetGate const memory_gate = {},
-      std::size_t const reserved_source_limit = 0) {
+      std::size_t const reserved_source_limit = 0,
+      ResidentExecutionWait<ExecutionSpace>* const cooperative_wait = nullptr) {
     using namespace gpu::em;
     auto const Policy =
         [openmp_chunk_size](ExecutionSpace const& selected_execution,
@@ -1417,346 +1879,11 @@ namespace corsika::accelerator::em::kokkos_detail {
         result.wavefront_bucketing_small_particles += current_count;
       }
 
-      // Keep rate inversion separate from geometry and multiple scattering.
-      // The three kernels execute in source order on the same execution-space
-      // instance, so splitting their register frames does not change source
-      // indices, history allocation, or any history-keyed Philox draw.
-      auto const selections_raw = rawDeviceView(selections);
-      auto const transports_raw = rawDeviceView(transports);
-      auto const transport_fallbacks_raw =
-          rawDeviceView(transport_fallbacks);
-      auto const vertices_raw = rawDeviceView(vertices);
-      auto const final_states_raw = rawDeviceView(final_states);
-      auto const counts_raw = rawDeviceView(counts);
-      auto const interaction_flags_raw = rawDeviceView(interaction_flags);
-      auto const transport_states_raw = rawDeviceView(transport_states);
-      auto const interaction_sources_raw = rawDeviceView(interaction_sources);
-      auto const select_kernel =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const& context = physics_context();
-            ResidentLeptonSourceCounts source_counts{};
-            auto& selection = selections_raw(source);
-            selection = detail::selectDiscreteInteraction(
-                context.physics, current.load(source), source,
-                context.random_seed, context.shower_id);
-            if (selection.fallback_flag != 0)
-              source_counts.fallback_stage = LeptonSelectionFallback;
-            counts_raw(source) = source_counts;
-            interaction_flags_raw(source) = 0;
-            transport_states_raw(source) =
-                selection.fallback_flag != 0 ? 1U : 0U;
-          };
-      static_assert(sizeof(select_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_lepton_select",
-          Policy(execution, 0, current_count),
-          select_kernel);
-
-      auto const transport_kernel =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const& context = physics_context();
-            auto const& selection = selections_raw(source);
-            if (selection.fallback_flag != 0) return;
-            transport_states_raw(source) = detail::transportLepton(
-                context.physics, true, context.environment,
-                selection.interaction, transports_raw(source),
-                transport_fallbacks_raw(source));
-          };
-      static_assert(sizeof(transport_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_lepton_transport",
-          Policy(execution, 0, current_count),
-          transport_kernel);
-
-      if (air_moliere_fast_path) {
-        auto const moliere_air_kernel =
-            KOKKOS_LAMBDA(std::size_t const source) {
-              auto const& context = physics_context();
-              auto const& selection = selections_raw(source);
-              auto& transport = transports_raw(source);
-              auto& transport_fallback = transport_fallbacks_raw(source);
-              auto& source_counts = counts_raw(source);
-              if (selection.fallback_flag != 0) return;
-              auto const state = detail::applyMoliereScatteringStage<4>(
-                  context.electron_moliere, context.muon_moliere,
-                  context.moliere_interpolation,
-                  context.muon_moliere_available != 0, context.random_seed,
-                  context.shower_id, transport, transport_fallback,
-                  transport_states_raw(source));
-              transport_states_raw(source) = state;
-              if (state != 0) {
-                source_counts.fallback_stage = LeptonTransportFallback;
-                return;
-              }
-              classifyResidentLeptonTransportLimit(transport, source_counts);
-              interaction_flags_raw(source) =
-                  transport.limit ==
-                  LeptonTransportLimit::InteractionCandidate;
-            };
-        static_assert(sizeof(moliere_air_kernel) < 512);
-        Kokkos::parallel_for(
-            "c8_kokkos_resident_lepton_moliere_air",
-            Policy(execution, 0, current_count),
-            moliere_air_kernel);
-      } else {
-        auto const moliere_general_kernel =
-            KOKKOS_LAMBDA(std::size_t const source) {
-              auto const& context = physics_context();
-              auto const& selection = selections_raw(source);
-              auto& transport = transports_raw(source);
-              auto& transport_fallback = transport_fallbacks_raw(source);
-              auto& source_counts = counts_raw(source);
-              if (selection.fallback_flag != 0) return;
-              auto const state = detail::applyMoliereScatteringStage<
-                  MaxMoliereComponents>(
-                  context.electron_moliere, context.muon_moliere,
-                  context.moliere_interpolation,
-                  context.muon_moliere_available != 0, context.random_seed,
-                  context.shower_id, transport, transport_fallback,
-                  transport_states_raw(source));
-              transport_states_raw(source) = state;
-              if (state != 0) {
-                source_counts.fallback_stage = LeptonTransportFallback;
-                return;
-              }
-              classifyResidentLeptonTransportLimit(transport, source_counts);
-              interaction_flags_raw(source) =
-                  transport.limit ==
-                  LeptonTransportLimit::InteractionCandidate;
-            };
-        static_assert(sizeof(moliere_general_kernel) < 512);
-        Kokkos::parallel_for(
-            "c8_kokkos_resident_lepton_moliere_general",
-            Policy(execution, 0, current_count),
-            moliere_general_kernel);
-      }
-
-      // Stable interaction-candidate compaction.  This preserves increasing
-      // source order exactly, while ensuring that vertex selection and the
-      // comparatively register-heavy final-state classifier run only for
-      // actual interaction limits.
-      Kokkos::parallel_scan(
-          "c8_kokkos_scan_lepton_interactions",
-          Policy(execution, 0, current_count),
-          ResidentLeptonInteractionScanFunctor<ExecutionSpace>{
-              interaction_flags, interaction_sources},
-          active_workspace.interaction_count);
-      auto const interaction_count_raw = interaction_count_device.data();
-      auto const vertex_interaction_count_device =
-          active_workspace.vertex_interaction_count;
-      auto const classify_kernel =
-          KOKKOS_LAMBDA(std::size_t const candidate,
-                        std::uint64_t& vertex_interactions) {
-            auto const& context = physics_context();
-            auto const compacted_count =
-                static_cast<std::size_t>(*interaction_count_raw);
-            if (candidate >= compacted_count) return;
-            auto const source = interaction_sources_raw(candidate);
-            auto& source_counts = counts_raw(source);
-            classifyResidentLeptonInteractionSource(
-                context.physics, context.brems_lpm, context.thinning,
-                context.random_seed, context.shower_id,
-                transports_raw(source), vertices_raw(candidate),
-                final_states_raw(candidate), source_counts);
-            vertex_interactions +=
-                vertices_raw(candidate).interaction_flag != 0;
-          };
-      static_assert(sizeof(classify_kernel) < 512);
-      Kokkos::parallel_reduce(
-          "c8_kokkos_classify_lepton_interactions",
-          Policy(execution, 0, current_count),
-          classify_kernel, vertex_interaction_count_device);
-
-      Kokkos::parallel_scan(
-          "c8_kokkos_scan_lepton_outputs",
-          Policy(execution, 0, current_count),
-          ResidentLeptonScanFunctor<ExecutionSpace>{counts, offsets},
-          active_workspace.scan_totals);
-
-      auto const next = queue.next().rawDeviceView();
-      auto const offsets_raw = rawDeviceView(offsets);
-      auto const steps_raw = rawDeviceView(steps);
-      auto const projected_steps_raw = rawDeviceView(projected_steps);
-      auto const records_raw = rawDeviceView(records);
-      auto const photons_raw = rawDeviceView(photons);
-      auto const fallbacks_raw = rawDeviceView(fallbacks);
-      auto const observations_raw = rawDeviceView(observations);
-      auto const decays_raw = rawDeviceView(decays);
-      auto const first_snapshots_raw = rawDeviceView(first_snapshots);
-      auto const first_interaction_candidates_raw =
-          first_interaction_candidates.data();
-      auto const scan_totals_raw = scan_totals_device.data();
-      auto const error_raw = error.data();
-      auto const materialize_endpoint =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const device_totals = *scan_totals_raw;
-            if (device_totals.values[LeptonNextOffset] > capacity ||
-                device_totals.values[LeptonPhotonOffset] > photon_capacity ||
-                device_totals.values[LeptonChildOffset] >
-                    secondary_history_id_limit_exclusive - next_history_id)
-              return;
-            auto const& selection = selections_raw(source);
-            auto const& transport = transports_raw(source);
-            auto const& source_counts = counts_raw(source);
-            if (source_counts.fallback_stage > LeptonFinalStateFallback) {
-              Kokkos::atomic_compare_exchange(
-                  error_raw, std::uint32_t{0}, std::uint32_t{31});
-              return;
-            }
-            if (source_counts.step) {
-              steps_raw(offsets_raw(source, LeptonStepOffset)) =
-                  transport;
-              if (project_steps) {
-                auto const& context = physics_context();
-                projected_steps_raw(
-                    offsets_raw(source, LeptonStepOffset)) =
-                    detail::projectLeptonStep(
-                        context.profile_projection, transport);
-              }
-            }
-            if (selection.fallback_flag) {
-              if (source_counts.fallback_stage !=
-                  LeptonSelectionFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{32});
-                return;
-              }
-              fallbacks_raw(
-                  leptonFallbackOutputOffset(
-                      source_counts.fallback_stage,
-                      offsets_raw(source, LeptonSelectionFallbackOffset),
-                      offsets_raw(source, LeptonTransportFallbackOffset),
-                      offsets_raw(source, LeptonVertexFallbackOffset),
-                      offsets_raw(source, LeptonFinalStateFallbackOffset),
-                      device_totals)) =
-                  selection.fallback;
-              return;
-            }
-            if (!source_counts.step) {
-              if (source_counts.fallback_stage !=
-                  LeptonTransportFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{33});
-                return;
-              }
-              fallbacks_raw(
-                  leptonFallbackOutputOffset(
-                      source_counts.fallback_stage,
-                      offsets_raw(source, LeptonSelectionFallbackOffset),
-                      offsets_raw(source, LeptonTransportFallbackOffset),
-                      offsets_raw(source, LeptonVertexFallbackOffset),
-                      offsets_raw(source, LeptonFinalStateFallbackOffset),
-                      device_totals)) =
-                  transport_fallbacks_raw(source);
-              return;
-            }
-
-            auto const& step = transport;
-            if (source_counts.observation) {
-              ObservationRecord observation{};
-              observation.particle = step.end;
-              observation.status =
-                  step.limit == LeptonTransportLimit::EscapedEnvironment
-                      ? ObservationStatus::EscapedEnvironment
-                      : ObservationStatus::ReachedObservationSurface;
-              observations_raw(
-                  offsets_raw(source, LeptonObservationOffset)) =
-                  observation;
-            }
-            if (source_counts.decay)
-              decays_raw(offsets_raw(source, LeptonDecayOffset)) =
-                  step.end;
-            if (step.limit == LeptonTransportLimit::ContinuousStep ||
-                step.limit == LeptonTransportLimit::LayerBoundary ||
-                step.limit == LeptonTransportLimit::MagneticStep) {
-              next.store(offsets_raw(source, LeptonNextOffset),
-                         step.end);
-            }
-          };
-      static_assert(sizeof(materialize_endpoint) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_lepton_materialize_endpoints",
-          Policy(execution, 0, current_count), materialize_endpoint);
-
-      auto const materialize_kernel =
-          KOKKOS_LAMBDA(std::size_t const candidate) {
-            auto const device_totals = *scan_totals_raw;
-            if (device_totals.values[LeptonNextOffset] > capacity ||
-                device_totals.values[LeptonPhotonOffset] > photon_capacity ||
-                device_totals.values[LeptonChildOffset] >
-                    secondary_history_id_limit_exclusive - next_history_id)
-              return;
-            auto const compacted_count =
-                static_cast<std::size_t>(*interaction_count_raw);
-            if (candidate >= compacted_count) return;
-            auto const source = interaction_sources_raw(candidate);
-            auto const& vertex = vertices_raw(candidate);
-            auto const& final_state = final_states_raw(candidate);
-            auto const& source_counts = counts_raw(source);
-            if (vertex.fallback_flag) {
-              if (source_counts.fallback_stage != LeptonVertexFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{34});
-                return;
-              }
-              fallbacks_raw(
-                  leptonFallbackOutputOffset(
-                      source_counts.fallback_stage,
-                      offsets_raw(source, LeptonSelectionFallbackOffset),
-                      offsets_raw(source, LeptonTransportFallbackOffset),
-                      offsets_raw(source, LeptonVertexFallbackOffset),
-                      offsets_raw(source, LeptonFinalStateFallbackOffset),
-                      device_totals)) =
-                  vertex.fallback;
-              return;
-            }
-            if (vertex.continuation_flag) {
-              if (source_counts.fallback_stage != LeptonNoFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{35});
-                return;
-              }
-              next.store(offsets_raw(source, LeptonNextOffset),
-                         vertex.record.particle);
-              return;
-            }
-            if ((final_state.fallback_flag != 0) !=
-                (source_counts.fallback_stage ==
-                 LeptonFinalStateFallback)) {
-              Kokkos::atomic_compare_exchange(
-                  error_raw, std::uint32_t{0}, std::uint32_t{36});
-              return;
-            }
-
-            ResidentLeptonFinalStateWriter output{
-                next,
-                records_raw,
-                photons_raw,
-                fallbacks_raw,
-                first_snapshots_raw,
-                first_interaction_candidates_raw,
-                error_raw,
-                offsets_raw(source, LeptonNextOffset),
-                offsets_raw(source, LeptonPhotonOffset),
-                leptonFallbackOutputOffset(
-                    source_counts.fallback_stage,
-                    offsets_raw(source, LeptonSelectionFallbackOffset),
-                    offsets_raw(source, LeptonTransportFallbackOffset),
-                    offsets_raw(source, LeptonVertexFallbackOffset),
-                    offsets_raw(source, LeptonFinalStateFallbackOffset),
-                    device_totals),
-                offsets_raw(source, LeptonRecordOffset),
-                capture_first_interaction ? 1U : 0U};
-            detail::materializeLeptonFinalStateInPlace(
-                vertex.record, final_state,
-                offsets_raw(source, LeptonChildOffset),
-                next_history_id, electron_mass_GeV, output);
-          };
-      static_assert(sizeof(materialize_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_lepton_materialize_interactions",
-          Policy(execution, 0, current_count),
-          materialize_kernel);
+      enqueueResidentLeptonFront(
+          physics_context, electron_mass_GeV, air_moliere_fast_path, current,
+          active_workspace, current_count, capacity, photon_capacity,
+          next_history_id, secondary_history_id_limit_exclusive,
+          project_steps, capture_first_interaction, execution, openmp_chunk_size);
 
       // The scans and final-state writers above target disjoint, aligned
       // members of front_control_device through unmanaged Views.  Preserve
@@ -1764,7 +1891,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       // one-thread packing kernel for every resident wavefront.
       Kokkos::deep_copy(
           execution, host_front_control, front_control_device);
-      execution.fence("download resident Kokkos lepton front control");
+      waitResidentExecution(execution,
+          "download resident Kokkos lepton front control", cooperative_wait);
       auto const& front_control = host_front_control();
       auto const& totals = front_control.totals.values;
       if (front_control.interaction_count > current_count)
@@ -1816,8 +1944,8 @@ namespace corsika::accelerator::em::kokkos_detail {
             std::make_pair<std::size_t>(0, interaction_count));
         auto host_vertices = Kokkos::create_mirror_view(active_vertices);
         Kokkos::deep_copy(execution, host_vertices, active_vertices);
-        execution.fence(
-            "download resident Kokkos lepton interaction diagnostics");
+        waitResidentExecution(execution,
+            "download resident Kokkos lepton interaction diagnostics", cooperative_wait);
         for (std::size_t candidate = 0; candidate < interaction_count;
              ++candidate) {
           auto const& vertex = host_vertices(candidate);
@@ -1847,45 +1975,9 @@ namespace corsika::accelerator::em::kokkos_detail {
             "resident Kokkos lepton packed record count exceeds interaction "
             "count");
 
-      if (profile_accumulator != nullptr) {
-        auto const device_profile = profile_accumulator->deviceView();
-        Kokkos::parallel_reduce(
-            "c8_kokkos_resident_lepton_transport_statistics",
-            Policy(execution, 0, current_count),
-            ResidentLeptonTransportStatisticsProfileFunctor<ExecutionSpace>{
-                {transports, counts, call_statistics},
-                profile_projection,
-                device_profile,
-                steps,
-                resident_step_count});
-        if (interaction_count != 0)
-          Kokkos::parallel_reduce(
-              "c8_kokkos_resident_lepton_interaction_statistics",
-              Policy(execution, 0, interaction_count),
-              ResidentLeptonInteractionStatisticsProfileFunctor<
-                  ExecutionSpace>{{vertices, final_states, call_statistics},
-                                  profile_projection,
-                                  device_profile,
-                                  steps,
-                                  resident_step_count,
-                                  records,
-                                  resident_record_count});
-      } else {
-        Kokkos::parallel_reduce(
-            "c8_kokkos_resident_lepton_transport_statistics",
-            Policy(execution, 0, current_count),
-            ResidentLeptonTransportStatisticsFunctor<ExecutionSpace>{
-                transports, counts, call_statistics});
-        if (interaction_count != 0)
-          Kokkos::parallel_reduce(
-              "c8_kokkos_resident_lepton_interaction_statistics",
-              Policy(execution, 0, interaction_count),
-              ResidentLeptonInteractionStatisticsFunctor<ExecutionSpace>{
-                  vertices, final_states, call_statistics});
-      }
-      if (radio_accumulator != nullptr)
-        radio_accumulator->accumulateLeptonTracks(
-            steps, totals[LeptonStepOffset], execution);
+      enqueueResidentLeptonAccumulation(
+          active_workspace, current_count, front_control, profile_projection,
+          profile_accumulator, radio_accumulator, execution, openmp_chunk_size);
       auto const projected_count = static_cast<std::size_t>(
           project_steps ? totals[LeptonStepOffset] : std::uint64_t{0});
       auto const step_count = static_cast<std::size_t>(
@@ -1980,7 +2072,8 @@ namespace corsika::accelerator::em::kokkos_detail {
           photon_count != 0 || fallback_count != 0 ||
           observation_count != 0 || decay_count != 0;
       if (has_host_outputs)
-        execution.fence("download resident Kokkos lepton host outputs");
+        waitResidentExecution(execution,
+            "download resident Kokkos lepton host outputs", cooperative_wait);
 
       appendResidentLeptonHostCopy(
           result.projected_step_records, host_projected_steps,
@@ -2023,7 +2116,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       Kokkos::deep_copy(
           execution, host_first_snapshots, first_snapshots);
     }
-    execution.fence("download resident Kokkos lepton call diagnostics");
+    waitResidentExecution(execution,
+        "download resident Kokkos lepton call diagnostics", cooperative_wait);
     queue.markExecutionSynchronized();
     queue_execution_guard.release();
     auto const transport_statistic = [&](std::size_t const index) {

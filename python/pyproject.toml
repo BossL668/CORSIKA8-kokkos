@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corsika-beta5-terrain"
+version = "0.1.0"
+description = "Independent geographic terrain and antenna preparation for CORSIKA beta5"
+readme = "TERRAIN_README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24", "PyYAML>=6", "pyproj>=3.6", "matplotlib>=3.8", "Pillow>=10", "pyarrow>=12"]
+
+[project.scripts]
+c8-terrain-prepare = "corsika_terrain.geographic_terrain:main"
+c8-terrain-scene = "corsika_terrain.scene:main"
+c8-terrain = "corsika_terrain.workflow:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["corsika_terrain*"]

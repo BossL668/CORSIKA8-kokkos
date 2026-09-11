@@ -7,6 +7,7 @@
 #pragma once
 
 #include <corsika/accelerator/em/detail/LeptonContinuousStep.hpp>
+#include <corsika/accelerator/em/common/ExternalTransportBoundary.hpp>
 #include <corsika/accelerator/em/common/tables/ProposalNativeTable.hpp>
 
 #include <vector>
@@ -18,6 +19,7 @@ namespace corsika::accelerator::em::testing {
     double em_cut_MeV{0.5};
     double muon_cut_MeV{300.};
     bool propagate{};
+    gpu::em::ExternalTransportBoundary external{};
   };
   struct CpuTransportAlignmentOutput {
     detail::LeptonContinuousPreparation preparation{};

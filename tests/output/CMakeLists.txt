@@ -4,6 +4,7 @@ set (test_output_sources
   TestMain.cpp
   testOutputManager.cpp
   testSimulationTiming.cpp
+  testShowerSummary.cpp
   testParquetStreamer.cpp
   testWriterObservationPlane.cpp
   testWriterTracks.cpp

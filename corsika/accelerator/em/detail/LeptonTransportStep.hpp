@@ -12,6 +12,7 @@
 
 #include <corsika/accelerator/em/detail/LeptonContinuousStep.hpp>
 #include <corsika/accelerator/em/common/ObservationPlane.hpp>
+#include <corsika/accelerator/em/common/ExternalTransportBoundary.hpp>
 #include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
 #include <corsika/accelerator/em/common/UniformMagneticField.hpp>
 
@@ -37,7 +38,8 @@ namespace corsika::accelerator::em::detail {
       gpu::em::EnvironmentSnapshot const& environment,
       gpu::em::EmInteractionRecord const& interaction,
       gpu::em::LeptonTransportRecord& record,
-      gpu::em::ProposalFallbackEvent& fallback) {
+      gpu::em::ProposalFallbackEvent& fallback,
+      gpu::em::ExternalTransportBoundary const external = {}) {
     using namespace gpu::em;
       auto const& start = interaction.particle;
       if (!isChargedLeptonPid(start.pid)) {
@@ -152,6 +154,7 @@ namespace corsika::accelerator::em::detail {
         auto const has_atmosphere_boundary =
             atmosphere_boundary.status == AtmosphereStatus::Success;
         auto const has_observation =
+            !external.disable_observation &&
             observation.status == ObservationPlaneStatus::Success;
         if (!has_atmosphere_boundary && !has_observation) {
           fallback = makeLeptonTransportFallback(
@@ -228,6 +231,7 @@ namespace corsika::accelerator::em::detail {
                                     : outer.distance_m)
                 : HUGE_VAL;
         auto const has_observation =
+            !external.disable_observation &&
             observation.status ==
                 MagneticIntersectionStatus::Success;
         observation_plane_wins =
@@ -248,9 +252,18 @@ namespace corsika::accelerator::em::detail {
           magnetic_step_wins = true;
         }
       }
-      auto const geometry_grammage = atmosphereGrammage(
+      auto const material_boundary_wins = external.enabled &&
+          external.distance_m > 0. && external.distance_m < geometry_distance_m;
+      if (material_boundary_wins) {
+        // External distance uses the same leapfrog length, not a chord length.
+        // This material interface is never an absorbing detector.
+        geometry_distance_m = external.distance_m;
+        observation_plane_wins = false;
+        magnetic_step_wins = false;
+      }
+      auto const geometry_grammage = geometryCompetitionGrammage(
           environment, layer.layer_index, start.position_m,
-          start.direction, geometry_distance_m);
+          start.direction, geometry_distance_m, external);
       if (geometry_grammage.status != AtmosphereStatus::Success) {
         auto event = makeLeptonTransportFallback(
             interaction, ProposalFallbackReason::AtmosphereGrammageFailed);
@@ -360,10 +373,21 @@ namespace corsika::accelerator::em::detail {
           !interaction_wins && !decay_wins &&
           !magnetic_step_wins;
 
+      // Reuse the trajectory policy already used for boundary competition.
+      // Scalar TrackingLeapFrogCurved::getLinearTrajectory explicitly removes
+      // B for R > 1e9 m and p_perp < 1 eV/c, not only for an exactly zero field.
+      // Passing the physical field here after a straight intersection would
+      // move the endpoint off that boundary and corrupt its chord/track record.
+      // Keep the environment unchanged: this decision applies to this step only.
+      double const zero_field_T[3]{0., 0., 0.};
+      auto const* propagation_field_T =
+          magnetic_limit.status == MagneticStepStatus::Linear
+              ? zero_field_T
+              : environment.magnetic_field_T;
       auto const magnetic_advance =
           advanceUniformMagneticField(
               start, mass_MeV / 1000., charge_number,
-              environment.magnetic_field_T, distance_m);
+              propagation_field_T, distance_m);
       if (magnetic_advance.status ==
               MagneticStepStatus::InvalidInput ||
           magnetic_advance.status ==
@@ -659,7 +683,11 @@ namespace corsika::accelerator::em::detail {
         return 0;
       }
 
-      if (observation_reached) {
+      if (material_boundary_wins) {
+        record.limit = LeptonTransportLimit::MaterialBoundary;
+        record.end_layer_index = layer.layer_index;
+        record.end_density_g_per_cm3 = layer.density_g_per_cm3;
+      } else if (observation_reached) {
         record.limit =
             LeptonTransportLimit::ObservationSurface;
         record.end_layer_index = -1;
@@ -670,7 +698,8 @@ namespace corsika::accelerator::em::detail {
             environment.atmosphere_layers[
                 environment.number_of_layers - 1]
                 .outer_radius_m;
-        if (leptonTransportRadiusClose(limiting_radius_m, outermost)) {
+        if (environment.geometry == EnvironmentGeometry::HomogeneousConvexPolyhedron ||
+            leptonTransportRadiusClose(limiting_radius_m, outermost)) {
           record.limit =
               LeptonTransportLimit::EscapedEnvironment;
           record.end_layer_index = -1;

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <corsika/accelerator/ScalarPhysicalConstants.hpp>
 
 namespace corsika::gpu::em {
 
@@ -35,7 +36,8 @@ namespace corsika::gpu::em {
   inline constexpr std::uint32_t MuonDecayRandomProcessId = 0x4d554445U;
   inline constexpr std::uint64_t MuonDecayDrawId = 0;
   inline constexpr double MuonMeanLifetimeS = 2.196981e-6;
-  inline constexpr double MuonDecaySpeedOfLightMPerS = 299792458.;
+  inline constexpr double MuonDecaySpeedOfLightMPerS =
+      accelerator::scalar_constants::SpeedOfLightMPerS;
 
   constexpr bool randomProcessDomainsAreUnique() {
     constexpr std::uint32_t domains[]{

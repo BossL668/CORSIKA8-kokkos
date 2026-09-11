@@ -246,10 +246,7 @@ namespace corsika {
     // write the summary for each output and forward the endOfLibrary call()
     for (auto& [name, output] : outputs_) {
       // save eventual YAML summary
-      YAML::Node const summary = output.get().getSummary();
-      if (!summary.IsNull()) {
-        writeYAML(output.get().getSummary(), root_ / name / ("summary.yaml"));
-      }
+      output.get().writeSummary(root_ / name / "summary.yaml");
 
       // and forward the end of library call
       output.get().endOfLibrary();

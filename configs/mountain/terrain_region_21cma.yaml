@@ -1,0 +1,32 @@
+# Preparation input, not a shower input. Run: c8-terrain --config THIS_FILE
+# All angles are decimal degrees, NOT packed degrees/minutes/seconds.
+# Replace station_directory with your measured station-centre data directory.
+# Relative paths resolve against this YAML; ~ expands to your home directory.
+terrain:
+  enabled: true
+  bounds_deg:
+    west: 86.675
+    south: 42.910
+    east: 86.750
+    north: 42.975
+  source:
+    provider: skadi
+  cache_directory: ~/.cache/corsika8/terrain
+  output_directory: ~/CorsikaData/terrain/21cma/terrain
+  mesh:
+    spacing_arcsec: 3.0
+    bottom_depth_m: 500.0
+    boundary_padding_m: 1.0e-6
+  medium:
+    density_g_cm3: 2.65
+  antennas:
+    format: 21cma_station_centres
+    station_directory: ~/21cma-stations
+    height_mode: dem_agl
+    height_above_ground_m: 1.0
+    outside_policy: error
+  limits:
+    max_tiles: 4
+    max_vertices: 120000
+    max_faces: 250000
+    max_estimated_memory_mb: 1024

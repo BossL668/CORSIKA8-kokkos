@@ -8,6 +8,14 @@ add_library (
   KokkosTuningCache.cpp
   )
 add_library (CORSIKA8::KokkosEm ALIAS CORSIKA8KokkosEm)
+if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+  find_package(Threads REQUIRED)
+  target_link_libraries(CORSIKA8KokkosEm PRIVATE Threads::Threads)
+  target_sources(CORSIKA8KokkosEm PRIVATE KokkosCooperativeBackend.cpp)
+  # CUDA toolkit headers are implicit only for NVCC in the Conda toolchain.
+  # The independent driver uses cudaSetDevice; this is dual-mode-only.
+  set_source_files_properties(KokkosCooperativeBackend.cpp PROPERTIES LANGUAGE CUDA)
+endif ()
 
 target_include_directories (
   CORSIKA8KokkosEm

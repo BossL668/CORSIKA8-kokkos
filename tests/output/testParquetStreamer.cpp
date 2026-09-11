@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 
 #include <corsika/output/ParquetStreamer.hpp>
+#include <parquet/file_reader.h>
 #include <corsika/framework/core/Logging.hpp>
 
 using namespace corsika;
@@ -52,5 +53,31 @@ TEST_CASE("ParquetStreamer") {
     CHECK_THROWS(test.getWriter());
     CHECK_FALSE(test.isInit());
     CHECK(boost::filesystem::exists("./parquet_test.parquet"));
+  }
+
+  SECTION("event row groups preserve one file and reject partial rows") {
+    ParquetStreamer stream;
+    CHECK_THROWS(stream.flushStreamer());
+    stream.initStreamer("./parquet_row_groups_test.parquet");
+    stream.addField("value", parquet::Repetition::REQUIRED, parquet::Type::INT32,
+                    parquet::ConvertedType::INT_32);
+    stream.buildStreamer();
+    *stream.getWriter() << unsigned{0};
+    CHECK_THROWS(stream.flushStreamer());
+    *stream.getWriter() << int{9} << parquet::EndRow;
+    stream.flushStreamer();
+    for (unsigned id = 0; id < 3; ++id) {
+      *stream.getWriter() << id << static_cast<int>(10 + id) << parquet::EndRow;
+      stream.flushStreamer();
+      stream.flushStreamer(); // empty flush must not create extra groups
+    }
+    stream.closeStreamer();
+    auto reader = parquet::ParquetFileReader::OpenFile("./parquet_row_groups_test.parquet", false);
+    // Arrow opens the next group at EndRowGroup(); closing the library can
+    // retain that one empty trailing group. Repeated empty flushes add none.
+    CHECK(reader->metadata()->num_row_groups() == 5);
+    CHECK(reader->metadata()->num_rows() == 4);
+    CHECK(reader->metadata()->RowGroup(4)->num_rows() == 0);
+    CHECK_THROWS(stream.flushStreamer());
   }
 }

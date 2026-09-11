@@ -62,7 +62,7 @@ namespace corsika {
   inline void EnergyLossWriterParquet<NColumns>::startOfShower(unsigned int const) {}
 
   template <size_t NColumns>
-  inline void EnergyLossWriterParquet<NColumns>::endOfShower(unsigned int const) {}
+  inline void EnergyLossWriterParquet<NColumns>::endOfShower(unsigned int const) { output_.flushStreamer(); }
 
   template <size_t NColumns>
   inline void EnergyLossWriterParquet<NColumns>::endOfLibrary() {

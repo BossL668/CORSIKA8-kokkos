@@ -9,15 +9,16 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <corsika/accelerator/ScalarPhysicalConstants.hpp>
 
 namespace corsika::accelerator::radio::detail {
 
-  inline constexpr double SpeedOfLightMPerS = 299792458.;
-  inline constexpr double VacuumPermittivityFPerM = 8.8541878128e-12;
+  inline constexpr double SpeedOfLightMPerS = scalar_constants::SpeedOfLightMPerS;
+  inline constexpr double VacuumPermittivityFPerM = scalar_constants::VacuumPermittivityFPerM;
   // Keep the scalar CORSIKA constant exactly; do not substitute a newer
   // CODATA rounding here because radio replay uses the scalar result as its
   // oracle.
-  inline constexpr double ElementaryChargeC = 1.6021766208e-19;
+  inline constexpr double ElementaryChargeC = scalar_constants::ElementaryChargeC;
   inline constexpr double Pi = 3.141592653589793238462643383279502884;
   inline constexpr double EmConstant =
       1. / (4. * Pi * VacuumPermittivityFPerM * SpeedOfLightMPerS);
@@ -40,6 +41,7 @@ namespace corsika::accelerator::radio::detail {
   };
 
   struct DevicePropagation {
+    double homogeneous_refractive_index{};
     double minimum_height_m{};
     double maximum_height_m{};
     double step_m{};

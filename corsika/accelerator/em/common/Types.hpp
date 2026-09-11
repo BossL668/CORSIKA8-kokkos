@@ -19,6 +19,7 @@
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/common/EmThinning.hpp>
 #include <corsika/accelerator/radio/common/Types.hpp>
+#include <corsika/framework/geometry/ConvexPolyhedronData.hpp>
 
 namespace corsika::gpu::em {
 
@@ -30,7 +31,10 @@ namespace corsika::gpu::em {
     Photon = 22,
   };
 
-  inline constexpr double MuonMassGeV = 0.1056583755;
+  // PROPOSAL 7.6.2 MMU mirror, not the generated CORSIKA transport mass.
+  // Native production uses the exported calculator mass; retain this legacy
+  // constant consistently for callers instead of the former CODATA rounding.
+  inline constexpr double MuonMassGeV = 0.1056583745;
   // Keep the device transport cut bit-for-bit aligned with the hard-coded
   // scalar ParticleCut condition `timePost > 10_ms`.
   inline constexpr double ParticleCutMaximumTimeS = 10.e-3;
@@ -331,6 +335,12 @@ namespace corsika::gpu::em {
   };
 
   constexpr std::size_t MaxAtmosphereLayers = 5;
+  constexpr std::size_t MaxConvexEnvironmentPlanes = 32;
+
+  enum class EnvironmentGeometry : std::uint32_t {
+    SphericalLayers = 0,
+    HomogeneousConvexPolyhedron = 1,
+  };
 
   /**
    * Device-facing geometry schema. Phase 3 only validates and stores this object; tracking
@@ -349,6 +359,14 @@ namespace corsika::gpu::em {
     double observation_plane_point_m[3]{};
     double observation_plane_normal[3]{};
     double maximum_magnetic_deflection_rad{0.2};
+    // Optional bounded dense-medium geometry. SphericalLayers preserves the
+    // historical atmosphere contract. The convex branch has one homogeneous
+    // material, no magnetic field or observation plane, and terminates at its
+    // first outward boundary; it never substitutes a sphere for the solid.
+    EnvironmentGeometry geometry{EnvironmentGeometry::SphericalLayers};
+    std::uint32_t number_of_convex_planes{};
+    geometry_detail::ConvexPlane convex_planes[MaxConvexEnvironmentPlanes]{};
+    double convex_boundary_tolerance_m{1.e-8};
   };
 
   enum class GpuPhysicsSource : std::uint32_t {
@@ -565,7 +583,38 @@ namespace corsika::gpu::em {
     double post_endpoint_ms{};
   };
 
+  struct CooperativeEmStatistics {
+    bool enabled{};
+    bool independent_drivers{};
+    bool independent_subshowers{};
+    bool adaptive_policy{};
+    // [endpoint CUDA/OpenMP][kind photon/lepton]; host-call costs, not kernel time.
+    std::array<std::array<double,2>,2> adaptive_records_per_ms{};
+    std::array<std::array<std::uint64_t,2>,2> adaptive_observations{};
+    std::array<std::array<std::size_t,2>,2> adaptive_wave_limit{};
+    double adaptive_migration_ms{};
+    std::uint64_t subshower_cuda_submissions{}, subshower_cuda_commits{};
+    std::uint64_t subshower_openmp_epochs{}, maximum_host_epochs_per_cuda_job{};
+    std::uint64_t subshower_tail_migrations{}, subshower_host_queue_peak_bytes{};
+    std::uint64_t subshower_requeued_spill_particles{}, subshower_cross_endpoint_spill_particles{};
+    std::uint64_t subshower_proactive_refills{}, subshower_inflight_waiting_migrations{};
+    std::uint64_t subshower_inflight_waiting_particles{}, subshower_cuda_epoch_reductions{};
+    std::size_t subshower_gpu_lepton_wave_limit{1024};
+    double subshower_initial_host_share{}, subshower_maximum_cuda_epoch_ms{};
+    double coordinator_idle_wait_ms{}, cuda_result_service_delay_ms{};
+    std::uint64_t independent_joint_calls{};
+    double cuda_driver_wall_ms{}, joint_wall_ms{}, endpoint_window_overlap_ms{};
+    double cuda_finished_before_host_ms{}, host_finished_before_cuda_ms{};
+    std::uint64_t cuda_input_particles{}, openmp_input_particles{};
+    std::uint64_t openmp_slices{}, slices_while_cuda_pending{}, oversized_slices{};
+    std::uint64_t migration_bytes{}, photon_calls{}, lepton_calls{};
+    double openmp_wall_ms{}, openmp_while_cuda_pending_ms{}, maximum_slice_ms{};
+    // A submission window is NOT a measured kernel-overlap interval.
+    std::size_t openmp_batch_target{256}, openmp_workspace_bytes{};
+  };
+
   struct GpuEmStatistics {
+    CooperativeEmStatistics cooperative{};
     /**
      * Lifecycle metadata. shower_ordinal starts at one for initialize() and
      * increases on every beginShower() call. One-time initialization metrics
@@ -753,6 +802,7 @@ namespace corsika::gpu::em {
     ObservationSurface = 2,
     EscapedEnvironment = 3,
     ParticleCut = 4,
+    MaterialBoundary = 5,
   };
 
   /**
@@ -798,6 +848,7 @@ namespace corsika::gpu::em {
     EscapedEnvironment = 5,
     MagneticStep = 6,
     DecayCandidate = 7,
+    MaterialBoundary = 8,
   };
 
   /**

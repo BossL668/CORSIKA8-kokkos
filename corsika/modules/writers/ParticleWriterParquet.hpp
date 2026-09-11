@@ -9,6 +9,7 @@
 
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/output/ParquetStreamer.hpp>
+#include <corsika/output/ShowerSummary.hpp>
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 
@@ -58,6 +59,10 @@ namespace corsika {
      */
     YAML::Node getSummary() const final override;
 
+    void writeSummary(boost::filesystem::path const& path) const final {
+      summary_.writeSummary(path);
+    }
+
     /**
      * If plane is absorbing particles: return the total energy absorbed.
      */
@@ -86,7 +91,7 @@ namespace corsika {
     HEPEnergyType totalEnergyOthers_ =
         0_eV; ///< total energy of other types of particles hitting plane
 
-    YAML::Node summary_;
+    ShowerSummary summary_;
 
     bool const printZ_; ///< flag to print the z coordinate
 

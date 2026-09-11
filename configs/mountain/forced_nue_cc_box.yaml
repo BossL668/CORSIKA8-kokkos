@@ -1,0 +1,31 @@
+# Conditional 10 TeV electron-neutrino CC vertex inside a 20 m silica box.
+# This is a shower/transport example, not a flux-normalized event-rate sample.
+geometry:
+  shape: box
+  center_m: [0.0, 0.0, 0.0]
+  half_lengths_m: [10.0, 10.0, 10.0]
+material:
+  name: silica
+  density_g_cm3: 2.2
+  refractive_index: 2.0
+primary:
+  pdg: 12
+  energy_GeV: 10000.0
+  position_m: [0.0, 0.0, -5.0]
+  direction: [0.0, 0.0, 1.0]
+  sampling: forced_vertex_cc
+physics:
+  emcut_GeV: 0.0005
+  hadcut_GeV: 0.3
+  mucut_GeV: 0.3
+  taucut_GeV: 0.3
+  emthin: 1.0e-6
+  max_weight: 0.0
+radio:
+  enabled: true
+  start_ns: -10.0
+  duration_ns: 4000.0
+  sample_rate_GHz: 1.0
+  observers_m:
+    - [3.0, 0.0, 0.0]
+    - [-3.0, 0.0, 0.0]

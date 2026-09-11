@@ -28,6 +28,11 @@ namespace corsika::gpu::radio {
    * implementation's nearest-bin lookup and endpoint extrapolation.
    */
   struct FlatAtmosphereRadioSnapshot {
+    /** Zero retains the released atmospheric lookup. Positive values opt in
+     * to exact homogeneous propagation (n R/c), with no altitude table.
+     * The caller must ensure every entire ray stays in that homogeneous medium.
+     */
+    double homogeneous_refractive_index{};
     double minimum_height_m{};
     double maximum_height_m{};
     double step_m{};

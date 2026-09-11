@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <corsika/accelerator/radio/detail/RadioProjectionStep.hpp>
+#include <corsika/accelerator/radio/detail/CooperativeRadioMerge.hpp>
 #include <corsika/accelerator/em/KokkosTuningCache.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
 #include <corsika/accelerator/radio/common/Types.hpp>
@@ -221,6 +222,74 @@ namespace corsika::accelerator::radio::kokkos_detail {
       detail::DeviceObserver zhs_observers[MaximumObserverTileSize];
     };
 
+    // A named functor gives host and device passes the same kernel identity.
+    // NVCC can number the two extended lambdas inside project()'s constexpr
+    // OpenMP/GPU branches differently, leaving the tiled GPU entry unregistered.
+    // This is the former GPU lambda body, with the same data and tile order.
+    template <bool Coreas, bool Zhs>
+    struct RadioTileProjection {
+      TrackView tracks;
+      ObserverView coreas_observers;
+      ObserverView zhs_observers;
+      detail::DevicePropagation propagation;
+      detail::DeviceWaveforms coreas_waveforms;
+      detail::DeviceWaveforms zhs_waveforms;
+      CounterView counters;
+      std::size_t track_count;
+      std::size_t observer_count;
+      std::size_t observer_tiles;
+      std::size_t track_tile_size;
+      std::size_t observer_tile_size;
+      std::size_t tile_lanes;
+
+      using Member = typename Kokkos::TeamPolicy<ExecutionSpace>::member_type;
+      KOKKOS_INLINE_FUNCTION void operator()(Member const& team) const {
+        auto* const scratch = static_cast<RadioTileScratch*>(
+            team.team_shmem().get_shmem(sizeof(RadioTileScratch)));
+        auto const track_tile =
+            static_cast<std::size_t>(team.league_rank()) / observer_tiles;
+        auto const observer_tile =
+            static_cast<std::size_t>(team.league_rank()) % observer_tiles;
+        auto const track_base = track_tile * track_tile_size;
+        auto const observer_base = observer_tile * observer_tile_size;
+        for (std::size_t index = team.team_rank(); index < track_tile_size;
+             index += team.team_size()) {
+          auto const global = track_base + index;
+          scratch->tracks[index] = global < track_count
+                                       ? tracks(global)
+                                       : detail::RadioTrackKinematics{};
+        }
+        for (std::size_t index = team.team_rank(); index < observer_tile_size;
+             index += team.team_size()) {
+          auto const global = observer_base + index;
+          if (global < observer_count) {
+            if (Coreas) scratch->coreas_observers[index] = coreas_observers(global);
+            if (Zhs) scratch->zhs_observers[index] = zhs_observers(global);
+          }
+        }
+        team.team_barrier();
+        for (std::size_t lane = team.team_rank(); lane < tile_lanes;
+             lane += team.team_size()) {
+          auto const track_lane = lane / observer_tile_size;
+          auto const observer_lane = lane % observer_tile_size;
+          auto const track_index = track_tile * track_tile_size + track_lane;
+          auto const observer_index = observer_tile * observer_tile_size + observer_lane;
+          if (track_index >= track_count || observer_index >= observer_count ||
+              scratch->tracks[track_lane].valid == 0)
+            continue;
+          if (Coreas)
+            detail::accumulateCoREAS<KokkosRadioAtomicOperations>(
+                scratch->tracks[track_lane], propagation,
+                scratch->coreas_observers[observer_lane], coreas_waveforms,
+                counters.data());
+          if (Zhs)
+            detail::accumulateZHS<KokkosRadioAtomicOperations>(
+                scratch->tracks[track_lane], propagation,
+                scratch->zhs_observers[observer_lane], zhs_waveforms, counters.data());
+        }
+      }
+    };
+
     // Native CUDA falls back to its flat pair kernel after the EM workspace
     // consumes the optional track-cache budget.  Production traces show that
     // this is also the faster launch shape for the many small edge
@@ -265,6 +334,8 @@ namespace corsika::accelerator::radio::kokkos_detail {
       upload(requested.propagation.integrated_refractivity,
              integrated_refractivity_, execution,
              "c8_kokkos_radio_integrated_refractivity");
+      propagation_.homogeneous_refractive_index =
+          requested.propagation.homogeneous_refractive_index;
       propagation_.minimum_height_m =
           requested.propagation.minimum_height_m;
       propagation_.maximum_height_m =
@@ -341,12 +412,15 @@ namespace corsika::accelerator::radio::kokkos_detail {
       statistics_.observer_tile_size = observer_tile_size_;
       statistics_.track_diagnostics_enabled = config_.track_diagnostics;
       downloaded_ = false;
+      fixed_snapshot_sealed_ = false;
     }
 
     void accumulateLeptonTracks(
         TrackInputView const& records, std::size_t const count,
         ExecutionSpace const& execution = {}) {
       if (!enabled() || count == 0) return;
+      if (fixed_snapshot_sealed_)
+        throw std::logic_error("radio endpoint already committed; reset before new tracks");
       if (count > records.extent(0))
         throw std::out_of_range("Kokkos radio track count exceeds input view");
       if constexpr (!IsOpenMP) {
@@ -415,10 +489,54 @@ namespace corsika::accelerator::radio::kokkos_detail {
       downloaded_ = false;
     }
 
+    // Cooperative end-of-shower export. No conversion/differentiation, and
+    // no default execution-space copy that might wait on another endpoint.
+    detail::FixedRadioSnapshot downloadFixed(
+        std::string const& shower_identity, detail::CooperativeEndpoint endpoint,
+        ExecutionSpace const& execution = {}) {
+      if (!enabled() || !config_.deterministic || downloaded_ || fixed_snapshot_sealed_)
+        throw std::logic_error("fixed radio snapshot unavailable/already committed");
+      detail::FixedRadioSnapshot result;
+      result.shower_identity = shower_identity;
+      result.endpoint = endpoint;
+      result.config = config_;
+      if (shower_identity.empty() || static_cast<unsigned>(endpoint)>1)
+        throw std::invalid_argument("invalid cooperative radio snapshot identity");
+      // Poison on a failed export: folding thread counters must never happen
+      // twice if a transfer or allocation subsequently throws.
+      fixed_snapshot_sealed_ = true;
+      if constexpr (IsOpenMP) mergeThreadWaveforms(execution);
+      auto host_counters = Kokkos::create_mirror(counters_);
+      auto host_coreas = Kokkos::create_mirror(coreas_fixed_);
+      auto host_zhs = Kokkos::create_mirror(zhs_fixed_);
+      try {
+        Kokkos::deep_copy(execution, host_counters, counters_);
+        if (coreas_fixed_.extent(0)) Kokkos::deep_copy(execution, host_coreas, coreas_fixed_);
+        if (zhs_fixed_.extent(0)) Kokkos::deep_copy(execution, host_zhs, zhs_fixed_);
+        execution.fence("download cooperative fixed radio endpoint");
+      } catch (...) {
+        // A later copy can fail with an earlier copy still in flight. Keep
+        // these local host destinations alive while draining this endpoint.
+        try { execution.fence("unwind cooperative radio endpoint copy"); } catch (...) {}
+        throw;
+      }
+      result.counters = host_counters(0);
+      copyStatistics(result.counters);
+      result.coreas.resize(host_coreas.extent(0));
+      result.zhs.resize(host_zhs.extent(0));
+      for(std::size_t i=0;i<result.coreas.size();++i) result.coreas[i]=host_coreas(i);
+      for(std::size_t i=0;i<result.zhs.size();++i) result.zhs[i]=host_zhs(i);
+      detail::validateFixedRadio(result);
+      statistics_.device_to_host_bytes += sizeof(detail::DeviceRadioCounters) +
+          (result.coreas.size()+result.zhs.size())*sizeof(long long);
+      downloaded_ = true;
+      return result;
+    }
+
     gpu::radio::GpuRadioWaveforms download(
         ExecutionSpace const& execution = {}) {
       if (!enabled()) return {};
-      if (downloaded_)
+      if (downloaded_ || fixed_snapshot_sealed_)
         throw std::logic_error("Kokkos radio waveforms downloaded twice");
       // CUDA/HIP/SYCL parallel dispatch is asynchronous.  Keep projection
       // work queued until the waveform download instead of fencing every
@@ -846,61 +964,11 @@ namespace corsika::accelerator::radio::kokkos_detail {
                         : Coreas ? "c8_kokkos_coreas_tiled"
                                  : "c8_kokkos_zhs_tiled",
           policy,
-          KOKKOS_LAMBDA(Member const& team) {
-            auto* const scratch = static_cast<RadioTileScratch*>(
-                team.team_shmem().get_shmem(sizeof(RadioTileScratch)));
-            auto const track_tile =
-                static_cast<std::size_t>(team.league_rank()) /
-                observer_tiles;
-            auto const observer_tile =
-                static_cast<std::size_t>(team.league_rank()) %
-                observer_tiles;
-            auto const track_base = track_tile * track_tile_size;
-            auto const observer_base = observer_tile * observer_tile_size;
-            for (std::size_t index = team.team_rank();
-                 index < track_tile_size; index += team.team_size()) {
-              auto const global = track_base + index;
-              scratch->tracks[index] =
-                  global < track_count
-                      ? tracks(global)
-                      : detail::RadioTrackKinematics{};
-            }
-            for (std::size_t index = team.team_rank();
-                 index < observer_tile_size; index += team.team_size()) {
-              auto const global = observer_base + index;
-              if (global < observer_count) {
-                if (Coreas)
-                  scratch->coreas_observers[index] =
-                      coreas_observers(global);
-                if (Zhs)
-                  scratch->zhs_observers[index] = zhs_observers(global);
-              }
-            }
-            team.team_barrier();
-            for (std::size_t lane = team.team_rank(); lane < tile_lanes;
-                 lane += team.team_size()) {
-              auto const track_lane = lane / observer_tile_size;
-              auto const observer_lane = lane % observer_tile_size;
-              auto const track_index =
-                  track_tile * track_tile_size + track_lane;
-              auto const observer_index =
-                  observer_tile * observer_tile_size + observer_lane;
-              if (track_index >= track_count ||
-                  observer_index >= observer_count ||
-                  scratch->tracks[track_lane].valid == 0)
-                continue;
-              if (Coreas)
-                detail::accumulateCoREAS<KokkosRadioAtomicOperations>(
-                    scratch->tracks[track_lane], propagation,
-                    scratch->coreas_observers[observer_lane], coreas_waveforms,
-                    counters.data());
-              if (Zhs)
-                detail::accumulateZHS<KokkosRadioAtomicOperations>(
-                    scratch->tracks[track_lane], propagation,
-                    scratch->zhs_observers[observer_lane], zhs_waveforms,
-                    counters.data());
-            }
-          });
+          RadioTileProjection<Coreas, Zhs>{tracks, coreas_observers, zhs_observers,
+                                          propagation, coreas_waveforms, zhs_waveforms,
+                                          counters, track_count, observer_count,
+                                          observer_tiles, track_tile_size,
+                                          observer_tile_size, tile_lanes});
       }
       auto const pairs = track_count * observer_count;
       statistics_.track_observer_pairs +=
@@ -1020,7 +1088,12 @@ namespace corsika::accelerator::radio::kokkos_detail {
           config.zhs_subtrack_refinement > 64)
         throw std::invalid_argument(
             "Kokkos ZHS subtrack refinement must be in [1,64]");
-      if (propagation.refractivity.size() < 11 ||
+      if (!std::isfinite(propagation.homogeneous_refractive_index) ||
+          propagation.homogeneous_refractive_index < 0.)
+        throw std::invalid_argument(
+            "invalid Kokkos homogeneous radio refractive index");
+      bool const homogeneous = propagation.homogeneous_refractive_index > 0.;
+      if (!homogeneous && (propagation.refractivity.size() < 11 ||
           propagation.refractivity.size() !=
               propagation.integrated_refractivity.size() ||
           !std::isfinite(propagation.minimum_height_m) ||
@@ -1028,7 +1101,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
           !(propagation.maximum_height_m > propagation.minimum_height_m) ||
           !std::isfinite(propagation.step_m) || !(propagation.step_m > 0.) ||
           !std::isfinite(propagation.inverse_step_per_m) ||
-          !(propagation.inverse_step_per_m > 0.))
+          !(propagation.inverse_step_per_m > 0.)))
         throw std::invalid_argument(
             "invalid Kokkos flat-atmosphere radio snapshot");
       auto validate_observers =
@@ -1044,9 +1117,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
               auto const height =
                   (observer.position_m[2] - propagation.minimum_height_m) *
                   propagation.inverse_step_per_m;
-              if (!std::isfinite(height) || height < 0. ||
+              if (!homogeneous && (!std::isfinite(height) || height < 0. ||
                   height + 0.5 >=
-                      static_cast<double>(propagation.refractivity.size()))
+                      static_cast<double>(propagation.refractivity.size())))
                 throw std::invalid_argument(
                     "Kokkos radio observer outside propagation table");
               for (double coordinate : observer.position_m)
@@ -1085,6 +1158,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
     bool fuse_coreas_zhs_{};
     bool initialized_{};
     bool downloaded_{};
+    bool fixed_snapshot_sealed_{};
     std::size_t track_tile_size_{TrackTileSize};
     std::size_t observer_tile_size_{ObserverTileSize};
     std::size_t team_size_{IsOpenMP ? 1U : 256U};

@@ -78,25 +78,24 @@ namespace corsika {
     auto const py = parent_momentum.dot(obsPlane_.getYAxis());
     auto const pz = parent_momentum.dot(obsPlane_.getPlane().getNormal());
 
-    auto const key = "shower_" + std::to_string(showerId_);
-    summary_[key]["pdg"] =
+    summary_.event(showerId_)["pdg"] =
         static_cast<int>(get_PDG(snapshot.parent_pid));
-    summary_[key]["name"] =
+    summary_.event(showerId_)["name"] =
         static_cast<std::string>(get_name(snapshot.parent_pid));
-    summary_[key]["total_energy"] = parent_total_energy / 1_GeV;
-    summary_[key]["kinetic_energy"] =
+    summary_.event(showerId_)["total_energy"] = parent_total_energy / 1_GeV;
+    summary_.event(showerId_)["kinetic_energy"] =
         snapshot.parent_kinetic_energy / 1_GeV;
-    summary_[key]["x"] = x / 1_m;
-    summary_[key]["y"] = y / 1_m;
-    summary_[key]["z"] = z / 1_m;
-    summary_[key]["nx"] = static_cast<double>(nx);
-    summary_[key]["ny"] = static_cast<double>(ny);
-    summary_[key]["nz"] = static_cast<double>(nz);
-    summary_[key]["px"] = static_cast<double>(px / 1_GeV);
-    summary_[key]["py"] = static_cast<double>(py / 1_GeV);
-    summary_[key]["pz"] = static_cast<double>(pz / 1_GeV);
-    summary_[key]["time"] = snapshot.time / 1_s;
-    summary_[key]["slant_depth"] = dX / (1_g / 1_cm / 1_cm);
+    summary_.event(showerId_)["x"] = x / 1_m;
+    summary_.event(showerId_)["y"] = y / 1_m;
+    summary_.event(showerId_)["z"] = z / 1_m;
+    summary_.event(showerId_)["nx"] = static_cast<double>(nx);
+    summary_.event(showerId_)["ny"] = static_cast<double>(ny);
+    summary_.event(showerId_)["nz"] = static_cast<double>(nz);
+    summary_.event(showerId_)["px"] = static_cast<double>(px / 1_GeV);
+    summary_.event(showerId_)["py"] = static_cast<double>(py / 1_GeV);
+    summary_.event(showerId_)["pz"] = static_cast<double>(pz / 1_GeV);
+    summary_.event(showerId_)["time"] = snapshot.time / 1_s;
+    summary_.event(showerId_)["slant_depth"] = dX / (1_g / 1_cm / 1_cm);
 
     for (auto const& secondary : snapshot.secondaries) {
       if (secondary.total_energy < get_mass(secondary.pid)) {
@@ -116,12 +115,13 @@ namespace corsika {
       CORSIKA_LOG_INFO(" 2ndary: {}, E_tot {}", secondary.pid,
                        secondary.total_energy);
     }
-    summary_[key]["n_secondaries"] = snapshot.secondaries.size();
+    summary_.event(showerId_)["n_secondaries"] = snapshot.secondaries.size();
   }
 
   template <typename TTracking, typename TOutput>
   inline void InteractionWriter<TTracking, TOutput>::startOfLibrary(
       boost::filesystem::path const& directory) {
+    summary_.open(directory);
     output_.initStreamer((directory / ("interactions.parquet")).string());
 
     // enable compression with the default level
@@ -140,7 +140,6 @@ namespace corsika {
 
     showerId_ = 0;
     interactionCounter_ = 0;
-    summary_ = YAML::Node();
   }
 
   template <typename TTracking, typename TOutput>
@@ -151,7 +150,7 @@ namespace corsika {
   }
 
   template <typename TTracking, typename TOutput>
-  inline void InteractionWriter<TTracking, TOutput>::endOfShower(unsigned int const) {}
+  inline void InteractionWriter<TTracking, TOutput>::endOfShower(unsigned int const) { output_.flushStreamer(); summary_.flush(); }
 
   template <typename TTracking, typename TOutput>
   inline void InteractionWriter<TTracking, TOutput>::endOfLibrary() {
@@ -171,7 +170,7 @@ namespace corsika {
 
   template <typename TTracking, typename TOutput>
   inline YAML::Node InteractionWriter<TTracking, TOutput>::getSummary() const {
-    return summary_;
+    return summary_.snapshot();
   }
 
 } // namespace corsika

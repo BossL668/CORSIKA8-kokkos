@@ -58,6 +58,9 @@ namespace corsika {
      */
     void closeStreamer();
 
+    /** Commit completed rows without closing the multi-shower file. */
+    void flushStreamer();
+
     /**
      * Return a reference to the underlying writer.
      */

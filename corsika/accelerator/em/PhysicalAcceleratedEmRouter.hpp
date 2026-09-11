@@ -244,6 +244,7 @@ namespace corsika::gpu::em {
         transport::HistoryId parent_history_id,
         transport::Generation generation,
         transport::StepId step_id) {
+      cooperative_scalar_yield_ = false;
       auto state = router_detail::toDeviceState(
           particle, coordinate_system_, history_id,
           parent_history_id, generation, step_id);
@@ -289,6 +290,12 @@ namespace corsika::gpu::em {
      * the existing small-batch scalar-expansion policy.
      */
     bool readyForScalarInterleave() const noexcept {
+      if (backend_.independentSubshowersEnabled()) {
+        return !cooperative_scalar_yield_ &&
+               (force_small_batch_to_gpu_ ||
+                staged_.size() >= backend_.minimumBatchSize() ||
+                backend_.independentSubshowersReady());
+      }
       return force_small_batch_to_gpu_ ||
              backend_.pendingPhotonCount() != 0 ||
              backend_.pendingLeptonCount() != 0 ||
@@ -402,6 +409,7 @@ namespace corsika::gpu::em {
     }
 
     std::size_t advanceOneWavefrontAndReturn(TStack& stack) {
+      cooperative_scalar_yield_ = false;
       auto const initial_device_pending =
           backend_.pendingPhotonCount() +
           backend_.pendingLeptonCount();
@@ -511,6 +519,10 @@ namespace corsika::gpu::em {
       }
       ++statistics_.wavefronts;
 
+      if (backend_.independentSubshowersEnabled()) {
+        return advanceIndependentSubshowers(stack, current);
+      }
+
       std::vector<EmParticleState> photons;
       std::vector<EmParticleState> leptons;
       photons.reserve(current.size());
@@ -556,7 +568,6 @@ namespace corsika::gpu::em {
             std::max(
                 statistics_.maximum_input_batch,
                 photon_input_count);
-        auto const first_photon_step = step_records_.size();
         constexpr std::size_t
             ResidentPhotonWavefronts = 16;
         auto const first_history =
@@ -577,6 +588,165 @@ namespace corsika::gpu::em {
             elapsedMilliseconds(backend_start, backend_stop);
         auto const postprocess_start =
             std::chrono::steady_clock::now();
+        returned_to_cpu += consumeResidentPhoton(stack, result);
+        auto const postprocess_stop =
+            std::chrono::steady_clock::now();
+        statistics_.photon_host_postprocess_time_ms +=
+            elapsedMilliseconds(
+                postprocess_start, postprocess_stop);
+      }
+
+      auto const lepton_input_count =
+          leptons.size() +
+          backend_.pendingLeptonCount();
+      if (lepton_input_count != 0) {
+        auto const maximum_lepton_input =
+            backend_.maximumResidentLeptonBatchSize();
+        auto const pending_leptons =
+            std::min(
+                backend_.pendingLeptonCount(),
+                maximum_lepton_input);
+        auto const host_lepton_limit =
+            maximum_lepton_input - pending_leptons;
+        if (leptons.size() > host_lepton_limit) {
+          staged_.insert(
+              staged_.end(),
+              std::make_move_iterator(
+                  leptons.begin() +
+                  static_cast<std::ptrdiff_t>(
+                      host_lepton_limit)),
+              std::make_move_iterator(leptons.end()));
+          leptons.resize(host_lepton_limit);
+          ++statistics_.input_batch_splits;
+        }
+        auto const routed_lepton_input_count =
+            leptons.size() + pending_leptons;
+        statistics_.maximum_input_batch =
+            std::max(
+                statistics_.maximum_input_batch,
+                routed_lepton_input_count);
+        auto const history_range =
+            reserveResidentSecondaryRange(
+                stack, routed_lepton_input_count);
+        auto const backend_start =
+            std::chrono::steady_clock::now();
+        auto result =
+            backend_
+                .runResidentLeptonCascadeForValidation(
+                    leptons, history_range.first,
+                    1024, history_range.limit,
+                    backend_.minimumBatchSize());
+        auto const backend_stop =
+            std::chrono::steady_clock::now();
+        statistics_.lepton_backend_wall_time_ms +=
+            elapsedMilliseconds(backend_start, backend_stop);
+        auto const postprocess_start =
+            std::chrono::steady_clock::now();
+        returned_to_cpu += consumeResidentLepton(stack, result);
+        auto const postprocess_stop =
+            std::chrono::steady_clock::now();
+        statistics_.lepton_host_postprocess_time_ms +=
+            elapsedMilliseconds(
+                postprocess_start, postprocess_stop);
+      }
+      statistics_.electromagnetic_particles_produced +=
+          staged_.size();
+      if (staged_.empty() &&
+          backend_.pendingPhotonCount() == 0 &&
+          backend_.pendingLeptonCount() == 0 &&
+          !deferred_fallback_events_.empty()) {
+        returned_to_cpu += flushDeferredFallbacks(stack);
+      }
+      return returned_to_cpu;
+    }
+
+    PhysicalAcceleratedEmRouterStatistics const& statistics() const {
+      return statistics_;
+    }
+
+    std::vector<ObservationRecord> const& observations() const {
+      return observations_;
+    }
+
+    std::vector<ProposalFallbackEvent> const& fallbackEvents() const {
+      return fallback_events_;
+    }
+
+    std::size_t deferredFallbackCount() const noexcept {
+      return deferred_fallback_events_.size();
+    }
+
+    std::vector<EmStepRecord> const& stepRecords() const {
+      return step_records_;
+    }
+
+    std::vector<EmInteractionRecord> const& interactionRecords() const {
+      return interaction_records_;
+    }
+
+    std::vector<PhotonFinalStateRecord> const& photonFinalStateRecords()
+        const {
+      return photon_final_state_records_;
+    }
+
+    std::vector<BremsFinalStateRecord> const& leptonFinalStateRecords()
+        const {
+      return lepton_final_state_records_;
+    }
+
+    std::vector<RadioTrackRecord> const& radioTracks() const {
+      return radio_tracks_;
+    }
+
+  private:
+    std::size_t advanceIndependentSubshowers(
+        TStack& stack, std::vector<EmParticleState> const& current) {
+      // Consumers run exclusively on this coordinator. A result can be
+      // consumed while the other endpoint is still executing its subshower.
+      std::size_t returned=0;
+      accelerator::em::detail::SubshowerCallbacks callbacks;
+      callbacks.reserve_histories = [&](std::uint64_t count) {
+        if (!count || count > std::numeric_limits<std::uint64_t>::max()-
+                                 statistics_.reserved_history_ids)
+          throw std::overflow_error("independent subshower history reservation overflow");
+        auto first=stack.reserveTransportHistoryIds(count);
+        if (!first || count > std::numeric_limits<std::uint64_t>::max()-first)
+          throw std::overflow_error("independent subshower history range overflow");
+        statistics_.reserved_history_ids+=count;
+        return first;
+      };
+      callbacks.photons = [&](ResidentPhotonCascadeResult&& result,double elapsed) {
+        statistics_.maximum_input_batch=std::max(statistics_.maximum_input_batch,
+                                                result.input_particles);
+        statistics_.photon_backend_wall_time_ms+=elapsed;
+        auto start=std::chrono::steady_clock::now();
+        returned+=consumeResidentPhoton(stack,result);
+        statistics_.photon_host_postprocess_time_ms+=
+            elapsedMilliseconds(start,std::chrono::steady_clock::now());
+      };
+      callbacks.leptons = [&](ResidentLeptonCascadeResult&& result,double elapsed) {
+        statistics_.maximum_input_batch=std::max(statistics_.maximum_input_batch,
+                                                result.input_particles);
+        statistics_.lepton_backend_wall_time_ms+=elapsed;
+        auto start=std::chrono::steady_clock::now();
+        returned+=consumeResidentLepton(stack,result);
+        statistics_.lepton_host_postprocess_time_ms+=
+            elapsedMilliseconds(start,std::chrono::steady_clock::now());
+      };
+      callbacks.yield_to_scalar = [&] {return returned!=0;};
+      auto accepted=backend_.advanceIndependentSubshowers(current,callbacks);
+      if (accepted>current.size())
+        throw std::logic_error("independent subshower accepted too many particles");
+      staged_.insert(staged_.end(),current.begin()+accepted,current.end());
+      if (accepted<current.size()) ++statistics_.input_batch_splits;
+      statistics_.electromagnetic_particles_produced+=staged_.size();
+      cooperative_scalar_yield_=returned!=0;
+      return returned;
+    }
+
+    std::size_t consumeResidentPhoton(TStack& stack, ResidentPhotonCascadeResult& result) {
+      auto const first_photon_step = step_records_.size();
+      std::size_t returned_to_cpu=0;
         if (retain_records_) {
           interaction_records_.insert(
               interaction_records_.end(),
@@ -638,60 +808,13 @@ namespace corsika::gpu::em {
         for (auto const& observation : result.observations) {
           recordObservation(observation);
         }
-        auto const postprocess_stop =
-            std::chrono::steady_clock::now();
-        statistics_.photon_host_postprocess_time_ms +=
-            elapsedMilliseconds(
-                postprocess_start, postprocess_stop);
-      }
 
-      auto const lepton_input_count =
-          leptons.size() +
-          backend_.pendingLeptonCount();
-      if (lepton_input_count != 0) {
-        auto const first_lepton_step = step_records_.size();
-        auto const maximum_lepton_input =
-            backend_.maximumResidentLeptonBatchSize();
-        auto const pending_leptons =
-            std::min(
-                backend_.pendingLeptonCount(),
-                maximum_lepton_input);
-        auto const host_lepton_limit =
-            maximum_lepton_input - pending_leptons;
-        if (leptons.size() > host_lepton_limit) {
-          staged_.insert(
-              staged_.end(),
-              std::make_move_iterator(
-                  leptons.begin() +
-                  static_cast<std::ptrdiff_t>(
-                      host_lepton_limit)),
-              std::make_move_iterator(leptons.end()));
-          leptons.resize(host_lepton_limit);
-          ++statistics_.input_batch_splits;
-        }
-        auto const routed_lepton_input_count =
-            leptons.size() + pending_leptons;
-        statistics_.maximum_input_batch =
-            std::max(
-                statistics_.maximum_input_batch,
-                routed_lepton_input_count);
-        auto const history_range =
-            reserveResidentSecondaryRange(
-                stack, routed_lepton_input_count);
-        auto const backend_start =
-            std::chrono::steady_clock::now();
-        auto result =
-            backend_
-                .runResidentLeptonCascadeForValidation(
-                    leptons, history_range.first,
-                    1024, history_range.limit,
-                    backend_.minimumBatchSize());
-        auto const backend_stop =
-            std::chrono::steady_clock::now();
-        statistics_.lepton_backend_wall_time_ms +=
-            elapsedMilliseconds(backend_start, backend_stop);
-        auto const postprocess_start =
-            std::chrono::steady_clock::now();
+      return returned_to_cpu;
+    }
+
+    std::size_t consumeResidentLepton(TStack& stack, ResidentLeptonCascadeResult& result) {
+      auto const first_lepton_step = step_records_.size();
+      std::size_t returned_to_cpu=0;
         if (retain_records_) {
           interaction_records_.insert(
               interaction_records_.end(),
@@ -761,62 +884,10 @@ namespace corsika::gpu::em {
              result.observations) {
           recordObservation(observation);
         }
-        auto const postprocess_stop =
-            std::chrono::steady_clock::now();
-        statistics_.lepton_host_postprocess_time_ms +=
-            elapsedMilliseconds(
-                postprocess_start, postprocess_stop);
-      }
-      statistics_.electromagnetic_particles_produced +=
-          staged_.size();
-      if (staged_.empty() &&
-          backend_.pendingPhotonCount() == 0 &&
-          backend_.pendingLeptonCount() == 0 &&
-          !deferred_fallback_events_.empty()) {
-        returned_to_cpu += flushDeferredFallbacks(stack);
-      }
+
       return returned_to_cpu;
     }
 
-    PhysicalAcceleratedEmRouterStatistics const& statistics() const {
-      return statistics_;
-    }
-
-    std::vector<ObservationRecord> const& observations() const {
-      return observations_;
-    }
-
-    std::vector<ProposalFallbackEvent> const& fallbackEvents() const {
-      return fallback_events_;
-    }
-
-    std::size_t deferredFallbackCount() const noexcept {
-      return deferred_fallback_events_.size();
-    }
-
-    std::vector<EmStepRecord> const& stepRecords() const {
-      return step_records_;
-    }
-
-    std::vector<EmInteractionRecord> const& interactionRecords() const {
-      return interaction_records_;
-    }
-
-    std::vector<PhotonFinalStateRecord> const& photonFinalStateRecords()
-        const {
-      return photon_final_state_records_;
-    }
-
-    std::vector<BremsFinalStateRecord> const& leptonFinalStateRecords()
-        const {
-      return lepton_final_state_records_;
-    }
-
-    std::vector<RadioTrackRecord> const& radioTracks() const {
-      return radio_tracks_;
-    }
-
-  private:
     static double elapsedMilliseconds(
         std::chrono::steady_clock::time_point start,
         std::chrono::steady_clock::time_point stop) {
@@ -957,6 +1028,21 @@ namespace corsika::gpu::em {
                 ScalarProposalFallback>) {
           if (fallback_handler_ != nullptr &&
               fallback_handler_->canHandle(event)) {
+            if (backend_.independentSubshowersEnabled()) {
+              auto key=std::make_pair(event.particle.history_id,event.particle.step_id);
+              if (!cpu_fallback_steps_.insert(key).second)
+                throw std::runtime_error("duplicate CPU fallback for one transport step");
+              auto start=std::chrono::steady_clock::now();
+              fallback_handler_->handle(stack,event);
+              statistics_.specified_cpu_fallback_time_ms+=
+                  elapsedMilliseconds(start,std::chrono::steady_clock::now());
+              ++statistics_.specified_cpu_final_states;
+              if (retain_records_) fallback_events_.push_back(event);
+              // A nonzero return refreshes nodes even if cuts kept no child.
+              ++returned_to_scalar;
+              force_deferred_product_batch_to_gpu_=true;
+              continue;
+            }
             // A specified PROPOSAL completion is independent of every other
             // particle in the active EM front.  Park it until both resident
             // device queues and host staging have drained.  Completing it
@@ -1549,6 +1635,7 @@ namespace corsika::gpu::em {
     static constexpr std::uint32_t
         MaximumConsecutiveScalarExpansionRounds = 8;
     std::uint32_t consecutive_scalar_expansion_rounds_{};
+    bool cooperative_scalar_yield_{};
     bool force_small_batch_to_gpu_{};
     bool force_deferred_product_batch_to_gpu_{};
     std::vector<ObservationRecord> observations_{};

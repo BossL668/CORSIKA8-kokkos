@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Kokkos_Core.hpp>
+#include <corsika/accelerator/em/kokkos/ResidentExecutionWait.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosMemorySpace.hpp>
 
 #include <algorithm>
@@ -888,6 +889,313 @@ namespace corsika::accelerator::em::kokkos_detail {
     std::size_t candidate_capacity_{};
   };
 
+  /** Enqueue one resident photon front using the production physics kernels.
+   * All storage must already be allocated. This function neither downloads
+   * results nor fences the execution space. Queue ownership remains with the
+   * caller until the materialization control checkpoint has completed.
+   */
+  template <class ExecutionSpace>
+  void enqueueResidentPhotonFront(
+      KokkosPhysicsContextView<ExecutionSpace> const physics_context,
+      ParticleSoARawView const current, ParticleSoARawView const next,
+      KokkosResidentPhotonWorkspace<ExecutionSpace>& workspace,
+      std::size_t const current_count, std::size_t const capacity,
+      std::uint64_t const next_history_id, bool const project_steps,
+      bool const capture_first_interaction,
+      ExecutionSpace const& execution, std::size_t const openmp_chunk_size) {
+    using namespace gpu::em;
+    auto const Policy = [openmp_chunk_size](ExecutionSpace const& ex,
+                                            std::size_t, std::size_t end) {
+      return makeKokkosRangePolicy(ex, end, openmp_chunk_size);
+    };
+    auto const& selections = workspace.selections;
+    auto const& transports = workspace.transports;
+    auto const& transport_fallbacks = workspace.transport_fallbacks;
+    auto const& final_states = workspace.final_states;
+    auto const& counts = workspace.counts;
+    auto const& interaction_flags = workspace.interaction_flags;
+    auto const& interaction_sources = workspace.interaction_sources;
+    auto const& offsets = workspace.offsets;
+    auto const& steps = workspace.steps;
+    auto const& projected_steps = workspace.projected_steps;
+    auto const& records = workspace.records;
+    auto const& charged = workspace.charged;
+    auto const& fallbacks = workspace.fallbacks;
+    auto const& observations = workspace.observations;
+    auto const& first_snapshots = workspace.first_snapshots;
+    auto const& first_interaction_candidates = workspace.first_interaction_candidates;
+    auto const& error = workspace.error;
+    auto const interaction_count_device = workspace.interaction_count;
+    auto const scan_totals_device = workspace.scan_totals;
+    auto const charged_capacity = capacity * 2;
+    auto const selections_raw = rawDeviceView(selections);
+    auto const transports_raw = rawDeviceView(transports);
+    auto const transport_fallbacks_raw =
+        rawDeviceView(transport_fallbacks);
+    auto const counts_raw = rawDeviceView(counts);
+    auto const interaction_flags_raw = rawDeviceView(interaction_flags);
+    auto const interaction_sources_raw = rawDeviceView(interaction_sources);
+    auto const select_kernel =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const& context = physics_context();
+          ResidentPhotonSourceCounts source_counts{};
+          auto const particle = current.load(source);
+          auto& selection = selections_raw(source);
+          selection = detail::selectDiscreteInteraction(
+              context.physics, particle, source, context.random_seed,
+              context.shower_id);
+          if (selection.fallback_flag != 0) {
+            source_counts.fallback_stage = PhotonSelectionFallback;
+          }
+          counts_raw(source) = source_counts;
+        };
+    static_assert(sizeof(select_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_select",
+        Policy(execution, 0, current_count),
+        select_kernel);
+
+    // Transport is a separate kernel so its geometry state does not share
+    // registers with rate inversion.  Selection fallbacks return before
+    // transport without introducing an additional scan of the full front.
+    auto const transport_kernel =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const& context = physics_context();
+          auto const& selection = selections_raw(source);
+          auto& source_counts = counts_raw(source);
+          interaction_flags_raw(source) = 0;
+          if (selection.fallback_flag != 0) return;
+          auto const transport = detail::transportPhoton(
+              context.environment, selection.interaction);
+          transports_raw(source) = transport.record;
+          transport_fallbacks_raw(source) = transport.fallback;
+          if (transport.fallback_flag != 0) {
+            source_counts.fallback_stage = PhotonTransportFallback;
+            return;
+          }
+          source_counts.step = 1;
+          auto const& step = transport.record;
+          if (step.limit == PhotonTransportLimit::LayerBoundary) {
+            source_counts.next = 1;
+          } else if (
+              step.limit == PhotonTransportLimit::ObservationSurface ||
+              step.limit == PhotonTransportLimit::EscapedEnvironment ||
+              (step.limit == PhotonTransportLimit::ParticleCut &&
+               step.observation_surface_reached_before_cut != 0)) {
+            source_counts.observation = 1;
+          } else if (step.limit == PhotonTransportLimit::Interaction) {
+            interaction_flags_raw(source) = 1;
+          }
+        };
+    static_assert(sizeof(transport_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_transport",
+        Policy(execution, 0, current_count),
+        transport_kernel);
+
+    // Only true interaction vertices execute the comparatively heavy LPM,
+    // final-state kinematics and thinning classifier.  A second stable scan
+    // keeps their order identical to the original source wavefront.
+    Kokkos::parallel_scan(
+        "c8_kokkos_scan_photon_interactions",
+        Policy(execution, 0, current_count),
+        ResidentPhotonCompactionScanFunctor<ExecutionSpace>{
+            interaction_flags, interaction_sources},
+        workspace.interaction_count);
+    auto const final_states_raw = rawDeviceView(final_states);
+    auto const interaction_count_raw = interaction_count_device.data();
+    auto const final_state_kernel =
+        KOKKOS_LAMBDA(std::size_t const interaction_index) {
+          auto const& context = physics_context();
+          auto const compacted_count =
+              static_cast<std::size_t>(*interaction_count_raw);
+          if (interaction_index >= compacted_count) return;
+          auto const source = interaction_sources_raw(interaction_index);
+          auto& source_counts = counts_raw(source);
+          auto const& step = transports_raw(source);
+          auto& final = final_states_raw(interaction_index);
+          final = detail::classifyPhotonFinalState(
+              context.physics, context.photon_pair_lpm, context.thinning,
+              step.interaction, context.random_seed, context.shower_id);
+          source_counts.child = final.child_count;
+          source_counts.record = final.record_flag;
+          if (final.fallback_flag != 0)
+            source_counts.fallback_stage = PhotonFinalStateFallback;
+          if (final.suppression_flag || final.continuation_flag) {
+            source_counts.next = 1;
+          } else if (final.record_flag) {
+            auto const process = final.parameters.process_id;
+            if (process == ComptonProcessId) {
+              source_counts.next =
+                  (final.parameters.thinning_keep_mask & 0x1U) != 0;
+              source_counts.charged =
+                  (final.parameters.thinning_keep_mask & 0x2U) != 0;
+            } else {
+              source_counts.charged = final.child_count;
+            }
+          }
+        };
+    static_assert(sizeof(final_state_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_final_state",
+        Policy(execution, 0, current_count),
+        final_state_kernel);
+
+    Kokkos::parallel_scan(
+        "c8_kokkos_scan_photon_outputs",
+        Policy(execution, 0, current_count),
+        ResidentPhotonScanFunctor<ExecutionSpace>{counts, offsets},
+        workspace.scan_totals);
+
+    auto const offsets_raw = rawDeviceView(offsets);
+    auto const steps_raw = rawDeviceView(steps);
+    auto const projected_steps_raw = rawDeviceView(projected_steps);
+    auto const records_raw = rawDeviceView(records);
+    auto const charged_raw = rawDeviceView(charged);
+    auto const fallbacks_raw = rawDeviceView(fallbacks);
+    auto const observations_raw = rawDeviceView(observations);
+    auto const first_snapshots_raw = rawDeviceView(first_snapshots);
+    auto const first_interaction_candidates_raw =
+        first_interaction_candidates.data();
+    auto const scan_totals_raw = scan_totals_device.data();
+    auto const error_raw = error.data();
+    auto const materialize_endpoint =
+        KOKKOS_LAMBDA(std::size_t const source) {
+          auto const device_totals = *scan_totals_raw;
+          if (device_totals.values[PhotonNextOffset] > capacity ||
+              device_totals.values[PhotonChargedOffset] > charged_capacity)
+            return;
+          auto const& selection = selections_raw(source);
+          auto const& transport = transports_raw(source);
+          auto const& source_counts = counts_raw(source);
+          if (source_counts.fallback_stage > PhotonFinalStateFallback) {
+            Kokkos::atomic_compare_exchange(
+                error_raw, std::uint32_t{0}, std::uint32_t{21});
+            return;
+          }
+          if (source_counts.step) {
+            steps_raw(offsets_raw(source, PhotonStepOffset)) =
+                transport;
+            if (project_steps) {
+              auto const& context = physics_context();
+              projected_steps_raw(
+                  offsets_raw(source, PhotonStepOffset)) =
+                  detail::projectPhotonStep(
+                      context.profile_projection, transport);
+            }
+          }
+          if (selection.fallback_flag) {
+            if (source_counts.fallback_stage !=
+                PhotonSelectionFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{22});
+              return;
+            }
+            fallbacks_raw(
+                photonFallbackOutputOffset(
+                    source_counts.fallback_stage,
+                    offsets_raw(source, PhotonSelectionFallbackOffset),
+                    offsets_raw(source, PhotonTransportFallbackOffset),
+                    offsets_raw(source, PhotonFinalStateFallbackOffset),
+                    device_totals)) =
+                selection.fallback;
+            return;
+          }
+          if (!source_counts.step) {
+            if (source_counts.fallback_stage !=
+                PhotonTransportFallback) {
+              Kokkos::atomic_compare_exchange(
+                  error_raw, std::uint32_t{0}, std::uint32_t{23});
+              return;
+            }
+            fallbacks_raw(
+                photonFallbackOutputOffset(
+                    source_counts.fallback_stage,
+                    offsets_raw(source, PhotonSelectionFallbackOffset),
+                    offsets_raw(source, PhotonTransportFallbackOffset),
+                    offsets_raw(source, PhotonFinalStateFallbackOffset),
+                    device_totals)) =
+                transport_fallbacks_raw(source);
+            return;
+          }
+          auto const& step = transport;
+          if (source_counts.observation) {
+            ObservationRecord observation{};
+            observation.particle = step.end;
+            observation.status =
+                step.limit == PhotonTransportLimit::EscapedEnvironment
+                    ? ObservationStatus::EscapedEnvironment
+                    : ObservationStatus::ReachedObservationSurface;
+            observations_raw(
+                offsets_raw(source, PhotonObservationOffset)) =
+                observation;
+          }
+          if (step.limit == PhotonTransportLimit::LayerBoundary) {
+            next.store(offsets_raw(source, PhotonNextOffset),
+                       step.end);
+          }
+        };
+    static_assert(sizeof(materialize_endpoint) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_materialize_endpoints",
+        Policy(execution, 0, current_count), materialize_endpoint);
+
+    // Materializing an interaction carries the complete final-state
+    // kinematics and therefore substantially more live state than writing
+    // a transport endpoint.  Run it only for the stable interaction list;
+    // output offsets and history IDs still come from the source-ordered
+    // composite scan above.
+    auto const materialize_kernel =
+        KOKKOS_LAMBDA(std::size_t const interaction_index) {
+          auto const device_totals = *scan_totals_raw;
+          if (device_totals.values[PhotonNextOffset] > capacity ||
+              device_totals.values[PhotonChargedOffset] > charged_capacity)
+            return;
+          auto const compacted_count =
+              static_cast<std::size_t>(*interaction_count_raw);
+          if (interaction_index >= compacted_count) return;
+          auto const source = interaction_sources_raw(interaction_index);
+          auto const& step = transports_raw(source);
+          auto const& final = final_states_raw(interaction_index);
+          auto const& source_counts = counts_raw(source);
+          if ((final.fallback_flag != 0) !=
+              (source_counts.fallback_stage ==
+               PhotonFinalStateFallback)) {
+            Kokkos::atomic_compare_exchange(
+                error_raw, std::uint32_t{0}, std::uint32_t{24});
+            return;
+          }
+          ResidentPhotonFinalStateWriter output{
+              next,
+              records_raw,
+              charged_raw,
+              fallbacks_raw,
+              first_snapshots_raw,
+              first_interaction_candidates_raw,
+              error_raw,
+              offsets_raw(source, PhotonNextOffset),
+              offsets_raw(source, PhotonChargedOffset),
+              photonFallbackOutputOffset(
+                  source_counts.fallback_stage,
+                  offsets_raw(source, PhotonSelectionFallbackOffset),
+                  offsets_raw(source, PhotonTransportFallbackOffset),
+                  offsets_raw(source, PhotonFinalStateFallbackOffset),
+                  device_totals),
+              offsets_raw(source, PhotonRecordOffset),
+              capture_first_interaction ? 1U : 0U};
+          detail::materializePhotonFinalStateInPlace(
+              step.interaction, final,
+              offsets_raw(source, PhotonChildOffset),
+              next_history_id, output);
+        };
+    static_assert(sizeof(materialize_kernel) < 512);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_materialize_interactions",
+        Policy(execution, 0, current_count),
+        materialize_kernel);
+
+  }
+
   template <class ExecutionSpace>
   gpu::em::ResidentPhotonCascadeResult runResidentPhotonCascade(
       KokkosPhysicsContextView<ExecutionSpace> const physics_context,
@@ -912,7 +1220,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       ExecutionSpace const& execution = {},
       bool const capture_diagnostic_interactions = false,
       std::size_t const openmp_chunk_size = 0,
-      KokkosResidentMemoryBudgetGate const memory_gate = {}) {
+      KokkosResidentMemoryBudgetGate const memory_gate = {},
+      ResidentExecutionWait<ExecutionSpace>* const cooperative_wait = nullptr) {
     using namespace gpu::em;
     auto const Policy =
         [openmp_chunk_size](ExecutionSpace const& selected_execution,
@@ -1074,272 +1383,11 @@ namespace corsika::accelerator::em::kokkos_detail {
         ++result.wavefront_bucketing_small_batches;
         result.wavefront_bucketing_small_particles += current_count;
       }
-      auto const selections_raw = rawDeviceView(selections);
-      auto const transports_raw = rawDeviceView(transports);
-      auto const transport_fallbacks_raw =
-          rawDeviceView(transport_fallbacks);
-      auto const counts_raw = rawDeviceView(counts);
-      auto const interaction_flags_raw = rawDeviceView(interaction_flags);
-      auto const interaction_sources_raw = rawDeviceView(interaction_sources);
-      auto const select_kernel =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const& context = physics_context();
-            ResidentPhotonSourceCounts source_counts{};
-            auto const particle = current.load(source);
-            auto& selection = selections_raw(source);
-            selection = detail::selectDiscreteInteraction(
-                context.physics, particle, source, context.random_seed,
-                context.shower_id);
-            if (selection.fallback_flag != 0) {
-              source_counts.fallback_stage = PhotonSelectionFallback;
-            }
-            counts_raw(source) = source_counts;
-          };
-      static_assert(sizeof(select_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_photon_select",
-          Policy(execution, 0, current_count),
-          select_kernel);
-
-      // Transport is a separate kernel so its geometry state does not share
-      // registers with rate inversion.  Selection fallbacks return before
-      // transport without introducing an additional scan of the full front.
-      auto const transport_kernel =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const& context = physics_context();
-            auto const& selection = selections_raw(source);
-            auto& source_counts = counts_raw(source);
-            interaction_flags_raw(source) = 0;
-            if (selection.fallback_flag != 0) return;
-            auto const transport = detail::transportPhoton(
-                context.environment, selection.interaction);
-            transports_raw(source) = transport.record;
-            transport_fallbacks_raw(source) = transport.fallback;
-            if (transport.fallback_flag != 0) {
-              source_counts.fallback_stage = PhotonTransportFallback;
-              return;
-            }
-            source_counts.step = 1;
-            auto const& step = transport.record;
-            if (step.limit == PhotonTransportLimit::LayerBoundary) {
-              source_counts.next = 1;
-            } else if (
-                step.limit == PhotonTransportLimit::ObservationSurface ||
-                step.limit == PhotonTransportLimit::EscapedEnvironment ||
-                (step.limit == PhotonTransportLimit::ParticleCut &&
-                 step.observation_surface_reached_before_cut != 0)) {
-              source_counts.observation = 1;
-            } else if (step.limit == PhotonTransportLimit::Interaction) {
-              interaction_flags_raw(source) = 1;
-            }
-          };
-      static_assert(sizeof(transport_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_photon_transport",
-          Policy(execution, 0, current_count),
-          transport_kernel);
-
-      // Only true interaction vertices execute the comparatively heavy LPM,
-      // final-state kinematics and thinning classifier.  A second stable scan
-      // keeps their order identical to the original source wavefront.
-      Kokkos::parallel_scan(
-          "c8_kokkos_scan_photon_interactions",
-          Policy(execution, 0, current_count),
-          ResidentPhotonCompactionScanFunctor<ExecutionSpace>{
-              interaction_flags, interaction_sources},
-          active_workspace.interaction_count);
-      auto const final_states_raw = rawDeviceView(final_states);
-      auto const interaction_count_raw = interaction_count_device.data();
-      auto const final_state_kernel =
-          KOKKOS_LAMBDA(std::size_t const interaction_index) {
-            auto const& context = physics_context();
-            auto const compacted_count =
-                static_cast<std::size_t>(*interaction_count_raw);
-            if (interaction_index >= compacted_count) return;
-            auto const source = interaction_sources_raw(interaction_index);
-            auto& source_counts = counts_raw(source);
-            auto const& step = transports_raw(source);
-            auto& final = final_states_raw(interaction_index);
-            final = detail::classifyPhotonFinalState(
-                context.physics, context.photon_pair_lpm, context.thinning,
-                step.interaction, context.random_seed, context.shower_id);
-            source_counts.child = final.child_count;
-            source_counts.record = final.record_flag;
-            if (final.fallback_flag != 0)
-              source_counts.fallback_stage = PhotonFinalStateFallback;
-            if (final.suppression_flag || final.continuation_flag) {
-              source_counts.next = 1;
-            } else if (final.record_flag) {
-              auto const process = final.parameters.process_id;
-              if (process == ComptonProcessId) {
-                source_counts.next =
-                    (final.parameters.thinning_keep_mask & 0x1U) != 0;
-                source_counts.charged =
-                    (final.parameters.thinning_keep_mask & 0x2U) != 0;
-              } else {
-                source_counts.charged = final.child_count;
-              }
-            }
-          };
-      static_assert(sizeof(final_state_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_photon_final_state",
-          Policy(execution, 0, current_count),
-          final_state_kernel);
-
-      Kokkos::parallel_scan(
-          "c8_kokkos_scan_photon_outputs",
-          Policy(execution, 0, current_count),
-          ResidentPhotonScanFunctor<ExecutionSpace>{counts, offsets},
-          active_workspace.scan_totals);
-
-      auto const next = queue.next().rawDeviceView();
-      auto const offsets_raw = rawDeviceView(offsets);
-      auto const steps_raw = rawDeviceView(steps);
-      auto const projected_steps_raw = rawDeviceView(projected_steps);
-      auto const records_raw = rawDeviceView(records);
-      auto const charged_raw = rawDeviceView(charged);
-      auto const fallbacks_raw = rawDeviceView(fallbacks);
-      auto const observations_raw = rawDeviceView(observations);
-      auto const first_snapshots_raw = rawDeviceView(first_snapshots);
-      auto const first_interaction_candidates_raw =
-          first_interaction_candidates.data();
-      auto const scan_totals_raw = scan_totals_device.data();
-      auto const error_raw = error.data();
-      auto const materialize_endpoint =
-          KOKKOS_LAMBDA(std::size_t const source) {
-            auto const device_totals = *scan_totals_raw;
-            if (device_totals.values[PhotonNextOffset] > capacity ||
-                device_totals.values[PhotonChargedOffset] > charged_capacity)
-              return;
-            auto const& selection = selections_raw(source);
-            auto const& transport = transports_raw(source);
-            auto const& source_counts = counts_raw(source);
-            if (source_counts.fallback_stage > PhotonFinalStateFallback) {
-              Kokkos::atomic_compare_exchange(
-                  error_raw, std::uint32_t{0}, std::uint32_t{21});
-              return;
-            }
-            if (source_counts.step) {
-              steps_raw(offsets_raw(source, PhotonStepOffset)) =
-                  transport;
-              if (project_steps) {
-                auto const& context = physics_context();
-                projected_steps_raw(
-                    offsets_raw(source, PhotonStepOffset)) =
-                    detail::projectPhotonStep(
-                        context.profile_projection, transport);
-              }
-            }
-            if (selection.fallback_flag) {
-              if (source_counts.fallback_stage !=
-                  PhotonSelectionFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{22});
-                return;
-              }
-              fallbacks_raw(
-                  photonFallbackOutputOffset(
-                      source_counts.fallback_stage,
-                      offsets_raw(source, PhotonSelectionFallbackOffset),
-                      offsets_raw(source, PhotonTransportFallbackOffset),
-                      offsets_raw(source, PhotonFinalStateFallbackOffset),
-                      device_totals)) =
-                  selection.fallback;
-              return;
-            }
-            if (!source_counts.step) {
-              if (source_counts.fallback_stage !=
-                  PhotonTransportFallback) {
-                Kokkos::atomic_compare_exchange(
-                    error_raw, std::uint32_t{0}, std::uint32_t{23});
-                return;
-              }
-              fallbacks_raw(
-                  photonFallbackOutputOffset(
-                      source_counts.fallback_stage,
-                      offsets_raw(source, PhotonSelectionFallbackOffset),
-                      offsets_raw(source, PhotonTransportFallbackOffset),
-                      offsets_raw(source, PhotonFinalStateFallbackOffset),
-                      device_totals)) =
-                  transport_fallbacks_raw(source);
-              return;
-            }
-            auto const& step = transport;
-            if (source_counts.observation) {
-              ObservationRecord observation{};
-              observation.particle = step.end;
-              observation.status =
-                  step.limit == PhotonTransportLimit::EscapedEnvironment
-                      ? ObservationStatus::EscapedEnvironment
-                      : ObservationStatus::ReachedObservationSurface;
-              observations_raw(
-                  offsets_raw(source, PhotonObservationOffset)) =
-                  observation;
-            }
-            if (step.limit == PhotonTransportLimit::LayerBoundary) {
-              next.store(offsets_raw(source, PhotonNextOffset),
-                         step.end);
-            }
-          };
-      static_assert(sizeof(materialize_endpoint) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_photon_materialize_endpoints",
-          Policy(execution, 0, current_count), materialize_endpoint);
-
-      // Materializing an interaction carries the complete final-state
-      // kinematics and therefore substantially more live state than writing
-      // a transport endpoint.  Run it only for the stable interaction list;
-      // output offsets and history IDs still come from the source-ordered
-      // composite scan above.
-      auto const materialize_kernel =
-          KOKKOS_LAMBDA(std::size_t const interaction_index) {
-            auto const device_totals = *scan_totals_raw;
-            if (device_totals.values[PhotonNextOffset] > capacity ||
-                device_totals.values[PhotonChargedOffset] > charged_capacity)
-              return;
-            auto const compacted_count =
-                static_cast<std::size_t>(*interaction_count_raw);
-            if (interaction_index >= compacted_count) return;
-            auto const source = interaction_sources_raw(interaction_index);
-            auto const& step = transports_raw(source);
-            auto const& final = final_states_raw(interaction_index);
-            auto const& source_counts = counts_raw(source);
-            if ((final.fallback_flag != 0) !=
-                (source_counts.fallback_stage ==
-                 PhotonFinalStateFallback)) {
-              Kokkos::atomic_compare_exchange(
-                  error_raw, std::uint32_t{0}, std::uint32_t{24});
-              return;
-            }
-            ResidentPhotonFinalStateWriter output{
-                next,
-                records_raw,
-                charged_raw,
-                fallbacks_raw,
-                first_snapshots_raw,
-                first_interaction_candidates_raw,
-                error_raw,
-                offsets_raw(source, PhotonNextOffset),
-                offsets_raw(source, PhotonChargedOffset),
-                photonFallbackOutputOffset(
-                    source_counts.fallback_stage,
-                    offsets_raw(source, PhotonSelectionFallbackOffset),
-                    offsets_raw(source, PhotonTransportFallbackOffset),
-                    offsets_raw(source, PhotonFinalStateFallbackOffset),
-                    device_totals),
-                offsets_raw(source, PhotonRecordOffset),
-                capture_first_interaction ? 1U : 0U};
-            detail::materializePhotonFinalStateInPlace(
-                step.interaction, final,
-                offsets_raw(source, PhotonChildOffset),
-                next_history_id, output);
-          };
-      static_assert(sizeof(materialize_kernel) < 512);
-      Kokkos::parallel_for(
-          "c8_kokkos_resident_photon_materialize_interactions",
-          Policy(execution, 0, current_count),
-          materialize_kernel);
+      enqueueResidentPhotonFront(
+          physics_context, current, queue.next().rawDeviceView(),
+          active_workspace, current_count, capacity, next_history_id,
+          project_steps, capture_first_interaction, execution,
+          openmp_chunk_size);
 
       // Scan totals, compacted interaction count and materialization error
       // are unmanaged views onto this single device POD.  Copy it only after
@@ -1348,7 +1396,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       // one-thread packing kernel for every resident wavefront.
       Kokkos::deep_copy(
           execution, host_front_control, front_control_device);
-      execution.fence("download resident Kokkos photon front control");
+      waitResidentExecution(execution,
+          "download resident Kokkos photon front control", cooperative_wait);
       auto const& front_control = host_front_control();
       auto const& totals = front_control.totals.values;
       if (front_control.interaction_count > current_count)
@@ -1514,7 +1563,8 @@ namespace corsika::accelerator::em::kokkos_detail {
           copy_projected || copy_steps || copy_records || copy_charged ||
           fallback_count != 0 || observation_count != 0;
       if (has_host_outputs)
-        execution.fence("download resident Kokkos photon outputs");
+        waitResidentExecution(execution,
+            "download resident Kokkos photon outputs", cooperative_wait);
 
       if (copy_projected)
         append_host(result.projected_step_records, host_projected);
@@ -1564,7 +1614,8 @@ namespace corsika::accelerator::em::kokkos_detail {
       // It is read only when the candidate count confirms initialization.
       Kokkos::deep_copy(execution, host_snapshot, first_snapshots);
     }
-    execution.fence("download resident Kokkos photon call results");
+    waitResidentExecution(execution,
+        "download resident Kokkos photon call results", cooperative_wait);
     queue.markExecutionSynchronized();
     queue_execution_guard.release();
     result.interaction_vertices += host_call_statistics(

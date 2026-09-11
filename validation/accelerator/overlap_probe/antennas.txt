@@ -1,0 +1,4 @@
+# Small NWU observer fixture for overlap-refactor baselines. Metres.
+0 0 2680.444195
+100 0 2680.444195
+0 100 2680.444195

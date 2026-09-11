@@ -33,13 +33,13 @@ namespace corsika {
       , dX_(dX)
       , nBins_(nbins)
       , profile_{nbins} {
-    summary_ = YAML::Node();
   }
 
   template <typename TOutput>
   inline void ProductionWriter<TOutput>::startOfLibrary(
       boost::filesystem::path const& directory) {
     TOutput::startOfLibrary(directory);
+    summary_.open(directory);
   }
 
   template <typename TOutput>
@@ -83,8 +83,8 @@ namespace corsika {
         profile_[iMaximum + 2].at(
             static_cast<int>(production_profile::ProjectileIndex::All)));
 
-    summary_["shower_" + std::to_string(showerId)]["XmuMax"] = Xmumax;
-    summary_["shower_" + std::to_string(showerId)]["dNdXmuMax"] = dNdXmumax;
+    summary_.event(showerId)["XmuMax"] = Xmumax;
+    summary_.event(showerId)["dNdXmuMax"] = dNdXmumax;
 
     // write profile to file
     int iRow{0};
@@ -94,6 +94,7 @@ namespace corsika {
       iRow++;
     }
     TOutput::endOfShower(showerId);
+    summary_.flush();
   }
 
   template <typename TOutput>
@@ -172,7 +173,7 @@ namespace corsika {
 
   template <typename TOutput>
   inline YAML::Node ProductionWriter<TOutput>::getSummary() const {
-    return summary_;
+    return summary_.snapshot();
   }
 
 } // namespace corsika

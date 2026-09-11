@@ -36,6 +36,7 @@ namespace corsika::applications::air_shower {
 
     int kokkos_num_threads{0};
     std::string kokkos_execution;
+    std::string kokkos_cooperative_policy{"legacy"};
     int kokkos_device{0};
     std::filesystem::path kokkos_tuning_cache;
     bool kokkos_require_tuning{false};

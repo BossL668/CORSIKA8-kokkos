@@ -46,7 +46,7 @@ namespace corsika::accelerator::em::testing {
           if (item.propagate) {
             result.transport_status = detail::transportLepton(
                 physics, false, item.environment, item.interaction,
-                result.transport, result.fallback);
+                result.transport, result.fallback, item.external);
           }
         });
     auto downloaded = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), outputs);

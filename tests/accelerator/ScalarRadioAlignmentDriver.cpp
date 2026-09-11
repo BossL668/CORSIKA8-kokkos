@@ -12,7 +12,11 @@
 #include <stdexcept>
 
 namespace scalar_radio_test {
+#if defined(C8_TEST_RADIO_OPENMP_EXECUTION)
+  using Execution = Kokkos::OpenMP;
+#else
   using Execution = Kokkos::DefaultExecutionSpace;
+#endif
   namespace radio = corsika::accelerator::radio;
   namespace detail = radio::detail;
 
@@ -21,7 +25,8 @@ namespace scalar_radio_test {
 
   std::array<double, 3> doppler() {
     Kokkos::View<double*, typename Execution::memory_space> values("doppler", 3);
-    Kokkos::parallel_for("scalar_radio_zero_doppler_rescue", 1,
+    Kokkos::parallel_for("scalar_radio_zero_doppler_rescue",
+      Kokkos::RangePolicy<Execution>(0, 1),
       KOKKOS_LAMBDA(int) {
         detail::Vec3 const beta{1., 0x1p-30, 0.};
         detail::Vec3 const emit{1., 0x1p-30, 0.};
@@ -34,7 +39,8 @@ namespace scalar_radio_test {
   }
 
   std::vector<double> observerWindow(
-      std::vector<double> const& times, detail::DeviceObserver observer) {
+      std::vector<double> const& times, detail::DeviceObserver observer,
+      bool vector_potential) {
     Kokkos::View<double*, typename Execution::memory_space> device_times("window_times", times.size());
     auto host_times = Kokkos::create_mirror_view(device_times);
     for (std::size_t i = 0; i < times.size(); ++i) host_times(i) = times[i];
@@ -45,11 +51,18 @@ namespace scalar_radio_test {
     detail::DeviceWaveforms samples{};
     samples.floating_x = data.data(); samples.floating_y = data.data() + bins;
     samples.floating_z = data.data() + 2 * bins;
-    Kokkos::parallel_for("scalar_observer_window", times.size(),
+    Kokkos::parallel_for("scalar_observer_window",
+      Kokkos::RangePolicy<Execution>(0, times.size()),
       KOKKOS_LAMBDA(int i) {
-        detail::addSample<radio::kokkos_detail::KokkosRadioAtomicOperations>(
-            observer, samples, device_times(i), {static_cast<double>(1 << i), 0., 0.},
-            &counters(0).coreas_contributions, counters.data());
+        if (vector_potential) {
+          detail::addSample<radio::kokkos_detail::KokkosRadioAtomicOperations, true>(
+              observer, samples, device_times(i), {static_cast<double>(1 << i), 0., 0.},
+              &counters(0).zhs_contributions, counters.data());
+        } else {
+          detail::addSample<radio::kokkos_detail::KokkosRadioAtomicOperations>(
+              observer, samples, device_times(i), {static_cast<double>(1 << i), 0., 0.},
+              &counters(0).coreas_contributions, counters.data());
+        }
       });
     auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), data);
     std::vector<double> result(bins);
@@ -72,17 +85,29 @@ namespace scalar_radio_test {
     Kokkos::deep_copy(tracks, host);
     accumulator.accumulateLeptonTracks(tracks, count);
     auto waveforms = accumulator.download();
+    // A successful direct launch cannot validate a tiled entry point.
+    auto const& statistics = accumulator.statistics();
+    if constexpr (radio::kokkos_detail::KokkosRadioAccumulator<Execution>::IsOpenMP) {
+      if (statistics.projection_tiles == 0)
+        throw std::runtime_error("OpenMP radio test did not execute tiled projection");
+    } else {
+      if (tiled ? statistics.projection_tiles == 0
+                : statistics.direct_projection_batches != 1)
+        throw std::runtime_error("GPU radio test did not execute the requested launch path");
+    }
     accumulator.reset();
     accumulator.accumulateLeptonTracks(tracks, count);
     auto const repeated = accumulator.download();
-    for (std::size_t i = 0; i < waveforms.coreas.size(); ++i)
-      if (!(waveforms.coreas[i].x == repeated.coreas[i].x &&
-            waveforms.coreas[i].y == repeated.coreas[i].y &&
-            waveforms.coreas[i].z == repeated.coreas[i].z &&
-            waveforms.zhs[i].x == repeated.zhs[i].x &&
-            waveforms.zhs[i].y == repeated.zhs[i].y &&
-            waveforms.zhs[i].z == repeated.zhs[i].z))
-        throw std::runtime_error("radio reset/reuse changed identical track waveforms");
+    auto check_repeated = [](auto const& first, auto const& second) {
+      if (first.size() != second.size())
+        throw std::runtime_error("radio reset/reuse changed observer count");
+      for (std::size_t i = 0; i < first.size(); ++i)
+        if (!(first[i].x == second[i].x && first[i].y == second[i].y &&
+              first[i].z == second[i].z))
+          throw std::runtime_error("radio reset/reuse changed identical track waveforms");
+    };
+    check_repeated(waveforms.coreas, repeated.coreas);
+    check_repeated(waveforms.zhs, repeated.zhs);
     return waveforms;
   }
 } // namespace scalar_radio_test

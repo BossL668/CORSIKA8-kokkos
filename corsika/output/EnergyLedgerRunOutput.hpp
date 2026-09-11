@@ -11,6 +11,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <corsika/output/BaseOutput.hpp>
+#include <corsika/output/ShowerSummary.hpp>
 
 #include <cstdint>
 #include <string>
@@ -24,12 +25,13 @@ namespace corsika {
     explicit EnergyLedgerRunOutput(YAML::Node configuration)
         : configuration_(std::move(configuration)) {}
 
-    void startOfLibrary(boost::filesystem::path const&) final {
+    void startOfLibrary(boost::filesystem::path const& directory) final {
+      summary_.open(directory);
       setInit(true);
     }
 
     void startOfShower(unsigned int const shower_id) final {
-      auto shower = summary_["shower_" + std::to_string(shower_id)];
+      auto shower = summary_.event(shower_id);
       shower["complete"] = false;
       shower["status"] = "in_progress";
       active_shower_ = shower_id;
@@ -37,12 +39,13 @@ namespace corsika {
     }
 
     void recordComplete(unsigned int shower_id, YAML::Node metadata) {
-      auto shower = summary_["shower_" + std::to_string(shower_id)];
+      auto shower = summary_.event(shower_id);
       shower["complete"] = true;
       shower["status"] = "complete";
       shower["statistics"] = std::move(metadata);
       active_shower_ = shower_id;
       shower_recorded_ = true;
+      summary_.flush();
     }
 
     void endOfShower(unsigned int const shower_id) final {
@@ -51,7 +54,7 @@ namespace corsika {
 
     void endOfLibrary() final {
       if (active_shower_ != InvalidShower && !shower_recorded_) {
-        auto shower = summary_["shower_" + std::to_string(active_shower_)];
+        auto shower = summary_.event(active_shower_);
         shower["complete"] = false;
         shower["status"] = "incomplete";
         shower["failure_reason"] =
@@ -61,13 +64,23 @@ namespace corsika {
     }
 
     YAML::Node getConfig() const final { return configuration_; }
-    YAML::Node getSummary() const final { return summary_; }
+    YAML::Node getSummary() const final { return summary_.snapshot(); }
+
+    void writeSummary(boost::filesystem::path const& path) const final {
+      if (active_shower_ != InvalidShower && !shower_recorded_) {
+        auto shower = summary_.event(active_shower_);
+        shower["complete"] = false;
+        shower["status"] = "incomplete";
+        shower["failure_reason"] = "scalar library ended without an energy-ledger record";
+      }
+      summary_.writeSummary(path);
+    }
 
   private:
     static constexpr unsigned int InvalidShower =
         static_cast<unsigned int>(-1);
     YAML::Node configuration_{};
-    YAML::Node summary_{};
+    mutable ShowerSummary summary_;
     unsigned int active_shower_{InvalidShower};
     bool shower_recorded_{};
   };

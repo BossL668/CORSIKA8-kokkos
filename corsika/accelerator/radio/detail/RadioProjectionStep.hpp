@@ -197,6 +197,11 @@ namespace corsika::accelerator::radio::detail {
     auto const displacement = destination - source;
     auto const distance = norm(displacement);
     auto const emit = displacement / distance;
+    if (table.homogeneous_refractive_index > 0.) {
+      auto const index = table.homogeneous_refractive_index;
+      return {index * distance / SpeedOfLightMPerS, index, index,
+              distance, emit};
+    }
     auto const source_height =
         (source.z - table.minimum_height_m) * table.inverse_step_per_m;
     auto const destination_height =
@@ -288,18 +293,25 @@ namespace corsika::accelerator::radio::detail {
                                                     radioRound(scaled));
   }
 
-  template <class AtomicOperations>
+  template <class AtomicOperations, bool IsVectorPotential = false>
   C8_ACCELERATOR_INLINE_FUNCTION inline void addSample(
       DeviceObserver const& observer, DeviceWaveforms const& waveforms,
       double time_s, Vec3 contribution,
       unsigned long long* contribution_counter,
       DeviceRadioCounters* counters) {
-    if (time_s < observer.start_time_s ||
-        time_s > observer.start_time_s + observer.duration_s)
-      return;
+    // Match TimeDomainObserver's distinct receive overloads. ZHS potentials
+    // need the full support of each stored bin, including the edge half-bins,
+    // before differentiation. CoREAS instantaneous fields retain time gating.
+    if constexpr (!IsVectorPotential) {
+      if (time_s < observer.start_time_s ||
+          time_s > observer.start_time_s + observer.duration_s)
+        return;
+    }
     auto const bin_value = observerNearestBin(
         (time_s - observer.start_time_s) * observer.sample_rate_Hz);
-    if (!(bin_value >= 0.)) return;
+    // Validate both bounds before the unsigned conversion (also rejects NaN
+    // and infinities). No waveform allocation or output shape is changed.
+    if (!(bin_value >= 0. && bin_value < observer.number_of_bins)) return;
     auto const bin = static_cast<std::uint64_t>(bin_value);
     if (bin >= observer.number_of_bins) return;
     auto const offset = observer.waveform_offset + bin;
@@ -487,7 +499,7 @@ namespace corsika::accelerator::radio::detail {
         potential = beta_perpendicular *
                     (sign * constant * fraction / path.distance_m);
       }
-      addSample<AtomicOperations>(observer, waveforms, detection_time2,
+      addSample<AtomicOperations, true>(observer, waveforms, detection_time2,
                                   potential, &counters->zhs_contributions,
                                   counters);
       return;
@@ -500,14 +512,14 @@ namespace corsika::accelerator::radio::detail {
     auto potential = beta_perpendicular *
                      (sign * constant * fraction /
                       (denominator * path.distance_m));
-    addSample<AtomicOperations>(observer, waveforms, detection_time1,
+    addSample<AtomicOperations, true>(observer, waveforms, detection_time1,
                                 potential, &counters->zhs_contributions,
                                 counters);
     for (int index = 1; index < number_of_bins; ++index) {
       potential = beta_perpendicular *
                   ((subdivided ? 1. : sign) * constant /
                    (denominator * path.distance_m));
-      addSample<AtomicOperations>(
+      addSample<AtomicOperations, true>(
           observer, waveforms,
           detection_time1 +
               static_cast<double>(index) / observer.sample_rate_Hz,
@@ -519,7 +531,7 @@ namespace corsika::accelerator::radio::detail {
     potential = beta_perpendicular *
                 (sign * constant * fraction /
                  (denominator * path.distance_m));
-    addSample<AtomicOperations>(observer, waveforms, detection_time2,
+    addSample<AtomicOperations, true>(observer, waveforms, detection_time2,
                                 potential, &counters->zhs_contributions,
                                 counters);
   }

@@ -563,6 +563,17 @@ launcher's `--backend` to the application; the separate **probe** has its own
 
 ## 9. Minimal commands and important parameters
 
+An opt-in air-shower **cooperative** experiment also accepts
+`--kokkos-execution cuda-openmp`. Its independent CUDA driver and OpenMP
+coordinator reuse the same endpoint physics. The new independent-subshower
+queues keep descendants on their endpoint and consume only ready CUDA results;
+OpenMP can advance multiple epochs without a paired-batch join. Scalar fallback
+and final checked integer profile/radio merging remain coordinator-owned.
+This is separate from the single-endpoint modes above, is not a production
+default, and does not apply to mountain transport. The isolated build, regression
+results and performance limitations are documented in the
+[independent-subshower test record](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md).
+
 From the project container directory:
 
 ```bash
@@ -623,6 +634,31 @@ Compiler jobs (`C8_BUILD_JOBS`), simulation threads (`--kokkos-num-threads`) and
 sequential shower count (`-N`) are different. Bound processes times threads by
 allocated resources, with memory headroom. Test `-N 1`, `-N 2` and longer RSS
 trends before large batches; a primitive probe does not prove long-run stability.
+
+The 2026-09-07 same-process tests completed `N=16/64/256` in the experimental
+combined executable. Transport allocations stabilized, but host RSS still grew
+with buffered output and retained per-shower reports; this is **not** a claim of
+constant memory for arbitrarily large `N`. Use guarded small batches or separate
+event processes on memory-constrained machines. See the
+[memory measurements and limitations (Chinese)](documentation/cuda_em_refactor/beta5_nmulti_memory_acceptance_20260907_CN.md).
+
+The subsequent [event-boundary memory fix (Chinese)](documentation/cuda_em_refactor/beta5_event_memory_release_20260907_CN.md)
+streams per-shower YAML reports to disk, flushes Parquet buffers after each shower,
+and releases consumed hadronic timing records. Native PROPOSAL tables and bounded
+transport/radio workspaces remain reusable. This requires rebuilding the executable;
+it does not change a running campaign's archived binary. Parquet row-group layout
+changes, but the physics columns, values and event order are preserved. Keep memory
+guards for long runs: allocator caches and Parquet footer metadata can still grow.
+
+The [ZHS edge-bin correction (Chinese)](documentation/cuda_em_refactor/beta5_zhs_window_edge_fix_20260907_CN.md)
+fills the complete first/last vector-potential bins before differentiation, in
+both the scalar observer and shared Kokkos radio code. Earlier timestamp clipping
+could create an artificial first/last electric-field sample. This is not waveform
+smoothing or deletion of edge samples: real pulses, the output time axis and bin
+count are retained. CoREAS time gating and shower transport are unchanged. Rebuild
+to apply the correction; existing datasets and archived campaign binaries keep
+their original semantics. A physically short recording window can still truncate
+a real pulse, so the wider-window check above remains necessary.
 
 ## 10. HIP/SYCL on matching hardware
 
@@ -703,3 +739,88 @@ Implementation history and audits are separate from this guide:
 [launcher audit](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md).
 Core license: [LICENSE](LICENSE); model/dependency licenses remain separate.
 Do not commit FLUKA, build products, caches or private simulation data.
+
+## Independent finite-mountain example
+
+The optional `c8_mountain_neutrino` application reuses beta5's Kokkos EM transport
+and CoREAS/ZHS accumulation in a finite convex, homogeneous SiO₂ volume. It has
+separate YAML configuration and does not replace the atmospheric application.
+It requires FLUKA and offers scalar PROPOSAL or Kokkos execution. The first
+version is CC-only with an absorbing exterior and internal-observer radio;
+it does not model rock-air radio propagation or provide neutrino event-rate
+weights. This integration is not a claim of completed large-sample validation.
+See the [application guide and examples](documentation/mountain_neutrino_user_guide_CN.md)
+and [reusable geometry API](documentation/mountain_geometry_CN.md).
+
+One-command geographic preparation is available from the source directory:
+
+```bash
+conda activate corsika_venv
+python -m pip install ./python
+c8-terrain --bounds 86.700 42.930 86.710 42.940 \
+  --output "$HOME/CorsikaData/terrain/demo"
+```
+
+This reuses the migrated mountain modules to download/cache DEM and geoid data,
+construct a closed local mesh and emit `terrain/scene.yaml` for native USStdBK
+five-layer atmosphere embedding. Without antenna input, only a **demonstration
+observer** at the region centre, 1 m above the mesh, is created. Supply
+`--antennas-csv FILE` or `--station-directory DIR` for real stations.
+`--estimate-only` does not download; `--offline` requires verified caches.
+Use `--check-with /path/to/c8_terrain_environment` for native geometry admission;
+`--run --application /path/to/c8_terrain_cascade -- ...` explicitly forwards
+CPU/Kokkos transport arguments. The C++ applications must be built separately.
+The finite local terrain defaults to SiO₂ and is restricted to 0–7 km ASL; it is
+not a global solid Earth model. It does not enable cross-interface radio. See the
+[workflow, commands and measured checks](documentation/terrain_preparation_workflow_CN.md)
+and [21CMA preparation template](configs/mountain/terrain_region_21cma.yaml).
+
+The shower-only [two-sided material interface API](documentation/generic_material_interface_transport_CN.md)
+separates closed-mesh crossings, logical region IDs, native PROPOSAL material banks
+and HybridCascade routing. SiO₂ remains the terrain default; the application also
+accepts `Water` and `Ice`. Unsupported snapshots and conflicting calculator keys
+fail explicitly. This is not a multi-volume navigator or cross-interface radio model.
+
+The separate real-terrain migration now includes geographic DEM/antenna preparation,
+a native five-layer scene validator (`c8_terrain_environment`), a CPU/bounded
+Kokkos rock–air transport application (`c8_terrain_cascade`), and a geometry oracle
+(`c8_terrain_device_probe`). The transport application now uses separate native
+PROPOSAL banks for air and rock, with CPU neutrino/hadronic processing and explicit
+selected-process fallback. Small OpenMP/CUDA cases have been exercised.
+The application now defaults to uniform local IGRF14/2027 in air and zero field
+inside rock, with quadratic leapfrog/DEM boundary queries on CPU and Kokkos.
+`--magnetic-field none` retains the zero-field reference. Small magnetic-field
+integration tests pass; strict cross-backend floating-point track comparisons
+are not all within tolerance. **Radio remains disabled in this DEM application;
+cross-interface radio and ensemble physics acceptance are not complete.**
+Indexed shared-vertex straight intersections and curved-path midpoint auditing
+are now integrated; see the [million-query and 24-configuration regression, with two CUDA repeats](documentation/terrain_indexed_transport_acceptance_CN.md).
+Nonzero-curvature queries now use compensated original-vertex plane equations,
+stable quadratic roots and unpadded edge predicates; see the
+[curved-boundary fixes, real-DEM probe and acceptance limits](documentation/terrain_curved_boundary_acceptance_CN.md).
+See the [magnetic modules, application structure and acceptance limits](documentation/terrain_magnetic_application_validation_CN.md).
+The [2026-09-09 constants alignment](documentation/terrain_scalar_constants_alignment_CN.md)
+aligns the portable magnetic factor with the current scalar unit system and uses
+the transport mass consistently for DEM curvature. Outputs record the constants
+version; archived binaries and existing datasets are not changed automatically.
+The independent application does not
+replace the air-shower production program. See the
+[multi-material implementation, limits and validation](documentation/terrain_multimaterial_kokkos_transport_validation_CN.md) and the
+[migration scope, builds and validation record](documentation/terrain_native_scene_build_CN.md).
+The DEM application now admits all six neutrino flavors and charged muon/tau
+primaries, and retains taus at CC vertices for native transport and decay.
+See the [particle-support implementation and original-mountain pilot diagnostics](documentation/terrain_nutau_particle_support_CN.md).
+The subsequent [CC/NC, regeneration and polarization controls](documentation/terrain_neutrino_CC_NC_regeneration_polarization_CN.md)
+add competing CC+NC rates, NC-neutrino transport, regeneration history records and
+an explicit longitudinal tau-decay polarization control. This is **not complete
+neutrino-physics acceptance**: sub-10-TeV weak transport, CC spin-density transfer,
+matter depolarization and independent natural-regeneration flux validation remain
+outstanding. Cross-interface radio remains disabled in this DEM executable.
+The [original-module alignment and tests](documentation/terrain_original_neutrino_alignment_CN.md)
+add the upstream TAUOLA/Pythia decay switch to this DEM application, with TAUOLA
+as its default tau model, explicit RNG initialization and a conditioned high-energy
+boost. Use `--tau-decay-model pythia` for the previous decay path, or
+`--require-neutrino-model-coverage` to reject transported neutrinos outside the
+implemented weak-model domain. These changes do not modify the air application.
+The resident terrain session and logical-side boundary candidates now have OpenMP
+reference tests; see the [latest scope and PSR GPU validation blocker](documentation/terrain_resident_session_psr_validation_CN.md).

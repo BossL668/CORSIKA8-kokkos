@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
+#include <corsika/accelerator/ScalarPhysicalConstants.hpp>
 #include <corsika/accelerator/em/common/ObservationPlane.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
 
@@ -24,7 +25,7 @@
 namespace corsika::gpu::em {
 
   inline constexpr double GeVPerCToTeslaMeter =
-      0.299792458;
+      accelerator::scalar_constants::MagneticRigidityGeVPerTeslaMeter;
   inline constexpr double DefaultMaximumMagneticDeflection = 0.2;
 
   enum class MagneticStepStatus : std::uint32_t {
@@ -416,7 +417,7 @@ namespace corsika::gpu::em {
     }
     result.particle.time_s =
         start.time_s +
-        distance_m / (beta * 299792458.);
+        distance_m / (beta * accelerator::scalar_constants::SpeedOfLightMPerS);
     result.status =
         dot(direction_cross_field, direction_cross_field) == 0. ||
                 charge_number == 0.
@@ -648,7 +649,7 @@ namespace corsika::gpu::em {
    * bounded leapfrog trajectory.
    *
    * TrackingLeapFrogCurved advances position as
-   *   x(l) = x0 + l*u + 0.5*l^2*(q*0.299792458/p)*(u x B).
+   *   x(l) = x0 + l*u + 0.5*l^2*(q*GeVPerCToTeslaMeter/p)*(u x B).
    * Substitution in n.(x-plane_point)=0 gives the same quadratic solved by
    * the scalar Plane intersection.  Unlike volume boundaries, a terminal
    * plane does not discard positive roots below the 0.1 mm layer guard.

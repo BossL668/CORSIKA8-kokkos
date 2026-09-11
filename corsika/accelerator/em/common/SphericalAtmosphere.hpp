@@ -14,6 +14,7 @@
 #include <type_traits>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
+#include <corsika/accelerator/ScalarPhysicalConstants.hpp>
 #include <corsika/accelerator/em/common/ObservationPlane.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
 
@@ -24,7 +25,8 @@
 
 namespace corsika::gpu::em {
 
-  inline constexpr double SpeedOfLightMPerS = 299792458.;
+  inline constexpr double SpeedOfLightMPerS =
+      accelerator::scalar_constants::SpeedOfLightMPerS;
   // TrackingLeapFrogCurved ignores volume intersections closer than 0.1 mm.
   // Layer ownership and straight intersections must use the same guard;
   // otherwise a state a few micrometres outside a layer can be assigned to
@@ -154,6 +156,39 @@ namespace corsika::gpu::em {
 
     CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline bool validEnvironment(
         EnvironmentSnapshot const& environment) {
+      if (environment.geometry ==
+          EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+        if (environment.number_of_layers != 1 ||
+            environment.number_of_convex_planes < 4 ||
+            environment.number_of_convex_planes > MaxConvexEnvironmentPlanes ||
+            !finite(environment.convex_boundary_tolerance_m) ||
+            environment.convex_boundary_tolerance_m < 0. ||
+            !finite(environment.maximum_magnetic_deflection_rad) ||
+            !(environment.maximum_magnetic_deflection_rad > 0.)) {
+          return false;
+        }
+        auto const& medium = environment.atmosphere_layers[0];
+        if (medium.density_model != DensityModel::Homogeneous ||
+            !finite(medium.density_parameter_a) ||
+            !(medium.density_parameter_a > 0.)) return false;
+        // Curved polyhedron intersections are deliberately not approximated
+        // by the old sphere solver. This first bounded-medium contract is B=0.
+        for (int axis = 0; axis < 3; ++axis) {
+          if (!finite(environment.magnetic_field_T[axis]) ||
+              environment.magnetic_field_T[axis] != 0.) return false;
+        }
+        for (std::uint32_t face = 0;
+             face < environment.number_of_convex_planes; ++face) {
+          auto const& plane = environment.convex_planes[face];
+          auto const norm2 = plane.nx * plane.nx + plane.ny * plane.ny +
+                             plane.nz * plane.nz;
+          if (!finite(plane.offset_m) || !finite(norm2) ||
+              absolute(norm2 - 1.) > 1.e-12) return false;
+        }
+        return true;
+      }
+      if (environment.geometry != EnvironmentGeometry::SphericalLayers)
+        return false;
       if (environment.number_of_layers == 0 ||
           environment.number_of_layers > MaxAtmosphereLayers ||
           !finite(environment.observation_radius_m) ||
@@ -270,6 +305,20 @@ namespace corsika::gpu::em {
     if (direction != nullptr && !normalized(direction)) {
       return {AtmosphereStatus::NonFiniteInput, -1, 0., 0.};
     }
+    if (environment.geometry ==
+        EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+      if (!geometry_detail::containsConvex(
+              environment.convex_planes, environment.number_of_convex_planes,
+              position_m[0], position_m[1], position_m[2],
+              environment.convex_boundary_tolerance_m)) {
+        return {AtmosphereStatus::OutsideEnvironment, -1, 0., 0.};
+      }
+      // The sole layer is only a material index in this geometry; a radius
+      // has no meaning. Closed-face ownership allows an endpoint cut/decay
+      // to observe the same medium as the scalar completed step.
+      return {AtmosphereStatus::Success, 0, 0.,
+              environment.atmosphere_layers[0].density_parameter_a};
+    }
     double radial[3]{};
     auto const radius_m =
         radiusVector(environment, position_m, radial);
@@ -342,6 +391,18 @@ namespace corsika::gpu::em {
     if (layer_query.status != AtmosphereStatus::Success) {
       return {layer_query.status, -1, 0., 0.};
     }
+    if (environment.geometry ==
+        EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+      auto const interval = geometry_detail::clipConvexRay(
+          environment.convex_planes, environment.number_of_convex_planes,
+          position_m[0], position_m[1], position_m[2], direction[0],
+          direction[1], direction[2], environment.convex_boundary_tolerance_m);
+      if (!interval.intersects || !finite(interval.exit_m) ||
+          interval.exit_m < 0.) {
+        return {AtmosphereStatus::NoForwardIntersection, 0, 0., 0.};
+      }
+      return {AtmosphereStatus::Success, 0, interval.exit_m, 0.};
+    }
     auto const& layer =
         environment.atmosphere_layers[layer_query.layer_index];
     auto const inner_radius_m = layer.inner_radius_m;
@@ -382,6 +443,18 @@ namespace corsika::gpu::em {
         !finite(distance_m) || distance_m < 0. ||
         !normalized(direction)) {
       return {AtmosphereStatus::NonFiniteInput, 0, 0.};
+    }
+    if (environment.geometry ==
+        EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+      for (int axis = 0; axis < 3; ++axis)
+        if (!finite(position_m[axis]))
+          return {AtmosphereStatus::NonFiniteInput, 0, 0.};
+      auto const value = environment.atmosphere_layers[0].density_parameter_a *
+                         distance_m * 100.;
+      return finite(value)
+                 ? AtmosphereGrammageQuery{AtmosphereStatus::Success, 0, value}
+                 : AtmosphereGrammageQuery{AtmosphereStatus::GrammageOutOfRange,
+                                          0, 0.};
     }
     double radial[3]{};
     auto const radius_m =
@@ -431,6 +504,19 @@ namespace corsika::gpu::em {
         !finite(grammage_g_per_cm2) ||
         grammage_g_per_cm2 < 0. || !normalized(direction)) {
       return {AtmosphereStatus::NonFiniteInput, 0, 0.};
+    }
+    if (environment.geometry ==
+        EnvironmentGeometry::HomogeneousConvexPolyhedron) {
+      for (int axis = 0; axis < 3; ++axis)
+        if (!finite(position_m[axis]))
+          return {AtmosphereStatus::NonFiniteInput, 0, 0.};
+      auto const value = grammage_g_per_cm2 /
+                         (environment.atmosphere_layers[0].density_parameter_a *
+                          100.);
+      return finite(value)
+                 ? AtmosphereGrammageQuery{AtmosphereStatus::Success, 0, value}
+                 : AtmosphereGrammageQuery{AtmosphereStatus::GrammageOutOfRange,
+                                          0, 0.};
     }
     double radial[3]{};
     auto const radius_m =

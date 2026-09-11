@@ -40,6 +40,7 @@ namespace corsika {
   inline void EnergyLossWriter<TOutput>::startOfLibrary(
       boost::filesystem::path const& directory) {
     TOutput::startOfLibrary(directory);
+    summary_.open(directory);
   }
 
   template <typename TOutput>
@@ -85,11 +86,11 @@ namespace corsika {
         profile_[iMaximum + 2].at(static_cast<int>(dEdX_output::ProfileIndex::Total)) /
             1_GeV);
 
-    summary_["shower_" + std::to_string(showerId)]["sum_dEdX"] = getEnergyLost() / 1_GeV;
-    summary_["shower_" + std::to_string(showerId)]["sum_dEdX_em"] =
+    summary_.event(showerId)["sum_dEdX"] = getEnergyLost() / 1_GeV;
+    summary_.event(showerId)["sum_dEdX_em"] =
         electromagneticEnergyLost_ / 1_GeV;
-    summary_["shower_" + std::to_string(showerId)]["Xmax"] = Xmax;
-    summary_["shower_" + std::to_string(showerId)]["dEdXmax"] = dEdXmax;
+    summary_.event(showerId)["Xmax"] = Xmax;
+    summary_.event(showerId)["dEdXmax"] = dEdXmax;
 
     int iRow{0};
     for (dEdX_output::Profile const& row : profile_) {
@@ -99,6 +100,7 @@ namespace corsika {
     }
 
     TOutput::endOfShower(showerId);
+    summary_.flush();
   }
 
   template <typename TOutput>
@@ -265,7 +267,7 @@ namespace corsika {
   template <typename TOutput>
   inline YAML::Node EnergyLossWriter<TOutput>::getSummary() const {
 
-    return summary_;
+    return summary_.snapshot();
   }
 
 } // namespace corsika

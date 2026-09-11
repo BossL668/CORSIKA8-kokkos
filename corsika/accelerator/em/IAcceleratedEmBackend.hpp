@@ -11,10 +11,12 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <vector>
 
 #include <corsika/accelerator/em/AcceleratorKind.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/detail/SubshowerCallbacks.hpp>
 
 namespace corsika::accelerator::em {
 
@@ -55,6 +57,16 @@ namespace corsika::accelerator::em {
     virtual std::size_t maximumResidentInputBatchSize() const = 0;
     virtual std::size_t pendingPhotonCount() const noexcept = 0;
     virtual std::size_t pendingLeptonCount() const noexcept = 0;
+
+    // Opt-in air cooperative protocol. Single endpoints retain the synchronous
+    // wavefront API unchanged. All callbacks execute on the calling thread.
+    virtual bool independentSubshowersEnabled() const noexcept { return false; }
+    virtual bool independentSubshowersReady() const noexcept { return false; }
+    virtual std::size_t advanceIndependentSubshowers(
+        std::vector<gpu::em::EmParticleState> const&,
+        detail::SubshowerCallbacks const&) {
+      throw std::logic_error("Independent subshowers are unavailable on this backend");
+    }
 
     virtual gpu::em::ResidentPhotonCascadeResult runPhotonWavefront(
         std::vector<gpu::em::EmParticleState> const&,

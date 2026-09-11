@@ -26,5 +26,9 @@ cmake --build "$c8_build" --parallel "$c8_jobs" --target \
 if [[ -f "$c8_build/modules/fluka/libflukahp-norndm.a" ]]; then
   cmake --build "$c8_build" --parallel "$c8_jobs" --target fluka_batch_worker
 fi
+if grep -q '^CORSIKA_BUILD_MOUNTAIN_APPLICATION:BOOL=ON$' "$c8_build/CMakeCache.txt" &&
+   grep -q '^WITH_FLUKA:[^=]*=ON$' "$c8_build/CMakeCache.txt"; then
+  cmake --build "$c8_build" --parallel "$c8_jobs" --target c8_mountain_neutrino
+fi
 cmake --install "$c8_build"
 echo "Experimental dual executable: $c8_install/bin/c8_air_shower"

@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/output/ShowerSummary.hpp>
+
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
@@ -140,6 +142,10 @@ namespace corsika {
      */
     YAML::Node getSummary() const override;
 
+    void writeSummary(boost::filesystem::path const& path) const override {
+      summary_.writeSummary(path);
+    }
+
     /**
      * Return the configuration of this output.
      */
@@ -159,7 +165,7 @@ namespace corsika {
     GrammageType const dX_;        ///< binning of profile.
     size_t const nBins_;           ///< number of profile bins.
     std::vector<production_profile::ProfileData> profile_; // longitudinal profile
-    YAML::Node summary_;
+    ShowerSummary summary_;
   };
 
 } // namespace corsika

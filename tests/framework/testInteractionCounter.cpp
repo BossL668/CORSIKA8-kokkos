@@ -112,6 +112,20 @@ TEST_CASE("InteractionCounter captures worker-capable final state",
   CHECK(
       counted.getEnergyLedgerStatistics()
           .audited_interactions == 0);
+  counted.releaseTimingSamples();
+  CHECK(counted.getTimingSamples().empty());
+  CHECK(counted.getTimingSamples().capacity() == 0);
+  CHECK(counted.getCount() == 1);
+  CHECK(counted.getEnergyLedgerStatistics().deferred_interactions == 1);
+  auto const accumulated_time = counted.getTotalFinalStateTimeMs();
+  counted.doInteraction(
+      output, Code::Proton, Code::Oxygen,
+      {10_GeV, {rootCS, {0_GeV, 0_GeV, 9_GeV}}},
+      {Oxygen::mass, {rootCS, {0_GeV, 0_GeV, 0_GeV}}});
+  REQUIRE(counted.getTimingSamples().size() == 1);
+  CHECK(counted.getTimingSamples().front().sequence_id == 1);
+  CHECK(counted.getCount() == 2);
+  CHECK(counted.getTotalFinalStateTimeMs() >= accumulated_time);
 }
 
 TEST_CASE("InteractionCounter", "process") {

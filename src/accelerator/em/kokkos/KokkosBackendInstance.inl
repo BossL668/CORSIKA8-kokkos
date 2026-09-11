@@ -103,6 +103,54 @@ namespace corsika::accelerator::em::detail {
     std::optional<gpu::em::GpuFirstInteractionSnapshot>
   downloadFirstInteractionSnapshot() override;
     KokkosRuntimeInfo const& runtimeInfo() const noexcept override;
+    void setCooperativeProgress(std::function<bool()> progress) override {
+      impl_->cooperative_wait_.progress = std::move(progress);
+    }
+    void setCooperativePendingInputLimit(std::size_t count) override {
+      impl_->cooperative_pending_limit_ = count;
+    }
+    void prepareCooperativeWorkspace() override {
+      impl_->requireInitialized();
+      bool const projected = impl_->profile_projection_.enabled() &&
+                             !impl_->profile_accumulator_.enabled();
+      kokkos_detail::reserveResidentArenas(
+          impl_->maximum_resident_batch_size_, impl_->photon_workspace_,
+          impl_->lepton_workspace_, impl_->radio_accumulator_, projected,
+          impl_->execution_);
+      impl_->pending_photons_.ensureTailCapacity(
+          impl_->maximum_pending_particles_, impl_->maximum_pending_particles_,
+          impl_->execution_);
+      impl_->pending_leptons_.ensureTailCapacity(
+          impl_->maximum_pending_particles_, impl_->maximum_pending_particles_,
+          impl_->execution_);
+      impl_->execution_.fence("prepare bounded cooperative endpoint workspace");
+      impl_->refreshDeviceMemoryStatistics();
+    }
+    std::vector<gpu::em::EmParticleState> takeCooperativePending(
+        bool photons, std::size_t count) override {
+      auto& queue = photons ? impl_->pending_photons_ : impl_->pending_leptons_;
+      auto result = queue.downloadPrefix(count, impl_->execution_);
+      queue.consume(count);
+      return result;
+    }
+    FixedProfileSnapshot downloadFixedProfile(
+        std::string const& identity, CooperativeEndpoint endpoint) override {
+      auto result = impl_->profile_accumulator_.downloadFixed(
+          identity, endpoint, impl_->execution_);
+      auto decoded = decodeFixedProfile(result);
+      impl_->statistics_.profile.steps = decoded.steps;
+      impl_->statistics_.profile.deposited_steps = decoded.deposited_steps;
+      impl_->statistics_.profile.fixed_point_overflows = decoded.fixed_point_overflows;
+      impl_->statistics_.profile.invalid_records = decoded.invalid_records;
+      return result;
+    }
+    radio::detail::FixedRadioSnapshot downloadFixedRadio(
+        std::string const& identity, CooperativeEndpoint endpoint) override {
+      auto result = impl_->radio_accumulator_.downloadFixed(
+          identity, endpoint, impl_->execution_);
+      impl_->statistics_.radio = impl_->radio_accumulator_.statistics();
+      return result;
+    }
    private:
     class Impl;
     std::unique_ptr<Impl> impl_;
@@ -119,6 +167,9 @@ namespace corsika::accelerator::em::detail {
         throw std::logic_error("Kokkos EM backend is not initialized");
       }
     }
+
+    kokkos_detail::ResidentExecutionWait<BackendExecutionSpace> cooperative_wait_;
+    std::size_t cooperative_pending_limit_{std::numeric_limits<std::size_t>::max()};
 
     std::uint64_t interactionHashForPid(std::int32_t const pid) const {
       auto const found = std::find_if(
@@ -994,14 +1045,14 @@ namespace corsika::accelerator::em::detail {
       throw std::length_error(
           "Kokkos photon input exceeds the advertised resident batch limit");
     auto const retain_cross_species = impl_->config_.resident_cross_species;
-    auto const pending_photon_input =
+    auto const pending_photon_input = std::min(
         retain_cross_species
             ? std::min(
                   impl_->pending_photons_.size(),
                   particles.size() < impl_->maximum_resident_batch_size_
                       ? impl_->maximum_resident_batch_size_ - particles.size()
                       : std::size_t{})
-            : std::size_t{};
+            : std::size_t{}, impl_->cooperative_pending_limit_);
     auto const pending_leptons_before = impl_->pending_leptons_.size();
     auto resident = kokkos_detail::runResidentPhotonCascade(
         impl_->physics_context_.deviceView(), particles,
@@ -1019,7 +1070,7 @@ namespace corsika::accelerator::em::detail {
         pending_photon_input, impl_->maximum_pending_particles_,
         impl_->execution_, impl_->config_.diagnostic_interaction_records,
         impl_->tuning_.parameters.chunk_size,
-        impl_->residentMemoryGate());
+        impl_->residentMemoryGate(), &impl_->cooperative_wait_);
     if (resident.input_particles !=
         pending_photon_input + particles.size())
       throw std::logic_error(
@@ -1252,14 +1303,14 @@ namespace corsika::accelerator::em::detail {
       throw std::length_error(
           "Kokkos lepton input exceeds the advertised resident batch limit");
     auto const retain_cross_species = impl_->config_.resident_cross_species;
-    auto const pending_lepton_input =
+    auto const pending_lepton_input = std::min(
         retain_cross_species
             ? std::min(
                   impl_->pending_leptons_.size(),
                   particles.size() < impl_->maximum_resident_batch_size_
                       ? impl_->maximum_resident_batch_size_ - particles.size()
                       : std::size_t{})
-            : std::size_t{};
+            : std::size_t{}, impl_->cooperative_pending_limit_);
     auto const pending_photons_before = impl_->pending_photons_.size();
     auto resident = kokkos_detail::runResidentLeptonCascade(
         impl_->physics_context_.deviceView(),
@@ -1284,7 +1335,8 @@ namespace corsika::accelerator::em::detail {
         impl_->execution_, impl_->config_.diagnostic_interaction_records,
         impl_->tuning_.parameters.chunk_size,
         impl_->residentMemoryGate(),
-        impl_->automatic_gpu_capacity_ ? impl_->maximum_resident_batch_size_ : 0);
+        impl_->automatic_gpu_capacity_ ? impl_->maximum_resident_batch_size_ : 0,
+        &impl_->cooperative_wait_);
     if (resident.input_particles !=
         pending_lepton_input + particles.size())
       throw std::logic_error(

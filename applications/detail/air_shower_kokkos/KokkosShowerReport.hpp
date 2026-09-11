@@ -454,6 +454,61 @@ namespace corsika::applications::air_shower {
             backend_stats.accelerator_host_threads;
         accelerator["gpu"] = backend_stats.accelerator_gpu;
         accelerator["openmp"] = backend_stats.accelerator_openmp;
+        if (backend_stats.cooperative.enabled) {
+          auto cooperative = accelerator["cooperative"];
+          auto const& c = backend_stats.cooperative;
+          cooperative["experimental"] = true;
+          if (c.adaptive_policy) {
+            cooperative["scheduling_policy"] = "adaptive-v3-service-budget";
+            cooperative["adaptive_migration_ms"] = c.adaptive_migration_ms;
+            for (unsigned e=0;e<2;++e) for (unsigned k=0;k<2;++k) {
+              auto channel=cooperative["adaptive"][e==0?"cuda":"openmp"][k==0?"photon":"lepton"];
+              channel["records_per_ms"] = c.adaptive_records_per_ms[e][k];
+              channel["observations"] = c.adaptive_observations[e][k];
+              channel["wave_limit"] = c.adaptive_wave_limit[e][k];
+            }
+          }
+          cooperative["independent_drivers"] = c.independent_drivers;
+          cooperative["independent_subshowers"] = c.independent_subshowers;
+          cooperative["subshower_cuda_submissions"] = c.subshower_cuda_submissions;
+          cooperative["subshower_cuda_commits"] = c.subshower_cuda_commits;
+          cooperative["subshower_openmp_epochs"] = c.subshower_openmp_epochs;
+          cooperative["maximum_host_epochs_per_cuda_job"] = c.maximum_host_epochs_per_cuda_job;
+          cooperative["subshower_tail_migrations"] = c.subshower_tail_migrations;
+          cooperative["subshower_proactive_refills"] = c.subshower_proactive_refills;
+          cooperative["subshower_inflight_waiting_migrations"] = c.subshower_inflight_waiting_migrations;
+          cooperative["subshower_inflight_waiting_particles"] = c.subshower_inflight_waiting_particles;
+          cooperative["subshower_cuda_epoch_reductions"] = c.subshower_cuda_epoch_reductions;
+          cooperative["subshower_gpu_lepton_wave_limit"] = c.subshower_gpu_lepton_wave_limit;
+          cooperative["subshower_initial_host_share"] = c.subshower_initial_host_share;
+          cooperative["subshower_maximum_cuda_epoch_ms"] = c.subshower_maximum_cuda_epoch_ms;
+          cooperative["subshower_host_queue_peak_bytes"] = c.subshower_host_queue_peak_bytes;
+          cooperative["subshower_requeued_spill_particles"] = c.subshower_requeued_spill_particles;
+          cooperative["subshower_cross_endpoint_spill_particles"] = c.subshower_cross_endpoint_spill_particles;
+          cooperative["coordinator_idle_wait_ms"] = c.coordinator_idle_wait_ms;
+          cooperative["cuda_result_service_delay_ms"] = c.cuda_result_service_delay_ms;
+          cooperative["independent_joint_calls"] = c.independent_joint_calls;
+          cooperative["cuda_driver_wall_ms"] = c.cuda_driver_wall_ms;
+          cooperative["joint_wall_ms"] = c.joint_wall_ms;
+          cooperative["endpoint_window_overlap_ms"] = c.endpoint_window_overlap_ms;
+          cooperative["cuda_finished_before_host_ms"] = c.cuda_finished_before_host_ms;
+          cooperative["host_finished_before_cuda_ms"] = c.host_finished_before_cuda_ms;
+          cooperative["cuda_input_particles"] = c.cuda_input_particles;
+          cooperative["openmp_input_particles"] = c.openmp_input_particles;
+          cooperative["openmp_slices"] = c.openmp_slices;
+          cooperative["slices_while_cuda_pending"] = c.slices_while_cuda_pending;
+          cooperative["oversized_slices_2ms"] = c.oversized_slices;
+          cooperative["openmp_wall_ms"] = c.openmp_wall_ms;
+          cooperative["openmp_while_cuda_pending_ms"] = c.openmp_while_cuda_pending_ms;
+          cooperative["maximum_slice_ms"] = c.maximum_slice_ms;
+          cooperative["migration_bytes"] = c.migration_bytes;
+          cooperative["photon_calls"] = c.photon_calls;
+          cooperative["lepton_calls"] = c.lepton_calls;
+          cooperative["openmp_batch_target"] = c.openmp_batch_target;
+          cooperative["openmp_workspace_bytes"] = c.openmp_workspace_bytes;
+          cooperative["overlap_timing_semantics"] =
+              "Independent host-driver call window intersection; not measured kernel-overlap time";
+        }
         auto tuning = accelerator["tuning"];
         tuning["cache_matched"] = backend_stats.tuning_cache_matched;
         tuning["cache_required"] = backend_stats.tuning_cache_required;
