@@ -2,6 +2,10 @@
 
 [中文安装与使用手册](README_CN.md)
 
+**Use the [`kokkos-beta5` branch](https://github.com/BossL668/corsika8-gpu-hybrid/tree/kokkos-beta5).**
+The repository's default GitHub page currently opens the older `cuda-em-refactor`
+branch. Its build instructions are not beta5 instructions.
+
 A standalone CORSIKA-based application for atmospheric particle showers and
 CoREAS/ZHS radio signals. The same Kokkos electromagnetic-transport and radio
 sources are compiled for multicore CPUs or supported GPUs. This is a research
@@ -13,6 +17,26 @@ After the common setup, choose an independent backend or the new single-binary
 experiment. OpenMP is the simplest CPU-only starting point; NVIDIA users can
 proceed directly to section 8.2 for the combined executable. HIP/SYCL setup is
 described separately and still needs target-hardware acceptance.
+
+### Reading order
+
+1. [Capabilities and architecture](#1-what-the-program-does).
+2. [Empty environment](#3-prepare-an-empty-development-environment),
+   [source and dependencies](#4-obtain-complete-source-and-configure-conan),
+   [licensed physics models](#5-prepare-physics-models): common to every build.
+3. [OpenMP build](#6-build-openmp-first-no-gpu-required) and
+   [first shower](#7-run-the-first-complete-example), or
+   [NVIDIA and combined builds](#8-add-nvidia-cuda).
+4. [Run options](#9-minimal-commands-and-important-parameters),
+   [HIP/SYCL](#10-hipsycl-on-matching-hardware),
+   [tests and troubleshooting](#11-tests-updates-and-troubleshooting).
+5. Optional: [terrain setup and first run](documentation/terrain_getting_started.md),
+   [documentation map and validation status](documentation/USER_GUIDE_INDEX.md).
+
+Commands without a shell prompt can be copied. Follow one backend route, not all
+routes at once. Shell variables shown below are examples; no developer's local
+directory or previous installation is required. Dated validation notes describe
+their recorded revision; they do not replace this installation guide.
 
 ## 1. What the program does
 
@@ -248,6 +272,15 @@ Obtain repository access and configure GitHub authentication before cloning.
 The beta2 and beta4 branches remain separate; do not use the default branch
 as a substitute for beta5.
 
+For HTTPS, use a credential manager or, if GitHub CLI is installed,
+`gh auth login --hostname github --git-protocol https --web` followed by
+`gh auth setup-git`. If Git prompts for a password, GitHub requires an authorized
+personal access token, not your account password. Alternatively configure an
+authorized SSH key and replace only the clone URL with
+`git@github.com:BossL668/corsika8-gpu-hybrid.git`. Never put a token in a URL,
+script or README. Authentication alone does not grant access to this private
+repository. See [GitHub authentication](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github).
+
 ```bash
 mkdir -p "$HOME/corsika-21cma-kokkos-beta5"
 cd "$HOME/corsika-21cma-kokkos-beta5"
@@ -260,6 +293,12 @@ test -f modules/data/CMakeLists.txt
 test -f resources/GeoMag/IGRF14.COF
 git submodule status --recursive
 ```
+
+If the clone already exists, first inspect `git status` and
+`git branch --show-current`; do not clone over it. Missing submodules can be
+initialized with `git submodule update --init --recursive`. A leading `-` in
+submodule status indicates an uninitialized module; a leading `+` means it does
+not match the revision pinned by this checkout.
 
 The model data and optional CONEX source are pinned upstream submodules, not
 large files duplicated in the beta5 repository. Their absolute URLs also work
@@ -401,6 +440,33 @@ completion summaries and Parquet readability before launching larger campaigns.
 Equal seeds do not guarantee bitwise-identical CPU/OpenMP/GPU shower trees;
 process-level and ensemble acceptance are separate requirements.
 
+| Output family | What to check |
+|---|---|
+| `profile`, `particles` | Longitudinal components and observation-particle records; inspect Parquet schema and shower IDs |
+| `energyloss` | Check individual categories: total bookkeeping can include cut/invisible energy, not just calorimetric deposition |
+| `CoREAS`, `ZHS` | Observer positions, time axis, units and edge samples before interpreting a pulse |
+| `gpu_em` | Actual execution space, native-table identity, transport/fallback counters and completion |
+| `simulation_timing` | Timing scope and event identity; do not mix kernel-only and wall-clock measurements |
+
+For a first readable-data check (optional analysis packages):
+
+```bash
+python -m pip install pandas pyarrow scipy matplotlib
+python - <<'PY'
+from pathlib import Path
+import pyarrow.parquet as pq
+root = Path.home() / "CorsikaData/first_photon_openmp"
+files = sorted(root.rglob("*.parquet"))
+assert files, "No Parquet files: inspect the run log and output path"
+for path in files:
+    data = pq.ParquetFile(path)
+    print(path.relative_to(root), data.metadata.num_rows, data.schema.names)
+PY
+```
+
+This reads file metadata, not a whole shower into memory. Empty tables can be
+physical at low energy. Readability alone does not establish physical acceptance.
+
 ## 8. Add NVIDIA CUDA
 
 **Only execute this section where GPU use is permitted.** CPU-only users can stop
@@ -491,8 +557,10 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
 If the script is absent, obtain a source revision containing the dual-backend
 experiment. Do not substitute `build_kokkos.sh openmp,cuda`: that builds **two**
 independent executables. The dual helper installs its own dependency graph,
-configures `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`, compiles both EM/radio instances,
-then installs to `../install/cuda-openmp`; existing installs are not overwritten.
+configures `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`, compiles both EM/radio instances
+and all configured build products before the global install, then installs to
+`../install/cuda-openmp`; independent installs are not overwritten. Like the
+independent helper, it can also compile tests and optional interface libraries.
 
 **Target architecture is explicit for this helper.** Unlike `build_kokkos.sh
 cuda`, it does not query the GPU to select an architecture: the default is
@@ -567,57 +635,38 @@ launcher's `--backend` to the application; the separate **probe** has its own
 
 ## 9. Minimal commands and important parameters
 
-An opt-in air-shower **cooperative** experiment also accepts
-`--kokkos-execution cuda-openmp`. Its independent CUDA driver and OpenMP
-coordinator reuse the same endpoint physics. The new independent-subshower
-queues keep descendants on their endpoint and consume only ready CUDA results;
-OpenMP can advance multiple epochs without a paired-batch join. Scalar fallback
-and final checked integer profile/radio merging remain coordinator-owned.
-This is separate from the single-endpoint modes above, is not a production
-default, and does not apply to mountain transport. The isolated build, regression
-results and performance limitations are documented in the
-[independent-subshower test record](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md).
+### 9.1 Optional cooperative air execution
 
-The combined air-shower executable now also accepts **`openmp-cuda`**, an
-experimental CPU-primary policy. `cuda-openmp` without an explicit policy keeps
-the existing GPU-primary independent queues, including measured-throughput
-allocation; it is not a fixed split. `openmp-cuda` protects CPU batch capacity
-and gives the GPU auxiliary work. The current `cpu-primary-v2-simple` policy
-keeps each endpoint's full arena capacity and learns only the input allocation
-share from measured throughput. It rebalances at idle, safe boundaries; it
-does not predict completion times or shrink input capacity from the rate ratio.
-Neither mode promises continuous saturation of both endpoints. Both transport
-EM and accumulate CoREAS/ZHS on their respective endpoints, using the same
-physics kernels; hadronic generators remain scalar.
+Only the combined executable accepts `cuda-openmp` (GPU-primary) and
+`openmp-cuda` (CPU-primary). Both endpoints use shared EM/radio physics with
+independent subshower queues; the coordinator owns scalar fallback and final
+checked profile/radio merging. This is not hadronic parallelism and is not the
+terrain scheduler. It is opt-in, not a default or a guaranteed speed-up.
 
-After building the updated combined executable (not the normal launcher):
+After sections 3–5 and 8.2, from the project container directory:
 
 ```bash
-# GPU primary; OpenMP independently processes its assigned subshowers.
-install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
+install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos --radio-backend kokkos \
-  --kokkos-execution cuda-openmp --kokkos-num-threads 20 \
-  --antenna-file antennas.txt -f output_gpu_primary
-
-# CPU primary; same executable and physics parameters, GPU auxiliary.
-install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
-  --em-backend kokkos --radio-backend kokkos \
-  --kokkos-execution openmp-cuda --kokkos-num-threads 130 \
-  --antenna-file antennas.txt -f output_cpu_primary
+  --kokkos-execution cuda-openmp --kokkos-num-threads 4 \
+  -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_cooperative" \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 ```
 
-Use a thread count available on the machine. The order in the execution name
-selects scheduling priority, not a different Kokkos physics implementation.
-`--hadronic-workers > 1` and `openmp-cuda` with the separate experimental
-`--kokkos-cooperative-policy adaptive` are rejected. CPU-primary mode still
-requires a working NVIDIA GPU; GPU-free servers should use standalone OpenMP.
-The selected five-seed pilots are complete (local GPU-primary, PSR CPU-primary),
-but neither has demonstrated a net speed-up. PSR CPU-primary shows reduced
-effective OpenMP throughput; preserving arena capacity alone did not preserve
-standalone performance, and the cause still needs isolated profiling. These remain experimental
-options, and no installed binary or default is automatically replaced. See the
-[v1 comparison](documentation/cuda_em_refactor/beta5_priority_endpoints_v1_20260912_CN.md)
-and [simplified policy and acceptance status](documentation/cuda_em_refactor/beta5_priority_endpoints_v2_simple_20260912_CN.md).
+For CPU-primary scheduling replace only `cuda-openmp` with `openmp-cuda` and
+choose a new output directory. Keep `--hadronic-workers` at its default 1.
+Use only allocated CPU threads and a working NVIDIA device. CPU-primary cannot
+be combined with `--kokkos-cooperative-policy adaptive`. Small pilots do not
+measure high-energy performance; test matched physics settings and time scopes
+on the actual hardware before choosing a policy.
+
+The [independent-queue record](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md)
+and [CPU-priority pilot](documentation/cuda_em_refactor/beta5_priority_endpoints_v2_simple_20260912_CN.md)
+describe specific revisions/hardware. Neither a successful compile nor an older
+pilot establishes present-day performance or statistical acceptance after a
+physics fix. Dynamic scheduling does not promise an identical tree for equal seeds.
+
+### 9.2 Single-endpoint and scalar reference commands
 
 From the project container directory:
 
@@ -653,7 +702,7 @@ YAML or `.c8emrt` file is needed for this application.
 | `--emthin`, `--max-weight` | `1e-6` / `0` (derive maximum weight automatically) |
 | `--emcut` | Kinetic-energy cut, 0.0005 GeV |
 | `--geomagnetic-model`, `--geomagnetic-year` | IGRF14 / 2027 |
-| `--kokkos-num-threads N` | OpenMP threads; GPU rejects values above 1 |
+| `--kokkos-num-threads N` | OpenMP/cooperative threads; single-GPU execution rejects values above 1 |
 | `--kokkos-device N` | One GPU index, not multi-GPU execution |
 | `--gpu-min-batch` | 4096, not a shower count |
 | `--gpu-memory-fraction` | 0.70 budget ceiling, not a fill target |
@@ -788,93 +837,67 @@ Editing README does not update binaries. Do not move old CMake caches to a new
 machine. Reusing prebuilt Pythia/TAUOLA is an advanced same-version/ABI option,
 not a fresh-install prerequisite.
 
+For a clean, unmodified beta5 checkout, update from the remote that owns this
+branch (a fresh clone names it `origin`):
+
+```bash
+cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+git status --short
+git branch --show-current
+# Continue only on kokkos-beta5 after preserving any local changes:
+git pull --ff-only origin kokkos-beta5
+git submodule update --init --recursive
+conan export third_party/conan/cubicinterpolation
+conan export third_party/conan/proposal
+conan export dependencies/kokkos
+C8_BUILD_JOBS=1 bash tools/build_kokkos.sh openmp -DWITH_FLUKA=ON
+```
+
+Replace the last command with the helper/flags for your installation, preserving
+optional mountain flags. Do not update an executable while a campaign is using
+it; retain the old binary, configuration and data as a separately labelled
+baseline. A compiler, architecture or backend change needs a new build tree,
+not a cache copied from another machine. Keep output on a disk with sufficient
+space; caches and build products are separate from irreplaceable results.
+
 Implementation history and audits are separate from this guide:
 [source boundaries and validation](documentation/BETA5_EXTRACTION_CN.md),
 [launcher audit](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md).
 Core license: [LICENSE](LICENSE); model/dependency licenses remain separate.
 Do not commit FLUKA, build products, caches or private simulation data.
 
-## Independent finite-mountain example
+## 12. Optional terrain and neutrino applications
 
-The optional `c8_mountain_neutrino` application reuses beta5's Kokkos EM transport
-and CoREAS/ZHS accumulation in a finite convex, homogeneous SiO₂ volume. It has
-separate YAML configuration and does not replace the atmospheric application.
-It requires FLUKA and offers scalar PROPOSAL or Kokkos execution. The first
-version is CC-only with an absorbing exterior and internal-observer radio;
-it does not model rock-air radio propagation or provide neutrino event-rate
-weights. This integration is not a claim of completed large-sample validation.
-See the [application guide and examples](documentation/mountain_neutrino_user_guide_CN.md)
-and [reusable geometry API](documentation/mountain_geometry_CN.md).
+The air application above is not a DEM navigator. beta5 provides separate
+executables, disabled in the default application build:
 
-One-command geographic preparation is available from the source directory:
+| Executable | Role |
+|---|---|
+| `c8_terrain_environment` | Validate a closed DEM mesh, antennas and native USStdBK atmospheric embedding |
+| `c8_terrain_cascade` | Multi-material terrain/air transport, CPU neutrino/hadronic modules and Kokkos EM; optional interface CoREAS/ZHS |
+| `c8_mountain_neutrino` | Older finite convex-volume example with different configuration and boundary semantics |
 
-```bash
-conda activate corsika_venv
-python -m pip install ./python
-c8-terrain --bounds 86.700 42.930 86.710 42.940 \
-  --output "$HOME/CorsikaData/terrain/demo"
-```
+Use the **[step-by-step terrain installation and first run](documentation/terrain_getting_started.md)**
+([中文](documentation/terrain_getting_started_CN.md)). It covers the additional
+FLUKA headers, CMake flag, Python installation, DEM preparation, geographic
+antennas, native geometry validation and a small shower. No separate mountain
+repository or pre-existing `build/external` is required.
 
-This reuses the migrated mountain modules to download/cache DEM and geoid data,
-construct a closed local mesh and emit `terrain/scene.yaml` for native USStdBK
-five-layer atmosphere embedding. Without antenna input, only a **demonstration
-observer** at the region centre, 1 m above the mesh, is created. Supply
-`--antennas-csv FILE` or `--station-directory DIR` for real stations.
-`--estimate-only` does not download; `--offline` requires verified caches.
-Use `--check-with /path/to/c8_terrain_environment` for native geometry admission;
-`--run --application /path/to/c8_terrain_cascade -- ...` explicitly forwards
-CPU/Kokkos transport arguments. The C++ applications must be built separately.
-The finite local terrain defaults to SiO₂ and is restricted to 0–7 km ASL; it is
-not a global solid Earth model. It does not enable cross-interface radio. See the
-[workflow, commands and measured checks](documentation/terrain_preparation_workflow_CN.md)
-and [21CMA preparation template](configs/mountain/terrain_region_21cma.yaml).
+The current DEM application has a resident material-interface session, separate
+PROPOSAL material banks, a local IGRF14/2027 air field and zero embedded field by
+default. It supports optional Kokkos interface radio; older notes saying that
+all DEM radio is disabled describe earlier revisions. The published radio path
+uses finite-order moments and a restricted propagation model, **not** a validated
+general full-wave solver or arbitrary multiple-interface ray tracer. Read the
+[radio implementation and limitations](documentation/interface_kokkos_radio_CN.md)
+before enabling it.
 
-The shower-only [two-sided material interface API](documentation/generic_material_interface_transport_CN.md)
-separates closed-mesh crossings, logical region IDs, native PROPOSAL material banks
-and HybridCascade routing. SiO₂ remains the terrain default; the application also
-accepts `Water` and `Ice`. Unsupported snapshots and conflicting calculator keys
-fail explicitly. This is not a multi-volume navigator or cross-interface radio model.
-
-The separate real-terrain migration now includes geographic DEM/antenna preparation,
-a native five-layer scene validator (`c8_terrain_environment`), a CPU/bounded
-Kokkos rock–air transport application (`c8_terrain_cascade`), and a geometry oracle
-(`c8_terrain_device_probe`). The transport application now uses separate native
-PROPOSAL banks for air and rock, with CPU neutrino/hadronic processing and explicit
-selected-process fallback. Small OpenMP/CUDA cases have been exercised.
-The application now defaults to uniform local IGRF14/2027 in air and zero field
-inside rock, with quadratic leapfrog/DEM boundary queries on CPU and Kokkos.
-`--magnetic-field none` retains the zero-field reference. Small magnetic-field
-integration tests pass; strict cross-backend floating-point track comparisons
-are not all within tolerance. **Radio remains disabled in this DEM application;
-cross-interface radio and ensemble physics acceptance are not complete.**
-Indexed shared-vertex straight intersections and curved-path midpoint auditing
-are now integrated; see the [million-query and 24-configuration regression, with two CUDA repeats](documentation/terrain_indexed_transport_acceptance_CN.md).
-Nonzero-curvature queries now use compensated original-vertex plane equations,
-stable quadratic roots and unpadded edge predicates; see the
-[curved-boundary fixes, real-DEM probe and acceptance limits](documentation/terrain_curved_boundary_acceptance_CN.md).
-See the [magnetic modules, application structure and acceptance limits](documentation/terrain_magnetic_application_validation_CN.md).
-The [2026-09-09 constants alignment](documentation/terrain_scalar_constants_alignment_CN.md)
-aligns the portable magnetic factor with the current scalar unit system and uses
-the transport mass consistently for DEM curvature. Outputs record the constants
-version; archived binaries and existing datasets are not changed automatically.
-The independent application does not
-replace the air-shower production program. See the
-[multi-material implementation, limits and validation](documentation/terrain_multimaterial_kokkos_transport_validation_CN.md) and the
-[migration scope, builds and validation record](documentation/terrain_native_scene_build_CN.md).
-The DEM application now admits all six neutrino flavors and charged muon/tau
-primaries, and retains taus at CC vertices for native transport and decay.
-See the [particle-support implementation and original-mountain pilot diagnostics](documentation/terrain_nutau_particle_support_CN.md).
-The subsequent [CC/NC, regeneration and polarization controls](documentation/terrain_neutrino_CC_NC_regeneration_polarization_CN.md)
-add competing CC+NC rates, NC-neutrino transport, regeneration history records and
-an explicit longitudinal tau-decay polarization control. This is **not complete
-neutrino-physics acceptance**: sub-10-TeV weak transport, CC spin-density transfer,
-matter depolarization and independent natural-regeneration flux validation remain
-outstanding. Cross-interface radio remains disabled in this DEM executable.
-The [original-module alignment and tests](documentation/terrain_original_neutrino_alignment_CN.md)
-add the upstream TAUOLA/Pythia decay switch to this DEM application, with TAUOLA
-as its default tau model, explicit RNG initialization and a conditioned high-energy
-boost. Use `--tau-decay-model pythia` for the previous decay path, or
-`--require-neutrino-model-coverage` to reject transported neutrinos outside the
-implemented weak-model domain. These changes do not modify the air application.
-The resident terrain session and logical-side boundary candidates now have OpenMP
-reference tests; see the [latest scope and PSR GPU validation blocker](documentation/terrain_resident_session_psr_validation_CN.md).
+CC/NC transport, tau decay and regenerated-neutrino routing are present within
+the implemented model domain. They do not establish complete low-energy weak
+physics, event-level CC polarization or material depolarization. Capability gates
+reject requests that the model cannot satisfy. Forced vertices are conditional
+diagnostics, not naturally sampled event rates. Terrain and air use different
+application-level geometry/output contracts; their CLI switches are not
+interchangeable, and air CUDA/OpenMP cooperation does not enable terrain
+cooperation. See the [documentation map](documentation/USER_GUIDE_INDEX.md) for
+module guides and version-specific validation records.

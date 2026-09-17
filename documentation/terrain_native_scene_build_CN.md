@@ -1,6 +1,9 @@
 # beta5 真实山体迁移：场景、CPU 参考与 Kokkos 几何
 
-日期：2026-09-08。状态：**真实场景底层已迁移并测试；完整 Kokkos 多介质 shower + 内外射电尚未接通，不能作为整链验收通过。**
+历史基线日期：2026-09-08。**以下功能状态和数值仅属于这一阶段。**
+当前安装请用[山体入门教程](terrain_getting_started_CN.md)，已发布射电范围见
+[界面射电说明](interface_kokkos_radio_CN.md)。历史阶段只完成真实场景底层迁移，
+当时尚未接通完整 Kokkos 多介质 shower + 内外射电，不能把它作为当前整链验收。
 
 后续更新：已新增 **B=0、无射电的有界 Kokkos 岩气输运**，并在本地小显存预算下实测。
 该阶段结果见[多介质输运验收](terrain_multimaterial_kokkos_transport_validation_CN.md)。
@@ -9,7 +12,7 @@
 2026-09-09 已补充 [一站式地形准备入口](terrain_preparation_workflow_CN.md)：
 `c8-terrain --bounds ...` 自动准备并导出 scene，可显式接入现有 CPU/Kokkos 应用；
 不再要求用户分别运行准备与 scene 导出命令。下文的旧命令仍兼容。
-下文是前一阶段历史记录，不代表新的输运功能仍未实现；跨界射电仍未接通。
+下文是前一阶段历史记录，不代表当前输运/射电功能仍未实现。
 
 这一阶段按照 `corsika8-mountain` 的实际实现迁移，不再用有限凸体代替 21CMA 山谷地形。此前有限凸体示例仍单独保留；它不是本页的真实 DEM 应用。
 
@@ -62,7 +65,12 @@ scene 导出删除旧均匀空气产品的 `air_world_radius_m` 和 `air_refract
 
 不能把“拓扑检查通过”解释为任意输入网格已经排除自相交。这里要求使用通过原地形准备检查的高度场闭合网格，或另行验证的输入。当前岩体全部顶点必须位于海拔 0–7 km；跨大气层的岩体拒绝，不静默截断。当前 scene 中的 80 站要求位于空气中；岩内 observer 的完整地形传播尚待后续接入。
 
-## 2. 构建与运行
+## 2. 历史构建与运行（不用于从零安装）
+
+以下命令与限制描述 2026-09-08 的迁移阶段，依赖当时已存在的工具链和测试路径。
+**新安装请用[当前教程](terrain_getting_started_CN.md)**，其中包含独立配方、FLUKA 头文件、
+完整构建/安装与首例运行。后续多介质、CC/NC 和射电功能见[文档导航](USER_GUIDE_INDEX.md)；
+本文“尚待完成”列表仅作为历史记录，不代表当前程序状态。
 
 先按 beta5 主 README 准备 conda、锁定依赖、许可内 FLUKA、Pythia8/TAUOLA。以下为**复用已有依赖**的独立验收构建，不替换生产 build/install。目录约定：
 
@@ -142,7 +150,8 @@ build/mountain-cuda/applications/c8_terrain_device_probe \
 - 保留原 `dem_agl` 地表上方 1 m 高度策略；这是 DEM 上的建模高度，不是已完成实测海拔校准的声明。
 - Python 迁移单测 **32 项通过**；环境输入门禁 **11 项通过**；`testTerrainEnvironment` 通过，含拓扑、五层密度、出入/重入边界、扁平 BVH 与边角射线。
 
-证据：[环境逐项比较](../../build/mountain-validation-20260908/environment_reference_comparison.yaml)、[输入门禁](../../build/mountain-validation-20260908/scene_gates.yaml)、[CTest](../../build/mountain-validation-20260908/terrain_ctest_final.log)。
+历史本地证据（不随 GitHub 分发）：上述结果根目录内的
+`environment_reference_comparison.yaml`、`scene_gates.yaml`、`terrain_ctest_final.log`。
 
 ### 真正执行的设备几何
 
@@ -158,7 +167,7 @@ build/mountain-cuda/applications/c8_terrain_device_probe \
 
 距离门限为 `1e-8 m + 1e-12 * |CPU 距离|`。73,905 个 BVH 节点，扁平几何占 **17,668,320 bytes**。这只是几何内存，不应拿它与完整 shower 的 70% 显存上限比较，也不把一次几何 kernel 计时宣传为 shower 加速比。
 
-证据：[OpenMP](../../build/mountain-validation-20260908/terrain_oriented_openmp_v2.yaml)、[CUDA](../../build/mountain-validation-20260908/terrain_oriented_cuda_v1.yaml)。
+历史本地证据：`terrain_oriented_openmp_v2.yaml`、`terrain_oriented_cuda_v1.yaml`。
 
 ### CPU 完整边界参考
 
@@ -175,9 +184,9 @@ build/mountain-cuda/applications/c8_terrain_device_probe \
 
 流式完整性检查（有限数值、正能量/权重、时间方向、单位方向、CSV/summary 计数与介质一致）
 使用 `validation/terrain/analyze_reference_runs.py`；结果见
-[CPU 轨迹验收](../../build/mountain-validation-20260908/terrain_cpu_track_acceptance.yaml)。
+历史本地 `terrain_cpu_track_acceptance.yaml`。
 此前有限凸体的四个测试加新增真实地形测试，本轮合计 **5/5 CTest 目标通过**，
-记录见 [CTest 汇总](../../build/mountain-validation-20260908/mountain_all_ctest_final.log)。
+记录见历史本地 `mountain_all_ctest_final.log`。这些路径不作为 GitHub 下载链接。
 
 两次未完成尝试也保留：`forced_coarse_v1` 因改变 cut 触发新缓存生成而停止；`forced_cached_v2` 在实际发展到 200 万步后触发诊断预算。没有把它们算作通过。后一份失败轨迹由约 693 MiB 压为约 221 MiB 的 `tracks.csv.gz`，可解压恢复。
 

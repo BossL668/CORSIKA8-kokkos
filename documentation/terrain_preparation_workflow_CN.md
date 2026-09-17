@@ -1,6 +1,8 @@
 # beta5 通用地形准备入口：经纬度 → DEM → 标准大气中的山体
 
-更新：2026-09-09。**本轮完成一站式准备与应用接线；不修改空气 shower、粒子物理或射电算法。**
+准备工具实测日期：2026-09-09；安装入口与功能说明核对：2026-09-17。
+从空环境开始请先看[当前山体完整教程](terrain_getting_started_CN.md)。
+第 6 节保留历史测量，不表示后续物理改动已经复用该验收。
 
 ## 1. 哪些已经存在，本轮新增了什么？
 
@@ -118,16 +120,16 @@ c8-terrain --config configs/mountain/terrain_region_21cma.yaml
 ## 4. 接入 C++ 应用
 
 先按主 README 配好合法 FLUKA、PROPOSAL/Kokkos 等依赖，再构建山体目标。
-独立构建步骤见[原生山体构建说明](terrain_native_scene_build_CN.md#2-构建与运行)，
+独立构建步骤见[当前山体构建说明](terrain_getting_started_CN.md#1-编译可选应用)，
 需 `CORSIKA_BUILD_MOUNTAIN_APPLICATION=ON`、`WITH_FLUKA=ON`。
-本轮复用已建的 `../build/mountain-openmp`，未覆盖空气生产 build/install。
+下面使用当前教程生成的 `../install/openmp/bin`，不再要求历史构建目录。
 
 准备时可直接调用 C++ 门禁，验证**实际** USStdBK 内嵌结果：
 
 ```bash
 c8-terrain --bounds 86.700 42.930 86.710 42.940 \
   --output "$HOME/CorsikaData/terrain/demo" \
-  --check-with ../build/mountain-openmp/applications/c8_terrain_environment
+  --check-with ../install/openmp/bin/c8_terrain_environment
 ```
 
 只准备场景不会启动 shower。先做一个空气向岩体入射的 2 MeV 光子小测试：
@@ -137,15 +139,16 @@ c8-terrain --bounds 86.700 42.930 86.710 42.940 \
 OMP_NUM_THREADS=2 OMP_PROC_BIND=false c8-terrain \
   --bounds 86.700 42.930 86.710 42.940 \
   --output "$HOME/CorsikaData/terrain/demo" --offline \
-  --run --application ../build/mountain-openmp/applications/c8_terrain_cascade -- \
+  --run --application ../install/openmp/bin/c8_terrain_cascade -- \
   --primary photon --energy-GeV 0.002 \
   --position-m 0 0 1 --direction 0 0 -1 \
-  --em-backend kokkos --threads 2 --device-memory-MiB 128 --batch 8 \
+  --em-backend kokkos --threads 2 --device-memory-MiB 512 --batch 8 \
+  --resident-capacity 256 \
   --output "$HOME/CorsikaData/terrain/photon_test"
 ```
 
 `--` 后参数原样交给应用；省略 `--em-backend kokkos` 则使用标量 PROPOSAL。
-使用 GPU 时选择已经编译的 `mountain-cuda` 应用、`--threads 1`、`--device 0`，
+使用 GPU 时选择已经编译的 `../install/cuda/bin/c8_terrain_cascade`、`--threads 1`、`--device 0`，
 不要给 OpenMP 可执行文件加参数后误认为会启动 GPU。
 准备工具不自动设置能量、注入点或后端，不静默回退。
 此处 ENU 原点在区域中心地表；其它场景应先核查注入位置。
@@ -153,7 +156,7 @@ OMP_NUM_THREADS=2 OMP_PROC_BIND=false c8-terrain \
 山体内强制 νe CC 示例可在上述场景中显式选择：
 
 ```bash
-../build/mountain-openmp/applications/c8_terrain_cascade \
+../install/openmp/bin/c8_terrain_cascade \
   --scene "$HOME/CorsikaData/terrain/demo/terrain/scene.yaml" \
   --primary nu_e --energy-GeV 10000 --force-vertex-cc \
   --position-m 0 0 -1 --direction 0 0 1 \
@@ -162,7 +165,8 @@ OMP_NUM_THREADS=2 OMP_PROC_BIND=false c8-terrain \
 ```
 
 这是一条使用说明命令，**本轮未将该高能事例作为已完成验收**。CC 顶点必须在岩体内部；
-当前 νe/anti-νe 模型能区 10⁴–10¹² GeV，不含 NC/完整 τ 再生，也不提供强制顶点事件率权重。
+当前已接通相应模型能区内的 CC/NC、τ 衰变与再生路由，但不提供强制顶点事件率权重，
+也不能声称完整弱物理/事件极化已验收。见[模型适用范围](terrain_original_neutrino_alignment_CN.md)。
 
 ## 5. 产物、复现与限制
 
@@ -200,8 +204,9 @@ Mapzen 或 GRAND 数据署名；Skadi 与 GRAND 数据不能未经核对称为�
   `--check-with` 或运行应用时做 native 层门禁，仅 Python 准备成功不等于 C++ 门禁通过。
 - 底面/侧壁是有限区域人工边界，应扩大范围与底面深度做收敛检查；默认 SiO₂ 不等于测得的岩石组分。
 - 大气使用 ASL；ECEF/IGRF 使用椭球高，保留已有球形大气与 WGS84 局部定位约定。
-- 空气 IGRF14/2027、岩内 B=0。**真实 DEM 应用射电仍关闭**，天线几何准备好不等于已实现山体内外折射射电。
-  有限凸体示例已有的内部射电不能冒充 DEM 整链射电。
+- 默认空气 IGRF14/2027、岩内 B=0。当前 DEM 应用可显式开启 Kokkos 界面射电，
+  但天线准备成功不等于传播近似、有限阶矩或时域波形已验收。
+  使用与限制见[当前界面射电说明](interface_kokkos_radio_CN.md)。
 
 ## 6. 本轮实测（2026-09-09）
 
@@ -226,10 +231,10 @@ Mapzen 或 GRAND 数据署名；Skadi 与 GRAND 数据不能未经核对称为�
 
 对应产物：`online/terrain/`、`21cma/terrain/`、`photon_cpu/`、`photon_kokkos128/`。
 `photon_kokkos/` 保留为 32 MiB 失败记录，不混入成功结果。
-图示：[地理位置与 ENU 阵列](../../build/terrain-prepare-validation-20260909/21cma/terrain/01_geographic_and_enu_array.png)、
-[闭合山体三维图](../../build/terrain-prepare-validation-20260909/21cma/terrain/02_terrain_mesh_and_antennas_3d.png)、
-[高度基准与净空](../../build/terrain-prepare-validation-20260909/21cma/terrain/03_height_datum_and_mesh_clearance.png)。
-这些链接指向本机验收构建目录，不随源码包分发；运行准备工具可重新生成。
+历史图位于上述本地结果根目录的 `21cma/terrain/`：
+`01_geographic_and_enu_array.png`、`02_terrain_mesh_and_antennas_3d.png`、
+`03_height_datum_and_mesh_clearance.png`。本机构建目录不随源码包分发，不作为 GitHub 下载链接；
+运行准备工具会在自己的输出目录生成对应图。
 Python 单测另有 26 条来自既有 pyproj/NumPy 单点转换的弃用警告，本轮没有修改该数学路径。
 独立 wheel 已构建并安装到 `corsika_venv`，其 SHA-256 为
 `84800915d20da29c485158d76776487f6faf1970dbd53e8814ec779360480716`。

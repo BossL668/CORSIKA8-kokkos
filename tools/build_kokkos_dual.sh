@@ -20,15 +20,10 @@ cmake -S "$c8_source" -B "$c8_build" \
   -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
   -DCORSIKA_KOKKOS_BACKEND=CUDA_OPENMP \
   -DCMAKE_INSTALL_PREFIX="$c8_install" -DCORSIKA_LAUNCHER_PREFIX= "$@"
-cmake --build "$c8_build" --parallel "$c8_jobs" --target \
-  c8_air_shower kokkos_backend_probe c8_kokkos_tune Sophia
-# The normal project install additionally installs the optional FLUKA worker.
-if [[ -f "$c8_build/modules/fluka/libflukahp-norndm.a" ]]; then
-  cmake --build "$c8_build" --parallel "$c8_jobs" --target fluka_batch_worker
-fi
-if grep -q '^CORSIKA_BUILD_MOUNTAIN_APPLICATION:BOOL=ON$' "$c8_build/CMakeCache.txt" &&
-   grep -q '^WITH_FLUKA:[^=]*=ON$' "$c8_build/CMakeCache.txt"; then
-  cmake --build "$c8_build" --parallel "$c8_jobs" --target c8_mountain_neutrino
-fi
+# A global install requires all configured installable products, including the
+# interface libraries and optional terrain applications. Building only the air
+# executable can appear to work in a warm tree but fail in a clean checkout.
+# Let CMake own the dependency/optional-target list, as build_kokkos.sh does.
+cmake --build "$c8_build" --parallel "$c8_jobs"
 cmake --install "$c8_build"
 echo "Experimental dual executable: $c8_install/bin/c8_air_shower"
