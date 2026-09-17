@@ -1,0 +1,31 @@
+{
+  "campaign": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913",
+  "all_nine_passed": true,
+  "source_files": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/src/radio/interface/Output.cpp",
+      "sha256": "f14e6ef59aefe1281445953653c6e16c6a4bc54768dbd8a6ffad69239bce4c23"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/corsika/modules/radio/interface/ZhsIntervals.hpp",
+      "sha256": "aa04851f1ec6d9ae6e15a17bdc8c8697393e52c43528e12d010877e98bd094c4"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/corsika/modules/radio/interface/CoreasEndpoints.hpp",
+      "sha256": "6876a4482f735e66f72b9ebc2c2b6d05e9dafc22512c78d3dc7f182917e4f28b"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/corsika/modules/transport/detail/InterfaceEmStep.hpp",
+      "sha256": "7e7472986fbf62947998e85e73c240a59752bc58ed358bf0576d5a2aaf5b7667"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/applications/detail/mountain/TerrainShowerOutput.hpp",
+      "sha256": "513417690a8edce595486f3a52208f573242a2a05f164871584ac46d8a6291f9"
+    }
+  ],
+  "analysis_script": {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/decompose_radio_psr.py",
+    "sha256": "9430c3f1102c195e560a9d50a35aadd6e461ca3a9f7790c6eac2877302990f41"
+  },
+  "semantics": "Accumulator index observer*6 + source_track.region*3; output total equals outside+inside. Region 0 air and region 1 mountain are checked against every completed terrain_run.yaml."
+}

@@ -92,6 +92,7 @@ namespace corsika::accelerator::em::detail {
     auto& record = output.record;
     if (interaction.status == EmInteractionStatus::ParticleCut) {
       record.interaction = interaction;
+      record.interaction.interaction_vertex_reached = 0;
       record.start = start;
       record.end = start;
       record.end.step_id++;
@@ -148,6 +149,7 @@ namespace corsika::accelerator::em::detail {
     }
 
     record.interaction = interaction;
+    record.interaction.interaction_vertex_reached = 0;
     record.start = start;
     record.input_index = interaction.input_index;
     record.start_layer_index = layer.layer_index;
@@ -205,6 +207,8 @@ namespace corsika::accelerator::em::detail {
         record.end.step_id++;
         record.limit = PhotonTransportLimit::ParticleCut;
         record.cut_deposited_energy_GeV = start.energy_GeV;
+      } else {
+        record.interaction.interaction_vertex_reached = 1;
       }
       return output;
     }

@@ -282,6 +282,7 @@ def prepare(config_path,estimate_only=False,offline=False):
     observers=[dict(name=r['name'],position_enu_m=[r['east_m'],r['north_m'],r['up_m']]) for r in placed]
     (out/'observers.yaml').write_text(yaml.safe_dump(dict(radio=dict(observers=observers)),sort_keys=False))
     geometry=dict(kind='terrain_mesh',mesh_path=str((out/'terrain_enu.ply').resolve()),
+        transport_boundary=dict(type='dem_coverage'),
         boundary_padding_m=float(cfg.get('mesh',{}).get('boundary_padding_m',1e-6)),
         rock_density_g_cm3=float(cfg.get('medium',{}).get('density_g_cm3',2.65)),
         material='SiO2',rock_hadronic_target_approximation='sio2_stoichiometric_fluka_qgsjetii',

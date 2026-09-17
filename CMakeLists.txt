@@ -428,6 +428,8 @@ list (APPEND public_CORSIKA8_targets CORSIKA8ProposalNative)
 
 if (CORSIKA_ENABLE_KOKKOS)
   add_subdirectory (src/accelerator/em/kokkos)
+  add_subdirectory (src/transport)
+  add_subdirectory (src/radio/interface)
   list (APPEND public_CORSIKA8_targets CORSIKA8KokkosEm)
 endif ()
 add_subdirectory (documentation)

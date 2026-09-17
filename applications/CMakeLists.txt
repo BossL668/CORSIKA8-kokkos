@@ -219,28 +219,29 @@ if (CORSIKA_BUILD_MOUNTAIN_APPLICATION)
   endif ()
 endif ()
 if (CORSIKA_BUILD_MOUNTAIN_APPLICATION AND WITH_FLUKA)
+  # Independent adapter for more than ten elemental targets. Do not change
+  # the air wrapper or redistribute the user's licensed FLUKA headers.
+  find_path(C8_TERRAIN_FLUKA_INCLUDE_DIR "(FLKMAT)"
+    HINTS "$ENV{FLUPRO}/flukapro" REQUIRED)
+  # Parenthesized FLUKA filenames are parsed as archive members by GNU make.
+  # Normalize only the private build copies, preserving installed headers.
+  set(_terrain_fluka_includes "${CMAKE_CURRENT_BINARY_DIR}/fluka-material-includes")
+  file(MAKE_DIRECTORY "${_terrain_fluka_includes}")
+  foreach(_terrain_fluka_common DIMPAR FLKMAT FLKCMP)
+    configure_file("${C8_TERRAIN_FLUKA_INCLUDE_DIR}/(${_terrain_fluka_common})"
+      "${_terrain_fluka_includes}/fluka_${_terrain_fluka_common}.inc" COPYONLY)
+  endforeach()
+  add_library(C8TerrainFlukaMaterialBridge OBJECT detail/mountain/FlukaMaterialBridge.f)
+  target_include_directories(C8TerrainFlukaMaterialBridge PRIVATE
+    "${_terrain_fluka_includes}")
   add_executable(c8_terrain_cascade c8_terrain_cascade.cpp
-    ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp)
+    ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp
+    $<TARGET_OBJECTS:C8TerrainFlukaMaterialBridge>)
   target_link_libraries(c8_terrain_cascade PRIVATE CORSIKA8 fluka)
   target_compile_definitions(c8_terrain_cascade PRIVATE
     CORSIKA8_TERRAIN_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF")
   if (CORSIKA_ENABLE_KOKKOS)
-    add_library(CORSIKA8TerrainEm STATIC ${CMAKE_SOURCE_DIR}/src/terrain/TerrainEmSession.cpp)
-    target_link_libraries(CORSIKA8TerrainEm PUBLIC CORSIKA8ProposalNative Kokkos::kokkos)
-    target_compile_definitions(CORSIKA8TerrainEm PUBLIC CORSIKA8_WITH_KOKKOS=1)
-    target_compile_features(CORSIKA8TerrainEm PUBLIC cxx_std_17)
-    if (CORSIKA_KOKKOS_BACKEND MATCHES "CUDA")
-      target_link_libraries(CORSIKA8TerrainEm PUBLIC CUDA::cudart CUDA::cuda_driver)
-      set_source_files_properties(${CMAKE_SOURCE_DIR}/src/terrain/TerrainEmSession.cpp PROPERTIES LANGUAGE CUDA)
-      set_target_properties(CORSIKA8TerrainEm PROPERTIES
-        CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}" CUDA_STANDARD 17)
-      if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
-        target_compile_options(CORSIKA8TerrainEm PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
-      endif ()
-    elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
-      set_source_files_properties(${CMAKE_SOURCE_DIR}/src/terrain/TerrainEmSession.cpp PROPERTIES LANGUAGE HIP)
-    endif ()
-    target_link_libraries(c8_terrain_cascade PRIVATE CORSIKA8TerrainEm)
+    target_link_libraries(c8_terrain_cascade PRIVATE CORSIKA8InterfaceEm)
     if (CORSIKA_KOKKOS_BACKEND MATCHES "CUDA" AND UNIX AND NOT APPLE)
       target_link_options(c8_terrain_cascade PRIVATE "LINKER:--no-as-needed")
     endif ()
@@ -253,14 +254,16 @@ if (CORSIKA_BUILD_MOUNTAIN_APPLICATION AND WITH_FLUKA)
       set(_terrain_audit_lib CORSIKA8Terrain_${_terrain_audit_variant})
       set(_terrain_audit_app c8_terrain_cascade_${_terrain_audit_variant})
       add_library(${_terrain_audit_lib} STATIC EXCLUDE_FROM_ALL
-        ${CMAKE_SOURCE_DIR}/src/terrain/TerrainEmSession.cpp)
+        ${CMAKE_SOURCE_DIR}/src/transport/InterfaceEmSession.cpp)
       target_link_libraries(${_terrain_audit_lib} PUBLIC CORSIKA8ProposalNative Kokkos::kokkos)
       target_compile_definitions(${_terrain_audit_lib} PRIVATE C8_TERRAIN_STEP_AUDIT=1
-        PUBLIC CORSIKA8_WITH_KOKKOS=1)
+        PUBLIC CORSIKA8_WITH_KOKKOS=1 C8_INTERFACE_EXECUTION_${C8_INTERFACE_EXECUTION_SPACE}=1)
       target_include_directories(${_terrain_audit_lib} PRIVATE ${CMAKE_SOURCE_DIR}/validation/terrain)
       target_compile_features(${_terrain_audit_lib} PUBLIC cxx_std_17)
       if(CORSIKA_KOKKOS_BACKEND MATCHES "CUDA")
+        set_source_files_properties(${CMAKE_SOURCE_DIR}/src/transport/InterfaceEmSession.cpp PROPERTIES LANGUAGE CUDA)
         target_link_libraries(${_terrain_audit_lib} PUBLIC CUDA::cudart CUDA::cuda_driver)
+        target_compile_options(${_terrain_audit_lib} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
         set_target_properties(${_terrain_audit_lib} PROPERTIES
           CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}" CUDA_STANDARD 17)
         if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
@@ -273,7 +276,8 @@ if (CORSIKA_BUILD_MOUNTAIN_APPLICATION AND WITH_FLUKA)
           $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
       endif()
       add_executable(${_terrain_audit_app} EXCLUDE_FROM_ALL c8_terrain_cascade.cpp
-        ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp)
+        ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp
+        $<TARGET_OBJECTS:C8TerrainFlukaMaterialBridge>)
       target_link_libraries(${_terrain_audit_app} PRIVATE CORSIKA8 fluka ${_terrain_audit_lib})
       target_compile_definitions(${_terrain_audit_app} PRIVATE CORSIKA8_WITH_KOKKOS_EM=1
         CORSIKA8_TERRAIN_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF")

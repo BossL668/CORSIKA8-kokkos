@@ -15,6 +15,21 @@
 
 namespace corsika::gpu::em {
 
+  CORSIKA_GPU_FALLBACK_HOST_DEVICE inline bool
+  proposalFallbackRequiresSelectedLoss(ProposalFallbackReason reason) {
+    return reason == ProposalFallbackReason::NativeSelectionReplay ||
+           reason == ProposalFallbackReason::InverseCdfUnavailable ||
+           reason == ProposalFallbackReason::LossEnergyOutOfRange ||
+           reason == ProposalFallbackReason::LossQuantileOutOfRange;
+  }
+
+  CORSIKA_GPU_FALLBACK_HOST_DEVICE inline bool
+  proposalFallbackRequiresInteractionVertex(ProposalFallbackReason reason) {
+    return proposalFallbackRequiresSelectedLoss(reason) ||
+           reason == ProposalFallbackReason::CpuOnlyProcess ||
+           reason == ProposalFallbackReason::EpairRejectionEnvelopeExceeded;
+  }
+
   inline char const*
   proposalFallbackReasonName(ProposalFallbackReason reason) noexcept {
     switch (reason) {
@@ -143,6 +158,7 @@ namespace corsika::gpu::em {
                            ProposalFallbackReason reason) {
     ProposalFallbackEvent event{};
     event.particle = record.particle;
+    event.interaction_vertex_reached = record.interaction_vertex_reached;
     event.input_index = record.input_index;
     event.process_id = record.process_id;
     event.reason = reason;

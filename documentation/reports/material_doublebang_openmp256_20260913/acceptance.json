@@ -1,0 +1,658 @@
+{
+  "evaluated_utc": "2026-09-14T01:35:03.291840+00:00",
+  "accepted_count": 9,
+  "total": 9,
+  "pending": [],
+  "input_and_runtime_hashes_unchanged": true,
+  "accepted": [
+    {
+      "tag": "openmp_silica_SiO2_seed158",
+      "label": "Silica (SiO2)",
+      "seed": 158,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -2.150177024304867e-12,
+      "spectrum_relative_l2": 1.954441352009437e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 3.6161263236807256e-09,
+          "raw_field_relative_l2": 3.6154702159676714e-09,
+          "band_peak_V_m": 1.9081739200375107e-09,
+          "peak_time_us": 26.56640625
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 1.552135142421898e-09,
+          "raw_field_relative_l2": 1.5515941066154413e-09,
+          "band_peak_V_m": 5.679213311906769e-09,
+          "peak_time_us": 22.984374999999996
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.993839171674877e-09,
+          "raw_field_relative_l2": 2.993329027169602e-09,
+          "band_peak_V_m": 4.619324161253483e-10,
+          "peak_time_us": 32.7890625
+        }
+      ],
+      "steps": 8141992,
+      "wall_minutes": 33.28792092720008,
+      "decays": [
+        {
+          "channel": "muonic",
+          "medium": "air",
+          "energy_PeV": 54.245222692324056,
+          "time_us": 6.60101587610118,
+          "axis_distance_km": 1.9789347747931088
+        }
+      ]
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed946",
+      "label": "Silica (SiO2)",
+      "seed": 946,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.4745909720659256e-12,
+      "spectrum_relative_l2": 2.196109719907746e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 3.0095659203177896e-09,
+          "raw_field_relative_l2": 3.009335049809669e-09,
+          "band_peak_V_m": 2.138296123887981e-08,
+          "peak_time_us": 25.4453125
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 1.9702905611424496e-09,
+          "raw_field_relative_l2": 1.9702194512693265e-09,
+          "band_peak_V_m": 4.6850710466139946e-08,
+          "peak_time_us": 23.22265625
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.1052552180666788e-09,
+          "raw_field_relative_l2": 2.104895795949626e-09,
+          "band_peak_V_m": 5.447860786765308e-09,
+          "peak_time_us": 34.7265625
+        }
+      ],
+      "steps": 10445731,
+      "wall_minutes": 44.23827372368348,
+      "decays": [
+        {
+          "channel": "electronic",
+          "medium": "air",
+          "energy_PeV": 31.589956933652,
+          "time_us": 7.165698884835596,
+          "axis_distance_km": 2.1482224819720206
+        }
+      ]
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed3605",
+      "label": "Silica (SiO2)",
+      "seed": 3605,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.8207269022241234e-12,
+      "spectrum_relative_l2": 4.67474348443033e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 2.020608429970482e-09,
+          "raw_field_relative_l2": 2.020549928700831e-09,
+          "band_peak_V_m": 5.663439470529012e-09,
+          "peak_time_us": 40.87500000000001
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 7.153685327287139e-09,
+          "raw_field_relative_l2": 7.15237692620812e-09,
+          "band_peak_V_m": 7.50635893593356e-09,
+          "peak_time_us": 39.80468750000001
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 1.246271498004877e-09,
+          "raw_field_relative_l2": 1.2460099967308767e-09,
+          "band_peak_V_m": 7.1767486171615844e-09,
+          "peak_time_us": 20.50390625
+        }
+      ],
+      "steps": 8743839,
+      "wall_minutes": 40.33245440084963,
+      "decays": [
+        {
+          "channel": "hadronic",
+          "medium": "air",
+          "energy_PeV": 72.97531255868861,
+          "time_us": 19.656598687620182,
+          "axis_distance_km": 5.892900036478956
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed158",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 158,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.8477719277143478e-12,
+      "spectrum_relative_l2": 5.51396910265655e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 6.677825474288236e-09,
+          "raw_field_relative_l2": 6.676304653218929e-09,
+          "band_peak_V_m": 2.089374307326648e-11,
+          "peak_time_us": 28.51171875
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 5.510139239451979e-09,
+          "raw_field_relative_l2": 5.508746416368029e-09,
+          "band_peak_V_m": 4.523130727633105e-10,
+          "peak_time_us": 40.0390625
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 1.6341235710357882e-09,
+          "raw_field_relative_l2": 1.6339110474334572e-09,
+          "band_peak_V_m": 5.492525287175625e-12,
+          "peak_time_us": 36.25390625000001
+        }
+      ],
+      "steps": 9833161,
+      "wall_minutes": 37.726943521900104,
+      "decays": [
+        {
+          "channel": "muonic",
+          "medium": "air",
+          "energy_PeV": 54.01338495457034,
+          "time_us": 8.20070779245122,
+          "axis_distance_km": 2.4585103464382794
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed946",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 946,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.4638062566518784e-12,
+      "spectrum_relative_l2": 2.7062813282968887e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 2.4528791811046476e-09,
+          "raw_field_relative_l2": 2.4528446573584372e-09,
+          "band_peak_V_m": 6.103371804097859e-08,
+          "peak_time_us": 36.28906250000001
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 2.7837899408419947e-09,
+          "raw_field_relative_l2": 2.7829533747376374e-09,
+          "band_peak_V_m": 6.465207334743463e-08,
+          "peak_time_us": 33.61328125000001
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 3.2150322416388473e-09,
+          "raw_field_relative_l2": 3.2149365013745965e-09,
+          "band_peak_V_m": 5.19113856355661e-09,
+          "peak_time_us": 36.96484375000001
+        }
+      ],
+      "steps": 11211772,
+      "wall_minutes": 46.10826011530007,
+      "decays": [
+        {
+          "channel": "electronic",
+          "medium": "air",
+          "energy_PeV": 32.08763305123772,
+          "time_us": 8.969308028093847,
+          "axis_distance_km": 2.68893090030063
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed3605",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 3605,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.4514965005218983e-12,
+      "spectrum_relative_l2": 2.64947109625512e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 2.337038214525804e-09,
+          "raw_field_relative_l2": 2.336905791958599e-09,
+          "band_peak_V_m": 5.0216006416624616e-08,
+          "peak_time_us": 24.7265625
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 2.7165562992388198e-09,
+          "raw_field_relative_l2": 2.71645472472743e-09,
+          "band_peak_V_m": 1.2162589527530974e-07,
+          "peak_time_us": 22.04296875
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.5638939459899557e-09,
+          "raw_field_relative_l2": 2.5638619621711426e-09,
+          "band_peak_V_m": 1.6197623381117044e-08,
+          "peak_time_us": 31.02734375
+        }
+      ],
+      "steps": 45020600,
+      "wall_minutes": 146.36864894371635,
+      "decays": [
+        {
+          "channel": "hadronic",
+          "medium": "air",
+          "energy_PeV": 63.559327827512625,
+          "time_us": 6.261064504563434,
+          "axis_distance_km": 1.8770199175191138
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 158,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.8728477880358696e-12,
+      "spectrum_relative_l2": 6.249777643163223e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 1.8944476648745474e-09,
+          "raw_field_relative_l2": 1.894352549454954e-09,
+          "band_peak_V_m": 1.7073793585085855e-12,
+          "peak_time_us": 23.640625
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 6.25691090186744e-09,
+          "raw_field_relative_l2": 6.256734422443862e-09,
+          "band_peak_V_m": 9.49606847747131e-10,
+          "peak_time_us": 39.8828125
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.996428155531741e-09,
+          "raw_field_relative_l2": 2.9953428909105215e-09,
+          "band_peak_V_m": 3.9394191348485455e-11,
+          "peak_time_us": 56.75000000000001
+        }
+      ],
+      "steps": 9473099,
+      "wall_minutes": 38.05983030353333,
+      "decays": [
+        {
+          "channel": "muonic",
+          "medium": "air",
+          "energy_PeV": 50.78358982247167,
+          "time_us": 23.694400121465776,
+          "axis_distance_km": 7.103402453247577
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 946,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -1.5814485959708692e-12,
+      "spectrum_relative_l2": 1.8124744658859195e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 3.755681433360275e-09,
+          "raw_field_relative_l2": 3.754914722270998e-09,
+          "band_peak_V_m": 2.7991290007637945e-12,
+          "peak_time_us": 25.6953125
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 1.189243691570245e-09,
+          "raw_field_relative_l2": 1.1891222574306518e-09,
+          "band_peak_V_m": 9.024028312270283e-12,
+          "peak_time_us": 22.472656249999996
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.150699975166178e-09,
+          "raw_field_relative_l2": 2.150233224823663e-09,
+          "band_peak_V_m": 7.201919760800429e-13,
+          "peak_time_us": 30.988281250000004
+        }
+      ],
+      "steps": 10912682,
+      "wall_minutes": 46.44273033111676,
+      "decays": [
+        {
+          "channel": "electronic",
+          "medium": "rock",
+          "energy_PeV": 34.23513288812545,
+          "time_us": 1.5033191752991844,
+          "axis_distance_km": 0.45068375072144684
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 3605,
+      "checks": {
+        "complete": true,
+        "automatic_checks": true,
+        "unchanged_command": true,
+        "unchanged_binary": true,
+        "unchanged_scene": true,
+        "original_physics_arguments": true,
+        "supplied_composition": true,
+        "supplied_density": true,
+        "supplied_radio": true,
+        "original_atmosphere_and_observers": true,
+        "native_LPM": true,
+        "native_material": true,
+        "actual_256_core_binding": true,
+        "OpenMP_resident_queue": true,
+        "paired_radio_complete": true,
+        "radio_finalization": true,
+        "transport_inventory": true,
+        "no_output_truncation": true,
+        "ledger_recomputed": true,
+        "CoREAS_optics": true,
+        "CoREAS_sampling": true,
+        "ZHS_optics": true,
+        "ZHS_sampling": true,
+        "E01_reported_peak": true,
+        "E20_reported_peak": true,
+        "N10_reported_peak": true,
+        "spectrum_recomputed": true,
+        "each_station_algorithms": true,
+        "finite_radio": true
+      },
+      "ledger_relative": -6.963778287172318e-13,
+      "spectrum_relative_l2": 2.56476754702428e-09,
+      "stations": [
+        {
+          "observer": "E01",
+          "spectrum_relative_l2": 2.6538142220566884e-09,
+          "raw_field_relative_l2": 2.6535656864157768e-09,
+          "band_peak_V_m": 3.355982606416979e-08,
+          "peak_time_us": 32.23046875000001
+        },
+        {
+          "observer": "E20",
+          "spectrum_relative_l2": 2.5426885917607773e-09,
+          "raw_field_relative_l2": 2.542509975412629e-09,
+          "band_peak_V_m": 1.0224737939242503e-07,
+          "peak_time_us": 23.1953125
+        },
+        {
+          "observer": "N10",
+          "spectrum_relative_l2": 2.1597171045182044e-09,
+          "raw_field_relative_l2": 2.1585462427137943e-09,
+          "band_peak_V_m": 1.3121410970416515e-08,
+          "peak_time_us": 21.914062499999996
+        }
+      ],
+      "steps": 56822001,
+      "wall_minutes": 192.14716804644996,
+      "decays": [
+        {
+          "channel": "hadronic",
+          "medium": "air",
+          "energy_PeV": 84.79942334196541,
+          "time_us": 8.81564381337402,
+          "axis_distance_km": 2.642863527663035
+        }
+      ]
+    }
+  ],
+  "scope": "Independent completed-output audit; no new shower simulations. Existing full-track checks retained. Algebraic ledger closure is not a validation of all physical models."
+}

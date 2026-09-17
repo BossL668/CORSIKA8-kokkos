@@ -25,8 +25,9 @@ described separately and still needs target-hardware acceptance.
   fallbacks; a scalar PROPOSAL reference mode remains available.
 
 The scientific build below uses SIBYLL-2.3d and separately licensed FLUKA.
-Not every CORSIKA process runs on the GPU. One shower uses OpenMP **or** a GPU;
-there is no combined OpenMP/GPU EM scheduling, MPI or multi-GPU particle stack.
+Not every CORSIKA process runs on the GPU. Production single-endpoint modes use
+OpenMP **or** a GPU. The combined build additionally offers explicit experimental
+air-shower cooperation (section 9); MPI and multi-GPU particle stacks are not provided.
 
 ## 2. Choose a build: portable installations or a single CUDA/OpenMP binary
 
@@ -54,6 +55,7 @@ flowchart TD
     INST --> ELF["install/cuda-openmp/bin/c8_air_shower"]
     ELF --> SELECT["--kokkos-execution cuda or openmp at startup"]
     SELECT --> ONE["Run ONE EM/radio instance for the process"]
+    ELF --> COOP["Explicit cuda-openmp / openmp-cuda: air-shower cooperation experiment, section 9"]
 ```
 
 Backend specialization happens at compile time. The launcher selects an
@@ -65,8 +67,10 @@ restriction.
 
 An **experimental single CUDA/OpenMP executable** is also available through
 `tools/build_kokkos_dual.sh`. It selects one execution space at startup using
-`--kokkos-execution cuda|openmp`; it does not run the two shower algorithms
-concurrently. Unlike the independent OpenMP build, it currently requires a
+`--kokkos-execution cuda|openmp`; these two selections do not run both instances
+concurrently. Explicit `cuda-openmp` and `openmp-cuda` instead select the
+air-shower cooperation experiments described in section 9. Unlike the
+independent OpenMP build, the combined executable currently requires a
 working NVIDIA device/driver even in OpenMP mode. It installs separately under
 `install/cuda-openmp` and is not selected by the normal launcher. Section 8.2
 below provides the complete build/run steps after environment setup. See the
@@ -574,6 +578,47 @@ default, and does not apply to mountain transport. The isolated build, regressio
 results and performance limitations are documented in the
 [independent-subshower test record](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md).
 
+The combined air-shower executable now also accepts **`openmp-cuda`**, an
+experimental CPU-primary policy. `cuda-openmp` without an explicit policy keeps
+the existing GPU-primary independent queues, including measured-throughput
+allocation; it is not a fixed split. `openmp-cuda` protects CPU batch capacity
+and gives the GPU auxiliary work. The current `cpu-primary-v2-simple` policy
+keeps each endpoint's full arena capacity and learns only the input allocation
+share from measured throughput. It rebalances at idle, safe boundaries; it
+does not predict completion times or shrink input capacity from the rate ratio.
+Neither mode promises continuous saturation of both endpoints. Both transport
+EM and accumulate CoREAS/ZHS on their respective endpoints, using the same
+physics kernels; hadronic generators remain scalar.
+
+After building the updated combined executable (not the normal launcher):
+
+```bash
+# GPU primary; OpenMP independently processes its assigned subshowers.
+install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
+  --em-backend kokkos --radio-backend kokkos \
+  --kokkos-execution cuda-openmp --kokkos-num-threads 20 \
+  --antenna-file antennas.txt -f output_gpu_primary
+
+# CPU primary; same executable and physics parameters, GPU auxiliary.
+install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
+  --em-backend kokkos --radio-backend kokkos \
+  --kokkos-execution openmp-cuda --kokkos-num-threads 130 \
+  --antenna-file antennas.txt -f output_cpu_primary
+```
+
+Use a thread count available on the machine. The order in the execution name
+selects scheduling priority, not a different Kokkos physics implementation.
+`--hadronic-workers > 1` and `openmp-cuda` with the separate experimental
+`--kokkos-cooperative-policy adaptive` are rejected. CPU-primary mode still
+requires a working NVIDIA GPU; GPU-free servers should use standalone OpenMP.
+The selected five-seed pilots are complete (local GPU-primary, PSR CPU-primary),
+but neither has demonstrated a net speed-up. PSR CPU-primary shows reduced
+effective OpenMP throughput; preserving arena capacity alone did not preserve
+standalone performance, and the cause still needs isolated profiling. These remain experimental
+options, and no installed binary or default is automatically replaced. See the
+[v1 comparison](documentation/cuda_em_refactor/beta5_priority_endpoints_v1_20260912_CN.md)
+and [simplified policy and acceptance status](documentation/cuda_em_refactor/beta5_priority_endpoints_v2_simple_20260912_CN.md).
+
 From the project container directory:
 
 ```bash
@@ -601,7 +646,7 @@ YAML or `.c8emrt` file is needed for this application.
 | Parameter | Meaning / default |
 |---|---|
 | `--backend openmp/cuda/hip/sycl` | Launcher only: installed executable to select; omitted means `auto` |
-| `--kokkos-execution cuda\|openmp` | Combined application: select an in-binary instance; implicit CUDA in accelerated mode |
+| `--kokkos-execution cuda\|openmp\|cuda-openmp\|openmp-cuda` | Combined air application: one instance or explicit GPU-/CPU-primary cooperation; implicit CUDA in accelerated mode |
 | `-p`, `-E` | PDG code and total energy in GeV; photon 22, electron 11, proton 2212 |
 | `-z`, `-a` | Zenith and azimuth in degrees; 0 / 0 |
 | `-s`, `-N` | Seed / sequential showers in one process; automatic seed / 1 |
@@ -659,6 +704,15 @@ count are retained. CoREAS time gating and shower transport are unchanged. Rebui
 to apply the correction; existing datasets and archived campaign binaries keep
 their original semantics. A physically short recording window can still truncate
 a real pulse, so the wider-window check above remains necessary.
+
+The [photon fallback vertex correction (Chinese)](documentation/cuda_em_refactor/beta5_photon_fallback_vertex_fix_20260917_CN.md)
+defers CPU selected-loss/final-state completion until the photon has actually
+transported to an interaction vertex. The previous shortcut could concentrate
+photonuclear and muon sources near atmosphere-layer boundaries; hadron and both
+muon-charge profiles are affected, with possible downstream EM/radio changes.
+Rebuild to apply this correction; existing accelerator samples cannot be repaired
+by smoothing their profiles. Keep historical datasets labelled and rerun physics
+acceptance before treating new accelerator ensembles as validated.
 
 ## 10. HIP/SYCL on matching hardware
 

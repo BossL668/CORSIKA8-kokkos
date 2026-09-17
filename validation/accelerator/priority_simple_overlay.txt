@@ -1,0 +1,7 @@
+applications/detail/air_shower_kokkos/KokkosShowerReport.hpp
+corsika/accelerator/em/detail/CpuPrimarySubshowerPolicy.hpp
+corsika/accelerator/em/detail/IndependentSubshowerPump.hpp
+src/accelerator/em/kokkos/KokkosCooperativeBackend.cpp
+tests/accelerator/testIndependentSubshowerPump.cpp
+tests/accelerator/testKokkosCooperativeBackend.cpp
+validation/accelerator/run_priority_endpoints_acceptance.py

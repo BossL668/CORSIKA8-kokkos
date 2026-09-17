@@ -18,7 +18,8 @@ terrain:
     bottom_depth_m: 500.0
     boundary_padding_m: 1.0e-6
   medium:
-    density_g_cm3: 2.65
+    material: SiO2
+    # Optional density_g_cm3 overrides the material card in the native scene.
   antennas:
     format: 21cma_station_centres
     station_directory: ~/21cma-stations

@@ -1,0 +1,1007 @@
+--- a/applications/detail/mountain/TerrainAcceleratedRun.hpp
++++ b/applications/detail/mountain/TerrainAcceleratedRun.hpp
+@@ -11,6 +11,7 @@
+ #include <corsika/accelerator/em/common/ProcessSequenceCompatibility.hpp>
+ #include <corsika/modules/transport/InterfaceEmSession.hpp>
+ #include <corsika/modules/transport/InterfaceRegionMap.hpp>
++#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
+ namespace corsika::applications::terrain {
+ struct EmExecutionOptions {
+   int threads=1,device=0;
+@@ -64,6 +65,10 @@
+   summary["accelerator_constants"]["magnetic_rigidity_GeV_per_T_m"]=
+       accelerator::scalar_constants::MagneticRigidityGeVPerTeslaMeter;
+   summary["accelerator_constants"]["boundary_mass_convention"]="corsika_transport";
++  summary["magnetic_trajectory"]["policy"]="quadratic-step-accuracy-cap-v1";
++  summary["magnetic_trajectory"]["maximum_deflection_parameter_rad"]=corsika::terrain::MaximumQuadraticMagneticDeflection;
++  summary["magnetic_trajectory"]["maximum_local_chord_excess_before_roundoff"]=8.e-10;
++  summary["magnetic_trajectory"]["scope"]="shared terrain CPU and interface Kokkos cap; original air tracker unchanged";
+   for(std::size_t i=0;i<banks.size();++i) {
+     summary["material_tables"][i]["hash"]=gpu::em::tables::toHex(banks[i].table.content_hash);
+     summary["material_tables"][i]["auxiliary_hash"]=gpu::em::tables::toHex(banks[i].auxiliary.content_hash);
+@@ -110,6 +115,7 @@
+       auto row=n[name];auto const& s=value.statistics;
+       row["algorithm"]=corsika::radio::interface::algorithmName(value.config.algorithm);
+       row["device_tracks"]=s.device_tracks;row["cpu_tracks"]=s.cpu_tracks;
++      row["roundoff_limited_tracks"]=s.roundoff_limited_tracks;
+       row["track_observer_pairs"]=s.track_observer_pairs;row["paths"]=s.paths;
+       row["direct_paths"]=s.direct_paths;row["transmitted_paths"]=s.transmitted_paths;
+       row["blocked_paths"]=s.blocked_paths;row["leaves"]=s.leaves;
+--- a/applications/detail/mountain/TerrainShowerOutput.hpp
++++ b/applications/detail/mountain/TerrainShowerOutput.hpp
+@@ -117,7 +117,7 @@
+     if(radio_track&&p.getCharge()!=0*constants::e){
+       radio_track({{a.getX(cs)/1_m,a.getY(cs)/1_m,a.getZ(cs)/1_m},
+         {b.getX(cs)/1_m,b.getY(cs)/1_m,b.getZ(cs)/1_m},step.getTimePre()/1_s,step.getTimePost()/1_s,
+-        double(p.getCharge()/constants::e),p.getWeight(),p.getHistoryId(),0,std::uint32_t(rock),1});
++        double(p.getCharge()/constants::e),p.getWeight(),p.getHistoryId(),0,std::uint32_t(rock),1,1.e-9});
+     }
+     if(steps_<=rowLimit_)tracks_<<steps_<<','<<static_cast<int>(get_PDG(p.getPID()))<<','<<p.getWeight()<<','<<(rock?"rock":"air")<<','
+       <<a.getX(cs)/1_m<<','<<a.getY(cs)/1_m<<','<<a.getZ(cs)/1_m<<','<<b.getX(cs)/1_m<<','<<b.getY(cs)/1_m<<','<<b.getZ(cs)/1_m<<','
+--- a/corsika/geometry/terrain/TerrainMagneticAccuracy.hpp
++++ b/corsika/geometry/terrain/TerrainMagneticAccuracy.hpp
+@@ -0,0 +1,13 @@
++#pragma once
++
++namespace corsika::terrain {
++// The inherited LeapFrog position is r(s)=r0+u*s+q*s^2, with s=v*dt.
++// Its chord is longer than s by sqrt(1+|q*s|^2)-1. The original 0.2 rad
++// limit can therefore produce resolved acausal radio sources. For the stock
++// limiter s <= sin(2*a)*R_perp, |q*s| <= sin(2*a)/2; a=4e-5 bounds this
++// relative excess by 8e-10 before input rounding. It also bounds the local
++// displacement error against an exact uniform-field helix by about 1.1e-9.
++// Both terrain CPU tracking and the independent interface device session use
++// this accuracy cap, even with radio disabled. Original air tracking is untouched.
++inline constexpr double MaximumQuadraticMagneticDeflection = 4.e-5;
++}
+--- a/corsika/modules/radio/interface/CoreasEndpoints.hpp
++++ b/corsika/modules/radio/interface/CoreasEndpoints.hpp
+@@ -78,14 +78,16 @@
+     auto displacement=sub(t.end_m,t.start_m);double dt=t.end_time_s-t.start_time_s,length=norm(displacement);
+     if(t.region>1||!finite(t.start_m)||!finite(t.end_m)||!std::isfinite(dt)||!std::isfinite(t.charge_e)||!std::isfinite(t.weight)||t.weight<0.){
+       Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
+-    if(t.weight==0.||t.charge_e==0.||length==0.||dt==0.)return;
+-    if(!(dt>0.)||length>light_speed*dt*(1.+1.e-9)){Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
++    if(t.weight==0.||t.charge_e==0.||length==0.)return;
++    Vec3 beta;bool limited;
++    if(!sourceBeta(t,displacement,length,dt,beta,limited)){Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
+     if(observerId==0){
+       if(cpu_source)Kokkos::atomic_fetch_add(&counters().cpu_tracks,1ULL);
+       else Kokkos::atomic_fetch_add(&counters().device_tracks,1ULL);
++      if(limited)Kokkos::atomic_fetch_add(&counters().roundoff_limited_tracks,1ULL);
+     }
+     Kokkos::atomic_fetch_add(&counters().pairs,1ULL);
+-    Vec3 beta=scale(displacement,1./(light_speed*dt));double betaNorm=norm(beta);
++    double betaNorm=norm(beta);
+     constexpr double pi=3.141592653589793238462643383279502884;
+     double coefficient=t.charge_e*accelerator::scalar_constants::ElementaryChargeC*t.weight/
+       (4*pi*accelerator::scalar_constants::VacuumPermittivityFPerM*light_speed);
+@@ -107,7 +109,8 @@
+         double boundary=directShadowBoundary(propagation,t.start_m,t.end_m,o.position,s.a,s.b);
+         if(boundary>s.a&&boundary<s.b){split=true;splitAt=boundary;}
+       }
+-      for(unsigned face=0;face<faces;++face){
++      CandidateFaces refineFaces{propagation,q,direct};std::uint32_t face;
++      while(refineFaces.next(face)){
+         auto p=direct?directPath(propagation,q):transmittedPath(propagation,q,face);
+         if(p.status==PathStatus::Invalid||p.status==PathStatus::Unconverged){Kokkos::atomic_max(&counters().error,std::uint32_t{5});return;}
+         if(p.status!=PathStatus::Valid)continue;
+@@ -125,7 +128,8 @@
+         stack[size++]={splitAt,s.b,s.depth+1};stack[size++]={s.a,splitAt,s.depth+1};continue;
+       }
+       Kokkos::atomic_fetch_add(&counters().leaves,1ULL);
+-      for(unsigned face=0;face<faces;++face){
++      CandidateFaces emitFaces{propagation,q,direct};
++      while(emitFaces.next(face)){
+         auto p=direct?directPath(propagation,q):transmittedPath(propagation,q,face);
+         if(p.status==PathStatus::Blocked){Kokkos::atomic_fetch_add(&counters().blocked,1ULL);continue;}
+         if(p.status!=PathStatus::Valid){Kokkos::atomic_fetch_add(&counters().missing,1ULL);continue;}
+--- a/corsika/modules/radio/interface/KokkosAccumulator.hpp
++++ b/corsika/modules/radio/interface/KokkosAccumulator.hpp
+@@ -44,18 +44,20 @@
+   using Tracks=Kokkos::View<Track*,Memory>;
+   using Download=std::conditional_t<Paired,PairedResult,Result>;
+   static constexpr bool deviceBuffering=!std::is_same<Memory,Kokkos::HostSpace>::value;
+-  static std::size_t projectedBytes(Config const& c,std::size_t capacity) {
++  static std::size_t projectedBytes(Config const& c,std::size_t capacity,std::size_t mesh_nodes=0) {
+     auto selected=primaryConfig(c);
+     auto bytes=projectedRadioBytes(selected,capacity,deviceBuffering);
++    if(c.enabled&&c.propagation.geometry==Geometry::Mesh&&c.propagation.transmission_bvh)
++      bytes+=mesh_nodes*sizeof(detail::TransmissionNormalBounds);
+     if constexpr(Paired){
+       if(c.enabled)bytes+=c.samples*c.observers.size()*6*(c.moment_order+1)*sizeof(double);
+-      if(bytes>c.maximum_device_bytes)throw std::length_error("combined CoREAS/ZHS radio device memory budget exceeded");
+     }
++    if(bytes>c.maximum_device_bytes)throw std::length_error("combined interface radio device memory budget exceeded");
+     return bytes;
+   }
+   KokkosAccumulator(Config const& c,terrain::flat::View mesh,std::size_t faces,
+                     std::size_t capacity,Space const& execution)
+-      : config_(primaryConfig(c)),bytes_(projectedBytes(c,capacity)),propagation_(c.propagation,mesh,faces,execution) {
++      : config_(primaryConfig(c)),bytes_(projectedBytes(c,capacity,mesh.node_count)),propagation_(c.propagation,mesh,faces,execution) {
+     if(!c.enabled)throw std::invalid_argument("construct radio accumulator only when enabled");
+     observers_=decltype(observers_)("interface_radio_observers",c.observers.size());
+     auto host=Kokkos::create_mirror_view(observers_);
+@@ -156,6 +158,7 @@
+     s.leaves=c.leaves;s.paths=c.paths;s.direct_paths=c.direct;s.transmitted_paths=c.transmitted;
+     s.blocked_paths=c.blocked;s.rejected_faces=c.missing;s.wavefronts=calls_;s.downloads=1;s.device_bytes=bytes_;
+     s.endpoint_contributions=c.endpoint_contributions;s.regularized_pairs=c.regularized_pairs;s.boundary_endpoints=c.boundary_endpoints;
++    s.roundoff_limited_tracks=c.roundoff_limited_tracks;
+     return result;
+   }
+   void launch(Tracks const& tracks,std::size_t count,Space const& execution,bool cpu) {
+--- a/corsika/modules/radio/interface/KokkosPropagation.hpp
++++ b/corsika/modules/radio/interface/KokkosPropagation.hpp
+@@ -44,17 +44,42 @@
+   for(int i=0;i<2;++i){auto const& m=c.media[i];
+     v.media[i]={m.refractive_index,m.attenuation_length_m,m.center_m,m.reference_radius_m,
+       m.radial_index.data(),static_cast<std::uint32_t>(m.radial_index.size()),
+-      m.radial_integration_breaks_m.data(),static_cast<std::uint32_t>(m.radial_integration_breaks_m.size())};}
++      m.radial_integration_breaks_m.data(),static_cast<std::uint32_t>(m.radial_integration_breaks_m.size())};
++    v.media[i].minimum_index=v.media[i].maximum_index=m.refractive_index;
++    for(auto s:m.radial_index){v.media[i].minimum_index=std::min(v.media[i].minimum_index,s.index);v.media[i].maximum_index=std::max(v.media[i].maximum_index,s.index);}
++  }
+   return v;
+ }
+ // Borrows an already resident immutable mesh; owns only its optical tables.
+ template<class Space> class KokkosPropagation {
+  public:
+   using Memory=typename Space::memory_space;
++  using NormalBounds=Kokkos::View<detail::TransmissionNormalBounds*,Memory>;
++  struct BuildNormalBounds {
++    terrain::flat::View mesh;NormalBounds bounds;
++    KOKKOS_INLINE_FUNCTION void operator()(std::size_t i)const {
++      detail::TransmissionNormalBounds value{{HUGE_VAL,HUGE_VAL,HUGE_VAL},{-HUGE_VAL,-HUGE_VAL,-HUGE_VAL}};
++      for(auto j=i;j<mesh.nodes[i].skip;++j){
++        auto const& node=mesh.nodes[j];
++        for(std::uint32_t k=0;k<node.count;++k){
++          auto n=mesh.indexed_triangles[mesh.indices[node.first+k]].normal;
++          value.low={detail::min(value.low.x,n.x),detail::min(value.low.y,n.y),detail::min(value.low.z,n.z)};
++          value.high={detail::max(value.high.x,n.x),detail::max(value.high.y,n.y),detail::max(value.high.z,n.z)};
++        }
++      }
++      bounds(i)=value;
++    }
++  };
+   KokkosPropagation(PropagationConfig const& c,terrain::flat::View mesh,
+                     std::size_t faces,Space const& execution) :view_(hostPropagation(c,mesh,faces)) {
+     if(c.geometry==Geometry::Mesh&&(!mesh.nodes||!mesh.indexed_triangles||!mesh.vertices||!mesh.node_count||!faces))
+       throw std::invalid_argument("interface radio requires a validated resident indexed mesh");
++    if(c.geometry==Geometry::Mesh&&c.transmission_bvh){
++      normals_=NormalBounds("interface_radio_transmission_normals",mesh.node_count);
++      Kokkos::parallel_for("interface_radio_build_transmission_bounds",Kokkos::RangePolicy<Space>(execution,0,mesh.node_count),BuildNormalBounds{mesh,normals_});
++      execution.fence("interface radio transmission bounds initialization");
++      view_.transmission_normals=normals_.data();bytes_+=normals_.span()*sizeof(detail::TransmissionNormalBounds);
++    }
+     for(int i=0;i<2;++i){
+       tables_[i]=Table("interface_radio_index_table",c.media[i].radial_index.size());
+       auto host=Kokkos::create_mirror_view(tables_[i]);
+@@ -75,6 +100,6 @@
+  private:
+   using Table=Kokkos::View<IndexSample*,Memory>;
+   using Breaks=Kokkos::View<double*,Memory>;
+-  Table tables_[2];Breaks breaks_[2];detail::PropagationView view_;std::size_t bytes_{};
++  Table tables_[2];Breaks breaks_[2];NormalBounds normals_;detail::PropagationView view_;std::size_t bytes_{};
+ };
+ } // namespace corsika::radio::interface
+--- a/corsika/modules/radio/interface/Propagation.hpp
++++ b/corsika/modules/radio/interface/Propagation.hpp
+@@ -29,7 +29,9 @@
+   Vec3 center{}; double radius{};
+   IndexSample const* samples{}; std::uint32_t count{};
+   double const* breaks{};std::uint32_t break_count{};
++  double minimum_index{1.},maximum_index{1.};
+ };
++struct TransmissionNormalBounds { Vec3 low{},high{}; };
+ struct PropagationView {
+   Geometry geometry{Geometry::Uniform};
+   MediumView media[2];
+@@ -37,6 +39,80 @@
+   flat::View mesh;
+   std::uint32_t faces{}, integration_samples{64};
+   double visibility_tolerance{1.e-7}, edge_tolerance{1.e-7};
++  TransmissionNormalBounds const* transmission_normals{};
++};
++
++// Conservative interval test for a stationary transmitted ray in a BVH node.
++// At a valid interface point x, n1*(x-S)/|x-S| + n2*(x-O)/|x-O|
++// is parallel to the face normal (Snell's tangential continuity). Reject a
++// whole node only if one component of their cross product excludes zero.
++// No amplitude threshold, attenuation cutoff, or approximate ray is used.
++struct OpticalInterval { double low{},high{}; };
++C8_INTERFACE_RADIO_INLINE OpticalInterval intervalProduct(OpticalInterval a,OpticalInterval b){
++  double aa=a.low*b.low,ab=a.low*b.high,ba=a.high*b.low,bb=a.high*b.high;
++  return {min(min(aa,ab),min(ba,bb)),max(max(aa,ab),max(ba,bb))};
++}
++C8_INTERFACE_RADIO_INLINE OpticalInterval intervalDifference(OpticalInterval a,OpticalInterval b){
++  return {a.low-b.high,a.high-b.low};
++}
++C8_INTERFACE_RADIO_INLINE void directionToBox(Vec3 source,Vec3 low,Vec3 high,OpticalInterval* out){
++  double a[3]{low.x-source.x,low.y-source.y,low.z-source.z};
++  double b[3]{high.x-source.x,high.y-source.y,high.z-source.z};
++  double near2=0.,far2=0.;
++  for(unsigned k=0;k<3;++k){
++    double near=a[k]>0.?a[k]:(b[k]<0.?-b[k]:0.);
++    double far=max(std::abs(a[k]),std::abs(b[k]));near2+=near*near;far2+=far*far;
++  }
++  if(!(near2>1.e-24)||!std::isfinite(far2)){
++    for(unsigned k=0;k<3;++k)out[k]={-1.,1.};return;
++  }
++  OpticalInterval inverse{1./std::sqrt(far2),1./std::sqrt(near2)};
++  for(unsigned k=0;k<3;++k){out[k]=intervalProduct({a[k],b[k]},inverse);out[k].low=max(-1.,out[k].low);out[k].high=min(1.,out[k].high);}
++}
++C8_INTERFACE_RADIO_INLINE bool transmissionNodeMayContain(PropagationView const& v,RayQuery q,std::uint32_t id){
++  auto const& node=v.mesh.nodes[id];auto const& normal=v.transmission_normals[id];
++  double magnitude=max(1.,max(norm(node.low),max(norm(node.high),max(norm(q.source),norm(q.observer)))));
++  double margin=4*v.edge_tolerance+128*0x1p-52*magnitude;
++  Vec3 low{node.low.x-margin,node.low.y-margin,node.low.z-margin};
++  Vec3 high{node.high.x+margin,node.high.y+margin,node.high.z+margin};
++  OpticalInterval fromSource[3],fromObserver[3],gradient[3];
++  directionToBox(q.source,low,high,fromSource);directionToBox(q.observer,low,high,fromObserver);
++  auto const& m1=v.media[q.source_region];auto const& m2=v.media[q.observer_region];
++  OpticalInterval n1=m1.count?OpticalInterval{m1.minimum_index,m1.maximum_index}:OpticalInterval{m1.index,m1.index};
++  OpticalInterval n2=m2.count?OpticalInterval{m2.minimum_index,m2.maximum_index}:OpticalInterval{m2.index,m2.index};
++  OpticalInterval normals[3]{{normal.low.x,normal.high.x},{normal.low.y,normal.high.y},{normal.low.z,normal.high.z}};
++  for(unsigned k=0;k<3;++k){
++    auto a=intervalProduct(n1,fromSource[k]),b=intervalProduct(n2,fromObserver[k]);
++    gradient[k]={a.low+b.low,a.high+b.high};
++  }
++  // Covers solver's 1e-10 Snell acceptance and interval arithmetic roundoff.
++  double tolerance=1.e-9*max(1.,n1.high+n2.high);
++  for(unsigned k=0;k<3;++k){
++    auto a=(k+1)%3,b=(k+2)%3;
++    auto crossComponent=intervalDifference(intervalProduct(gradient[a],normals[b]),intervalProduct(gradient[b],normals[a]));
++    if(crossComponent.low>tolerance||crossComponent.high<-tolerance)return false;
++  }
++  return true;
++}
++// Exhaustive fallback remains available to host/reference callers that do not
++// supply normal bounds. Threaded traversal has no finite candidate-list cap.
++struct CandidateFaces {
++  PropagationView const& v;RayQuery q;bool direct{};
++  std::uint32_t node{},offset{},linear{};bool entered{};
++  C8_INTERFACE_RADIO_INLINE bool next(std::uint32_t& faceId){
++    if(direct||v.geometry==Geometry::Plane){faceId=0;return linear++==0;}
++    if(!v.transmission_normals){faceId=linear++;return faceId<v.faces;}
++    while(node<v.mesh.node_count){
++      auto const& n=v.mesh.nodes[node];
++      if(!entered){
++        if(!transmissionNodeMayContain(v,q,node)){node=n.skip;continue;}
++        entered=true;
++      }
++      if(offset<n.count){faceId=v.mesh.indices[n.first+offset++];return true;}
++      ++node;offset=0;entered=false;
++    }
++    return false;
++  }
+ };
+ C8_INTERFACE_RADIO_INLINE double indexAt(MediumView const& medium,Vec3 p) {
+   if(!medium.count)return medium.index;
+@@ -207,9 +283,9 @@
+ C8_INTERFACE_RADIO_INLINE double snellResidual(double x,double d1,double d2,double lateral,double n1,double n2) {
+   return n1*x/std::hypot(d1,x)-n2*(lateral-x)/std::hypot(d2,lateral-x);
+ }
+-C8_INTERFACE_RADIO_INLINE bool snellRoot(double d1,double d2,double lateral,double n1,double n2,double& x,unsigned& iterations) {
+-  if(lateral<=1.e-14){x=0.;return true;}
+-  double low=0.,high=lateral;x=lateral*d1/(d1+d2);
++C8_INTERFACE_RADIO_INLINE bool snellRootNearStart(double d1,double d2,double lateral,double n1,double n2,double& x,unsigned& iterations) {
++  if(lateral==0.){x=0.;return true;}
++  double low=0.,high=.5*lateral;x=min(high,lateral*d1/(d1+d2));
+   for(unsigned j=0;j<64;++j){
+     ++iterations;double value=snellResidual(x,d1,d2,lateral,n1,n2);
+     if(std::abs(value)<1.e-14)return true;
+@@ -222,6 +298,19 @@
+     x=candidate;
+   }
+   return std::abs(snellResidual(x,d1,d2,lateral,n1,n2))<1.e-11;
++}
++// Solve the smaller lateral coordinate directly. Recovering a micrometre
++// receiver leg by subtracting two kilometre coordinates can make an otherwise
++// valid root fail the Snell residual gate. Keep BOTH coordinates for geometry.
++C8_INTERFACE_RADIO_INLINE bool snellCoordinates(double d1,double d2,double lateral,double n1,double n2,double& x,double& y,unsigned& iterations){
++  if(lateral==0.){x=y=0.;return true;}
++  bool reverse=snellResidual(.5*lateral,d1,d2,lateral,n1,n2)<0.;
++  bool ok=reverse?snellRootNearStart(d2,d1,lateral,n2,n1,y,iterations):snellRootNearStart(d1,d2,lateral,n1,n2,x,iterations);
++  if(reverse)x=lateral-y;else y=lateral-x;
++  return ok;
++}
++C8_INTERFACE_RADIO_INLINE bool snellRoot(double d1,double d2,double lateral,double n1,double n2,double& x,unsigned& iterations){
++  double y;return snellCoordinates(d1,d2,lateral,n1,n2,x,y,iterations);
+ }
+ C8_INTERFACE_RADIO_INLINE bool spreading(double d1,double d2,double n1,double n2,double invariant,double& jacobian,double& geometric) {
+   if(!(invariant>=0.&&invariant<min(n1,n2)))return false;
+@@ -282,13 +371,15 @@
+   if(!(d1>1.e-10&&d2>1.e-10))return p;
+   auto a=add(q.source,scale(n,d1)),b=sub(q.observer,scale(n,d2)),delta=sub(b,a);
+   if(candidate_filter&&!unbounded&&v.geometry==Geometry::Mesh&&!projectedSegmentMayHit(v,id,a,b))return p;
+-  double lateral=norm(delta);Vec3 tangent=lateral>1.e-14?scale(delta,1./lateral):Vec3{};
++  // Restore tangency lost to rounding in the two global projections.
++  delta=sub(delta,scale(n,dot(delta,n)));
++  double lateral=norm(delta);Vec3 tangent=lateral>0.?scale(delta,1./lateral):Vec3{};
+   auto const& m1=v.media[q.source_region];auto const& m2=v.media[q.observer_region];
+-  double n1=indexAt(m1,point),n2=indexAt(m2,point),x=0.;bool converged=false;
++  double n1=indexAt(m1,point),n2=indexAt(m2,point),x=0.,y=0.;bool converged=false;
+   for(unsigned j=0;j<16;++j){
+     if(!(n1>0.&&n2>0.)){p.status=PathStatus::Invalid;return p;}
+-    if(!snellRoot(d1,d2,lateral,n1,n2,x,p.iterations)){p.status=PathStatus::Unconverged;return p;}
+-    p.interface_point=add(a,scale(tangent,x));
++    if(!snellCoordinates(d1,d2,lateral,n1,n2,x,y,p.iterations)){p.status=PathStatus::Unconverged;return p;}
++    p.interface_point=x<=y?add(a,scale(tangent,x)):sub(b,scale(tangent,y));
+     double next1=indexAt(m1,p.interface_point),next2=indexAt(m2,p.interface_point);
+     if((!std::isfinite(next1)||!std::isfinite(next2))&&v.geometry==Geometry::Mesh&&
+        !containsTriangle(v,id,p.interface_point))return p;
+@@ -298,8 +389,9 @@
+   if(!converged){p.status=PathStatus::Unconverged;return p;}
+   if(!unbounded&&v.geometry==Geometry::Mesh&&(!containsTriangle(v,id,p.interface_point)||!ownsPoint(v,id,p.interface_point,outward,candidate_filter)))return p;
+   if(!unbounded&&(!segmentClear(v,q.source,p.interface_point)||!segmentClear(v,p.interface_point,q.observer))){p.status=PathStatus::Blocked;return p;}
+-  p.source_length_m=norm(sub(p.interface_point,q.source));p.destination_length_m=norm(sub(q.observer,p.interface_point));
+-  p.emit=unit(sub(p.interface_point,q.source));p.receive_direction=unit(sub(q.observer,p.interface_point));p.normal=n;
++  p.source_length_m=std::hypot(d1,x);p.destination_length_m=std::hypot(d2,y);
++  p.emit=unit(add(scale(n,d1),scale(tangent,x)));
++  p.receive_direction=unit(add(scale(n,d2),scale(tangent,y)));p.normal=n;
+   double ci=clamp(dot(p.emit,n),0.,1.),ct=clamp(dot(p.receive_direction,n),0.,1.);
+   double si=norm(cross(p.emit,n)),st=norm(cross(p.receive_direction,n));
+   p.snell_residual=n1*si-n2*st;
+--- a/corsika/modules/radio/interface/Types.hpp
++++ b/corsika/modules/radio/interface/Types.hpp
+@@ -42,6 +42,7 @@
+   std::uint32_t optical_integration_samples{64};
+   double visibility_tolerance_m{1.e-7}; // optical endpoint acceptance only
+   double shared_edge_tolerance_m{1.e-7};
++  bool transmission_bvh{true}; // false retains exhaustive face traversal for validation
+ };
+ struct Track {
+   Vec3 start_m{}, end_m{};
+@@ -49,6 +50,10 @@
+   double charge_e{}, weight{};
+   std::uint64_t history{}, step{};
+   std::uint32_t region{}, valid{};
++  // Optional accuracy declared by the source transport. The mountain adapter
++  // retains its historical 1e-9 chord tolerance; standalone exact fixtures
++  // default to input-coordinate/clock ULPs only.
++  double relative_chord_tolerance{};
+ };
+ struct RayQuery { Vec3 source{}, observer{}; std::uint32_t source_region{}, observer_region{}; };
+ struct Path {
+@@ -84,6 +89,7 @@
+   // wavefronts counts radio kernel launches; CUDA merges transport batches.
+   std::uint64_t wavefronts{}, downloads{}, out_of_window{}, errors{};
+   std::uint64_t endpoint_contributions{}, regularized_pairs{}, boundary_endpoints{};
++  std::uint64_t roundoff_limited_tracks{};
+   std::size_t device_bytes{};
+ };
+ struct Result {
+--- a/corsika/modules/radio/interface/ZhsIntervals.hpp
++++ b/corsika/modules/radio/interface/ZhsIntervals.hpp
+@@ -6,8 +6,32 @@
+ struct RadioCounters {
+   unsigned long long device_tracks{},cpu_tracks{},pairs{},leaves{},paths{},direct{},transmitted{},blocked{},missing{},out_of_window{};
+   unsigned long long endpoint_contributions{},regularized_pairs{},boundary_endpoints{};
++  unsigned long long roundoff_limited_tracks{};
+   std::uint32_t error{};
+ };
++// Endpoint coordinates and absolute clocks are rounded independently. Their
++// differences can put a micrometre chord slightly outside the light cone at
++// kilometre coordinates. Canonicalize beta only within a bound derived from
++// those input ULPs and the source transport's declared chord accuracy; a
++// source outside both budgets is still an error. Transport
++// coordinates, times, energy and RNG are never modified by this radio helper.
++C8_INTERFACE_RADIO_INLINE double inputUlp(double x){
++  x=std::abs(x);return std::nextafter(x,HUGE_VAL)-x;
++}
++C8_INTERFACE_RADIO_INLINE bool sourceBeta(Track const& t,Vec3 displacement,double length,double dt,Vec3& beta,bool& limited){
++  limited=false;double ct=light_speed*dt;
++  if(!(dt>0.)||!std::isfinite(length)||!std::isfinite(ct)||!(ct>0.)||
++     !std::isfinite(t.relative_chord_tolerance)||t.relative_chord_tolerance<0.||t.relative_chord_tolerance>1.e-9)return false;
++  if(length>ct){
++    double uncertainty=inputUlp(t.start_m.x)+inputUlp(t.start_m.y)+inputUlp(t.start_m.z)+
++      inputUlp(t.end_m.x)+inputUlp(t.end_m.y)+inputUlp(t.end_m.z)+
++      light_speed*(inputUlp(t.start_time_s)+inputUlp(t.end_time_s))+16*0x1p-52*(length+ct);
++    uncertainty=max(uncertainty,ct*t.relative_chord_tolerance);
++    if(!std::isfinite(uncertainty)||length-ct>uncertainty)return false;
++    beta=scale(displacement,1./length);limited=true;
++  }else beta=scale(displacement,1./ct);
++  return finite(beta);
++}
+ struct DeviceObserver {Vec3 position{};std::uint32_t region{};};
+ struct MomentGrid {double start_time{},sample_rate{};std::size_t samples{},channels{};unsigned order{};};
+ // Atomics operate on shared waves rather than 256 copies on OpenMP. Floating
+@@ -53,14 +77,16 @@
+     auto displacement=sub(t.end_m,t.start_m);double dt=t.end_time_s-t.start_time_s,length=norm(displacement);
+     if(t.region>1||!finite(t.start_m)||!finite(t.end_m)||!std::isfinite(dt)||!std::isfinite(t.charge_e)||!std::isfinite(t.weight)||t.weight<0.){
+       Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
+-    if(t.weight==0.||t.charge_e==0.||length==0.||dt==0.)return;
+-    if(!(dt>0.)||length>light_speed*dt*(1.+1.e-9)){Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
++    if(t.weight==0.||t.charge_e==0.||length==0.)return;
++    Vec3 beta;bool limited;
++    if(!sourceBeta(t,displacement,length,dt,beta,limited)){Kokkos::atomic_max(&counters().error,std::uint32_t{3});return;}
+     if(observerId==0){
+       if(cpu_source)Kokkos::atomic_fetch_add(&counters().cpu_tracks,1ULL);
+       else Kokkos::atomic_fetch_add(&counters().device_tracks,1ULL);
++      if(limited)Kokkos::atomic_fetch_add(&counters().roundoff_limited_tracks,1ULL);
+     }
+     Kokkos::atomic_fetch_add(&counters().pairs,1ULL);
+-    Vec3 beta=scale(displacement,1./(light_speed*dt));double betaNorm=norm(beta);
++    double betaNorm=norm(beta);
+     constexpr double pi=3.141592653589793238462643383279502884;
+     double coefficient=t.charge_e*accelerator::scalar_constants::ElementaryChargeC*t.weight/
+       (4*pi*accelerator::scalar_constants::VacuumPermittivityFPerM*light_speed);
+@@ -81,7 +107,8 @@
+         double boundary=directShadowBoundary(propagation,t.start_m,t.end_m,o.position,s.a,s.b);
+         if(boundary>s.a&&boundary<s.b){split=true;splitAt=boundary;}
+       }
+-      for(unsigned face=0;face<faces;++face){
++      CandidateFaces refineFaces{propagation,q,direct};std::uint32_t face;
++      while(refineFaces.next(face)){
+         auto p=direct?directPath(propagation,q):transmittedPath(propagation,q,face);
+         if(p.status==PathStatus::Invalid||p.status==PathStatus::Unconverged){Kokkos::atomic_max(&counters().error,std::uint32_t{5});return;}
+         if(p.status!=PathStatus::Valid)continue;
+@@ -99,7 +126,8 @@
+         stack[size++]={splitAt,s.b,s.depth+1};stack[size++]={s.a,splitAt,s.depth+1};continue;
+       }
+       Kokkos::atomic_fetch_add(&counters().leaves,1ULL);
+-      for(unsigned face=0;face<faces;++face){
++      CandidateFaces emitFaces{propagation,q,direct};
++      while(emitFaces.next(face)){
+         auto p=direct?directPath(propagation,q):transmittedPath(propagation,q,face);
+         if(p.status==PathStatus::Blocked){Kokkos::atomic_fetch_add(&counters().blocked,1ULL);continue;}
+         if(p.status!=PathStatus::Valid){Kokkos::atomic_fetch_add(&counters().missing,1ULL);continue;}
+--- a/corsika/modules/terrain/TerrainMagneticTracking.hpp
++++ b/corsika/modules/terrain/TerrainMagneticTracking.hpp
+@@ -1,11 +1,12 @@
+-/* Terrain extension of stock LeapFrogCurved. The atmospheric sphere solver,
+- * maximum deflection, trajectory and time conventions are unchanged. Only
+- * finite DEM faces add a quadratic/BVH intersection; the mesh is cached once. */
++/* Terrain extension of stock LeapFrogCurved. Retain its sphere solver and
++ * trajectory, with an explicit accuracy cap shared by interface transport.
++ * Finite DEM faces use quadratic/BVH intersection; the mesh is cached once. */
+ #pragma once
+ #include <corsika/modules/terrain/TerrainBoundaryTracking.hpp>
+ #include <corsika/modules/tracking/TrackingLeapFrogCurved.hpp>
+ #include <corsika/geometry/terrain/FlatTerrainExport.hpp>
+ #include <corsika/geometry/terrain/TerrainCurvedBoundary.hpp>
++#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
+ 
+ namespace corsika::terrain {
+ // Borrow the indexed mesh while retaining StraightTrajectory (zero-field mode).
+@@ -37,8 +38,8 @@
+   };
+  public:
+   explicit MagneticTracking(TriangularMesh const& mesh,double maxDeflection=.2)
+-      :mesh_(exportFlatTerrain(mesh)),source_(&mesh),angle_(maxDeflection) {
+-    if(!std::isfinite(angle_)||angle_<=0.||angle_>.2)
++      :mesh_(exportFlatTerrain(mesh)),source_(&mesh),angle_(std::min(maxDeflection,MaximumQuadraticMagneticDeflection)) {
++    if(!std::isfinite(maxDeflection)||maxDeflection<=0.||maxDeflection>.2)
+       throw std::invalid_argument("terrain deflection must be in (0,0.2] rad");
+   }
+   FlatTerrainData const& flatTerrain()const noexcept{return mesh_;}
+@@ -50,7 +51,7 @@
+     bool linear=charge==0*constants::e||field.getNorm()==0_T;
+     LengthType limit=std::numeric_limits<double>::infinity()*1_m;
+     if(!linear) {
+-      auto perpendicular=(p.getMomentum()-p.getMomentum().getParallelProjectionOnto(field)).getNorm();
++      auto perpendicular=p.getMomentum().cross(field).getNorm()/field.getNorm();
+       auto radius=convert_HEP_to_SI<MassType::dimension_type>(perpendicular)*constants::c/(abs(charge)*field.getNorm());
+       linear=perpendicular<1_eV||radius>1.e9_m;
+       if(!linear)limit=2.*std::cos(angle_)*std::sin(angle_)*radius;
+@@ -85,7 +86,7 @@
+     return p.path.start.logically_inside?Intersections(0_s,TimeType(time)):Intersections(TimeType(time));
+   }
+   static std::string getName(){return "Terrain-LeapFrog-QuadraticBVH";}
+-  static std::string getVersion(){return "1.0";}
++  static std::string getVersion(){return "1.1";}
+  private:
+   FlatTerrainData mesh_;
+   TriangularMesh const* source_;
+--- a/corsika/modules/transport/detail/InterfaceEmStep.hpp
++++ b/corsika/modules/transport/detail/InterfaceEmStep.hpp
+@@ -11,6 +11,7 @@
+ #include <corsika/accelerator/em/detail/InteractionSelection.hpp>
+ #include <corsika/accelerator/em/detail/PhotonTransportStep.hpp>
+ #include <corsika/accelerator/em/detail/LeptonTransportStep.hpp>
++#include <corsika/modules/transport/detail/InterfaceMagneticPolicy.hpp>
+ #include <corsika/accelerator/em/detail/MoliereStep.hpp>
+ #include <corsika/accelerator/em/detail/LeptonVertexSelection.hpp>
+ #include <corsika/accelerator/em/detail/PhotonFinalStateStep.hpp>
+@@ -99,6 +100,7 @@
+     query.direction={start.direction[0],start.direction[1],start.direction[2]};
+     query.logically_inside=start.medium_id==interface.inside_region;
+     flat::QuadraticPath path{query,{0.,0.,0.},HUGE_VAL};
++    bool linear_field_override=false;
+     if(start.pid==11||start.pid==-11) {
+       // Boundary curvature must use the SAME transport mass as transportLepton,
+       // not the slightly different PROPOSAL cross-section/final-state mass.
+@@ -107,8 +109,11 @@
+       double mass_GeV=mass.value/1000.;
+       double charge=start.pid>0?-1.:1.;
+       auto const& field=bank.environment.magnetic_field_T;
+-      auto limit=em::maximumUniformMagneticStep(start,mass_GeV,charge,field,
++      auto limit=maximumInterfaceMagneticStep(start,mass_GeV,charge,field,
+           bank.environment.maximum_magnetic_deflection_rad);
++      if(limit.status==em::MagneticStepStatus::InvalidInput||limit.status==em::MagneticStepStatus::NonFiniteResult){out.error=105;return;}
++      linear_field_override=limit.status==em::MagneticStepStatus::Linear&&
++          (field[0]!=0.||field[1]!=0.||field[2]!=0.);
+       if(limit.status==em::MagneticStepStatus::Success) {
+         double momentum=std::sqrt((start.energy_GeV-mass_GeV)*(start.energy_GeV+mass_GeV));
+         auto q=flat::cross(query.direction,{field[0],field[1],field[2]});
+@@ -126,7 +131,9 @@
+     limiter.allow_unbounded_inward_grammage=true;
+     // Diagnostic caps compete using the same arclength parameter as geometry.
+     // They are NOT material surfaces: reaching one must not flip medium_id.
+-    double diagnostic_distance=maximum_step_m;
++    // The stable interface cap also competes inside the reused legacy
++    // transport step. A cap endpoint is a continuation, never a material flip.
++    double diagnostic_distance=path.maximum_length_m<maximum_step_m?path.maximum_length_m:maximum_step_m;
+     if(std::isfinite(transport_window_s)) {
+       double speed=em::SpeedOfLightMPerS;
+       if(start.pid!=22) {
+@@ -189,7 +196,14 @@
+       }
+     } else if(start.pid==11||start.pid==-11) {
+       em::LeptonTransportRecord step;
+-      auto state=physics::transportLepton(bank.physics,true,bank.environment,selected.interaction,step,out.fallback,limiter);
++      std::uint32_t state;
++      if(linear_field_override){
++        // Apply the same linear decision to legacy geometry AND propagation.
++        // The caller's material/field bank is immutable; air modules are unchanged.
++        auto environment=bank.environment;
++        for(unsigned axis=0;axis<3;++axis)environment.magnetic_field_T[axis]=0.;
++        state=physics::transportLepton(bank.physics,true,environment,selected.interaction,step,out.fallback,limiter);
++      }else state=physics::transportLepton(bank.physics,true,bank.environment,selected.interaction,step,out.fallback,limiter);
+       C8_TERRAIN_AUDIT_STAGE(transport_state,state,0);
+       C8_TERRAIN_AUDIT_STAGE(transport,step,4);
+       state=physics::applyMoliereScatteringStage<em::MaxMoliereComponents>(bank.electron_moliere,bank.muon_moliere,
+@@ -205,7 +219,7 @@
+         radio_tracks(index)={{a.position_m[0],a.position_m[1],a.position_m[2]},
+           {b.position_m[0],b.position_m[1],b.position_m[2]},a.time_s,b.time_s,
+           a.pid==11?-1.:1.,a.weight,a.history_id,a.step_id,
+-          std::uint32_t(a.medium_id==interface.inside_region),1};
++          std::uint32_t(a.medium_id==interface.inside_region),1,1.e-9};
+       }
+       recordMidpoint(out,step.magnetic_bending_applied!=0);
+       out.grammage_g_cm2=step.traversed_grammage_g_per_cm2;
+--- a/corsika/modules/transport/detail/InterfaceMagneticPolicy.hpp
++++ b/corsika/modules/transport/detail/InterfaceMagneticPolicy.hpp
+@@ -0,0 +1,28 @@
++#pragma once
++#include <corsika/accelerator/em/common/UniformMagneticField.hpp>
++#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
++
++namespace corsika::interfaces::detail {
++// Independent interface policy: avoid B^2-(u.B)^2 cancellation for directions
++// parallel to B. Preserve the scalar 1 eV/c and 1e9 m linear-track decisions.
++KOKKOS_INLINE_FUNCTION gpu::em::MagneticStepLimitResult maximumInterfaceMagneticStep(
++    gpu::em::EmParticleState const& particle,double mass,double charge,double const field[3],
++    double requestedAngle=terrain::MaximumQuadraticMagneticDeflection) {
++  namespace em=gpu::em;
++  namespace m=em::magnetic_detail;
++  if(!m::validParticle(particle,mass,charge)||!m::validField(field)||
++     !m::finite(requestedAngle)||!(requestedAngle>0.))return {};
++  double field2=m::dot(field,field);
++  if(charge==0.||field2==0.)return {em::MagneticStepStatus::Linear,0,m::infinity(),m::infinity()};
++  double transverse[3];m::cross(particle.direction,field,transverse);
++  double momentum=m::squareRoot((particle.energy_GeV-mass)*(particle.energy_GeV+mass));
++  double perpendicular=momentum*m::squareRoot(m::dot(transverse,transverse)/field2);
++  if(perpendicular<1.e-9)return {em::MagneticStepStatus::Linear,0,m::infinity(),m::infinity()};
++  double radius=perpendicular/(em::GeVPerCToTeslaMeter*m::absolute(charge)*m::squareRoot(field2));
++  if(!m::finite(radius)||radius>1.e9)return {em::MagneticStepStatus::Linear,0,m::infinity(),radius};
++  double angle=requestedAngle<terrain::MaximumQuadraticMagneticDeflection?requestedAngle:terrain::MaximumQuadraticMagneticDeflection;
++  double length=2*m::cosine(angle)*m::sine(angle)*radius;
++  if(!m::finite(length)||!(length>0.))return {em::MagneticStepStatus::NonFiniteResult,0,0.,radius};
++  return {em::MagneticStepStatus::Success,0,length,radius};
++}
++}
+--- a/src/radio/interface/Output.cpp
++++ b/src/radio/interface/Output.cpp
+@@ -78,6 +78,8 @@
+     <<",\"subdivision_frequency_Hz\":"<<c.subdivision_frequency_Hz<<",\"fraunhofer_limit\":"<<c.fraunhofer_limit
+     <<",\"maximum_subdivision_depth\":"<<c.maximum_subdivision_depth<<",\"geometry\":"<<int(c.propagation.geometry)
+     <<",\"mesh_maximum_segment_m\":"<<c.mesh_maximum_segment_m
++    <<",\"source_causality_policy\":\"declared-transport-and-input-ulp-beta-v2\""
++    <<",\"transmission_candidate_search\":\""<<(c.propagation.transmission_bvh?"conservative-snell-bvh-v1":"exhaustive")<<"\""
+     <<",\"optical_integration_samples\":"<<c.propagation.optical_integration_samples
+     <<",\"visibility_tolerance_m\":"<<c.propagation.visibility_tolerance_m
+     <<",\"shared_edge_tolerance_m\":"<<c.propagation.shared_edge_tolerance_m
+--- a/src/transport/InterfaceEmSession.cpp
++++ b/src/transport/InterfaceEmSession.cpp
+@@ -5,6 +5,7 @@
+ #include <corsika/modules/transport/kokkos/KokkosInterfaceQueue.hpp>
+ #include <corsika/modules/transport/kokkos/ExecutionSpace.hpp>
+ #include <corsika/modules/radio/interface/KokkosAccumulator.hpp>
++#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
+ namespace corsika::interfaces {
+ namespace kd = accelerator::em::kokkos_detail;
+ using Space = kokkos::ExecutionSpace;
+@@ -105,7 +106,7 @@
+     for(auto const& bank:banks)projected+=kd::KokkosProposalNativeTable<Space>::projectedDeviceBytes(bank.table);
+     projected += kokkos::InterfaceQueue<Space>::peakWorkspaceBytes(c.resident_capacity,c.batch_size);
+     if(c.resident_capacity) projected+=c.resident_record_capacity*sizeof(EmStep);
+-    if(c.radio.enabled)projected+=Radio::projectedBytes(c.radio,c.batch_size)+
++    if(c.radio.enabled)projected+=Radio::projectedBytes(c.radio,c.batch_size,mesh.nodes.size())+
+       c.batch_size*sizeof(corsika::radio::interface::Track);
+     if(projected>c.maximum_device_bytes)throw std::runtime_error(
+         "interface pre-initialization memory gate requires "+std::to_string(projected)+" bytes");
+@@ -136,13 +137,15 @@
+       bytes+=moliere[i].deviceBytes();
+       auto& d=host(i);d.physics.proposal_native=tables[i].deviceView();d.physics.physics_source=1;
+       d.physics.em_transport_cut_MeV=c.emcut_MeV;d.environment=banks[i].environment;
++      d.environment.maximum_magnetic_deflection_rad=std::min(
++          d.environment.maximum_magnetic_deflection_rad,terrain::MaximumQuadraticMagneticDeflection);
+       d.electron_moliere=banks[i].auxiliary.electron_moliere;
+       d.moliere_interpolation=moliere[i].deviceView();d.photon_pair_lpm=banks[i].auxiliary.photon_pair_lpm;
+       d.brems_lpm=banks[i].auxiliary.brems_lpm;d.thinning=c.thinning;d.random_seed=c.seed;d.shower_id=c.shower_id;
+     }
+     bytes += kokkos::InterfaceQueue<Space>::workspaceBytes(c.resident_capacity,c.batch_size);
+     if(c.resident_capacity) bytes+=c.resident_record_capacity*sizeof(EmStep);
+-    if(c.radio.enabled)bytes+=Radio::projectedBytes(c.radio,c.batch_size)+
++    if(c.radio.enabled)bytes+=Radio::projectedBytes(c.radio,c.batch_size,mesh.nodes.size())+
+       c.batch_size*sizeof(corsika::radio::interface::Track);
+     if(bytes + c.resident_capacity*sizeof(em::EmParticleState)>c.maximum_device_bytes)throw std::runtime_error("interface memory budget exceeded");
+     Kokkos::deep_copy(materials,host);
+--- a/tests/accelerator/CMakeLists.txt
++++ b/tests/accelerator/CMakeLists.txt
+@@ -114,7 +114,7 @@
+     set_source_files_properties(LiveFinalStateDriver.cpp PROPERTIES LANGUAGE HIP)
+   endif()
+   # Isolated terrain device test, including the opt-in material step limiter.
+-  foreach(terrain_test IN ITEMS testKokkosTerrainSession testTerrainCurvedBoundary testKokkosInterfaceQueue testKokkosInterfaceRadio testKokkosInterfaceRadioWaveforms)
++  foreach(terrain_test IN ITEMS testKokkosTerrainSession testTerrainCurvedBoundary testKokkosInterfaceQueue testKokkosInterfaceRadio testKokkosInterfaceRadioWaveforms testKokkosInterfaceRadioBvh)
+   add_executable(${terrain_test} ${terrain_test}.cpp)
+   target_include_directories(${terrain_test} PRIVATE ${CMAKE_SOURCE_DIR})
+   target_link_libraries(${terrain_test} PRIVATE Kokkos::kokkos CORSIKA8)
+@@ -141,12 +141,14 @@
+   elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+     set_source_files_properties(${terrain_test}.cpp PROPERTIES LANGUAGE HIP)
+   endif()
+-  if(NOT terrain_test STREQUAL "testKokkosInterfaceRadioWaveforms")
++  if(NOT terrain_test MATCHES "^testKokkosInterfaceRadio(Waveforms|Bvh)$")
+   add_test(NAME ${terrain_test} COMMAND ${terrain_test})
+   set_tests_properties(${terrain_test} PROPERTIES
+     ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false")
+   endif()
+   endforeach()
++
++  target_sources(testKokkosInterfaceRadioBvh PRIVATE InterfaceRadioBvhMeshLoader.cpp)
+ 
+   set_tests_properties(testKokkosInterfaceRadio PROPERTIES
+     ENVIRONMENT "C8_INTERFACE_TEST_THREADS=${C8_INTERFACE_TEST_THREADS};OMP_NUM_THREADS=${C8_INTERFACE_TEST_THREADS};OMP_PROC_BIND=spread;OMP_PLACES=threads")
+--- a/tests/accelerator/InterfaceRadioBvhMeshLoader.cpp
++++ b/tests/accelerator/InterfaceRadioBvhMeshLoader.cpp
+@@ -0,0 +1,8 @@
++// Native geometry is compiled as C++, separately from the POD-only CUDA probe.
++#include <corsika/geometry/terrain/FlatTerrainExport.hpp>
++#include <corsika/geometry/terrain/TerrainBoundary.hpp>
++corsika::terrain::FlatTerrainData loadRadioBvhProbeMesh(char const* path) {
++  corsika::logging::set_level(corsika::logging::level::warn);
++  auto mesh=corsika::terrain::loadValidatedTerrain(path,corsika::get_root_CoordinateSystem());
++  return corsika::terrain::exportFlatTerrain(mesh);
++}
+--- a/tests/accelerator/testKokkosInterfaceRadio.cpp
++++ b/tests/accelerator/testKokkosInterfaceRadio.cpp
+@@ -5,6 +5,9 @@
+ #include <corsika/modules/radio/interface/KokkosAccumulator.hpp>
+ #include <corsika/modules/transport/kokkos/ExecutionSpace.hpp>
+ #include <corsika/geometry/terrain/KokkosTerrainSession.hpp>
++#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
++#include <corsika/accelerator/em/common/UniformMagneticField.hpp>
++#include <corsika/modules/transport/detail/InterfaceMagneticPolicy.hpp>
+ #include <fstream>
+ #include <iomanip>
+ #include <iostream>
+@@ -63,6 +66,21 @@
+     }
+   }
+ };
++void checkShallowReciprocity(Space const& execution){
++  ri::PropagationConfig c;c.geometry=ri::Geometry::Plane;
++  c.media[0].refractive_index=1.000327;c.media[1].refractive_index=2.;
++  for(double offset:{0.,2500.})for(double depth:{1.e-6,1.e-4,.01}){
++    c.plane_point_m={offset,offset,offset};
++    ri::Vec3 source{offset,offset,offset-depth},observer{offset+6000.,offset+3000.,offset+2000.};
++    auto paths=rays(c,{{source,observer,1,0},{observer,source,0,1}},execution);
++    require(paths[0].status==ri::PathStatus::Valid&&paths[1].status==ri::PathStatus::Valid,"shallow reciprocal Snell solve failed");
++    require(std::abs(paths[0].snell_residual)<1.e-10&&std::abs(paths[1].snell_residual)<1.e-10,"shallow reciprocal Snell residual");
++    close(paths[0].time_s,paths[1].time_s,1.e-13,"reciprocal optical delay");
++    require(d::norm(d::sub(paths[0].interface_point,paths[1].interface_point))<1.e-8,"reciprocal interface point");
++    require(d::norm(d::add(paths[0].emit,paths[1].receive_direction))<1.e-10&&d::norm(d::add(paths[0].receive_direction,paths[1].emit))<1.e-10,"reciprocal ray directions");
++    close(paths[0].source_length_m,paths[1].destination_length_m,1.e-10,"reciprocal short leg");
++  }
++}
+ struct CandidateKernel {
+   d::PropagationView propagation;Kokkos::View<ri::Path**,Memory> paths;
+   KOKKOS_INLINE_FUNCTION void operator()(std::size_t i)const {
+@@ -74,6 +92,9 @@
+     if(query%2)q={outside,inside,0,1};
+     paths(0,i)=d::transmittedPath(propagation,q,face,false,true);
+     paths(1,i)=d::transmittedPath(propagation,q,face,false,false);
++    paths(2,i)=ri::Path{};
++    d::CandidateFaces candidates{propagation,q,false};std::uint32_t id;
++    while(candidates.next(id))if(id==face)paths(2,i)=paths(0,i);
+   }
+ };
+ void checkBufferedSources(Space const& execution){
+@@ -109,6 +130,130 @@
+   require(norm>0.&&std::sqrt(difference/norm)<1.e-10,"buffered mixed-source linearity");
+   std::cout<<"PASS buffered sources device="<<nd<<" cpu="<<nc<<" radio_batches="<<result.statistics.wavefronts
+     <<" relative_l2="<<double(std::sqrt(difference/norm))<<'\n';
++}
++struct SourceKinematicsKernel {
++  Kokkos::View<ri::Track*,Memory> tracks;Kokkos::View<double**,Memory> result;
++  KOKKOS_INLINE_FUNCTION void operator()(std::size_t i)const{
++    auto t=tracks(i);auto displacement=d::sub(t.end_m,t.start_m);double length=d::norm(displacement),dt=t.end_time_s-t.start_time_s;
++    ri::Vec3 beta;bool limited=false;
++    bool ok=d::sourceBeta(t,displacement,length,dt,beta,limited);
++    result(i,0)=ok;result(i,1)=limited;result(i,2)=ok?d::norm(beta):0.;
++  }
++};
++void checkSourceRoundoff(Space const& execution){
++  // Exact rows 11839 / 15603 captured from the first 100 PeV seed 946 run.
++  std::vector<ri::Track> data(9);
++  data[0].start_m={2516.5338281904737,3921.0693933170355,500.53046668457796};
++  data[0].end_m={2516.533828018205,3921.0693649892855,500.53046701621611};
++  data[0].start_time_s=1.2440899276040025e-6;data[0].end_time_s=1.2440900221034271e-6;
++  data[1].start_m={2516.5371970851511,3921.3554536930696,500.52966734425695};
++  data[1].end_m={2516.5371971865275,3921.3554465925231,500.52966735385797};
++  data[1].start_time_s=1.2431357330046093e-6;data[1].end_time_s=1.2431357566919185e-6;
++  for(unsigned i=0;i<2;++i){data[i].charge_e=-1.;data[i].weight=1.;data[i].valid=1;}
++  data[2]=data[0];data[2].end_time_s=data[2].start_time_s+.99*(data[0].end_time_s-data[0].start_time_s);
++  data[3]=data[0];data[3].end_time_s=data[3].start_time_s;
++  data[4]=data[0];data[4].end_time_s=data[4].start_time_s+2*(data[0].end_time_s-data[0].start_time_s);
++  // A 1e-10 relative superluminal excess near the origin is resolved. The old
++  // fixed 1e-9 relative allowance would have accepted this malformed source.
++  data[5]=data[0];data[5].start_m={0.,0.,0.};data[5].end_m={1.,0.,0.};
++  data[5].start_time_s=0.;data[5].end_time_s=1./(299792458.*(1.+1.e-10));
++  // Captured tau-shower electron after curved transport: its nanometre-scale
++  // chord error uses the transport's pre-existing declared 1e-9 accuracy.
++  data[6]=data[0];data[6].start_m={-.1048682405876564,-.074226010634181966,61.962298933055706};
++  data[6].end_m={-.41050449772298181,-.2900733397521143,238.43557162505775};
++  data[6].start_time_s=2.0671778304108339e-7;data[6].end_time_s=7.9537058150751361e-7;
++  data[6].relative_chord_tolerance=1.e-9;data[7]=data[6];data[7].relative_chord_tolerance=0.;
++  // Actual late air-shower row 10185957: 0.93 mm excess over 192 m.
++  // This resolved integration error MUST NOT be classified as input rounding.
++  data[8]=data[6];data[8].start_m={2521.616509630667,-4300.277152537496,492.4444335329587};
++  data[8].end_m={2523.579476718079,-4492.113273791829,481.6298749402202};
++  data[8].start_time_s=2.8668584942670392e-5;data[8].end_time_s=2.9309527705312035e-5;
++  Kokkos::View<ri::Track*,Memory> tracks("radio_roundoff_sources",data.size());
++  auto host=Kokkos::create_mirror_view(tracks);for(unsigned i=0;i<data.size();++i)host(i)=data[i];
++  Kokkos::deep_copy(execution,tracks,host);
++  Kokkos::View<double**,Memory> result("radio_roundoff_result",data.size(),3);
++  Kokkos::parallel_for("radio_source_ulp_causality",Kokkos::RangePolicy<Space>(execution,0,data.size()),SourceKinematicsKernel{tracks,result});
++  auto h=Kokkos::create_mirror_view(result);Kokkos::deep_copy(execution,h,result);execution.fence();
++  for(unsigned i=0;i<2;++i)require(h(i,0)==1.&&h(i,1)==1.&&std::abs(h(i,2)-1.)<1.e-15,"real microscopic source rejected");
++  for(unsigned i:{2,3,5,7,8})require(h(i,0)==0.,"source beyond declared accuracy accepted");
++  require(h(6,0)==1.&&h(6,1)==1.&&std::abs(h(6,2)-1.)<1.e-15,"declared transport chord accuracy ignored");
++  require(h(4,0)==1.&&h(4,1)==0.&&h(4,2)<1.,"subluminal source changed");
++  ri::Config c;c.enabled=true;c.samples=4096;c.start_time_s=0.;c.propagation.media[0].refractive_index=1.33;
++  c.observers.push_back({"microscopic-source",{2520.,3930.,510.},0});
++  ri::KokkosAccumulator<Space,true> paired(c,{},0,2,execution);
++  paired.accumulate(tracks,2,execution);auto output=paired.download(execution);
++  for(auto const* r:{&output.coreas,&output.zhs})
++    require(r->statistics.device_tracks==2&&r->statistics.roundoff_limited_tracks==2&&!r->statistics.errors,"paired microscopic source inventory");
++  bool failed=false;
++  try{ri::KokkosAccumulator<Space,true> invalid(c,{},0,1,execution);invalid.accumulateCpu({data[2]},execution);invalid.download(execution);}
++  catch(std::runtime_error const&){failed=true;}
++  require(failed,"paired accumulator silently accepted a resolved acausal source");
++  std::cout<<"PASS actual high-energy microscopic sources and resolved acausality rejection\n";
++}
++struct MagneticAccuracyCase {
++  corsika::gpu::em::EmParticleState particle;
++  double mass{},charge{},field[3]{},angle{};
++};
++struct MagneticAccuracyKernel {
++  Kokkos::View<MagneticAccuracyCase*,Memory> cases;
++  Kokkos::View<double**,Memory> output;
++  KOKKOS_INLINE_FUNCTION void operator()(std::size_t i)const {
++    namespace em=corsika::gpu::em;
++    auto const c=cases(i);
++    auto limit=c.angle==.2?em::maximumUniformMagneticStep(c.particle,c.mass,c.charge,c.field,c.angle):
++        corsika::interfaces::detail::maximumInterfaceMagneticStep(c.particle,c.mass,c.charge,c.field,c.angle);
++    double length=limit.status==em::MagneticStepStatus::Linear?100.:limit.distance_m;
++    double zero[3]{0.,0.,0.};
++    auto advanced=em::advanceUniformMagneticField(c.particle,c.mass,c.charge,
++        limit.status==em::MagneticStepStatus::Linear?zero:c.field,length);
++    output(i,0)=length;output(i,1)=advanced.particle.time_s;
++    output(i,9)=limit.status==em::MagneticStepStatus::Linear;
++    for(unsigned j=0;j<3;++j){output(i,2+j)=advanced.particle.position_m[j];output(i,5+j)=advanced.particle.direction[j];}
++    ri::Track source;source.start_m={0.,0.,0.};source.end_m={output(i,2),output(i,3),output(i,4)};
++    source.end_time_s=output(i,1);source.relative_chord_tolerance=1.e-9;
++    ri::Vec3 beta;bool limited=false;
++    output(i,8)=d::sourceBeta(source,source.end_m,d::norm(source.end_m),source.end_time_s,beta,limited);
++  }
++};
++void checkMagneticAccuracy(Space const& execution){
++  namespace em=corsika::gpu::em;
++  std::vector<MagneticAccuracyCase> cases;
++  for(double mass:{5.109989e-4,1.056584e-1})for(double energy:{.3624695166929317,1.,1000.,10000.})
++    for(double pitch:{0.,1.e-9,1.e-5,.1,.7071067811865475,1.})for(double charge:{-1.,1.})
++      for(double field:{5.e-5,.01})for(double angle:{.2,terrain::MaximumQuadraticMagneticDeflection}){
++        MagneticAccuracyCase c;c.mass=mass;c.charge=charge;c.field[2]=field;c.angle=angle;
++        c.particle.pid=charge<0?11:-11;c.particle.energy_GeV=energy;c.particle.weight=1.;
++        c.particle.direction[0]=pitch;c.particle.direction[2]=std::sqrt(1.-pitch*pitch);cases.push_back(c);
++      }
++  Kokkos::View<MagneticAccuracyCase*,Memory> input("magnetic_accuracy_cases",cases.size());
++  auto h=Kokkos::create_mirror_view(input);for(unsigned i=0;i<cases.size();++i)h(i)=cases[i];Kokkos::deep_copy(execution,input,h);
++  Kokkos::View<double**,Memory> output("magnetic_accuracy_results",cases.size(),10);
++  Kokkos::parallel_for("interface_magnetic_analytic_helix",Kokkos::RangePolicy<Space>(execution,0,cases.size()),MagneticAccuracyKernel{input,output});
++  auto values=Kokkos::create_mirror_view(output);Kokkos::deep_copy(execution,values,output);execution.fence();
++  std::ofstream csv;if(auto file=std::getenv("C8_MAGNETIC_ACCURACY_CSV")){csv.open(file);csv<<std::setprecision(17)<<"mass_GeV,energy_GeV,pitch,charge,field_T,angle,length_m,chord_excess,position_error,direction_error,source_accepted\n";}
++  unsigned originalRejected=0;double maxPositionError=0.,maxChordExcess=0.;
++  for(unsigned i=0;i<cases.size();++i){
++    auto const& c=cases[i];double length=values(i,0),pitch=c.particle.direction[0];
++    double p=std::sqrt((c.particle.energy_GeV-c.mass)*(c.particle.energy_GeV+c.mass));
++    double k=c.charge*em::GeVPerCToTeslaMeter*c.field[2]/p,theta=k*length;
++    // Independent closed-form Lorentz-force helix; no production propagator.
++    ri::Vec3 exact{pitch*std::sin(theta)/k,-2*pitch*std::pow(std::sin(theta/2),2)/k,c.particle.direction[2]*length};
++    ri::Vec3 direction{pitch*std::cos(theta),-pitch*std::sin(theta),c.particle.direction[2]};
++    ri::Vec3 actual{values(i,2),values(i,3),values(i,4)},actualDirection{values(i,5),values(i,6),values(i,7)};
++    double error=d::norm(d::sub(actual,exact))/length,dirError=d::norm(d::sub(actualDirection,direction));
++    double excess=d::norm(actual)/length-1.;
++    require(std::isfinite(error)&&std::isfinite(dirError),"nonfinite magnetic helix comparison");
++    close(values(i,1),length/(p/c.particle.energy_GeV*d::light_speed),1.e-14,"magnetic flight clock");
++    if(c.angle==terrain::MaximumQuadraticMagneticDeflection){
++      if(pitch==0.)require(values(i,9)==1.,"field-parallel source has a spurious transverse momentum");
++      require(values(i,8)==1.,"accuracy-capped magnetic source violates precision contract");
++      require(excess<8.01e-10&&error<1.1e-9&&dirError<1.7e-9,"terrain magnetic accuracy cap does not bound helix error");
++      maxPositionError=std::max(maxPositionError,error);maxChordExcess=std::max(maxChordExcess,excess);
++    }else if(values(i,8)==0.)++originalRejected;
++    if(csv)csv<<c.mass<<','<<c.particle.energy_GeV<<','<<pitch<<','<<c.charge<<','<<c.field[2]<<','<<c.angle<<','<<length<<','<<excess<<','<<error<<','<<dirError<<','<<values(i,8)<<'\n';
++  }
++  require(originalRejected>0,"magnetic regression did not expose original acausal chords");
++  std::cout<<"PASS analytic helix accuracy "<<cases.size()<<" cases; maximum relative position error "<<maxPositionError<<" chord excess "<<maxChordExcess<<'\n';
+ }
+ int main(int argc,char** argv){try{
+   int threads=256;if(auto e=std::getenv("C8_INTERFACE_TEST_THREADS"))threads=std::stoi(e);
+@@ -215,21 +360,27 @@
+   // Compare the conservative optimization with exhaustive finite-face solving
+   // on the device, including both directions and three interface orientations.
+   constexpr unsigned candidateQueries=512,candidatePairs=candidateQueries*12;
+-  Kokkos::View<ri::Path**,Memory> candidates("interface_radio_candidate_paths",2,candidatePairs);
++  Kokkos::View<ri::Path**,Memory> candidates("interface_radio_candidate_paths",3,candidatePairs);
+   Kokkos::parallel_for("interface_radio_candidate_equivalence",Kokkos::RangePolicy<Space>(execution,0,candidatePairs),CandidateKernel{propagation.view(),candidates});
+   auto ch=Kokkos::create_mirror_view(candidates);Kokkos::deep_copy(execution,ch,candidates);execution.fence();
+-  unsigned candidateAccepted=0,candidateRejected=0;
++  unsigned candidateAccepted=0,candidateRejected=0,bvhRejected=0;
+   for(unsigned i=0;i<candidatePairs;++i){auto a=ch(0,i),b=ch(1,i);
+     require(a.status==b.status,"candidate rejection changed finite-face status");
++    if(b.status==ri::PathStatus::Valid||b.status==ri::PathStatus::Blocked)
++      require(ch(2,i).status==b.status,"BVH discarded a stationary finite-face path");
++    bvhRejected+=ch(2,i).iterations==0&&a.iterations>0;
+     if(b.status==ri::PathStatus::Valid){++candidateAccepted;
+       require(a.time_s==b.time_s&&a.interface_point.x==b.interface_point.x&&a.interface_point.y==b.interface_point.y&&a.interface_point.z==b.interface_point.z,"candidate rejection changed accepted path");
+       for(unsigned j=0;j<9;++j)require(a.transfer_per_m[j]==b.transfer_per_m[j],"candidate rejection changed field transfer");
+     }
+     candidateRejected+=a.iterations==0&&b.iterations>0;
+   }
+-  require(candidateAccepted>0&&candidateRejected>0,"candidate fixture did not exercise acceptance and rejection");
++  require(candidateAccepted>0&&candidateRejected>0&&bvhRejected>0,"candidate fixture did not exercise acceptance and rejection");
+   std::cout<<"PASS candidate equivalence pairs="<<candidatePairs<<" valid="<<candidateAccepted<<" avoided_solves="<<candidateRejected<<'\n';
+   checkBufferedSources(execution);
++  checkShallowReciprocity(execution);
++  checkSourceRoundoff(execution);
++  checkMagneticAccuracy(execution);
+   std::cout<<"PASS interface radio propagation execution="<<Space::name()<<" concurrency="<<execution.concurrency()<<" analytic_rays="<<checked<<" mesh_paths="<<accepted<<'\n';
+   return 0;
+ }catch(std::exception const& e){std::cerr<<e.what()<<'\n';return 1;}}
+--- a/tests/accelerator/testKokkosInterfaceRadioBvh.cpp
++++ b/tests/accelerator/testKokkosInterfaceRadioBvh.cpp
+@@ -0,0 +1,97 @@
++// Real DEM property test: conservative candidate traversal versus every face.
++// Both directions, shallow/deep sources, and the actual radial optical table.
++#include <Kokkos_Core.hpp>
++#include <corsika/geometry/terrain/KokkosTerrainSession.hpp>
++#include <corsika/modules/radio/interface/KokkosPropagation.hpp>
++#include <corsika/modules/transport/kokkos/ExecutionSpace.hpp>
++#include <yaml-cpp/yaml.h>
++#include <chrono>
++#include <fstream>
++#include <iostream>
++namespace ri=corsika::radio::interface;
++namespace d=ri::detail;
++using Space=corsika::interfaces::kokkos::ExecutionSpace;
++using Memory=Space::memory_space;
++corsika::terrain::FlatTerrainData loadRadioBvhProbeMesh(char const* path);
++struct Counts {unsigned kept{},valid{},blocked{},missed{},duplicates{},invalid{},invalid_kept{},first_bad{UINT32_MAX};ri::Path first_bad_path;};
++struct Probe {
++  d::PropagationView propagation;
++  Kokkos::View<ri::RayQuery*,Memory> queries;
++  Kokkos::View<unsigned char**,Kokkos::LayoutRight,Memory> mask;
++  Kokkos::View<Counts*,Memory> result;
++  KOKKOS_INLINE_FUNCTION void operator()(std::size_t i)const {
++    auto q=queries(i);Counts r;d::CandidateFaces candidates{propagation,q,false};std::uint32_t id;
++    while(candidates.next(id)){
++      if(id>=propagation.faces){++r.invalid;continue;}
++      if(mask(i,id))++r.duplicates;
++      mask(i,id)=1;++r.kept;
++    }
++    for(unsigned face=0;face<propagation.faces;++face){
++      auto p=d::transmittedPath(propagation,q,face);
++      if(p.status==ri::PathStatus::Valid){++r.valid;if(!mask(i,face))++r.missed;}
++      if(p.status==ri::PathStatus::Blocked){++r.blocked;if(!mask(i,face))++r.missed;}
++      if(p.status==ri::PathStatus::Invalid||p.status==ri::PathStatus::Unconverged){++r.invalid;r.invalid_kept+=mask(i,face)!=0;if(r.first_bad==UINT32_MAX){r.first_bad=face;r.first_bad_path=p;}}
++    }
++    result(i)=r;
++  }
++};
++int main(int argc,char** argv){try{
++  using namespace corsika;
++  if(argc!=4)throw std::invalid_argument("usage: testKokkosInterfaceRadioBvh MESH CONFIG_JSON OUTPUT_JSON");
++  auto flat=loadRadioBvhProbeMesh(argv[1]);
++  auto input=YAML::LoadFile(argv[2]);ri::PropagationConfig c;c.geometry=ri::Geometry::Mesh;
++  for(unsigned i=0;i<2;++i){auto n=input["media"][i];auto& m=c.media[i];
++    m.refractive_index=n["index"].as<double>();
++    if(n["attenuation_length_m"]&&!n["attenuation_length_m"].IsNull())m.attenuation_length_m=n["attenuation_length_m"].as<double>();
++    m.center_m={n["center_m"][0].as<double>(),n["center_m"][1].as<double>(),n["center_m"][2].as<double>()};
++    m.reference_radius_m=n["reference_radius_m"].as<double>();
++    for(auto row:n["radial_index"])m.radial_index.push_back({row[0].as<double>(),row[1].as<double>()});
++    for(auto row:n["radial_integration_breaks_m"])m.radial_integration_breaks_m.push_back(row.as<double>());
++  }
++  Kokkos::InitializationSettings settings;settings.set_num_threads(256);settings.set_device_id(0);
++  Kokkos::ScopeGuard runtime(settings);Space execution;
++  terrain::KokkosTerrainSession<Space> geometry(flat,1);
++  ri::KokkosPropagation<Space> optics(c,geometry.deviceView(),flat.triangles.size(),execution);
++  constexpr unsigned count=256;
++  Kokkos::View<ri::RayQuery*,Memory> queries("bvh_probe_queries",count);
++  auto host=Kokkos::create_mirror_view(queries);
++  for(unsigned i=0;i<count;++i){
++    unsigned face=(std::uint64_t(i)*11939)%flat.triangles.size();
++    while(flat.triangles[face].normal.z<=.2)face=(face+1)%flat.triangles.size();
++    auto t=flat.triangles[face];auto centroid=d::add(t.origin,d::scale(d::add(t.edge1,t.edge2),1./3.));
++    double depth=std::pow(10.,-6.+(i%29)*(9./28.));
++    auto source=d::sub(centroid,d::scale(t.normal,depth));
++    ri::Vec3 observer=i%3==0?ri::Vec3{1677.6818310890271,-2030.0016098328992,-114.16758852890496}:
++      (i%3==1?d::add(centroid,d::scale(t.normal,1000.)):ri::Vec3{-1160.5292565842756,537.1068996418721,-100.32429011659633});
++    if(i<32)source={2516.5354,3016.549+(int(i)-16)*50.,500.5295};
++    host(i)=i%2?ri::RayQuery{observer,source,0,1}:ri::RayQuery{source,observer,1,0};
++  }
++  Kokkos::deep_copy(execution,queries,host);
++  Kokkos::View<unsigned char**,Kokkos::LayoutRight,Memory> mask("bvh_probe_candidate_mask",count,flat.triangles.size());
++  Kokkos::View<Counts*,Memory> result("bvh_probe_counts",count);
++  auto start=std::chrono::steady_clock::now();
++  Kokkos::parallel_for("bvh_probe_against_exhaustive_faces",Kokkos::RangePolicy<Space>(execution,0,count),Probe{optics.view(),queries,mask,result});
++  auto counts=Kokkos::create_mirror_view(result);Kokkos::deep_copy(execution,counts,result);execution.fence();
++  std::uint64_t kept=0,valid=0,blocked=0,missed=0,duplicates=0,invalid=0;
++  for(unsigned i=0;i<count;++i){auto r=counts(i);kept+=r.kept;valid+=r.valid;blocked+=r.blocked;missed+=r.missed;duplicates+=r.duplicates;invalid+=r.invalid;}
++  auto hostOptics=ri::hostPropagation(c,flat.view(),flat.triangles.size());
++  unsigned printed=0;
++  for(unsigned i=0;i<count&&printed<8;++i){auto r=counts(i);if(!r.invalid)continue;++printed;
++    auto q=host(i);auto p=r.first_bad_path;auto t=flat.triangles[r.first_bad];
++    auto normal=q.source_region==1?t.normal:d::scale(t.normal,-1.);
++    std::cerr<<"INVALID query="<<i<<" face="<<r.first_bad<<" status="<<unsigned(p.status)<<" iterations="<<p.iterations
++      <<" invalid_kept="<<r.invalid_kept<<" source="<<q.source.x<<","<<q.source.y<<","<<q.source.z
++      <<" observer="<<q.observer.x<<","<<q.observer.y<<","<<q.observer.z<<" regions="<<q.source_region<<","<<q.observer_region
++      <<" d1="<<d::dot(d::sub(t.origin,q.source),normal)<<" d2="<<d::dot(d::sub(q.observer,t.origin),normal)
++      <<" point="<<p.interface_point.x<<","<<p.interface_point.y<<","<<p.interface_point.z
++      <<" point_inside="<<d::containsTriangle(hostOptics,r.first_bad,p.interface_point)<<" residual="<<p.snell_residual<<"\n";
++  }
++  bool passed=valid>0&&blocked>0&&missed==0&&duplicates==0&&invalid==0;
++  std::ofstream out(argv[3]);out<<"{\"passed\":"<<(passed?"true":"false")<<",\"execution\":\""<<Space::name()<<"\",\"queries\":"<<count
++    <<",\"faces\":"<<flat.triangles.size()<<",\"exhaustive_candidates\":"<<std::uint64_t(count)*flat.triangles.size()
++    <<",\"retained_candidates\":"<<kept<<",\"valid_paths\":"<<valid<<",\"blocked_stationary_paths\":"<<blocked
++    <<",\"missed_paths\":"<<missed<<",\"duplicates\":"<<duplicates<<",\"invalid\":"<<invalid
++    <<",\"wall_s\":"<<std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()<<"}\n";
++  std::cout<<"BVH "<<Space::name()<<" passed="<<passed<<" kept="<<kept<<" valid="<<valid<<" blocked="<<blocked<<" missed="<<missed<<" invalid="<<invalid<<"\n";
++  return passed?0:1;
++}catch(std::exception const& e){std::cerr<<e.what()<<"\n";return 1;}}
+--- a/tests/modules/InterfaceResidentChecks.hpp
++++ b/tests/modules/InterfaceResidentChecks.hpp
+@@ -55,7 +55,10 @@
+   std::uint64_t nextHistory=1000,steps=0,children=0,crossings=0,fallbacks=0;
+   std::size_t injected=primaries.size(),round=0;
+   while(!reference.empty()) {
+-    check(++round<10000,"resident reference replay did not drain");
++    // The terrain accuracy cap resolves much shorter magnetic steps in the
++    // deliberately strong 0.01 T fields. Keep comparing every record to the
++    // independent FIFO through natural absorption; allow the extra wavefronts.
++    check(++round<1000000,"resident reference replay did not drain");
+     if(round==3) {
+       auto p=primaries.front();p.history_id=900;p.parent_history_id=899;
+       session.submit({p});reference.push_back(p);++injected;
+@@ -101,7 +104,7 @@
+   std::uint64_t next=1000,referenceWaves=0;
+   // Independent host FIFO oracle uses only the stateless reference API.
+   while(!fifo.empty()) {
+-    check(++referenceWaves<10000,"cascade oracle did not drain");
++    check(++referenceWaves<1000000,"cascade oracle did not drain");
+     auto count=std::min(std::size_t{64},fifo.size());
+     std::vector<Particle> front;
+     for(std::size_t i=0;i<count;++i){front.push_back(fifo.front());fifo.pop_front();}

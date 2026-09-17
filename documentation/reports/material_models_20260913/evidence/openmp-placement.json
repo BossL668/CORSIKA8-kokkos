@@ -1,0 +1,5 @@
+{
+  "OMP_NUM_THREADS": "256",
+  "OMP_PLACES": "threads",
+  "OMP_PROC_BIND": "spread"
+}

@@ -1,0 +1,62 @@
+atmosphere:
+  model: us_standard_bk
+  origin_altitude_asl_m: 2801.9999999999714
+  sea_level_refractive_index: 1.000327
+geometry:
+  air_refractive_index: 1.0
+  attenuation_length_m: 100.0
+  boundary_padding_m: 1.0e-06
+  kind: terrain_mesh
+  material: SiO2
+  mesh_path: /data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/terrain_enu.ply
+  rock_density_g_cm3: 2.65
+  rock_hadronic_target_approximation: sio2_stoichiometric_fluka_qgsjetii
+  rock_reference_enu_m:
+  - 2450.1139845374446
+  - 4394.778267364436
+  - 464.1122969849589
+  rock_refractive_index: 2.0
+provenance:
+  mesh_sha256: 5060f55efc6a3dae8ab94c6ef2a27356521b56797ed059a1c150c3a47c2d7c1a
+  radio_disabled: false
+  source: /mnt/d/CorsikaData/corsika8_wsl_test_archive_20260830/corsika8-mountain/diagnostic_results/figures/terrain_nutau_v1
+  radio_note: Three original stations; 100 m FIELD attenuation length is an explicit
+    model assumption, not a measured site value.
+radio:
+  observers:
+  - name: E01
+    position_enu_m:
+    - 397.88140553660566
+    - -2028.7543838949
+    - -145.70048570153665
+  - name: E20
+    position_enu_m:
+    - 1677.6818310890271
+    - -2030.0016098328992
+    - -114.16758852890496
+  - name: N10
+    position_enu_m:
+    - -1160.5292565842756
+    - 537.1068996418721
+    - -100.32429011659633
+  enabled: true
+  start_ns: -1000.0
+  sample_rate_GHz: 0.256
+  samples: 131072
+  moment_order: 12
+  subdivision_frequency_GHz: 0.256
+  fraunhofer_limit: 0.025
+  maximum_subdivision_depth: 20
+  mesh_maximum_segment_m: 0.1
+  memory_MiB: 1024
+  air_index_model: native
+  index_table_step_m: 10.0
+  optical_integration_samples: 64
+  rock_attenuation_length_m: 100.0
+schema_version: 1
+site:
+  coordinate_frame: geographic_ENU
+  geoid_undulation_m: -51.75540861320496
+  latitude_deg: 42.942499999999995
+  longitude_deg: 86.7125
+  origin_ellipsoidal_height_m: 2750.2445913867664

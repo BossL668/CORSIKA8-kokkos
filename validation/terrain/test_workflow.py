@@ -42,6 +42,8 @@ def test_workflow_native_scene_reuse_and_conflict(tmp_path,monkeypatch):
     assert s['site']['origin_ellipsoidal_height_m']==pytest.approx(2660)
     assert s['atmosphere']['model']=='us_standard_bk'
     assert 'air_world_radius_m' not in s['geometry']
+    assert s['geometry']['material']=={'preset':'SiO2'}
+    assert 'rock_refractive_index' not in s['geometry']
     assert s['radio']['observers'][0]['name']=='reference_centre'
     assert flow.prepare_scene(config,offline=True)['reused']
     assert scene_path.read_bytes()==before
@@ -57,6 +59,16 @@ def test_scene_tamper_rejected(tmp_path,monkeypatch):
     Path(result['scene']).write_text('tampered')
     with pytest.raises(FileExistsError,match='differs'):
         flow.prepare_scene(config)
+
+
+def test_preparation_selects_material_without_inherited_silica_density(tmp_path,monkeypatch):
+    config,cfg=fixture_request(tmp_path,monkeypatch)
+    cfg['medium']={'material':'Granite'}
+    config.write_text(yaml.safe_dump(dict(terrain=cfg)))
+    result=flow.prepare_scene(config,offline=True)
+    s=yaml.safe_load(Path(result['scene']).read_text())
+    assert s['geometry']['material']=={'preset':'Granite'}
+    assert 'rock_density_g_cm3' not in s['geometry']
 
 
 def test_download_or_prepare_alone_never_runs_shower(tmp_path,monkeypatch):

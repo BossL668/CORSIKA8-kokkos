@@ -333,6 +333,49 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
   };
 
+#ifdef KOKKOS_ENABLE_OPENMP
+  /** Only the cooperative OpenMP endpoint opts in. Inherit the canonical
+   * reducer's init/join/final so Moliere iterations are still counted once per
+   * wavefront; only the per-record integer ledger is sharded. No GPU functor
+   * or physics formula is modified by this host-only specialization. */
+  struct HostShardedLeptonProfileFunctor
+      : ResidentLeptonTransportStatisticsProfileFunctor<Kokkos::OpenMP> {
+    using Base = ResidentLeptonTransportStatisticsProfileFunctor<Kokkos::OpenMP>;
+    detail::HostProfileShards::Entry const* shards{};
+    std::size_t shard_count{};
+
+    void operator()(std::size_t const source, value_type& value) const {
+      statistics(source, value);
+      if (source < step_count) {
+        auto const rank = static_cast<std::size_t>(Kokkos::OpenMP::impl_thread_pool_rank());
+        auto const shard = rank < shard_count ? rank : rank % shard_count;
+        detail::accumulateLeptonProfileStep<KokkosProfileAtomicOperations, false>(
+            projection, shards[shard].accumulator, steps(source));
+      }
+    }
+  };
+#endif
+
+  template <class ExecutionSpace, class Policy>
+  void enqueueLeptonProfileStatistics(
+      Policy const& policy,
+      ResidentLeptonTransportStatisticsProfileFunctor<ExecutionSpace> const& functor,
+      detail::HostProfileShards const& shards) {
+#ifdef KOKKOS_ENABLE_OPENMP
+    if constexpr (std::is_same_v<ExecutionSpace, Kokkos::OpenMP>) {
+      if (shards.enabled()) {
+        Kokkos::parallel_reduce(
+            "c8_kokkos_resident_lepton_transport_statistics_host_sharded",
+            policy, HostShardedLeptonProfileFunctor{functor, shards.entries(),
+                                                    shards.count()});
+        return;
+      }
+    }
+#endif
+    Kokkos::parallel_reduce("c8_kokkos_resident_lepton_transport_statistics",
+                            policy, functor);
+  }
+
   enum ResidentLeptonInteractionStatistic : std::size_t {
     LeptonInteractionLpmSuppressions = 0,
     LeptonInteractionGpuFinalStates,
@@ -1590,15 +1633,14 @@ namespace corsika::accelerator::em::kokkos_detail {
     auto const resident_record_count = static_cast<std::size_t>(totals[LeptonRecordOffset]);
     if (profile_accumulator != nullptr) {
       auto const device_profile = profile_accumulator->deviceView();
-      Kokkos::parallel_reduce(
-          "c8_kokkos_resident_lepton_transport_statistics",
+      enqueueLeptonProfileStatistics(
           Policy(execution, 0, current_count),
           ResidentLeptonTransportStatisticsProfileFunctor<ExecutionSpace>{
               {transports, counts, call_statistics},
               profile_projection,
               device_profile,
               steps,
-              resident_step_count});
+              resident_step_count}, profile_accumulator->hostShards());
       if (interaction_count != 0)
         Kokkos::parallel_reduce(
             "c8_kokkos_resident_lepton_interaction_statistics",
@@ -2190,7 +2232,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         next_history_id - first_secondary_history_id;
     result.completed = queue.empty();
     if (!result.completed)
-      result.remaining_leptons = queue.download(execution);
+      result.remaining_leptons = queue.download(execution, cooperative_wait);
     if (capture_first_interaction) {
       if (host_first_interaction_candidates(0) > 1) {
         throw std::runtime_error(

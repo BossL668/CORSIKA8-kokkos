@@ -11,7 +11,7 @@ namespace corsika::applications::terrain {
 struct EnergyLedger {
   bool enabled{};
   long double cpuContinuous{},deviceContinuous{},deviceCutTotal{},deviceCutRest{},
-      deviceDeposit{},cpuReaction{},deviceReaction{},cpuThinning{},deviceThinning{},worldEscaped{};
+      deviceDeposit{},cpuReaction{},deviceReaction{},cpuThinning{},deviceThinning{},worldEscaped{},domainEscaped{};
   std::map<int,long double> cpuReactionByPid,deviceReactionByProcess,deviceThinningByProcess;
   std::uint64_t cpuVertices{},deviceVertices{};
   template<class View> static long double weightedEnergy(View const& v) {
@@ -52,7 +52,8 @@ struct EnergyLedger {
     // those signed changes with the stochastic thinning jump or with heat.
     long double removed=cpuContinuous+deviceContinuous+cpuCutTotal+deviceCutTotal;
     long double sinksNotDeposited=removed-deposited;
-    long double offset=deposited+window+worldEscaped-initial;
+    long double offset=deposited+window+worldEscaped+domainEscaped-initial;
+    put("domain_escape_GeV",domainEscaped);
     put("initial_GeV",initial);put("deposited_GeV",deposited);put("window_survivor_GeV",window);
     put("world_escape_GeV",worldEscaped);put("cpu_continuous_removed_GeV",cpuContinuous);
     put("device_continuous_removed_GeV",deviceContinuous);put("cpu_cut_total_GeV",cpuCutTotal);

@@ -232,9 +232,9 @@ namespace {
            "persistent device queues")
         ->group("GPU EM");
     app.add_option("--kokkos-execution", options.kokkos_execution,
-                   "Execution space in this binary: cuda, openmp or cuda-openmp for the "
+                   "Execution space in this binary: cuda, openmp, cuda-openmp (GPU primary) or openmp-cuda (CPU primary) for the "
                    "experimental dual build; empty selects the build default")
-        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl", "cuda-openmp"}))
+        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl", "cuda-openmp", "openmp-cuda"}))
         ->group("GPU EM");
     app.add_option("--kokkos-cooperative-policy", options.kokkos_cooperative_policy,
                    "Cooperative queue scheduling: legacy or experimental adaptive")
@@ -394,12 +394,12 @@ namespace {
         CORSIKA_LOG_CRITICAL("{}", error.what());
         return false;
       }
-      if (selected_execution == "cuda-openmp" && options.hadronic_workers != 1) {
+      if ((selected_execution == "cuda-openmp" || selected_execution == "openmp-cuda") && options.hadronic_workers != 1) {
         CORSIKA_LOG_CRITICAL(
             "Cooperative EM requires scalar hadrons: --hadronic-workers must be 1");
         return false;
       }
-      if (selected_execution != "openmp" && selected_execution != "cuda-openmp" &&
+      if (selected_execution != "openmp" && selected_execution != "cuda-openmp" && selected_execution != "openmp-cuda" &&
           options.kokkos_num_threads > 1) {
         CORSIKA_LOG_CRITICAL(
             "A GPU Kokkos build uses Serial host scheduling and rejects "
@@ -619,7 +619,7 @@ int main(int argc, char** argv) {
       ->group("Radio");
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
-  if (gpu_cli.kokkos_execution == "cuda-openmp" &&
+  if ((gpu_cli.kokkos_execution == "cuda-openmp" || gpu_cli.kokkos_execution == "openmp-cuda") &&
       app.count("--hadronic-workers") == 0)
     gpu_cli.hadronic_workers = 1;
 
@@ -948,25 +948,8 @@ int main(int argc, char** argv) {
 // for ICRC2023
 #ifdef WITH_FLUKA
   corsika::fluka::Interaction leIntModel{all_elements};
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-  if (hadronic_process_pool) {
-    // FLUKA's fpenab_ installs a SIGALRM handler that performs fopen/fwrite
-    // every 60 seconds.  Those operations are not async-signal-safe: when the
-    // CUDA parent has helper threads, the handler can interrupt a libc stdio
-    // critical section and wait forever on the lock held by that same thread.
-    // The process-isolated FLUKA workers were exec'ed above and retain their
-    // own native timer.  The parent only supplies rate/classification state,
-    // so cancel its redundant timer before CUDA creates more helper threads.
-    if (::signal(SIGALRM, SIG_IGN) == SIG_ERR) {
-      throw std::runtime_error(
-          "could not disable the parent FLUKA SIGALRM timer");
-    }
-    ::alarm(0);
-    CORSIKA_LOG_INFO(
-        "Disabled the parent FLUKA SIGALRM timer; process-isolated FLUKA "
-        "workers retain their native timers");
-  }
-#endif
+  // libfluka guards the diagnostic SIGALRM at initialization for every backend,
+  // including the single-worker case. No physics/RNG or worker policy changes.
 #else
   corsika::urqmd::UrQMD leIntModel{};
 #endif

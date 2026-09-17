@@ -458,14 +458,93 @@ namespace corsika::applications::air_shower {
           auto cooperative = accelerator["cooperative"];
           auto const& c = backend_stats.cooperative;
           cooperative["experimental"] = true;
+          if (backend_stats.accelerator_backend == "openmp-cuda") {
+            cooperative["scheduling_policy"] = "cpu-primary-v7-tail-checkpoint";
+            cooperative["host_checkpoint_minimum_semantics"] = "max(1, min(native minimum, initial batch / 4)); return surviving states without particle cuts";
+            for(auto count:c.adaptive_job_input_histogram[1])
+              cooperative["host_input_batch_log2_histogram"].push_back(count);
+            cooperative["host_species_coalesces"] = c.adaptive_species_coalesces[1];
+            cooperative["host_species_maximum_deferrals"] = 8;
+            cooperative["host_species_selection_semantics"] = "defer sub-minimum species only while the other has a useful front; at most eight host choices; drain lone tails immediately";
+            cooperative["auxiliary_blocking_wait_enabled"] = c.auxiliary_blocking_wait_enabled;
+            cooperative["auxiliary_blocking_wait_calls"] = c.auxiliary_blocking_wait_calls;
+            cooperative["auxiliary_blocking_wait_ms"] = c.auxiliary_blocking_wait_ms;
+            cooperative["auxiliary_wait_semantics"] = "reused blocking CUDA event on helper stream; default single-endpoint and GPU-primary fences unchanged; wait time overlaps primary work";
+            cooperative["primary_endpoint"] = "openmp";
+            cooperative["auxiliary_endpoint"] = "cuda";
+            cooperative["specified_fallback_batch_limit"] = 4096;
+            cooperative["specified_fallback_semantics"] = "coordinator-owned batches; flush at 4096 or empty front without joining peer; protect EM products until front drains";
+            cooperative["primary_reserve_semantics"] = "one full native OpenMP arena per species; only surplus may seed auxiliary work";
+            cooperative["auxiliary_grant_semantics"] = "new work >= min(CUDA minimum batch, capacity); owned tails and pressure spills still drain";
+            cooperative["primary_input_semantics"] = "resident queue first, then waiting input; same fill order as standalone OpenMP";
+            cooperative["auxiliary_continuation_call_limit"] = 4;
+            cooperative["auxiliary_retention_semantics"] = "retention budget plus at most one ordinary bounded result; checked before the next call";
+            cooperative["subshower_cuda_autonomous_continuations"] = c.subshower_cuda_autonomous_continuations;
+            cooperative["subshower_cuda_foreground_packets"] = c.subshower_cuda_foreground_packets;
+            cooperative["subshower_cuda_foreground_continuations"] = c.subshower_cuda_foreground_continuations;
+            cooperative["cuda_completion_packets"] = c.subshower_cuda_submissions-c.subshower_cuda_autonomous_continuations;
+            cooperative["cuda_completion_buffer_delay_ms"] = c.cuda_completion_buffer_delay_ms;
+            cooperative["cuda_completion_mailbox_capacity"] = c.cuda_completion_mailbox_capacity;
+            cooperative["cuda_completion_retention_budget_bytes"] = c.cuda_completion_retention_budget_bytes;
+            cooperative["cuda_completion_peak_bytes"] = c.cuda_completion_peak_bytes;
+            cooperative["maximum_cuda_packet_calls"] = c.maximum_cuda_packet_calls;
+            cooperative["cuda_continuation_stop_order"] = std::vector<std::string>{
+                "completed", "no_progress", "memory", "call_limit", "handoff", "time", "disabled"};
+            cooperative["cuda_continuation_stops"] = c.cuda_continuation_stops;
+            cooperative["auxiliary_continuation_semantics"] = "fixed photon16/lepton8 checkpoints; at most four calls per packet; no adaptive time controller; yield at safe boundary when primary needs work";
+            cooperative["host_profile_shards"] = c.host_profile_shards;
+            cooperative["host_profile_shard_bytes"] = c.host_profile_shard_bytes;
+            cooperative["host_lepton_wave_limit"] = 1024;
+            cooperative["auxiliary_lepton_wave_limit"] = 8;
+            for (unsigned e=0;e<2;++e) for (unsigned k=0;k<2;++k) {
+              auto channel=cooperative["priority_endpoints"][e==0?"cuda":"openmp"][k==0?"photon":"lepton"];
+              channel["transport_records"] = c.adaptive_transport_records[e][k];
+              channel["resident_wavefronts"] = c.adaptive_resident_wavefronts[e][k];
+            }
+          }
           if (c.adaptive_policy) {
-            cooperative["scheduling_policy"] = "adaptive-v3-service-budget";
+            cooperative["scheduling_policy"] = "adaptive-v13-independent-service-horizon";
+            cooperative["epoch_target_semantics"] = "symmetric measured work target 50--800 ms; not clamped to CUDA receipt polling; soft complete-call boundary";
+            cooperative["specified_fallback_batch_limit"] = 4096;
+            cooperative["specified_fallback_semantics"] = "coordinator-owned batches; flush at 4096 or empty front without joining peer; protect EM products until front drains";
+            cooperative["host_profile_shards"] = c.host_profile_shards;
+            cooperative["host_profile_shard_bytes"] = c.host_profile_shard_bytes;
+            cooperative["host_profile_shard_semantics"] = "bounded OpenMP lepton-step integer replicas; checked final merge before decoding; canonical final-state and Moliere reduction unchanged";
+            cooperative["autonomous_estimate_semantics"] = "driver-local cost update after each completed call; coordinator state updated only at commit";
+            cooperative["subshower_cuda_autonomous_continuations"] = c.subshower_cuda_autonomous_continuations;
+            cooperative["subshower_cuda_foreground_packets"] = c.subshower_cuda_foreground_packets;
+            cooperative["subshower_cuda_foreground_continuations"] = c.subshower_cuda_foreground_continuations;
+            cooperative["scalar_foreground_semantics"] = "GPU submissions while the coordinator yielded to scalar work; not measured kernel overlap";
+            cooperative["cuda_completion_packets"] = c.subshower_cuda_submissions-c.subshower_cuda_autonomous_continuations;
+            cooperative["cuda_completion_buffer_delay_ms"] = c.cuda_completion_buffer_delay_ms;
+            cooperative["cuda_completion_mailbox_capacity"] = c.cuda_completion_mailbox_capacity;
+            cooperative["cuda_completion_retention_budget_bytes"] = c.cuda_completion_retention_budget_bytes;
+            cooperative["cuda_completion_peak_bytes"] = c.cuda_completion_peak_bytes;
+            cooperative["maximum_cuda_packet_calls"] = c.maximum_cuda_packet_calls;
+            cooperative["cuda_continuation_stop_order"] = std::vector<std::string>{
+                "completed", "no_progress", "memory", "call_limit", "handoff", "time", "disabled"};
+            cooperative["cuda_continuation_stops"] = c.cuda_continuation_stops;
+            cooperative["cuda_result_service_delay_semantics"] = "last autonomous call end to coordinator receipt; buffer delay includes intervening GPU work";
+            cooperative["maximum_host_epochs_per_cuda_job_semantics"] = "per time/memory/call-bounded driver packet, not per logical resident call";
             cooperative["adaptive_migration_ms"] = c.adaptive_migration_ms;
+            cooperative["adaptive_calibration_rule"] = "inputs >= 7/8 * min(input_limit, 4096); elapsed-time-weighted";
+            cooperative["adaptive_completion_reason_order"] = std::vector<std::string>{
+                "completed", "minimum_batch", "workspace", "history_lease", "wave_lease", "other"};
             for (unsigned e=0;e<2;++e) for (unsigned k=0;k<2;++k) {
               auto channel=cooperative["adaptive"][e==0?"cuda":"openmp"][k==0?"photon":"lepton"];
               channel["records_per_ms"] = c.adaptive_records_per_ms[e][k];
               channel["observations"] = c.adaptive_observations[e][k];
               channel["wave_limit"] = c.adaptive_wave_limit[e][k];
+              channel["transport_records"] = c.adaptive_transport_records[e][k];
+              channel["resident_wavefronts"] = c.adaptive_resident_wavefronts[e][k];
+              channel["input_limit"] = c.adaptive_input_limit[e][k];
+              channel["full_batch_observations"] = c.adaptive_full_observations[e][k];
+              channel["completion_reasons"] = c.adaptive_completion_reasons[e][k];
+            }
+            for(unsigned e=0;e<2;++e) {
+              auto endpoint=cooperative["adaptive"][e==0?"cuda":"openmp"];
+              endpoint["species_coalesces"] = c.adaptive_species_coalesces[e];
+              endpoint["job_input_histogram_floor_log2"] = c.adaptive_job_input_histogram[e];
             }
           }
           cooperative["independent_drivers"] = c.independent_drivers;

@@ -1,0 +1,21 @@
+{
+  "accepted_events": 3,
+  "seeds": [
+    158,
+    946,
+    3605
+  ],
+  "steps": 25712363,
+  "charged_sources": 19571928,
+  "max_abs_ledger_relative": 2.3817468991182976e-12,
+  "max_coreas_zhs_relative_l2": 1.851932913253463e-08,
+  "all_event_checks_passed": true,
+  "all_processes_completed": true,
+  "high_energy_complete_marker": true,
+  "missing_report_figures": [],
+  "wall_minutes": {
+    "openmp_seed158": 31.870174177316706,
+    "openmp_seed3605": 35.44104273004996,
+    "openmp_seed946": 44.1839766913666
+  }
+}

@@ -45,6 +45,7 @@ namespace corsika::accelerator::em::detail {
       std::uint64_t const draw_id, double const loss_quantile = 0.) {
     auto event = gpu::em::makeTableFallbackEvent(
         candidate.particle, query, result, draw_id, candidate.input_index);
+    event.interaction_vertex_reached = candidate.interaction_vertex_reached;
     auto const native_selection =
         candidate.proposal_selection_random_process_id != 0u;
     event.selection_uniform = native_selection

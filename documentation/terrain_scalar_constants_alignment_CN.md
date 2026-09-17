@@ -8,7 +8,7 @@
 
 1. 新增 [ScalarPhysicalConstants.hpp](../corsika/accelerator/ScalarPhysicalConstants.hpp)：统一当前 CORSIKA 标量单位约定下的磁偏系数、光速、电荷、真空介电常数。普通主机编译会用 CORSIKA 单位类型做静态核对；CUDA/HIP 只读取 double 常数，不引入主机单位模板。
 2. [UniformMagneticField.hpp](../corsika/accelerator/em/common/UniformMagneticField.hpp) 的步长限制、磁传播、球面/观测平面求交使用同一磁偏系数；光子飞行时间、μ 衰变飞行距离、射电常数改为共享别名（后三者的数值不变）。
-3. [TerrainEmSession.cpp](../src/terrain/TerrainEmSession.cpp) 的 DEM 二次曲线求交去掉重复硬编码。求交改用 `queryContinuousTransportMass()`，与 `transportLepton()` 的 CORSIKA 输运质量一致。原来求交使用 PROPOSAL 质量，实际推进却使用 CORSIKA 质量，属于需要修正的局部几何约定差异。
+3. [InterfaceEmStep.hpp](../corsika/modules/transport/detail/InterfaceEmStep.hpp)（原 TerrainEmSession.cpp）的 DEM 二次曲线求交去掉重复硬编码。求交改用 `queryContinuousTransportMass()`，与 `transportLepton()` 的 CORSIKA 输运质量一致。原来求交使用 PROPOSAL 质量，实际推进却使用 CORSIKA 质量，属于需要修正的局部几何约定差异。
 4. 核对发现 `Types.hpp::MuonMassGeV` 是一个当前生产代码没有引用的旧定义。将其从 `0.1056583755` 改为锁定 PROPOSAL 7.6.2 的 `0.1056583745 GeV`，避免未来误用。**实际生产用的 native calculator / auxiliary cache 质量本来就直接导出，不因此重新制表。**
 5. 山体 summary 增加 `accelerator_constants`；通用 EM 配置输出记录 `scalar_transport_constants_version`、`magnetic_rigidity_GeV_per_T_m`，便于区分历史数据。
 

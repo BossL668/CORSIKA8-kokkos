@@ -1,0 +1,263 @@
+[
+  {
+    "case": "silica",
+    "complete": true,
+    "material": {
+      "id": "S0_SILICA_TRANSPORT_PROXY",
+      "description": "Silica transport proxy (SiO2)",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2650,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "Si",
+            "Z": 14,
+            "A": 28,
+            "number_fraction": 0.3333333333333333
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.6666666666666666
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2650,
+          "I_eV": 139.2,
+          "Cbar": 3.81679772036614,
+          "x0": 0.09808840344269923,
+          "x1": 2.9620884034426993,
+          "a": 0.08408,
+          "m": 3.5064,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.23606797749979,
+        "field_attenuation_length_m": 100,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "case": "limestone",
+    "complete": true,
+    "material": {
+      "id": "L0_LIMESTONE_CALCITE_PROXY",
+      "description": "Dense calcite / limestone proxy (CaCO3)",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2710,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "C",
+            "Z": 6,
+            "A": 12,
+            "number_fraction": 0.2
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.6
+          },
+          {
+            "element": "Ca",
+            "Z": 20,
+            "A": 40,
+            "number_fraction": 0.2
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2710,
+          "I_eV": 136.4,
+          "Cbar": 3.8064707822895487,
+          "x0": 0.056294370233906744,
+          "x1": 3.0619943702339065,
+          "a": 0.08301,
+          "m": 3.412,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.449489742783178,
+        "field_attenuation_length_m": 14.476482730108396,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "case": "granite",
+    "complete": true,
+    "material": {
+      "id": "G0_GRANITE_REFERENCE",
+      "description": "Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe); PNNL composition, Bragg-Sternheimer ionisation approximation",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2729,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "H",
+            "Z": 1,
+            "A": 1,
+            "number_fraction": 0.027122
+          },
+          {
+            "element": "C",
+            "Z": 6,
+            "A": 12,
+            "number_fraction": 0.000502
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.607735
+          },
+          {
+            "element": "Na",
+            "Z": 11,
+            "A": 23,
+            "number_fraction": 0.025866
+          },
+          {
+            "element": "Mg",
+            "Z": 12,
+            "A": 24,
+            "number_fraction": 0.018081
+          },
+          {
+            "element": "Al",
+            "Z": 13,
+            "A": 27,
+            "number_fraction": 0.062783
+          },
+          {
+            "element": "Si",
+            "Z": 14,
+            "A": 28,
+            "number_fraction": 0.205927
+          },
+          {
+            "element": "K",
+            "Z": 19,
+            "A": 39,
+            "number_fraction": 0.013938
+          },
+          {
+            "element": "Ca",
+            "Z": 20,
+            "A": 40,
+            "number_fraction": 0.01896
+          },
+          {
+            "element": "Fe",
+            "Z": 26,
+            "A": 56,
+            "number_fraction": 0.019086
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2729,
+          "I_eV": 132.0614501519769,
+          "Cbar": 3.741275350138768,
+          "x0": 0.2,
+          "x1": 3,
+          "a": 0.1284730918796078,
+          "m": 3,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.23606797749979,
+        "field_attenuation_length_m": 86.85889638065036,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "case": "custom_example",
+    "complete": true,
+    "material": {
+      "id": "CALCITE_DENSITY_SENSITIVITY_EXAMPLE",
+      "description": "Homogeneous calcite (CaCO3) density variation, not a resolved pore geometry",
+      "provenance": "Example only; radio constants inherited from the dense calcite / limestone proxy",
+      "transport": {
+        "density_kg_m3": 2500,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "C",
+            "Z": 6,
+            "A": 12,
+            "number_fraction": 0.2
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.6
+          },
+          {
+            "element": "Ca",
+            "Z": 20,
+            "A": 40,
+            "number_fraction": 0.2
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2500,
+          "I_eV": 136.4,
+          "Cbar": 3.8871286853070033,
+          "x0": 0.0738090113350908,
+          "x1": 3.079509011335091,
+          "a": 0.08301,
+          "m": 3.412,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.449489742783178,
+        "field_attenuation_length_m": 14.476482730108396,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "case": "legacy_conflict",
+    "rejected": true,
+    "message": "legacy material parameter conflicts with selected material card\n"
+  }
+]

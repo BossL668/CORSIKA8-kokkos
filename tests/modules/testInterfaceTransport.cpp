@@ -1,5 +1,7 @@
 // Actual PROPOSAL banks + compiled InterfaceEmSession, not a mock kernel.
 #include <corsika/modules/transport/InterfaceEmSession.hpp>
+#include "InterfaceResidentChecks.hpp"
+#include <cstdlib>
 #include <corsika/modules/transport/InterfaceMaterialPreparation.hpp>
 #include <corsika/modules/transport/InterfaceRegionMap.hpp>
 #include <corsika/modules/terrain/TerrainAtmosphere.hpp>
@@ -51,8 +53,9 @@ em::EnvironmentSnapshot homogeneous(double density,double bz) {
 }
 int main(int argc,char** argv) {
   try {
-    bool const same=argc>1&&std::string(argv[1])=="same";
-    bool const bent=argc>1&&std::string(argv[1])=="field";
+    bool const fieldOnly=argc>1&&std::string(argv[1])=="fieldonly";
+    bool const same=fieldOnly||(argc>1&&std::string(argv[1])=="same");
+    bool const bent=fieldOnly||(argc>1&&std::string(argv[1])=="field");
     bool const tetra=argc>1&&std::string(argv[1])=="tetra";
     bool const swapped=argc>1&&std::string(argv[1])=="swapped";
     logging::set_level(logging::level::warn);
@@ -68,10 +71,12 @@ int main(int argc,char** argv) {
     auto data=box(tetra);terrain::validateTerrainData(data);
     auto solid=env.createNode<terrain::ClosedMesh>(terrain::MeshLoader::toPoints(data,cs,1_m),data.faces);
     auto* inside=solid.get();auto const& mesh=static_cast<terrain::ClosedMesh const&>(inside->getVolume());
-    solid->setModelProperties((same?water:rock).makeModel<terrain::Interface>(cs));
+    auto embedded=same?water:rock;
+    if(fieldOnly)embedded.magnetic_field_T[2]=-water.magnetic_field_T[2];
+    solid->setModelProperties(embedded.makeModel<terrain::Interface>(cs));
     outside->addChild(std::move(solid));auto flat=terrain::exportFlatTerrain(mesh);
     api::validateCalculatorMaterialKeys(env);
-    api::MaterialInterface binding{17,93,0,same?0:1};binding.validate(same?1:2);
+    api::MaterialInterface binding{17,93,0,same&&!fieldOnly?0:1};binding.validate(same&&!fieldOnly?1:2);
     api::InterfaceRegionMap regionOf(*inside,binding);
     require(regionOf(outside)==17&&regionOf(inside)==93,"logical node routing");
     auto invalid=binding;invalid.inside_region=17;
@@ -105,9 +110,22 @@ int main(int argc,char** argv) {
       banks.push_back(api::prepareEmMaterial(i,c,homogeneous(density,field),{1000.,.5,300.,.5},{}));
     };
     add(water,1.,water.magnetic_field_T[2]);if(!same)add(rock,2.65,rock.magnetic_field_T[2]);
+    if(fieldOnly) {
+      banks.push_back(banks.front());
+      banks.back().environment.magnetic_field_T[2]=-water.magnetic_field_T[2];
+    }
     if(swapped){std::swap(banks[0],banks[1]);binding.outside_material=1;binding.inside_material=0;}
     api::EmConfig cfg;cfg.threads=2;cfg.batch_size=64;cfg.maximum_device_bytes=256*1024*1024;
+    if(auto threads=std::getenv("C8_INTERFACE_TEST_THREADS"))cfg.threads=std::stoi(threads);
     cfg.seed=81819;cfg.interface=binding;cfg.maximum_step_m=.01;
+    cfg.resident_capacity=4096;
+    cfg.resident_record_capacity=96; // Deliberately forces bounded output checkpoints.
+    std::size_t wideFront=0;
+    if(auto value=std::getenv("C8_INTERFACE_TEST_WIDE_FRONT"))wideFront=std::stoul(value);
+    if(wideFront){
+      cfg.resident_wavefront_capacity=wideFront;cfg.resident_capacity=262144;
+      cfg.resident_record_capacity=4*wideFront;cfg.maximum_device_bytes=2ull*1024*1024*1024;
+    }
     // Rejected configurations must not initialize a runtime or upload any table.
     auto saved=banks[0].environment;
     banks[0].environment.atmosphere_layers[0].density_parameter_a=-1.;caught=false;
@@ -116,13 +134,22 @@ int main(int argc,char** argv) {
     banks[0].environment.magnetic_field_T[0]=std::numeric_limits<double>::quiet_NaN();caught=false;
     try{api::InterfaceEmSession bad(flat,banks,cfg);}catch(std::invalid_argument const&){caught=true;}
     require(caught,"nonfinite snapshot field gate");banks[0].environment=saved;
+    auto badConfig=cfg;badConfig.resident_capacity=std::numeric_limits<std::size_t>::max();
+    interface_test::reject([&]{api::InterfaceEmSession bad(flat,banks,badConfig);});
+    badConfig=cfg;badConfig.maximum_device_bytes=1024;
+    interface_test::reject([&]{api::InterfaceEmSession bad(flat,banks,badConfig);});
+    badConfig=cfg;badConfig.resident_record_capacity=cfg.batch_size-1;
+    interface_test::reject([&]{api::InterfaceEmSession bad(flat,banks,badConfig);});
     api::InterfaceEmSession session(flat,banks,cfg);
+    if(session.executionSpace()=="OpenMP")
+      require(session.executionConcurrency()==cfg.threads,"OpenMP thread configuration was not applied");
     std::vector<em::EmParticleState> input;
     for(int pid:{22,11,-11})for(bool insideSide:{false,true}) {
       em::EmParticleState p;p.pid=pid;p.energy_GeV=1.;p.history_id=input.size()+1;
       p.medium_id=insideSide?93:17;p.position_m[2]=-1.+(insideSide?1.e-7:-1.e-7);
       p.direction[2]=insideSide?-1.:1.;p.weight=3.;input.push_back(p);
     }
+    auto initial=input;
     auto a=session.advance(input,100),b=session.advance(input,100);
     terrain::MagneticTracking cpuTracking(mesh);
     for(std::size_t i=0;i<a.size();++i) {
@@ -162,9 +189,26 @@ int main(int argc,char** argv) {
       auto p=input[2];p.medium_id=93;p.position_m[0]=0.;p.position_m[1]=0.;p.position_m[2]=0.;
       p.direction[0]=1.;p.direction[1]=p.direction[2]=0.;p.energy_GeV=.0011;p.step_id=0;
       auto r=session.advance({p},500).front();require(!r.error,"interior magnetic cap without boundary");
+      // Opposite fields in two genuinely different materials bend the same
+      // electron in opposite directions, before stochastic angular scattering.
+      p.energy_GeV=1.;p.medium_id=17;p.position_m[2]=-2.;
+      auto exterior=session.advance({p},600).front();
+      p.medium_id=93;p.position_m[2]=0.;
+      auto interior=session.advance({p},700).front();
+      require(exterior.has_track&&interior.has_track&&exterior.path_midpoint_m[1]>0.&&
+              interior.path_midpoint_m[1]<0.,"two-sided magnetic vectors not respected");
     }
+    interface_test::replay(session,initial);
+    if(wideFront){
+      std::vector<em::EmParticleState> wide;
+      for(std::size_t i=0;i<wideFront+19;++i){
+        auto p=initial[i%initial.size()];p.history_id=i+1;p.parent_history_id=0;wide.push_back(p);
+      }
+      interface_test::cascadeReplay(session,wide,cfg.resident_record_capacity,wideFront);
+    }else interface_test::cascadeReplay(session,initial,cfg.resident_record_capacity);
     std::cout<<"PASS interface variant="<<(argc>1?argv[1]:"ordinary")
-      <<" geometry_checks=1000000 live_crossings=6 execution="<<session.executionSpace()<<'\n';
+      <<" geometry_checks=1000000 live_crossings=6 execution="<<session.executionSpace()
+      <<" concurrency="<<session.executionConcurrency()<<'\n';
     return 0;
   }catch(std::exception const& e){std::cerr<<e.what()<<'\n';return 1;}
 }

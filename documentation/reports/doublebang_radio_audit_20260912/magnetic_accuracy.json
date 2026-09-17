@@ -1,0 +1,49 @@
+{
+  "actual_failed_event": {
+    "rows": 10193878,
+    "charged_moving": 7727280,
+    "positive_excess": 128117,
+    "invalid": 766,
+    "zero_duration": 0
+  },
+  "maximum_actual_excess_m": 0.001771071219195619,
+  "helix_comparisons": [
+    {
+      "backend": "OPENMP",
+      "deflection_parameter_rad": 0.2,
+      "cases": 192,
+      "rejected_sources": 76,
+      "max_relative_chord_excess": 0.018779495932070844,
+      "max_relative_position_error": 0.025202681532504028,
+      "max_direction_error": 0.018874998690750308
+    },
+    {
+      "backend": "OPENMP",
+      "deflection_parameter_rad": 4e-05,
+      "cases": 192,
+      "rejected_sources": 0,
+      "max_relative_chord_excess": 8.000000661922968e-10,
+      "max_relative_position_error": 1.0666668478609877e-09,
+      "max_direction_error": 8.379502370990217e-10
+    },
+    {
+      "backend": "CUDA",
+      "deflection_parameter_rad": 0.2,
+      "cases": 192,
+      "rejected_sources": 76,
+      "max_relative_chord_excess": 0.018779495932070844,
+      "max_relative_position_error": 0.025202681532504028,
+      "max_direction_error": 0.018874998690750308
+    },
+    {
+      "backend": "CUDA",
+      "deflection_parameter_rad": 4e-05,
+      "cases": 192,
+      "rejected_sources": 0,
+      "max_relative_chord_excess": 8.000000661922968e-10,
+      "max_relative_position_error": 1.0666668478609877e-09,
+      "max_direction_error": 8.379502370990217e-10
+    }
+  ],
+  "note": "The magnetic-step cap changes mountain transport, with radio on or off. Local analytic error bounds do not establish full-shower step-size convergence."
+}

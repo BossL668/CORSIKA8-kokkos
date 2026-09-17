@@ -1,0 +1,11 @@
+# Example sensitivity variation; supply your own measurement provenance.
+preset: Calcite
+id: CALCITE_DENSITY_SENSITIVITY_EXAMPLE
+description: Homogeneous calcite (CaCO3) density variation, not a resolved pore geometry
+provenance: Example only; radio constants inherited from the dense calcite / limestone proxy
+transport:
+  density_kg_m3: 2500.0
+radio:
+  refractive_index: 2.449489742783178
+  field_attenuation_length_m: 14.476482730108396
+magnetic_field_enu_T: [0.0, 0.0, 0.0]

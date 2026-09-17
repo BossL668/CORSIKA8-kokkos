@@ -1,0 +1,11 @@
+{
+  "remote_root": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912",
+  "raw_events": {
+    "openmp_seed158": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/output",
+    "openmp_seed3605": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output",
+    "openmp_seed946": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/output"
+  },
+  "failed_runs": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/failed_runs",
+  "source_snapshot": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/source",
+  "note": "Full transport CSV files and unfiltered radio outputs remain on PSR; report figures use an ideal 50-100 MHz bandpass."
+}

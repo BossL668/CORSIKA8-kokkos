@@ -10,9 +10,18 @@
 #include <corsika/accelerator/em/KokkosEmBackend.hpp>
 #include <corsika/accelerator/em/detail/CooperativeProfileMerge.hpp>
 #include <corsika/accelerator/radio/detail/CooperativeRadioMerge.hpp>
+#include <cstdint>
 #include <functional>
 
 namespace corsika::accelerator::em::detail {
+
+// Host-only diagnostics, sampled after the endpoint is drained. This counts
+// completed blocking resident waits, not CUDA kernel time or CPU utilization.
+struct CooperativeCudaWaitStatistics {
+  bool blocking_enabled{};
+  std::uint64_t blocking_calls{};
+  double blocking_host_seconds{};
+};
 
 // Host-wavefront boundary only. All per-particle calls remain compile-time
 // execution-space templates; no virtual dispatch is introduced in kernels.
@@ -48,7 +57,16 @@ class KokkosBackendInstance : public IAcceleratedEmBackend {
   virtual KokkosRuntimeInfo const& runtimeInfo() const noexcept = 0;
   // Cooperative host boundary only; no callback runs inside a physics kernel.
   virtual void setCooperativeProgress(std::function<bool()> progress) = 0;
+  // CPU-primary helper only: opt in while initialized and idle, before the
+  // first transport. The selection survives beginShower(); counters do not.
+  virtual void setCooperativeBlockingWait(bool enabled) = 0;
+  virtual CooperativeCudaWaitStatistics cooperativeWaitStatistics() const = 0;
   virtual void prepareCooperativeWorkspace() = 0;
+  // Opt-in after bounded workspace preparation, before the first transport.
+  // Returns persistent shard count/bytes; single endpoints never call this.
+  virtual std::pair<std::size_t, std::size_t> enableCooperativeHostProfileShards() {
+    throw std::logic_error("host profile shards unavailable for this endpoint");
+  }
   virtual void setCooperativePendingInputLimit(std::size_t count) = 0;
   virtual std::vector<gpu::em::EmParticleState> takeCooperativePending(
       bool photons, std::size_t count) = 0;

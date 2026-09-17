@@ -12,7 +12,7 @@
 namespace corsika::interfaces {
 struct InterfaceRouterStatistics {
   std::size_t peak{};
-  std::uint64_t batches{},advanced{},fallbacks{},cuts{},escaped{},windowEscaped{},canonicalized{};
+  std::uint64_t batches{},advanced{},fallbacks{},cuts{},escaped{},windowEscaped{},canonicalized{},domainEscaped{};
 };
 template<class Stack,class Fallback,class Output,class RegionOf> class InterfaceEmRouter {
  public:
@@ -48,6 +48,7 @@ template<class Stack,class Fallback,class Output,class RegionOf> class Interface
         case EmOutcome::Cut:++stats_.cuts;break;
         case EmOutcome::Escape:++stats_.escaped;break;
         case EmOutcome::WindowEscape:output_.recordDeviceWindow(r);++stats_.windowEscaped;break;
+        case EmOutcome::DomainEscape:output_.recordDeviceDomain(r);++stats_.domainEscaped;break;
         case EmOutcome::Fallback:
           if(!r.has_track||!fallback_.canHandle(r.fallback)) {
             std::ostringstream error;error<<std::setprecision(17)

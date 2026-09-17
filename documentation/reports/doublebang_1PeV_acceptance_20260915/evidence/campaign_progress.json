@@ -1,0 +1,17 @@
+{
+  "state": "failed",
+  "completed": [],
+  "qualified": [],
+  "current": "openmp_SiO2_21CMA80_1PeV_seed22309",
+  "updated_utc": "2026-09-15T07:02:17.286806+00:00",
+  "latest": {
+    "elapsed_s": 17009.271764071018,
+    "rss_GiB": 74.41411972045898,
+    "available_GiB": 166.47467803955078,
+    "free_disk_GiB": 338.1435241699219,
+    "recorded_steps_prefix": 5337360,
+    "pid": 1130695
+  },
+  "error": "Incomplete event: interface resident successors exceed capacity; input retained",
+  "traceback": "Traceback (most recent call last):\n  File \"/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/run_psr.py\", line 159, in execute\n    f,timing=run_case(root,case,m,p,helper)\n  File \"/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/run_psr.py\", line 146, in run_case\n    assert complete,'Incomplete event: '+str(reason or s.get('error') or child.returncode)\nAssertionError: Incomplete event: interface resident successors exceed capacity; input retained\n"
+}

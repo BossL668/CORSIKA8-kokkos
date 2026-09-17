@@ -1,0 +1,85 @@
+{
+  "checked_files": 19,
+  "mismatches": [],
+  "checks": {
+    "local_production_and_tests_match_psr": true
+  },
+  "files": [
+    {
+      "path": "applications/detail/mountain/TerrainAcceleratedRun.hpp",
+      "sha256": "ba9cb293ae05b4e8797f81bd113307a5d6cf110e5951debebace6c4b380bdc28"
+    },
+    {
+      "path": "applications/detail/mountain/TerrainShowerOutput.hpp",
+      "sha256": "513417690a8edce595486f3a52208f573242a2a05f164871584ac46d8a6291f9"
+    },
+    {
+      "path": "corsika/geometry/terrain/TerrainMagneticAccuracy.hpp",
+      "sha256": "4cd705dfc43b1cc3ff4a2c25d95a21b51133f22c5233226fbfbbaa79c34aff45"
+    },
+    {
+      "path": "corsika/modules/radio/interface/CoreasEndpoints.hpp",
+      "sha256": "6876a4482f735e66f72b9ebc2c2b6d05e9dafc22512c78d3dc7f182917e4f28b"
+    },
+    {
+      "path": "corsika/modules/radio/interface/KokkosAccumulator.hpp",
+      "sha256": "a1c57b1231c48b70ed1ba3e31f35851f3cbe6a2fba9297874aba8734780b2384"
+    },
+    {
+      "path": "corsika/modules/radio/interface/KokkosPropagation.hpp",
+      "sha256": "11ccaaf7b5f7f90119721c59ddcb7bfa2d8962e0346cb4b9a5798ebff83ae802"
+    },
+    {
+      "path": "corsika/modules/radio/interface/Propagation.hpp",
+      "sha256": "696e0edf314d190190ddd76249ae0a2cad543488722356b5b9ead573a12ff727"
+    },
+    {
+      "path": "corsika/modules/radio/interface/Types.hpp",
+      "sha256": "4c23712ed91e860eaadedf2c071df430d8a232ff25442eeb5bbc79d2a0bcd4b2"
+    },
+    {
+      "path": "corsika/modules/radio/interface/ZhsIntervals.hpp",
+      "sha256": "aa04851f1ec6d9ae6e15a17bdc8c8697393e52c43528e12d010877e98bd094c4"
+    },
+    {
+      "path": "corsika/modules/terrain/TerrainMagneticTracking.hpp",
+      "sha256": "2304aa438872faed44ab0ec4e5cf35e7e00e649cd6d7cdcea7a9ff6e43d839f7"
+    },
+    {
+      "path": "corsika/modules/transport/detail/InterfaceEmStep.hpp",
+      "sha256": "7e7472986fbf62947998e85e73c240a59752bc58ed358bf0576d5a2aaf5b7667"
+    },
+    {
+      "path": "corsika/modules/transport/detail/InterfaceMagneticPolicy.hpp",
+      "sha256": "5a20b49d173b228922dc480d03b933aed36c27ce60567541cd6bc4ed81e0f49c"
+    },
+    {
+      "path": "src/radio/interface/Output.cpp",
+      "sha256": "f14e6ef59aefe1281445953653c6e16c6a4bc54768dbd8a6ffad69239bce4c23"
+    },
+    {
+      "path": "src/transport/InterfaceEmSession.cpp",
+      "sha256": "b27ddf4c9c0c01449d716699f293d5ac4fa7ff13a58ebf6123846192d34b8adf"
+    },
+    {
+      "path": "tests/accelerator/CMakeLists.txt",
+      "sha256": "e1f8eb0a771479302df271ee86bb53e20a669463a07309256810008a671026ee"
+    },
+    {
+      "path": "tests/accelerator/InterfaceRadioBvhMeshLoader.cpp",
+      "sha256": "64ed6c04930a2cdf43a09b788684c9a94800dd33e0911158650df25c56153c23"
+    },
+    {
+      "path": "tests/accelerator/testKokkosInterfaceRadio.cpp",
+      "sha256": "7677d1986a3c16c708f197bdf783b8c1ead7fa3e7a7b2e7e55525a978887c5f9"
+    },
+    {
+      "path": "tests/accelerator/testKokkosInterfaceRadioBvh.cpp",
+      "sha256": "33205b3a84c5dfc5dd53ba2979dc35ebf00e3cd333629fbd7d38fd0e088594c7"
+    },
+    {
+      "path": "tests/modules/InterfaceResidentChecks.hpp",
+      "sha256": "3ca990707cf39b6a59c6fb48c83cdf4e45ada2bbe23fd62f72c0e188ffc395b9"
+    }
+  ]
+}

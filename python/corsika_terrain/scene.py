@@ -41,11 +41,21 @@ def scene_from_product(product):
         if np.ma.is_masked(height) or not np.isfinite(height):
             raise ValueError("origin not covered by prepared mesh")
     geometry = dict(geometry)
+    geometry.setdefault("transport_boundary", {"type": "dem_coverage"})
     geometry["mesh_path"] = str((product / "terrain_enu.ply").resolve())
     geometry.pop("air_world_radius_m", None)
     # This belongs to the old uniform-air geometry product. In a native
     # atmosphere the authoritative refractivity is the per-layer model below.
     geometry.pop("air_refractive_index", None)
+    # The old uniform-air product hard-coded n=2. Native beta5 scenes select
+    # the documented silica (SiO2) card; retain only explicitly configured density.
+    medium = manifest["configuration"].get("medium", {})
+    material = dict(preset=medium.get("material", "SiO2"))
+    if "density_g_cm3" in medium:
+        material["transport"] = dict(density_kg_m3=1000.*float(medium["density_g_cm3"]))
+    geometry["material"] = material
+    for key in ("rock_density_g_cm3", "rock_refractive_index", "rock_hadronic_target_approximation", "attenuation_length_m"):
+        geometry.pop(key, None)
     geometry["rock_reference_enu_m"] = [0., 0., float(height)-1.]
     observers = yaml.safe_load((product / "observers.yaml").read_text())["radio"]["observers"]
     return dict(schema_version=1,

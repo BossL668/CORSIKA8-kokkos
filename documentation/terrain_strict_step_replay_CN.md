@@ -39,7 +39,7 @@
 
 ## 2. 独立诊断实现
 
-- [TerrainEmSession.cpp](../src/terrain/TerrainEmSession.cpp)：同一个实际输运 functor 按存储空间实例化；
+- [InterfaceEmSession.cpp](../src/transport/InterfaceEmSession.cpp)（原 TerrainEmSession.cpp）：同一个实际输运 functor 按存储空间实例化；
   仅 `C8_TERRAIN_STEP_AUDIT` 构建增加有界的 host shadow 与阶段记录。
   host/device 使用相同 native table 数组、辅助数据、输入粒子和 history 分配。
 - [TerrainStepAudit.hpp](../validation/terrain/TerrainStepAudit.hpp)：逐 batch/index/history/step，

@@ -20,7 +20,8 @@ namespace corsika::accelerator::em {
         throw std::invalid_argument("Adaptive scheduling requires Kokkos cuda-openmp execution");
       (void)selected;
 #if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
-    if (selected == "cuda-openmp") return detail::makeCooperativeBackendInstance(config);
+    if (selected == "cuda-openmp" || selected == "openmp-cuda")
+      return detail::makeCooperativeBackendInstance(config);
     if (selected == "openmp") return detail::makeOpenMPBackendInstance(config);
     return detail::makeCudaBackendInstance(config);
 #elif defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)
@@ -136,6 +137,9 @@ namespace corsika::accelerator::em {
   }
   bool KokkosEmBackend::independentSubshowersReady() const noexcept {
     return impl_->backend->independentSubshowersReady();
+  }
+  bool KokkosEmBackend::batchIndependentSpecifiedFallbacks() const noexcept {
+    return impl_->backend->batchIndependentSpecifiedFallbacks();
   }
   std::size_t KokkosEmBackend::advanceIndependentSubshowers(
       std::vector<gpu::em::EmParticleState> const& particles,

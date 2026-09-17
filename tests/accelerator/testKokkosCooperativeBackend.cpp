@@ -13,15 +13,19 @@ namespace em=gpu::em;
 void require(bool c,char const* m){if(!c)throw std::runtime_error(m);}
 int main(int argc,char** argv) {
   try {
-    if(argc<2 || argc>6)throw std::invalid_argument("expected existing PROPOSAL cache [OpenMP threads] [subshowers] [device memory fraction] [adaptive]");
+    if(argc<2 || argc>6)throw std::invalid_argument("expected existing PROPOSAL cache [OpenMP threads] [subshowers] [device memory fraction] [adaptive|openmp-cuda]");
     bool independent=argc>=4 && std::string(argv[3])=="subshowers";
     if(argc>=4 && !independent)throw std::invalid_argument("unknown diagnostic mode");
     auto fixture=loadCooperativeLeptonFixture(argv[1]);
     accelerator::em::KokkosRuntimeConfig runtime;
     runtime.execution_backend="cuda-openmp";
     if(argc==6) {
-      require(std::string(argv[5])=="adaptive","unknown scheduling policy");
-      runtime.cooperative_policy="adaptive";
+      auto policy=std::string(argv[5]);
+      require(policy=="adaptive" || policy=="openmp-cuda","unknown scheduling policy");
+      if(policy=="openmp-cuda") {
+        require(independent,"CPU-primary fixture must use independent subshowers");
+        runtime.execution_backend=policy;
+      } else runtime.cooperative_policy=policy;
     }
     runtime.threads=argc>=3?std::stoi(argv[2]):16;
     require(runtime.threads>0,"OpenMP threads must be positive");
@@ -42,6 +46,10 @@ int main(int argc,char** argv) {
     };
 #endif
     accelerator::em::KokkosEmBackend backend(runtime);
+    require(backend.batchIndependentSpecifiedFallbacks() ==
+                (runtime.cooperative_policy == "adaptive" ||
+                 runtime.execution_backend == "openmp-cuda"),
+            "specified fallback batching leaked into the legacy policy");
     struct Box{
       std::vector<geometry_detail::ConvexPlane> planes;
       auto const& exportPlanes()const{return planes;}
@@ -52,6 +60,11 @@ int main(int argc,char** argv) {
     config.random_seed=26091022;config.shower_id=0;
     config.em_transport_cut_MeV=.4;config.muon_transport_cut_MeV=300.;
     config.min_batch_size=4096;config.resident_batch_limit=32768;
+    // CPU-primary protects its entire resident arena before sharing surplus.
+    // This bounded fixture therefore uses 4096+4096 original e+- inputs to
+    // exercise both real backends without inflating particle count or memory.
+    // Legacy/adaptive fixtures retain their original 32768-particle arena.
+    if(runtime.execution_backend=="openmp-cuda")config.resident_batch_limit=4096;
     // Keep the original default; small-memory devices may explicitly grant
     // enough budget for this fixed-size diagnostic arena, never bypass it.
     config.memory_fraction=argc>=5?std::stod(argv[4]):.10;
@@ -122,6 +135,9 @@ int main(int argc,char** argv) {
         auto const& s=backend.statistics().cooperative;
         require(s.independent_subshowers && s.subshower_cuda_submissions==s.subshower_cuda_commits,
                 "subshower submissions not committed exactly once");
+        if(runtime.execution_backend=="openmp-cuda")
+          require(s.cuda_completion_mailbox_capacity==4 && s.maximum_cuda_packet_calls<=4,
+                  "CPU-primary real-EM packet exceeded its four-call result boundary");
         std::cout<<"subshower_epochs="<<s.subshower_openmp_epochs
                  <<" maximum_host_epochs_per_cuda_job="<<s.maximum_host_epochs_per_cuda_job
                  <<" cuda_commits="<<s.subshower_cuda_commits<<std::endl;
@@ -160,6 +176,16 @@ int main(int argc,char** argv) {
       auto profile=backend.downloadProfile();
       auto wave=backend.downloadRadioWaveforms();
       auto const& stats=backend.statistics();
+      require(stats.accelerator_backend == runtime.execution_backend,"wrong reported priority backend");
+      if (runtime.cooperative_policy == "adaptive" && runtime.threads > 1) {
+        require(stats.cooperative.host_profile_shards > 1 &&
+                stats.cooperative.host_profile_shards <= 256 &&
+                stats.cooperative.host_profile_shard_bytes > 0 &&
+                stats.cooperative.host_profile_shard_bytes <= 16 * 1024 * 1024,
+                "missing/unbounded adaptive host profile shards after event reset");
+      } else require(stats.cooperative.host_profile_shards == 0 &&
+                     stats.cooperative.host_profile_shard_bytes == 0,
+                     "legacy/one-thread cooperative path unexpectedly enabled profile shards");
       require(stats.cooperative.cuda_input_particles>0&&stats.cooperative.openmp_input_particles>0,
               "one endpoint performed no transport");
       require(stats.cooperative.independent_drivers &&

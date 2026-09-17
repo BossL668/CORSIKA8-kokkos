@@ -1679,7 +1679,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
     result.completed = queue.empty();
     if (!result.completed)
-      result.remaining_photons = queue.download(execution);
+      result.remaining_photons = queue.download(execution, cooperative_wait);
     return result;
   }
 

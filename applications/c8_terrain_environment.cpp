@@ -21,6 +21,8 @@ int main(int argc,char** argv) {
     YAML::Node result;
     result["complete"]=false;
     result["scope"]="geometry/material/antenna admission only; no shower or radio";
+    result["resolved_material"]=terrainapp::materialConfig(scene.material);
+    result["legacy_material_overrides"]=scene.legacy_material_overrides;
     result["mesh_vertices"]=info.vertices;result["mesh_triangles"]=info.triangles;
     result["mesh_sha256"]=scene.mesh_hash;
     result["minimum_altitude_asl_m"]=info.minimum_altitude_asl_m;
@@ -39,7 +41,7 @@ int main(int argc,char** argv) {
     result["complete"]=true;result["scene"]=scene.yaml;
     std::ofstream file(output);if(!file)throw std::runtime_error("cannot create output");
     file<<result<<'\n';if(!file)throw std::runtime_error("output write failure");
-    std::cout<<"Validated "<<info.triangles<<" triangles, "<<result["observers"].size()<<" air observers\n";
+    std::cout<<"Validated "<<info.triangles<<" triangles, "<<result["observers"].size()<<" air observers; material: "<<scene.material.description<<'\n';
     return 0;
   }catch(std::exception const& e){std::cerr<<e.what()<<'\n';return 1;}
 }

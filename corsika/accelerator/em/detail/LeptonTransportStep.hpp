@@ -95,6 +95,7 @@ namespace corsika::accelerator::em::detail {
         // continuous step and deposit all remaining kinetic energy.
                 record = LeptonTransportRecord{};
         record.interaction = interaction;
+        record.interaction.interaction_vertex_reached = 0;
         record.interaction.particle_mass_GeV =
             tables::queryContinuousMass(table, start.pid).value / 1000.;
         record.start = start;
@@ -296,6 +297,7 @@ namespace corsika::accelerator::em::detail {
       // geometry-heavy kernel; failed slots are ignored by compaction.
             record = LeptonTransportRecord{};
       record.interaction = interaction;
+      record.interaction.interaction_vertex_reached = 0;
       record.interaction.particle_mass_GeV =
           tables::queryContinuousMass(table, start.pid).value / 1000.;
       record.start = start;
@@ -546,6 +548,7 @@ namespace corsika::accelerator::em::detail {
         record.interaction.particle = record.end;
         record.interaction.status =
             EmInteractionStatus::Selected;
+        record.interaction.interaction_vertex_reached = 1;
         record.interaction.process_id = DecayProcessId;
         record.interaction.component_hash = 0;
         record.interaction.energy_fraction = 0.;
@@ -579,6 +582,7 @@ namespace corsika::accelerator::em::detail {
         record.interaction.particle = record.end;
         record.interaction.status =
             EmInteractionStatus::RequiresReselection;
+        record.interaction.interaction_vertex_reached = 1;
         record.interaction.process_id = 0;
         record.interaction.component_hash = 0;
         record.interaction.energy_fraction = 0.;

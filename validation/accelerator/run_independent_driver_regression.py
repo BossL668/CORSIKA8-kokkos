@@ -18,10 +18,12 @@ def main():
     p.add_argument('--allow-adaptive-option',action='store_true',
                    help='Allow only the added adaptive CLI option and citation source-line shift')
     p.add_argument('--cooperative-policy',choices=('legacy','adaptive'),default='legacy')
+    p.add_argument('--source-root',type=Path,
+                   help='Frozen simulator source when using separately versioned diagnostic tools')
     a=p.parse_args()
     if not os.environ.get('FLUPRO'):
         p.error('FLUPRO must point to the existing FLUKA installation')
-    root=Path(__file__).resolve().parents[2]
+    root=(a.source_root or Path(__file__).resolve().parents[2]).resolve()
     out=a.output.resolve();out.mkdir(parents=True,exist_ok=False)
     tools=Path(__file__).resolve().parent
     env=dict(os.environ,OMP_PROC_BIND='false',OMP_NUM_THREADS='20',

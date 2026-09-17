@@ -303,7 +303,7 @@ namespace corsika::accelerator::em {
             "KokkosRuntime requires sole ownership of Kokkos initialization");
       }
       auto const selected = resolveKokkosExecutionBackend(config.execution_backend);
-      if (selected == "cuda-openmp")
+      if (selected == "cuda-openmp" || selected == "openmp-cuda")
         throw std::invalid_argument("cuda-openmp requires the cooperative backend coordinator");
       auto const selected_gpu = selected != "openmp";
       if (config.cooperative_owner && config.runtime_lease)

@@ -1,0 +1,1 @@
+{"passed":true,"execution":"OpenMP","queries":256,"faces":511488,"exhaustive_candidates":130940928,"retained_candidates":181187,"valid_paths":114,"blocked_stationary_paths":80,"missed_paths":0,"duplicates":0,"invalid":0,"wall_s":0.121561}

@@ -1,0 +1,34 @@
+[
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/accept_psr.py",
+    "sha256": "5129d93eda972823678c7aa70cc9742e0a200da2431fd253635cfbab8cf37448"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/analyze_psr.py",
+    "sha256": "c5ece87417e95ad2ef68e13851b38ab31e3b6671d201651073e8a1c2deb9694c"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/launch_psr.sh",
+    "sha256": "9376c408a3480ac9e4793043a572bf2f0f04086ac4231a9dc0b9244591f625ac"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/run_psr.py",
+    "sha256": "eea7c8c6981fad38d8d89cb9aa5e1c12ec65df257a4cc586095799d72217c263"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/code/watch_affinity_psr.py",
+    "sha256": "30e3581b74cf88381936907311036e041ef901667b3358951a38cac2186e05a2"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/report/ACCEPTANCE_CN.md",
+    "sha256": "a5dd503bab964bfa4c271959203c44ba6e2c631b60cf96c250e5bf4f14d95eaf"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/report/SLIDES_CN.md",
+    "sha256": "45047068cbcbe4f2dbe6b0b41556fda4e4494652b10217d8aac89a56ddec7a17"
+  },
+  {
+    "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/report/acceptance.json",
+    "sha256": "8bc5348c03b4888f6e347a481d6b8708c8370eb5286184088e06c0eaaa9876fe"
+  }
+]

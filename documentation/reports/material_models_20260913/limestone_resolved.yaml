@@ -1,0 +1,39 @@
+id: L0_LIMESTONE_CALCITE_PROXY
+description: Dense calcite / limestone proxy (CaCO3)
+provenance: documentation/materials.yaml (2026-09-13); synthetic radio constants,
+  not site measurements
+transport:
+  density_kg_m3: 2710
+  composition_basis: nucleus_number_fraction
+  nuclei:
+  - element: C
+    Z: 6
+    A: 12
+    number_fraction: 0.2
+  - element: O
+    Z: 8
+    A: 16
+    number_fraction: 0.6
+  - element: Ca
+    Z: 20
+    A: 40
+    number_fraction: 0.2
+  ionisation:
+    model: explicit
+    reference_density_kg_m3: 2710
+    I_eV: 136.4
+    Cbar: 3.8064707822895487
+    x0: 0.056294370233906744
+    x1: 3.0619943702339065
+    a: 0.08301
+    m: 3.412
+    delta0: 0
+radio:
+  model: constant_real_index_and_grey_field_attenuation
+  refractive_index: 2.449489742783178
+  field_attenuation_length_m: 14.476482730108396
+  relative_permeability: 1
+magnetic_field_enu_T:
+- 0
+- 0
+- 0

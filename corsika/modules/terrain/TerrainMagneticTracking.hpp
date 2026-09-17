@@ -1,11 +1,12 @@
-/* Terrain extension of stock LeapFrogCurved. The atmospheric sphere solver,
- * maximum deflection, trajectory and time conventions are unchanged. Only
- * finite DEM faces add a quadratic/BVH intersection; the mesh is cached once. */
+/* Terrain extension of stock LeapFrogCurved. Retain its sphere solver and
+ * trajectory, with an explicit accuracy cap shared by interface transport.
+ * Finite DEM faces use quadratic/BVH intersection; the mesh is cached once. */
 #pragma once
 #include <corsika/modules/terrain/TerrainBoundaryTracking.hpp>
 #include <corsika/modules/tracking/TrackingLeapFrogCurved.hpp>
 #include <corsika/geometry/terrain/FlatTerrainExport.hpp>
 #include <corsika/geometry/terrain/TerrainCurvedBoundary.hpp>
+#include <corsika/geometry/terrain/TerrainMagneticAccuracy.hpp>
 
 namespace corsika::terrain {
 // Borrow the indexed mesh while retaining StraightTrajectory (zero-field mode).
@@ -37,8 +38,8 @@ class MagneticTracking : public Intersect<MagneticTracking> {
   };
  public:
   explicit MagneticTracking(TriangularMesh const& mesh,double maxDeflection=.2)
-      :mesh_(exportFlatTerrain(mesh)),source_(&mesh),angle_(maxDeflection) {
-    if(!std::isfinite(angle_)||angle_<=0.||angle_>.2)
+      :mesh_(exportFlatTerrain(mesh)),source_(&mesh),angle_(std::min(maxDeflection,MaximumQuadraticMagneticDeflection)) {
+    if(!std::isfinite(maxDeflection)||maxDeflection<=0.||maxDeflection>.2)
       throw std::invalid_argument("terrain deflection must be in (0,0.2] rad");
   }
   FlatTerrainData const& flatTerrain()const noexcept{return mesh_;}
@@ -50,7 +51,7 @@ class MagneticTracking : public Intersect<MagneticTracking> {
     bool linear=charge==0*constants::e||field.getNorm()==0_T;
     LengthType limit=std::numeric_limits<double>::infinity()*1_m;
     if(!linear) {
-      auto perpendicular=(p.getMomentum()-p.getMomentum().getParallelProjectionOnto(field)).getNorm();
+      auto perpendicular=p.getMomentum().cross(field).getNorm()/field.getNorm();
       auto radius=convert_HEP_to_SI<MassType::dimension_type>(perpendicular)*constants::c/(abs(charge)*field.getNorm());
       linear=perpendicular<1_eV||radius>1.e9_m;
       if(!linear)limit=2.*std::cos(angle_)*std::sin(angle_)*radius;
@@ -85,7 +86,7 @@ class MagneticTracking : public Intersect<MagneticTracking> {
     return p.path.start.logically_inside?Intersections(0_s,TimeType(time)):Intersections(TimeType(time));
   }
   static std::string getName(){return "Terrain-LeapFrog-QuadraticBVH";}
-  static std::string getVersion(){return "1.0";}
+  static std::string getVersion(){return "1.1";}
  private:
   FlatTerrainData mesh_;
   TriangularMesh const* source_;

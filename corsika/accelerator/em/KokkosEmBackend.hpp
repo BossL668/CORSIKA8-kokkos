@@ -77,6 +77,7 @@ namespace corsika::accelerator::em {
     std::size_t pendingLeptonCount() const noexcept override;
     bool independentSubshowersEnabled() const noexcept override;
     bool independentSubshowersReady() const noexcept override;
+    bool batchIndependentSpecifiedFallbacks() const noexcept override;
     std::size_t advanceIndependentSubshowers(
         std::vector<gpu::em::EmParticleState> const&,
         detail::SubshowerCallbacks const&) override;

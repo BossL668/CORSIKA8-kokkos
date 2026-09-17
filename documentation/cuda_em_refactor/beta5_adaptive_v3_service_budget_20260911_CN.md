@@ -102,10 +102,73 @@ CPU 平均 epoch 从约 62 ms 降至 1.98/2.08 ms，单批最大值仍可达 102
 v3 比本轮 legacy 短约 25–29%。它与“比之前 adaptive-v2 更快”不是同一个结论，
 也不是 100 PeV 高能加速结果；仅两例且动态调度不保证同一棵树。
 
-100 PeV 已在持久服务 `c8-adaptive-v3-pilots-20260911.service` 启动；仍须以完整
-结束时间检验是否恢复到 36.27 min 参考。报告服务每 30 s 刷新小型诊断文件，
-不控制任务。冻结的新二进制 SHA-256 为
+100 PeV 已在持久服务 `c8-adaptive-v3-pilots-20260911.service` 正常完成，退出码0。
+最终端到端时间 **4012.206470 s / 66.87 min**，未恢复36.27 min参考，
+**v3高能性能验收不通过**。报告服务只刷新小型诊断文件，不控制任务。
+冻结的新二进制 SHA-256 为
 `22d64274c6c2fe6de3d815db2c0ba6a7889f33da47890e1fe2e82eb20cccddc1`。
 最新进度和同机
 legacy 对照见 `run/SERVICE_PERFORMANCE_CN.md`。不据单例、GPU 峰值或
 “CPU 核数更高”宣布性能成功。
+
+## 完成后的工作量核验
+
+完整报告和图：
+[acceptance_100PeV_v3/ACCEPTANCE_REPORT_CN.md](/mnt/d/CorsikaData/corsika_validation_results/beta5_adaptive_v3_service_20260911/acceptance_100PeV_v3/ACCEPTANCE_REPORT_CN.md)。
+分析脚本：`validation/accelerator/accept_adaptive_service_uhe.py`。
+
+| 指标 | 36.27 min 独立双端 | v3 | 新/旧 |
+|---|---:|---:|---:|
+| 实际加速输运步数，两端合计 | 2,891,986,825 | 3,287,619,200 | 1.137 |
+| 加速末态薄化后子状态数 | 1,015,348,997 | 1,145,721,319 | 1.128 |
+| 射电轨迹段数 | 2,463,084,218 | 2,792,521,691 | 1.134 |
+| CUDA job 次数 | 11,190 | 50,834 | 4.543 |
+| OpenMP job 次数 | 148,848 | 1,977,848 | 13.288 |
+| CUDA 每 job 平均入口状态数 | 128,080.6 | 12,127.2 | 0.095 |
+| OpenMP 每 job 平均入口状态数 | 737.9 | 146.9 | 0.199 |
+| GPU 采样间隔加权平均利用率 | 85.59% | 87.05% | — |
+| 进程 CPU 平均逻辑核当量 | 15.80 | 19.28 | — |
+
+`gpu_particles`名称容易误导：report中它是router的photons_advanced与
+leptons_advanced之和，二者累加的是`result.transport_records`；双端下包括
+OpenMP。它不是去重粒子数，也不是仅GPU计数。`physical_secondaries`包含
+薄化后保留的反应末态子状态及出射母粒子状态，不覆盖标量生成器的全部粒子。
+`cuda/openmp_input_particles`则在每次job入口累加，可重复统计同一粒子。
+现有输出没有逐端总transport_records或全history集合，不能恢复精确的逐端
+真实输运步数或全shower去重粒子数。
+
+总耗时增加84.4%，输运步数增加13.7%；按总步数描述性归一化后，每步墙钟成本
+增加62.2%。不同树的过程/能量组合仍不同，因此这不是精确的因果时间分解，
+但不能把退化仅归因于shower更大。OpenMP平均job约1.72 ms，job数量激增，
+是上一次强调协调器响应而缩小输入prefix的实际代价。高利用率没有转化为吞吐。
+
+### 代码对应的切分机制
+
+- `AdaptiveSubshowerControl::hostTargetMs`在GPU在途时返回2–10 ms目标；
+  `inputLimit`用`target/(8*ms_per_input_wave)`反推输入上限，最低上限256。
+  这是可处理量上限，不保证队列有256个粒子，所以实际平均入口可以低于256。
+- `IndependentSubshowerPump::prepare`将该上限同时应用到外部输入及resident
+  队列输入，`execute`确实将其传入backend，因此并非只缩小一个无效CLI参数。
+- CUDA仍逐job回收；协调器在CUDA空闲且队列非空时提交，未建立最小有效批量
+  的持续合批条件。`job.minimum=1`是驻留波前退出阈值，并非证明启动批量达到
+  4096的门禁。两者不能混淆。
+- 成本估计仅按PID类别区分，`elapsed/(初始输入×波前数)`同时包含固定调度成本
+  和增长/衰减中的粒子群；它不是可直接外推任意子shower剩余成本的量。
+  固定开销在小job中占比增大可能进一步收紧输入估计，尚需批次时间线验证反馈。
+
+下一步方向应是把完成通知服务与物理计算批量解耦、保持两端有效批量、在必要的
+history/fallback/队列安全边界收取结果，而不是继续缩短时间片。需要同时增加
+每端实际transport_records和批量直方图，防止再次把入口状态重复计数当作负载。
+本轮仅验收和诊断，未修改调度/物理代码或替换生产二进制。
+
+### 验收边界
+
+全部7类Parquet逐批读取有效，地面输出3,949,164行；81天线的CoREAS/ZHS各
+400点、无NaN/Inf、峰值不在首尾5点。提交/回收匹配、pending清零、队列和定点
+溢出及native反解失败为0。进程树RSS峰值1.65 GiB，可用内存最低8.09 GiB。
+这支持单事件运行完整性通过，不足以证明N>1无泄漏或物理统计等价。
+
+新旧局部能量账本均明确`complete_coverage=false`、`accepted=false`；新残差
+8.151%（旧8.715%），不能将其包装成完整能量闭合验收，也不能由这个未覆盖
+标量/强子/薄化全部通道的账本直接断言能量损失。单事件profile/波形仅诊断展示，
+不代替系综检验。本轮不自动恢复Fe生产或展开新高能样本。

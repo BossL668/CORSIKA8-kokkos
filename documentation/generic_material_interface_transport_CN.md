@@ -2,6 +2,12 @@
 
 范围：beta5，2026-09-10。只处理粒子输运，不处理界面射电。
 
+2026-09-11：实现已独立为 `CORSIKA8::InterfaceEm`，并增加常驻粒子队列。
+当前接口、构建与测试说明见[独立跨介质常驻输运](interface_resident_transport_CN.md)。
+2026-09-13：山体应用新增[统一材料模型](mountain_material_models_CN.md)，可选择二氧化硅 SiO₂、
+石灰岩／方解石 CaCO₃、花岗岩十元素参考混合物，统一 shower、LPM 与射电参数；
+SiO₂ 默认按提供文件取 n=√5。下文旧 SiO₂ 数值属于此前验证记录。
+
 ## 接口层次
 
 ```text
@@ -36,8 +42,9 @@ InterfaceEmRouter：继续 γ/e± 或回交指定 CPU fallback
 | `corsika/modules/transport/InterfaceEmRouter.hpp` | 可复用 HybridCascade 路由；输出与 fallback 由调用方提供 |
 | `applications/detail/mountain/TerrainEmRouter.hpp` | 仅保留山体应用 YAML 统计适配 |
 
-会话实现仍位于 `src/terrain/TerrainEmSession.cpp`，链接目标仍为 `CORSIKA8TerrainEm`；
-通用头提供兼容入口，未重复实现一套物理 kernel，也未修改空气生产入口。
+会话实现位于 `src/transport/InterfaceEmSession.cpp`，链接目标为 `CORSIKA8InterfaceEm`；
+旧 `TerrainEmSession` 和构建目标 `CORSIKA8TerrainEm` 保留兼容别名。
+物理 kernel 单独封装并复用原共享物理函数，空气生产入口保持原样。
 
 ## 如何复用
 
@@ -110,9 +117,10 @@ FLUKA 靶核自动取实际环境核组分的并集，因此水/冰的氢靶不�
   不能靠修改 density 或绕过门禁解决。
 - 当前 Kokkos 会话处理 γ/e±；μ、τ、强子、中微子继续走现有 CPU 过程。
   本次封装不会自动补齐弱反应低能模型、τ 自旋输运或跨界射电。
-- 会话采用有界同步批次；这不是全新多介质生产驻留调度器或生产性能验收。
+- 会话保留有界同步单步接口；2026-09-11 新增的常驻队列接口及其验证范围见
+  [独立跨介质常驻输运](interface_resident_transport_CN.md)。
 
-## 测试
+## 2026-09-10 的历史测试（不含常驻队列）
 
 新增 `testInterfaceTransport` 使用实际 CPU PROPOSAL calculator 和编译后的 Kokkos 输运会话，
 不使用伪造物理表。测试体积包括箱体和四面体；介质包括水/SiO₂，独立区域编号为 17/93，

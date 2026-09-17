@@ -52,7 +52,8 @@ namespace corsika::applications::air_shower {
     configuration["execution_space"] =
         accelerator::em::resolveKokkosExecutionBackend(options.kokkos_execution) ==
                 "openmp" ? "OpenMP" :
-        (options.kokkos_execution == "cuda-openmp" ? "CUDA+OpenMP (cooperative)" : "CUDA");
+        (options.kokkos_execution == "cuda-openmp" ? "CUDA+OpenMP (cooperative)" :
+         options.kokkos_execution == "openmp-cuda" ? "OpenMP+CUDA (CPU primary)" : "CUDA");
     configuration["compiled_execution_spaces"] = "CUDA,OpenMP";
     configuration["experimental_dual_runtime"] = true;
 #elif defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)

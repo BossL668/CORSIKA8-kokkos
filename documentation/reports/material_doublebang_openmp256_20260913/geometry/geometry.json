@@ -1,0 +1,5830 @@
+{
+  "mesh": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/terrain_enu.ply",
+  "mesh_sha256": "5060f55efc6a3dae8ab94c6ef2a27356521b56797ed059a1c150c3a47c2d7c1a",
+  "section_definition": "Fixed-East slice of original upward DEM triangles, no smoothing; tau is projected from actual recorded 3-D segments. These lines are particle tracks, not radio rays.",
+  "events": [
+    {
+      "tag": "openmp_silica_SiO2_seed158",
+      "label": "Silica (SiO2)",
+      "seed": 158,
+      "tau_modes": [
+        "muonic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 55020960.92001641
+            },
+            {
+              "history_id": 3,
+              "pdg": 321,
+              "energy_GeV": 2.3520614267847635
+            },
+            {
+              "history_id": 4,
+              "pdg": 2112,
+              "energy_GeV": 2574328.783419864
+            },
+            {
+              "history_id": 5,
+              "pdg": -2112,
+              "energy_GeV": 1867243.3056443953
+            },
+            {
+              "history_id": 6,
+              "pdg": -211,
+              "energy_GeV": 2039293.074358859
+            },
+            {
+              "history_id": 7,
+              "pdg": 211,
+              "energy_GeV": 4080541.7432022686
+            },
+            {
+              "history_id": 8,
+              "pdg": 3122,
+              "energy_GeV": 8029208.316611381
+            },
+            {
+              "history_id": 9,
+              "pdg": -2212,
+              "energy_GeV": 3833433.7211176977
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 1134301.3293223775
+            },
+            {
+              "history_id": 11,
+              "pdg": 321,
+              "energy_GeV": 40272.00035036203
+            },
+            {
+              "history_id": 12,
+              "pdg": 3112,
+              "energy_GeV": 16302.086097567519
+            },
+            {
+              "history_id": 13,
+              "pdg": 2212,
+              "energy_GeV": 67903.26216030045
+            },
+            {
+              "history_id": 14,
+              "pdg": -2212,
+              "energy_GeV": 58064.92127513762
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 49903.49882259293
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 29753.003676844277
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 53476.86898921406
+            },
+            {
+              "history_id": 18,
+              "pdg": 2112,
+              "energy_GeV": 35275.4565715857
+            },
+            {
+              "history_id": 19,
+              "pdg": -2212,
+              "energy_GeV": 11449.104173785438
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 14707.34891508398
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 1922.3538415022367
+            },
+            {
+              "history_id": 22,
+              "pdg": 111,
+              "energy_GeV": 2490.407028230932
+            },
+            {
+              "history_id": 23,
+              "pdg": 211,
+              "energy_GeV": 856.6403115271919
+            },
+            {
+              "history_id": 24,
+              "pdg": 2112,
+              "energy_GeV": 182.89688453557275
+            },
+            {
+              "history_id": 25,
+              "pdg": -2112,
+              "energy_GeV": 313.9361274942112
+            },
+            {
+              "history_id": 26,
+              "pdg": 111,
+              "energy_GeV": 51.31026900657829
+            },
+            {
+              "history_id": 27,
+              "pdg": 130,
+              "energy_GeV": 982770.349982759
+            },
+            {
+              "history_id": 28,
+              "pdg": -211,
+              "energy_GeV": 980593.2692626986
+            },
+            {
+              "history_id": 29,
+              "pdg": 111,
+              "energy_GeV": 142213.3722609348
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 156871.96727121656
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 896143.3527031102
+            },
+            {
+              "history_id": 32,
+              "pdg": 310,
+              "energy_GeV": 488951.33883954387
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 3377.908598837805
+            },
+            {
+              "history_id": 34,
+              "pdg": -321,
+              "energy_GeV": 42706.64907121054
+            },
+            {
+              "history_id": 35,
+              "pdg": 211,
+              "energy_GeV": 26843.0205673047
+            },
+            {
+              "history_id": 36,
+              "pdg": 130,
+              "energy_GeV": 9138.184804559523
+            },
+            {
+              "history_id": 37,
+              "pdg": 111,
+              "energy_GeV": 18867.323859197124
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 11265.705179893834
+            },
+            {
+              "history_id": 39,
+              "pdg": -211,
+              "energy_GeV": 34667.444530247136
+            },
+            {
+              "history_id": 40,
+              "pdg": -211,
+              "energy_GeV": 2.0375041477886495
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 32.59709892026909
+            },
+            {
+              "history_id": 42,
+              "pdg": 211,
+              "energy_GeV": 14.702085015525858
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 18.927066208589284
+            },
+            {
+              "history_id": 44,
+              "pdg": 2212,
+              "energy_GeV": 3.5843231853893815
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.2261941621142749
+            },
+            {
+              "history_id": 46,
+              "pdg": 130,
+              "energy_GeV": 30126.649098391295
+            },
+            {
+              "history_id": 47,
+              "pdg": 130,
+              "energy_GeV": 10570.266377950227
+            },
+            {
+              "history_id": 48,
+              "pdg": 211,
+              "energy_GeV": 4926354.0988544
+            },
+            {
+              "history_id": 49,
+              "pdg": 111,
+              "energy_GeV": 1104243.503579025
+            },
+            {
+              "history_id": 50,
+              "pdg": 211,
+              "energy_GeV": 192455.0096767165
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 220263.7443820353
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 118724.0366513721
+            },
+            {
+              "history_id": 53,
+              "pdg": 111,
+              "energy_GeV": 880207.0826847118
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 2798809.432131284
+            },
+            {
+              "history_id": 55,
+              "pdg": 111,
+              "energy_GeV": 1077506.7720059967
+            },
+            {
+              "history_id": 56,
+              "pdg": 321,
+              "energy_GeV": 182484.17170568262
+            },
+            {
+              "history_id": 57,
+              "pdg": -321,
+              "energy_GeV": 302252.38806083996
+            },
+            {
+              "history_id": 58,
+              "pdg": -3122,
+              "energy_GeV": 38972.62389059534
+            },
+            {
+              "history_id": 59,
+              "pdg": 22,
+              "energy_GeV": 3953.0839727704347
+            },
+            {
+              "history_id": 60,
+              "pdg": 211,
+              "energy_GeV": 9455.571631570358
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12660.148301499805
+            },
+            {
+              "history_id": 62,
+              "pdg": 111,
+              "energy_GeV": 26110.072578447944
+            },
+            {
+              "history_id": 63,
+              "pdg": 211,
+              "energy_GeV": 16205.03572065198
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 20245.890595210163
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 27507.037799531787
+            },
+            {
+              "history_id": 66,
+              "pdg": 211,
+              "energy_GeV": 4.546356057017211
+            },
+            {
+              "history_id": 67,
+              "pdg": -211,
+              "energy_GeV": 0.7435705584974052
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 1.7882588706906364
+            },
+            {
+              "history_id": 69,
+              "pdg": 130,
+              "energy_GeV": 5244166.637883704
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000140280,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 1.3585024209036895e-31,
+          "position_enu_m": [
+            2516.535431729868,
+            3306.746529475765,
+            500.52949201660203
+          ],
+          "time_s": 3.2932503931073684e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000140280,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 68,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 2,
+              "-211": 12,
+              "15": 1,
+              "22": 1,
+              "111": 15,
+              "130": 5,
+              "211": 15,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 2,
+              "3112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93822049,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93822041,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_final_minus_initial": [
+                -5.168e-05,
+                7.762046843879222e-11,
+                5.1568e-05,
+                8.289813995361328e-11
+              ],
+              "outgoing_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "outgoing_charged_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "hadronic_final_state": [
+                44979040.01820397,
+                -16.536751179290405,
+                -44979039.07994881,
+                -39.696302214727936
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "outgoing_charged_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "momentum_transfer_com": [
+                3080.6491449854766,
+                -16.53675117661385,
+                -39.696302214810835,
+                3080.894916383255
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -3.5324774216860533e-09,
+              "pythia_com_momentum_residual_GeV": 3.5318592752374124e-09,
+              "pythia_com_max_component_relative_residual": 2.5786951022509556e-13,
+              "corsika_energy_relative_residual": 5.167999951510099e-13,
+              "corsika_momentum_relative_residual": 5.156799951627691e-13,
+              "corsika_max_component_relative_residual": 5.167999951510099e-13
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.4497903840707127,
+              "leptonic_lab_energy_y": 0.44979039079983557,
+              "invariant_minus_lab_y": -6.729122870030579e-09,
+              "hadronic_energy_transfer_y": 0.44979039079931865,
+              "y_energy_balance_residual": 6.728605950190314e-09,
+              "Q2_GeV2": 3363.591845439747,
+              "bjorken_x": 3.985055107830282e-05,
+              "W2_GeV2": 84401789.90059176
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 26589484,
+          "parent_history_id": 26589481,
+          "generation": 1263,
+          "time_ns": 6601.015876101181,
+          "energy_GeV": 54245222.69232406,
+          "weight": 1,
+          "position_enu_m": [
+            2516.535707835892,
+            2315.103384841781,
+            500.53019093709077
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774061992471403,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 20651201.97606548,
+              "history_id": 26589487,
+              "parent_history_id": 26589484
+            },
+            {
+              "pdg": 13,
+              "energy_GeV": 18641427.479540676,
+              "history_id": 26589488,
+              "parent_history_id": 26589484
+            },
+            {
+              "pdg": -14,
+              "energy_GeV": 14952592.315134218,
+              "history_id": 26589489,
+              "parent_history_id": 26589484
+            }
+          ],
+          "relative_energy_residual": -1.698921369034048e-08,
+          "relative_momentum_residual": 1.6989213542866972e-08
+        }
+      ],
+      "tau_segments": 1264,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.0002761060241027735,
+      "displayed_deposition_fraction": 0.999997657848919
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed946",
+      "label": "Silica (SiO2)",
+      "seed": 946,
+      "tau_modes": [
+        "electronic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 34330909.02767497
+            },
+            {
+              "history_id": 3,
+              "pdg": 211,
+              "energy_GeV": 14546429.48563107
+            },
+            {
+              "history_id": 4,
+              "pdg": -211,
+              "energy_GeV": 327472.3689522717
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 208667.76741650398
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 1645114.768296171
+            },
+            {
+              "history_id": 7,
+              "pdg": 111,
+              "energy_GeV": 51.22807795119783
+            },
+            {
+              "history_id": 8,
+              "pdg": -211,
+              "energy_GeV": 23.77325277442047
+            },
+            {
+              "history_id": 9,
+              "pdg": -321,
+              "energy_GeV": 382.88526092730746
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 228.18571645242548
+            },
+            {
+              "history_id": 11,
+              "pdg": 211,
+              "energy_GeV": 5984.20152026818
+            },
+            {
+              "history_id": 12,
+              "pdg": 111,
+              "energy_GeV": 766.4762698781142
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 397.32179259292855
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 4842.70588425212
+            },
+            {
+              "history_id": 15,
+              "pdg": -211,
+              "energy_GeV": 3172.1195261978123
+            },
+            {
+              "history_id": 16,
+              "pdg": 2212,
+              "energy_GeV": 4200.96019222176
+            },
+            {
+              "history_id": 17,
+              "pdg": -2212,
+              "energy_GeV": 7554.115603938783
+            },
+            {
+              "history_id": 18,
+              "pdg": -321,
+              "energy_GeV": 39130.160021202915
+            },
+            {
+              "history_id": 19,
+              "pdg": 211,
+              "energy_GeV": 15069.485557863767
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 54326.43004177921
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 80426.61703686419
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 504761.7150436892
+            },
+            {
+              "history_id": 23,
+              "pdg": -321,
+              "energy_GeV": 427922.58181751415
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 138564.0987063607
+            },
+            {
+              "history_id": 25,
+              "pdg": 321,
+              "energy_GeV": 85612.07047070173
+            },
+            {
+              "history_id": 26,
+              "pdg": -321,
+              "energy_GeV": 67912.56233406124
+            },
+            {
+              "history_id": 27,
+              "pdg": 111,
+              "energy_GeV": 100443.64305190233
+            },
+            {
+              "history_id": 28,
+              "pdg": 211,
+              "energy_GeV": 195953.4411878336
+            },
+            {
+              "history_id": 29,
+              "pdg": 2112,
+              "energy_GeV": 32780.08254952875
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 795.8448425901668
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3579.9312421912646
+            },
+            {
+              "history_id": 32,
+              "pdg": 111,
+              "energy_GeV": 2813.6057083766036
+            },
+            {
+              "history_id": 33,
+              "pdg": 2112,
+              "energy_GeV": 7144.105108501444
+            },
+            {
+              "history_id": 34,
+              "pdg": -2212,
+              "energy_GeV": 3411.3651345230965
+            },
+            {
+              "history_id": 35,
+              "pdg": 2212,
+              "energy_GeV": 8049.466749837471
+            },
+            {
+              "history_id": 36,
+              "pdg": -3122,
+              "energy_GeV": 9405.590894743633
+            },
+            {
+              "history_id": 37,
+              "pdg": 211,
+              "energy_GeV": 548.6670125253396
+            },
+            {
+              "history_id": 38,
+              "pdg": -211,
+              "energy_GeV": 388.4621523379087
+            },
+            {
+              "history_id": 39,
+              "pdg": 2212,
+              "energy_GeV": 415.7049888839311
+            },
+            {
+              "history_id": 40,
+              "pdg": 111,
+              "energy_GeV": 148.51992387069262
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 17.213107980280903
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 15.118418483740108
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 4.4866754842865575
+            },
+            {
+              "history_id": 44,
+              "pdg": 211,
+              "energy_GeV": 2.2997760736706394
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.397515867932998
+            },
+            {
+              "history_id": 46,
+              "pdg": 2212,
+              "energy_GeV": 3.8485391133461753
+            },
+            {
+              "history_id": 47,
+              "pdg": 211,
+              "energy_GeV": 0.3810001696062979
+            },
+            {
+              "history_id": 48,
+              "pdg": 321,
+              "energy_GeV": 18007516.589459404
+            },
+            {
+              "history_id": 49,
+              "pdg": -211,
+              "energy_GeV": 5094572.680586455
+            },
+            {
+              "history_id": 50,
+              "pdg": -321,
+              "energy_GeV": 12877428.033705387
+            },
+            {
+              "history_id": 51,
+              "pdg": 211,
+              "energy_GeV": 528286.4004324506
+            },
+            {
+              "history_id": 52,
+              "pdg": 211,
+              "energy_GeV": 433058.0733166101
+            },
+            {
+              "history_id": 53,
+              "pdg": -211,
+              "energy_GeV": 1366106.320521344
+            },
+            {
+              "history_id": 54,
+              "pdg": 2112,
+              "energy_GeV": 1365912.0480470697
+            },
+            {
+              "history_id": 55,
+              "pdg": -211,
+              "energy_GeV": 690989.7194458968
+            },
+            {
+              "history_id": 56,
+              "pdg": -3112,
+              "energy_GeV": 3076383.3823060277
+            },
+            {
+              "history_id": 57,
+              "pdg": 111,
+              "energy_GeV": 1009727.5310882739
+            },
+            {
+              "history_id": 58,
+              "pdg": 211,
+              "energy_GeV": 100.99589650960623
+            },
+            {
+              "history_id": 59,
+              "pdg": 111,
+              "energy_GeV": 74.65133726871504
+            },
+            {
+              "history_id": 60,
+              "pdg": 321,
+              "energy_GeV": 300.2925142051186
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12.07378832211245
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1626.7026914343326
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 238.9513461139324
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 6291.300964883134
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 1606.3659168660554
+            },
+            {
+              "history_id": 66,
+              "pdg": 2212,
+              "energy_GeV": 6638.917958625894
+            },
+            {
+              "history_id": 67,
+              "pdg": 211,
+              "energy_GeV": 3825.0598545239577
+            },
+            {
+              "history_id": 68,
+              "pdg": -211,
+              "energy_GeV": 3366.8671046258587
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 1788.678990609546
+            },
+            {
+              "history_id": 70,
+              "pdg": -2112,
+              "energy_GeV": 3544.0158657947045
+            },
+            {
+              "history_id": 71,
+              "pdg": 111,
+              "energy_GeV": 178.18738136795724
+            },
+            {
+              "history_id": 72,
+              "pdg": 211,
+              "energy_GeV": 2425.342006011233
+            },
+            {
+              "history_id": 73,
+              "pdg": -211,
+              "energy_GeV": 67380.39760115491
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 6886.05394682793
+            },
+            {
+              "history_id": 75,
+              "pdg": 211,
+              "energy_GeV": 210023.6114166815
+            },
+            {
+              "history_id": 76,
+              "pdg": 111,
+              "energy_GeV": 37280.24970789536
+            },
+            {
+              "history_id": 77,
+              "pdg": -211,
+              "energy_GeV": 788373.3180671512
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 121755.96242991014
+            },
+            {
+              "history_id": 79,
+              "pdg": 211,
+              "energy_GeV": 320840.5254292168
+            },
+            {
+              "history_id": 80,
+              "pdg": -211,
+              "energy_GeV": 21401.71554067944
+            },
+            {
+              "history_id": 81,
+              "pdg": 211,
+              "energy_GeV": 82208.78581193708
+            },
+            {
+              "history_id": 82,
+              "pdg": -211,
+              "energy_GeV": 543519.1153742442
+            },
+            {
+              "history_id": 83,
+              "pdg": -211,
+              "energy_GeV": 172409.45212898275
+            },
+            {
+              "history_id": 84,
+              "pdg": 111,
+              "energy_GeV": 193577.16437668542
+            },
+            {
+              "history_id": 85,
+              "pdg": 211,
+              "energy_GeV": 4496.545523767239
+            },
+            {
+              "history_id": 86,
+              "pdg": 111,
+              "energy_GeV": 3017.5435469197446
+            },
+            {
+              "history_id": 87,
+              "pdg": -2212,
+              "energy_GeV": 6026.61573835808
+            },
+            {
+              "history_id": 88,
+              "pdg": 111,
+              "energy_GeV": 1430.4376119779788
+            },
+            {
+              "history_id": 89,
+              "pdg": -211,
+              "energy_GeV": 1047.4035739618425
+            },
+            {
+              "history_id": 90,
+              "pdg": 111,
+              "energy_GeV": 6727.150432940309
+            },
+            {
+              "history_id": 91,
+              "pdg": 211,
+              "energy_GeV": 3894.592639310508
+            },
+            {
+              "history_id": 92,
+              "pdg": -211,
+              "energy_GeV": 1379.19247960705
+            },
+            {
+              "history_id": 93,
+              "pdg": 310,
+              "energy_GeV": 5866.671154580061
+            },
+            {
+              "history_id": 94,
+              "pdg": -211,
+              "energy_GeV": 774.1289918707913
+            },
+            {
+              "history_id": 95,
+              "pdg": 111,
+              "energy_GeV": 102.20986724385592
+            },
+            {
+              "history_id": 96,
+              "pdg": -2112,
+              "energy_GeV": 491.3021905704947
+            },
+            {
+              "history_id": 97,
+              "pdg": 111,
+              "energy_GeV": 67.84072133086269
+            },
+            {
+              "history_id": 98,
+              "pdg": 211,
+              "energy_GeV": 64.48914571488714
+            },
+            {
+              "history_id": 99,
+              "pdg": -211,
+              "energy_GeV": 395.5557030417846
+            },
+            {
+              "history_id": 100,
+              "pdg": 211,
+              "energy_GeV": 0.9597731794624145
+            },
+            {
+              "history_id": 101,
+              "pdg": -211,
+              "energy_GeV": 19.813649487883875
+            },
+            {
+              "history_id": 102,
+              "pdg": 130,
+              "energy_GeV": 9097.906975522286
+            },
+            {
+              "history_id": 103,
+              "pdg": 211,
+              "energy_GeV": 24.774595640840193
+            },
+            {
+              "history_id": 104,
+              "pdg": -211,
+              "energy_GeV": 4.30566543873318
+            },
+            {
+              "history_id": 105,
+              "pdg": 111,
+              "energy_GeV": 19.89715062424982
+            },
+            {
+              "history_id": 106,
+              "pdg": 211,
+              "energy_GeV": 13168.885586049288
+            },
+            {
+              "history_id": 107,
+              "pdg": -211,
+              "energy_GeV": 4676.71151807002
+            },
+            {
+              "history_id": 108,
+              "pdg": 111,
+              "energy_GeV": 23705.1819995304
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3921.7316894076384,
+            500.52949201660203
+          ],
+          "time_s": 1.2418807087777078e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 107,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-3112": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 5,
+              "-211": 27,
+              "15": 1,
+              "111": 26,
+              "130": 1,
+              "211": 28,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 5
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93827073,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93827148,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_final_minus_initial": [
+                -6.24e-07,
+                9.756467641520494e-12,
+                1.28e-06,
+                4.460881650447845e-11
+              ],
+              "outgoing_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "outgoing_charged_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "hadronic_final_state": [
+                65669091.9105965,
+                -24.243328860052266,
+                -65669090.97233511,
+                13.731931596949885
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "outgoing_charged_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "momentum_transfer_com": [
+                4497.823367975892,
+                -24.24332885604095,
+                13.731931596905273,
+                4497.989109093598
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -9.276845958083868e-11,
+              "pythia_com_momentum_residual_GeV": 1.0301466027386053e-10,
+              "pythia_com_max_component_relative_residual": 6.7720623179608e-15,
+              "corsika_energy_relative_residual": 6.239999941451822e-15,
+              "corsika_momentum_relative_residual": 1.2799999888046233e-14,
+              "corsika_max_component_relative_residual": 1.2799999879901174e-14
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.656690905524543,
+              "leptonic_lab_energy_y": 0.6566909097232503,
+              "invariant_minus_lab_y": -4.198707270752777e-09,
+              "hadronic_energy_transfer_y": 0.656690909723244,
+              "y_energy_balance_residual": 4.198700942481537e-09,
+              "Q2_GeV2": 2267.280954025686,
+              "bjorken_x": 1.8398632514309533e-05,
+              "W2_GeV2": 123228683.0877556
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 38979176,
+          "parent_history_id": 38966878,
+          "generation": 2787,
+          "time_ns": 7165.698884835596,
+          "energy_GeV": 31589956.933652002,
+          "weight": 1,
+          "position_enu_m": [
+            2516.536726989845,
+            2145.8156776628693,
+            500.5286620099979
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774117864193064,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 13736784.364336012,
+              "history_id": 38979179,
+              "parent_history_id": 38979176
+            },
+            {
+              "pdg": 11,
+              "energy_GeV": 13118446.80399034,
+              "history_id": 38979180,
+              "parent_history_id": 38979176
+            },
+            {
+              "pdg": -12,
+              "energy_GeV": 4734725.999273919,
+              "history_id": 38979181,
+              "parent_history_id": 38979176
+            }
+          ],
+          "relative_energy_residual": 7.405779896799437e-09,
+          "relative_momentum_residual": 7.405779770178299e-09
+        }
+      ],
+      "tau_segments": 2788,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.00129525997726887,
+      "displayed_deposition_fraction": 1.0
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed3605",
+      "label": "Silica (SiO2)",
+      "seed": 3605,
+      "tau_modes": [
+        "hadronic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 87426979.93520662
+            },
+            {
+              "history_id": 3,
+              "pdg": -211,
+              "energy_GeV": 9.925192417497598
+            },
+            {
+              "history_id": 4,
+              "pdg": 111,
+              "energy_GeV": 250.0593726116032
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 42.88966555473662
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 5499.9957725098175
+            },
+            {
+              "history_id": 7,
+              "pdg": 321,
+              "energy_GeV": 113552.89830185319
+            },
+            {
+              "history_id": 8,
+              "pdg": -321,
+              "energy_GeV": 1063048.0405989802
+            },
+            {
+              "history_id": 9,
+              "pdg": 211,
+              "energy_GeV": 67773.2975303138
+            },
+            {
+              "history_id": 10,
+              "pdg": -211,
+              "energy_GeV": 267330.6713116634
+            },
+            {
+              "history_id": 11,
+              "pdg": 111,
+              "energy_GeV": 1098555.667317483
+            },
+            {
+              "history_id": 12,
+              "pdg": 321,
+              "energy_GeV": 131860.7080970151
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 35470.966008491174
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 97540.21987958132
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 23578.076229430713
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 469.33010753291614
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 345.98791514459344
+            },
+            {
+              "history_id": 18,
+              "pdg": 211,
+              "energy_GeV": 1050.9866466335016
+            },
+            {
+              "history_id": 19,
+              "pdg": 111,
+              "energy_GeV": 48.619053205834696
+            },
+            {
+              "history_id": 20,
+              "pdg": 111,
+              "energy_GeV": 0.4974360828418868
+            },
+            {
+              "history_id": 21,
+              "pdg": 3122,
+              "energy_GeV": 5.4379411237398685
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 2.268816426215866
+            },
+            {
+              "history_id": 23,
+              "pdg": 111,
+              "energy_GeV": 2.3606777495501623
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 36.346829451899566
+            },
+            {
+              "history_id": 25,
+              "pdg": -211,
+              "energy_GeV": 16.611178034816135
+            },
+            {
+              "history_id": 26,
+              "pdg": 211,
+              "energy_GeV": 398.2557437301945
+            },
+            {
+              "history_id": 27,
+              "pdg": -211,
+              "energy_GeV": 1057.2002052864784
+            },
+            {
+              "history_id": 28,
+              "pdg": 2112,
+              "energy_GeV": 13220.934561909951
+            },
+            {
+              "history_id": 29,
+              "pdg": -211,
+              "energy_GeV": 5170.608343776159
+            },
+            {
+              "history_id": 30,
+              "pdg": -2112,
+              "energy_GeV": 9353.172414513316
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3882.385747051897
+            },
+            {
+              "history_id": 32,
+              "pdg": 211,
+              "energy_GeV": 15381.139632895645
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 8523.859605484196
+            },
+            {
+              "history_id": 34,
+              "pdg": 211,
+              "energy_GeV": 1800800.1788206352
+            },
+            {
+              "history_id": 35,
+              "pdg": -211,
+              "energy_GeV": 134588.4738229187
+            },
+            {
+              "history_id": 36,
+              "pdg": 211,
+              "energy_GeV": 179248.19699751277
+            },
+            {
+              "history_id": 37,
+              "pdg": -211,
+              "energy_GeV": 23687.884805386027
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 6764.261864487903
+            },
+            {
+              "history_id": 39,
+              "pdg": 111,
+              "energy_GeV": 168992.72667809488
+            },
+            {
+              "history_id": 40,
+              "pdg": 321,
+              "energy_GeV": 143373.453294985
+            },
+            {
+              "history_id": 41,
+              "pdg": -211,
+              "energy_GeV": 75008.09329997371
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 36332.75881813641
+            },
+            {
+              "history_id": 43,
+              "pdg": 211,
+              "energy_GeV": 4613.416268489507
+            },
+            {
+              "history_id": 44,
+              "pdg": 310,
+              "energy_GeV": 1606.9468511932341
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 1353.6614631490083
+            },
+            {
+              "history_id": 46,
+              "pdg": 111,
+              "energy_GeV": 385.53709637651167
+            },
+            {
+              "history_id": 47,
+              "pdg": -211,
+              "energy_GeV": 537.8283819273377
+            },
+            {
+              "history_id": 48,
+              "pdg": 111,
+              "energy_GeV": 565.2084368794425
+            },
+            {
+              "history_id": 49,
+              "pdg": 211,
+              "energy_GeV": 66.0951048887858
+            },
+            {
+              "history_id": 50,
+              "pdg": -211,
+              "energy_GeV": 352.53616794150554
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 2.80888463416558
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 2.7493292821916944
+            },
+            {
+              "history_id": 53,
+              "pdg": 211,
+              "energy_GeV": 4.325678278697864
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 4.611606682226653
+            },
+            {
+              "history_id": 55,
+              "pdg": 321,
+              "energy_GeV": 1.5854899906727238
+            },
+            {
+              "history_id": 56,
+              "pdg": -211,
+              "energy_GeV": 0.8168611480919319
+            },
+            {
+              "history_id": 57,
+              "pdg": 310,
+              "energy_GeV": 1189266.0823048728
+            },
+            {
+              "history_id": 58,
+              "pdg": 310,
+              "energy_GeV": 65421.37809313768
+            },
+            {
+              "history_id": 59,
+              "pdg": 130,
+              "energy_GeV": 99109.27156567494
+            },
+            {
+              "history_id": 60,
+              "pdg": 130,
+              "energy_GeV": 6300.186670002796
+            },
+            {
+              "history_id": 61,
+              "pdg": 211,
+              "energy_GeV": 4.3703667695270685
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1.5563355616620018
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 8.288585150786343
+            },
+            {
+              "history_id": 64,
+              "pdg": 22,
+              "energy_GeV": 0.40608888691646106
+            },
+            {
+              "history_id": 65,
+              "pdg": 22,
+              "energy_GeV": 15.334253970200379
+            },
+            {
+              "history_id": 66,
+              "pdg": 111,
+              "energy_GeV": 360290.97040433594
+            },
+            {
+              "history_id": 67,
+              "pdg": 111,
+              "energy_GeV": 933.6383723891769
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 226.37390415328522
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 710.696036728427
+            },
+            {
+              "history_id": 70,
+              "pdg": 211,
+              "energy_GeV": 67.68264957310686
+            },
+            {
+              "history_id": 71,
+              "pdg": -211,
+              "energy_GeV": 39.19027309017819
+            },
+            {
+              "history_id": 72,
+              "pdg": 111,
+              "energy_GeV": 2.06780529678402
+            },
+            {
+              "history_id": 73,
+              "pdg": 111,
+              "energy_GeV": 3.144266262517488
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 1.5388736189259362
+            },
+            {
+              "history_id": 75,
+              "pdg": 22,
+              "energy_GeV": 2.5414836847320825
+            },
+            {
+              "history_id": 76,
+              "pdg": 22,
+              "energy_GeV": 0.9528519821707534
+            },
+            {
+              "history_id": 77,
+              "pdg": 111,
+              "energy_GeV": 1165424.2138835317
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 26.21880687255109
+            },
+            {
+              "history_id": 79,
+              "pdg": 111,
+              "energy_GeV": 91.88754943081767
+            },
+            {
+              "history_id": 80,
+              "pdg": 111,
+              "energy_GeV": 25.40014257837524
+            },
+            {
+              "history_id": 81,
+              "pdg": 130,
+              "energy_GeV": 4143274.037538736
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3286.8618460657717,
+            500.52949201660203
+          ],
+          "time_s": 3.359578557406928e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 80,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-2112": 1,
+              "-321": 1,
+              "-211": 19,
+              "15": 1,
+              "22": 4,
+              "111": 24,
+              "130": 3,
+              "211": 18,
+              "310": 3,
+              "321": 4,
+              "2112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93847203,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_on_shell_final": [
+                100000000.93846987,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_final_minus_initial": [
+                0.000197776,
+                1.337149750471056e-13,
+                -0.000199888,
+                -1.068115234375e-13
+              ],
+              "outgoing_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "outgoing_charged_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "hadronic_final_state": [
+                12573021.003263265,
+                71.83842765063169,
+                -12573020.065043552,
+                -60.21654459610215
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "outgoing_charged_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "momentum_transfer_com": [
+                860.8031794619775,
+                71.83842765140142,
+                -60.21654459610203,
+                861.5371210252139
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": 1.3695171219296753e-08,
+              "pythia_com_momentum_residual_GeV": 1.3690794276790302e-08,
+              "pythia_com_max_component_relative_residual": 9.99742297880919e-13,
+              "corsika_energy_relative_residual": 1.9777599814432303e-12,
+              "corsika_momentum_relative_residual": 1.998879981245067e-12,
+              "corsika_max_component_relative_residual": 1.998879981245067e-12
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.12573018995552,
+              "leptonic_lab_energy_y": 0.12573020064793394,
+              "invariant_minus_lab_y": -1.0692413954238589e-08,
+              "hadronic_energy_transfer_y": 0.12573020064991164,
+              "y_energy_balance_residual": 1.0694391650023505e-08,
+              "Q2_GeV2": 10050.889063084614,
+              "bjorken_x": 0.0004259965823382375,
+              "W2_GeV2": 23583775.575329334
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 15483984,
+          "parent_history_id": 15483981,
+          "generation": 1338,
+          "time_ns": 19656.598687620182,
+          "energy_GeV": 72975312.55868861,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5318301324796,
+            -1598.8618768440665,
+            500.53253773217773
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774262025244677,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 24593168.737456754,
+              "history_id": 15483987,
+              "parent_history_id": 15483984
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 9079382.409806618,
+              "history_id": 15483988,
+              "parent_history_id": 15483984
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 9981374.552869048,
+              "history_id": 15483989,
+              "parent_history_id": 15483984
+            },
+            {
+              "pdg": 211,
+              "energy_GeV": 11873670.856759507,
+              "history_id": 15483990,
+              "parent_history_id": 15483984
+            },
+            {
+              "pdg": 111,
+              "energy_GeV": 17447710.66841237,
+              "history_id": 15483991,
+              "parent_history_id": 15483984
+            }
+          ],
+          "relative_energy_residual": -7.308477528905075e-08,
+          "relative_momentum_residual": 7.30847752890852e-08
+        }
+      ],
+      "tau_segments": 1339,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.0036015973882967955,
+      "displayed_deposition_fraction": 0.9999999828168497
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed158",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 158,
+      "tau_modes": [
+        "muonic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 55020960.92001641
+            },
+            {
+              "history_id": 3,
+              "pdg": 321,
+              "energy_GeV": 2.3520614267847635
+            },
+            {
+              "history_id": 4,
+              "pdg": 2112,
+              "energy_GeV": 2574328.783419864
+            },
+            {
+              "history_id": 5,
+              "pdg": -2112,
+              "energy_GeV": 1867243.3056443953
+            },
+            {
+              "history_id": 6,
+              "pdg": -211,
+              "energy_GeV": 2039293.074358859
+            },
+            {
+              "history_id": 7,
+              "pdg": 211,
+              "energy_GeV": 4080541.7432022686
+            },
+            {
+              "history_id": 8,
+              "pdg": 3122,
+              "energy_GeV": 8029208.316611381
+            },
+            {
+              "history_id": 9,
+              "pdg": -2212,
+              "energy_GeV": 3833433.7211176977
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 1134301.3293223775
+            },
+            {
+              "history_id": 11,
+              "pdg": 321,
+              "energy_GeV": 40272.00035036203
+            },
+            {
+              "history_id": 12,
+              "pdg": 3112,
+              "energy_GeV": 16302.086097567519
+            },
+            {
+              "history_id": 13,
+              "pdg": 2212,
+              "energy_GeV": 67903.26216030045
+            },
+            {
+              "history_id": 14,
+              "pdg": -2212,
+              "energy_GeV": 58064.92127513762
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 49903.49882259293
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 29753.003676844277
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 53476.86898921406
+            },
+            {
+              "history_id": 18,
+              "pdg": 2112,
+              "energy_GeV": 35275.4565715857
+            },
+            {
+              "history_id": 19,
+              "pdg": -2212,
+              "energy_GeV": 11449.104173785438
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 14707.34891508398
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 1922.3538415022367
+            },
+            {
+              "history_id": 22,
+              "pdg": 111,
+              "energy_GeV": 2490.407028230932
+            },
+            {
+              "history_id": 23,
+              "pdg": 211,
+              "energy_GeV": 856.6403115271919
+            },
+            {
+              "history_id": 24,
+              "pdg": 2112,
+              "energy_GeV": 182.89688453557275
+            },
+            {
+              "history_id": 25,
+              "pdg": -2112,
+              "energy_GeV": 313.9361274942112
+            },
+            {
+              "history_id": 26,
+              "pdg": 111,
+              "energy_GeV": 51.31026900657829
+            },
+            {
+              "history_id": 27,
+              "pdg": 130,
+              "energy_GeV": 982770.349982759
+            },
+            {
+              "history_id": 28,
+              "pdg": -211,
+              "energy_GeV": 980593.2692626986
+            },
+            {
+              "history_id": 29,
+              "pdg": 111,
+              "energy_GeV": 142213.3722609348
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 156871.96727121656
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 896143.3527031102
+            },
+            {
+              "history_id": 32,
+              "pdg": 310,
+              "energy_GeV": 488951.33883954387
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 3377.908598837805
+            },
+            {
+              "history_id": 34,
+              "pdg": -321,
+              "energy_GeV": 42706.64907121054
+            },
+            {
+              "history_id": 35,
+              "pdg": 211,
+              "energy_GeV": 26843.0205673047
+            },
+            {
+              "history_id": 36,
+              "pdg": 130,
+              "energy_GeV": 9138.184804559523
+            },
+            {
+              "history_id": 37,
+              "pdg": 111,
+              "energy_GeV": 18867.323859197124
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 11265.705179893834
+            },
+            {
+              "history_id": 39,
+              "pdg": -211,
+              "energy_GeV": 34667.444530247136
+            },
+            {
+              "history_id": 40,
+              "pdg": -211,
+              "energy_GeV": 2.0375041477886495
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 32.59709892026909
+            },
+            {
+              "history_id": 42,
+              "pdg": 211,
+              "energy_GeV": 14.702085015525858
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 18.927066208589284
+            },
+            {
+              "history_id": 44,
+              "pdg": 2212,
+              "energy_GeV": 3.5843231853893815
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.2261941621142749
+            },
+            {
+              "history_id": 46,
+              "pdg": 130,
+              "energy_GeV": 30126.649098391295
+            },
+            {
+              "history_id": 47,
+              "pdg": 130,
+              "energy_GeV": 10570.266377950227
+            },
+            {
+              "history_id": 48,
+              "pdg": 211,
+              "energy_GeV": 4926354.0988544
+            },
+            {
+              "history_id": 49,
+              "pdg": 111,
+              "energy_GeV": 1104243.503579025
+            },
+            {
+              "history_id": 50,
+              "pdg": 211,
+              "energy_GeV": 192455.0096767165
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 220263.7443820353
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 118724.0366513721
+            },
+            {
+              "history_id": 53,
+              "pdg": 111,
+              "energy_GeV": 880207.0826847118
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 2798809.432131284
+            },
+            {
+              "history_id": 55,
+              "pdg": 111,
+              "energy_GeV": 1077506.7720059967
+            },
+            {
+              "history_id": 56,
+              "pdg": 321,
+              "energy_GeV": 182484.17170568262
+            },
+            {
+              "history_id": 57,
+              "pdg": -321,
+              "energy_GeV": 302252.38806083996
+            },
+            {
+              "history_id": 58,
+              "pdg": -3122,
+              "energy_GeV": 38972.62389059534
+            },
+            {
+              "history_id": 59,
+              "pdg": 22,
+              "energy_GeV": 3953.0839727704347
+            },
+            {
+              "history_id": 60,
+              "pdg": 211,
+              "energy_GeV": 9455.571631570358
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12660.148301499805
+            },
+            {
+              "history_id": 62,
+              "pdg": 111,
+              "energy_GeV": 26110.072578447944
+            },
+            {
+              "history_id": 63,
+              "pdg": 211,
+              "energy_GeV": 16205.03572065198
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 20245.890595210163
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 27507.037799531787
+            },
+            {
+              "history_id": 66,
+              "pdg": 211,
+              "energy_GeV": 4.546356057017211
+            },
+            {
+              "history_id": 67,
+              "pdg": -211,
+              "energy_GeV": 0.7435705584974052
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 1.7882588706906364
+            },
+            {
+              "history_id": 69,
+              "pdg": 130,
+              "energy_GeV": 5244166.637883704
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3327.4983736859303,
+            500.52949201660203
+          ],
+          "time_s": 3.2240296917308007e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 68,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 2,
+              "-211": 12,
+              "15": 1,
+              "22": 1,
+              "111": 15,
+              "130": 5,
+              "211": 15,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 2,
+              "3112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93822049,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93822041,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_final_minus_initial": [
+                -5.168e-05,
+                7.762046843879222e-11,
+                5.1568e-05,
+                8.289813995361328e-11
+              ],
+              "outgoing_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "outgoing_charged_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "hadronic_final_state": [
+                44979040.01820397,
+                -16.536751179290405,
+                -44979039.07994881,
+                -39.696302214727936
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "outgoing_charged_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "momentum_transfer_com": [
+                3080.6491449854766,
+                -16.53675117661385,
+                -39.696302214810835,
+                3080.894916383255
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -3.5324774216860533e-09,
+              "pythia_com_momentum_residual_GeV": 3.5318592752374124e-09,
+              "pythia_com_max_component_relative_residual": 2.5786951022509556e-13,
+              "corsika_energy_relative_residual": 5.167999951510099e-13,
+              "corsika_momentum_relative_residual": 5.156799951627691e-13,
+              "corsika_max_component_relative_residual": 5.167999951510099e-13
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.4497903840707127,
+              "leptonic_lab_energy_y": 0.44979039079983557,
+              "invariant_minus_lab_y": -6.729122870030579e-09,
+              "hadronic_energy_transfer_y": 0.44979039079931865,
+              "y_energy_balance_residual": 6.728605950190314e-09,
+              "Q2_GeV2": 3363.591845439747,
+              "bjorken_x": 3.985055107830282e-05,
+              "W2_GeV2": 84401789.90059176
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 30220701,
+          "parent_history_id": 30220698,
+          "generation": 1483,
+          "time_ns": 8200.707792451221,
+          "energy_GeV": 54013384.95457034,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5358517799586,
+            1835.5278131966106,
+            500.53057362503614
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774205206447161,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 20562941.153998587,
+              "history_id": 30220704,
+              "parent_history_id": 30220701
+            },
+            {
+              "pdg": 13,
+              "energy_GeV": 18561756.198626786,
+              "history_id": 30220705,
+              "parent_history_id": 30220701
+            },
+            {
+              "pdg": -14,
+              "energy_GeV": 14888686.684300024,
+              "history_id": 30220706,
+              "parent_history_id": 30220701
+            }
+          ],
+          "relative_energy_residual": -1.6989213632358243e-08,
+          "relative_momentum_residual": 1.6989213484252044e-08
+        }
+      ],
+      "tau_segments": 1484,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.00042005009072454413,
+      "displayed_deposition_fraction": 0.999999891346528
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed946",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 946,
+      "tau_modes": [
+        "electronic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 34330909.02767497
+            },
+            {
+              "history_id": 3,
+              "pdg": 211,
+              "energy_GeV": 14546429.48563107
+            },
+            {
+              "history_id": 4,
+              "pdg": -211,
+              "energy_GeV": 327472.3689522717
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 208667.76741650398
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 1645114.768296171
+            },
+            {
+              "history_id": 7,
+              "pdg": 111,
+              "energy_GeV": 51.22807795119783
+            },
+            {
+              "history_id": 8,
+              "pdg": -211,
+              "energy_GeV": 23.77325277442047
+            },
+            {
+              "history_id": 9,
+              "pdg": -321,
+              "energy_GeV": 382.88526092730746
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 228.18571645242548
+            },
+            {
+              "history_id": 11,
+              "pdg": 211,
+              "energy_GeV": 5984.20152026818
+            },
+            {
+              "history_id": 12,
+              "pdg": 111,
+              "energy_GeV": 766.4762698781142
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 397.32179259292855
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 4842.70588425212
+            },
+            {
+              "history_id": 15,
+              "pdg": -211,
+              "energy_GeV": 3172.1195261978123
+            },
+            {
+              "history_id": 16,
+              "pdg": 2212,
+              "energy_GeV": 4200.96019222176
+            },
+            {
+              "history_id": 17,
+              "pdg": -2212,
+              "energy_GeV": 7554.115603938783
+            },
+            {
+              "history_id": 18,
+              "pdg": -321,
+              "energy_GeV": 39130.160021202915
+            },
+            {
+              "history_id": 19,
+              "pdg": 211,
+              "energy_GeV": 15069.485557863767
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 54326.43004177921
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 80426.61703686419
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 504761.7150436892
+            },
+            {
+              "history_id": 23,
+              "pdg": -321,
+              "energy_GeV": 427922.58181751415
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 138564.0987063607
+            },
+            {
+              "history_id": 25,
+              "pdg": 321,
+              "energy_GeV": 85612.07047070173
+            },
+            {
+              "history_id": 26,
+              "pdg": -321,
+              "energy_GeV": 67912.56233406124
+            },
+            {
+              "history_id": 27,
+              "pdg": 111,
+              "energy_GeV": 100443.64305190233
+            },
+            {
+              "history_id": 28,
+              "pdg": 211,
+              "energy_GeV": 195953.4411878336
+            },
+            {
+              "history_id": 29,
+              "pdg": 2112,
+              "energy_GeV": 32780.08254952875
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 795.8448425901668
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3579.9312421912646
+            },
+            {
+              "history_id": 32,
+              "pdg": 111,
+              "energy_GeV": 2813.6057083766036
+            },
+            {
+              "history_id": 33,
+              "pdg": 2112,
+              "energy_GeV": 7144.105108501444
+            },
+            {
+              "history_id": 34,
+              "pdg": -2212,
+              "energy_GeV": 3411.3651345230965
+            },
+            {
+              "history_id": 35,
+              "pdg": 2212,
+              "energy_GeV": 8049.466749837471
+            },
+            {
+              "history_id": 36,
+              "pdg": -3122,
+              "energy_GeV": 9405.590894743633
+            },
+            {
+              "history_id": 37,
+              "pdg": 211,
+              "energy_GeV": 548.6670125253396
+            },
+            {
+              "history_id": 38,
+              "pdg": -211,
+              "energy_GeV": 388.4621523379087
+            },
+            {
+              "history_id": 39,
+              "pdg": 2212,
+              "energy_GeV": 415.7049888839311
+            },
+            {
+              "history_id": 40,
+              "pdg": 111,
+              "energy_GeV": 148.51992387069262
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 17.213107980280903
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 15.118418483740108
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 4.4866754842865575
+            },
+            {
+              "history_id": 44,
+              "pdg": 211,
+              "energy_GeV": 2.2997760736706394
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.397515867932998
+            },
+            {
+              "history_id": 46,
+              "pdg": 2212,
+              "energy_GeV": 3.8485391133461753
+            },
+            {
+              "history_id": 47,
+              "pdg": 211,
+              "energy_GeV": 0.3810001696062979
+            },
+            {
+              "history_id": 48,
+              "pdg": 321,
+              "energy_GeV": 18007516.589459404
+            },
+            {
+              "history_id": 49,
+              "pdg": -211,
+              "energy_GeV": 5094572.680586455
+            },
+            {
+              "history_id": 50,
+              "pdg": -321,
+              "energy_GeV": 12877428.033705387
+            },
+            {
+              "history_id": 51,
+              "pdg": 211,
+              "energy_GeV": 528286.4004324506
+            },
+            {
+              "history_id": 52,
+              "pdg": 211,
+              "energy_GeV": 433058.0733166101
+            },
+            {
+              "history_id": 53,
+              "pdg": -211,
+              "energy_GeV": 1366106.320521344
+            },
+            {
+              "history_id": 54,
+              "pdg": 2112,
+              "energy_GeV": 1365912.0480470697
+            },
+            {
+              "history_id": 55,
+              "pdg": -211,
+              "energy_GeV": 690989.7194458968
+            },
+            {
+              "history_id": 56,
+              "pdg": -3112,
+              "energy_GeV": 3076383.3823060277
+            },
+            {
+              "history_id": 57,
+              "pdg": 111,
+              "energy_GeV": 1009727.5310882739
+            },
+            {
+              "history_id": 58,
+              "pdg": 211,
+              "energy_GeV": 100.99589650960623
+            },
+            {
+              "history_id": 59,
+              "pdg": 111,
+              "energy_GeV": 74.65133726871504
+            },
+            {
+              "history_id": 60,
+              "pdg": 321,
+              "energy_GeV": 300.2925142051186
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12.07378832211245
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1626.7026914343326
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 238.9513461139324
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 6291.300964883134
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 1606.3659168660554
+            },
+            {
+              "history_id": 66,
+              "pdg": 2212,
+              "energy_GeV": 6638.917958625894
+            },
+            {
+              "history_id": 67,
+              "pdg": 211,
+              "energy_GeV": 3825.0598545239577
+            },
+            {
+              "history_id": 68,
+              "pdg": -211,
+              "energy_GeV": 3366.8671046258587
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 1788.678990609546
+            },
+            {
+              "history_id": 70,
+              "pdg": -2112,
+              "energy_GeV": 3544.0158657947045
+            },
+            {
+              "history_id": 71,
+              "pdg": 111,
+              "energy_GeV": 178.18738136795724
+            },
+            {
+              "history_id": 72,
+              "pdg": 211,
+              "energy_GeV": 2425.342006011233
+            },
+            {
+              "history_id": 73,
+              "pdg": -211,
+              "energy_GeV": 67380.39760115491
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 6886.05394682793
+            },
+            {
+              "history_id": 75,
+              "pdg": 211,
+              "energy_GeV": 210023.6114166815
+            },
+            {
+              "history_id": 76,
+              "pdg": 111,
+              "energy_GeV": 37280.24970789536
+            },
+            {
+              "history_id": 77,
+              "pdg": -211,
+              "energy_GeV": 788373.3180671512
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 121755.96242991014
+            },
+            {
+              "history_id": 79,
+              "pdg": 211,
+              "energy_GeV": 320840.5254292168
+            },
+            {
+              "history_id": 80,
+              "pdg": -211,
+              "energy_GeV": 21401.71554067944
+            },
+            {
+              "history_id": 81,
+              "pdg": 211,
+              "energy_GeV": 82208.78581193708
+            },
+            {
+              "history_id": 82,
+              "pdg": -211,
+              "energy_GeV": 543519.1153742442
+            },
+            {
+              "history_id": 83,
+              "pdg": -211,
+              "energy_GeV": 172409.45212898275
+            },
+            {
+              "history_id": 84,
+              "pdg": 111,
+              "energy_GeV": 193577.16437668542
+            },
+            {
+              "history_id": 85,
+              "pdg": 211,
+              "energy_GeV": 4496.545523767239
+            },
+            {
+              "history_id": 86,
+              "pdg": 111,
+              "energy_GeV": 3017.5435469197446
+            },
+            {
+              "history_id": 87,
+              "pdg": -2212,
+              "energy_GeV": 6026.61573835808
+            },
+            {
+              "history_id": 88,
+              "pdg": 111,
+              "energy_GeV": 1430.4376119779788
+            },
+            {
+              "history_id": 89,
+              "pdg": -211,
+              "energy_GeV": 1047.4035739618425
+            },
+            {
+              "history_id": 90,
+              "pdg": 111,
+              "energy_GeV": 6727.150432940309
+            },
+            {
+              "history_id": 91,
+              "pdg": 211,
+              "energy_GeV": 3894.592639310508
+            },
+            {
+              "history_id": 92,
+              "pdg": -211,
+              "energy_GeV": 1379.19247960705
+            },
+            {
+              "history_id": 93,
+              "pdg": 310,
+              "energy_GeV": 5866.671154580061
+            },
+            {
+              "history_id": 94,
+              "pdg": -211,
+              "energy_GeV": 774.1289918707913
+            },
+            {
+              "history_id": 95,
+              "pdg": 111,
+              "energy_GeV": 102.20986724385592
+            },
+            {
+              "history_id": 96,
+              "pdg": -2112,
+              "energy_GeV": 491.3021905704947
+            },
+            {
+              "history_id": 97,
+              "pdg": 111,
+              "energy_GeV": 67.84072133086269
+            },
+            {
+              "history_id": 98,
+              "pdg": 211,
+              "energy_GeV": 64.48914571488714
+            },
+            {
+              "history_id": 99,
+              "pdg": -211,
+              "energy_GeV": 395.5557030417846
+            },
+            {
+              "history_id": 100,
+              "pdg": 211,
+              "energy_GeV": 0.9597731794624145
+            },
+            {
+              "history_id": 101,
+              "pdg": -211,
+              "energy_GeV": 19.813649487883875
+            },
+            {
+              "history_id": 102,
+              "pdg": 130,
+              "energy_GeV": 9097.906975522286
+            },
+            {
+              "history_id": 103,
+              "pdg": 211,
+              "energy_GeV": 24.774595640840193
+            },
+            {
+              "history_id": 104,
+              "pdg": -211,
+              "energy_GeV": 4.30566543873318
+            },
+            {
+              "history_id": 105,
+              "pdg": 111,
+              "energy_GeV": 19.89715062424982
+            },
+            {
+              "history_id": 106,
+              "pdg": 211,
+              "energy_GeV": 13168.885586049288
+            },
+            {
+              "history_id": 107,
+              "pdg": -211,
+              "energy_GeV": 4676.71151807002
+            },
+            {
+              "history_id": 108,
+              "pdg": 111,
+              "energy_GeV": 23705.1819995304
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3928.8676260178354,
+            500.52949201660203
+          ],
+          "time_s": 1.218077786389989e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 107,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-3112": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 5,
+              "-211": 27,
+              "15": 1,
+              "111": 26,
+              "130": 1,
+              "211": 28,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 5
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93827073,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93827148,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_final_minus_initial": [
+                -6.24e-07,
+                9.756467641520494e-12,
+                1.28e-06,
+                4.460881650447845e-11
+              ],
+              "outgoing_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "outgoing_charged_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "hadronic_final_state": [
+                65669091.9105965,
+                -24.243328860052266,
+                -65669090.97233511,
+                13.731931596949885
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "outgoing_charged_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "momentum_transfer_com": [
+                4497.823367975892,
+                -24.24332885604095,
+                13.731931596905273,
+                4497.989109093598
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -9.276845958083868e-11,
+              "pythia_com_momentum_residual_GeV": 1.0301466027386053e-10,
+              "pythia_com_max_component_relative_residual": 6.7720623179608e-15,
+              "corsika_energy_relative_residual": 6.239999941451822e-15,
+              "corsika_momentum_relative_residual": 1.2799999888046233e-14,
+              "corsika_max_component_relative_residual": 1.2799999879901174e-14
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.656690905524543,
+              "leptonic_lab_energy_y": 0.6566909097232503,
+              "invariant_minus_lab_y": -4.198707270752777e-09,
+              "hadronic_energy_transfer_y": 0.656690909723244,
+              "y_energy_balance_residual": 4.198700942481537e-09,
+              "Q2_GeV2": 2267.280954025686,
+              "bjorken_x": 1.8398632514309533e-05,
+              "W2_GeV2": 123228683.0877556
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 41776985,
+          "parent_history_id": 41776982,
+          "generation": 3260,
+          "time_ns": 8969.308028093847,
+          "energy_GeV": 32087633.051237714,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5367761486723,
+            1605.1072593342597,
+            500.5282083893344
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774264561032237,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 13953197.116177158,
+              "history_id": 41776988,
+              "parent_history_id": 41776985
+            },
+            {
+              "pdg": 11,
+              "energy_GeV": 13325118.110566564,
+              "history_id": 41776989,
+              "parent_history_id": 41776985
+            },
+            {
+              "pdg": -12,
+              "energy_GeV": 4809318.062127939,
+              "history_id": 41776990,
+              "parent_history_id": 41776985
+            }
+          ],
+          "relative_energy_residual": 7.4057799034458165e-09,
+          "relative_momentum_residual": 7.4057797787882556e-09
+        }
+      ],
+      "tau_segments": 3261,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.0013444188043649774,
+      "displayed_deposition_fraction": 1.0000000000000002
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed3605",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 3605,
+      "tau_modes": [
+        "hadronic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 87426979.93520662
+            },
+            {
+              "history_id": 3,
+              "pdg": -211,
+              "energy_GeV": 9.925192417497598
+            },
+            {
+              "history_id": 4,
+              "pdg": 111,
+              "energy_GeV": 250.0593726116032
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 42.88966555473662
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 5499.9957725098175
+            },
+            {
+              "history_id": 7,
+              "pdg": 321,
+              "energy_GeV": 113552.89830185319
+            },
+            {
+              "history_id": 8,
+              "pdg": -321,
+              "energy_GeV": 1063048.0405989802
+            },
+            {
+              "history_id": 9,
+              "pdg": 211,
+              "energy_GeV": 67773.2975303138
+            },
+            {
+              "history_id": 10,
+              "pdg": -211,
+              "energy_GeV": 267330.6713116634
+            },
+            {
+              "history_id": 11,
+              "pdg": 111,
+              "energy_GeV": 1098555.667317483
+            },
+            {
+              "history_id": 12,
+              "pdg": 321,
+              "energy_GeV": 131860.7080970151
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 35470.966008491174
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 97540.21987958132
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 23578.076229430713
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 469.33010753291614
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 345.98791514459344
+            },
+            {
+              "history_id": 18,
+              "pdg": 211,
+              "energy_GeV": 1050.9866466335016
+            },
+            {
+              "history_id": 19,
+              "pdg": 111,
+              "energy_GeV": 48.619053205834696
+            },
+            {
+              "history_id": 20,
+              "pdg": 111,
+              "energy_GeV": 0.4974360828418868
+            },
+            {
+              "history_id": 21,
+              "pdg": 3122,
+              "energy_GeV": 5.4379411237398685
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 2.268816426215866
+            },
+            {
+              "history_id": 23,
+              "pdg": 111,
+              "energy_GeV": 2.3606777495501623
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 36.346829451899566
+            },
+            {
+              "history_id": 25,
+              "pdg": -211,
+              "energy_GeV": 16.611178034816135
+            },
+            {
+              "history_id": 26,
+              "pdg": 211,
+              "energy_GeV": 398.2557437301945
+            },
+            {
+              "history_id": 27,
+              "pdg": -211,
+              "energy_GeV": 1057.2002052864784
+            },
+            {
+              "history_id": 28,
+              "pdg": 2112,
+              "energy_GeV": 13220.934561909951
+            },
+            {
+              "history_id": 29,
+              "pdg": -211,
+              "energy_GeV": 5170.608343776159
+            },
+            {
+              "history_id": 30,
+              "pdg": -2112,
+              "energy_GeV": 9353.172414513316
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3882.385747051897
+            },
+            {
+              "history_id": 32,
+              "pdg": 211,
+              "energy_GeV": 15381.139632895645
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 8523.859605484196
+            },
+            {
+              "history_id": 34,
+              "pdg": 211,
+              "energy_GeV": 1800800.1788206352
+            },
+            {
+              "history_id": 35,
+              "pdg": -211,
+              "energy_GeV": 134588.4738229187
+            },
+            {
+              "history_id": 36,
+              "pdg": 211,
+              "energy_GeV": 179248.19699751277
+            },
+            {
+              "history_id": 37,
+              "pdg": -211,
+              "energy_GeV": 23687.884805386027
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 6764.261864487903
+            },
+            {
+              "history_id": 39,
+              "pdg": 111,
+              "energy_GeV": 168992.72667809488
+            },
+            {
+              "history_id": 40,
+              "pdg": 321,
+              "energy_GeV": 143373.453294985
+            },
+            {
+              "history_id": 41,
+              "pdg": -211,
+              "energy_GeV": 75008.09329997371
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 36332.75881813641
+            },
+            {
+              "history_id": 43,
+              "pdg": 211,
+              "energy_GeV": 4613.416268489507
+            },
+            {
+              "history_id": 44,
+              "pdg": 310,
+              "energy_GeV": 1606.9468511932341
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 1353.6614631490083
+            },
+            {
+              "history_id": 46,
+              "pdg": 111,
+              "energy_GeV": 385.53709637651167
+            },
+            {
+              "history_id": 47,
+              "pdg": -211,
+              "energy_GeV": 537.8283819273377
+            },
+            {
+              "history_id": 48,
+              "pdg": 111,
+              "energy_GeV": 565.2084368794425
+            },
+            {
+              "history_id": 49,
+              "pdg": 211,
+              "energy_GeV": 66.0951048887858
+            },
+            {
+              "history_id": 50,
+              "pdg": -211,
+              "energy_GeV": 352.53616794150554
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 2.80888463416558
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 2.7493292821916944
+            },
+            {
+              "history_id": 53,
+              "pdg": 211,
+              "energy_GeV": 4.325678278697864
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 4.611606682226653
+            },
+            {
+              "history_id": 55,
+              "pdg": 321,
+              "energy_GeV": 1.5854899906727238
+            },
+            {
+              "history_id": 56,
+              "pdg": -211,
+              "energy_GeV": 0.8168611480919319
+            },
+            {
+              "history_id": 57,
+              "pdg": 310,
+              "energy_GeV": 1189266.0823048728
+            },
+            {
+              "history_id": 58,
+              "pdg": 310,
+              "energy_GeV": 65421.37809313768
+            },
+            {
+              "history_id": 59,
+              "pdg": 130,
+              "energy_GeV": 99109.27156567494
+            },
+            {
+              "history_id": 60,
+              "pdg": 130,
+              "energy_GeV": 6300.186670002796
+            },
+            {
+              "history_id": 61,
+              "pdg": 211,
+              "energy_GeV": 4.3703667695270685
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1.5563355616620018
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 8.288585150786343
+            },
+            {
+              "history_id": 64,
+              "pdg": 22,
+              "energy_GeV": 0.40608888691646106
+            },
+            {
+              "history_id": 65,
+              "pdg": 22,
+              "energy_GeV": 15.334253970200379
+            },
+            {
+              "history_id": 66,
+              "pdg": 111,
+              "energy_GeV": 360290.97040433594
+            },
+            {
+              "history_id": 67,
+              "pdg": 111,
+              "energy_GeV": 933.6383723891769
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 226.37390415328522
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 710.696036728427
+            },
+            {
+              "history_id": 70,
+              "pdg": 211,
+              "energy_GeV": 67.68264957310686
+            },
+            {
+              "history_id": 71,
+              "pdg": -211,
+              "energy_GeV": 39.19027309017819
+            },
+            {
+              "history_id": 72,
+              "pdg": 111,
+              "energy_GeV": 2.06780529678402
+            },
+            {
+              "history_id": 73,
+              "pdg": 111,
+              "energy_GeV": 3.144266262517488
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 1.5388736189259362
+            },
+            {
+              "history_id": 75,
+              "pdg": 22,
+              "energy_GeV": 2.5414836847320825
+            },
+            {
+              "history_id": 76,
+              "pdg": 22,
+              "energy_GeV": 0.9528519821707534
+            },
+            {
+              "history_id": 77,
+              "pdg": 111,
+              "energy_GeV": 1165424.2138835317
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 26.21880687255109
+            },
+            {
+              "history_id": 79,
+              "pdg": 111,
+              "energy_GeV": 91.88754943081767
+            },
+            {
+              "history_id": 80,
+              "pdg": 111,
+              "energy_GeV": 25.40014257837524
+            },
+            {
+              "history_id": 81,
+              "pdg": 130,
+              "energy_GeV": 4143274.037538736
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3308.0539415691474,
+            500.52949201660203
+          ],
+          "time_s": 3.288889335787566e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 80,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-2112": 1,
+              "-321": 1,
+              "-211": 19,
+              "15": 1,
+              "22": 4,
+              "111": 24,
+              "130": 3,
+              "211": 18,
+              "310": 3,
+              "321": 4,
+              "2112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93847203,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_on_shell_final": [
+                100000000.93846987,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_final_minus_initial": [
+                0.000197776,
+                1.337149750471056e-13,
+                -0.000199888,
+                -1.068115234375e-13
+              ],
+              "outgoing_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "outgoing_charged_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "hadronic_final_state": [
+                12573021.003263265,
+                71.83842765063169,
+                -12573020.065043552,
+                -60.21654459610215
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "outgoing_charged_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "momentum_transfer_com": [
+                860.8031794619775,
+                71.83842765140142,
+                -60.21654459610203,
+                861.5371210252139
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": 1.3695171219296753e-08,
+              "pythia_com_momentum_residual_GeV": 1.3690794276790302e-08,
+              "pythia_com_max_component_relative_residual": 9.99742297880919e-13,
+              "corsika_energy_relative_residual": 1.9777599814432303e-12,
+              "corsika_momentum_relative_residual": 1.998879981245067e-12,
+              "corsika_max_component_relative_residual": 1.998879981245067e-12
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.12573018995552,
+              "leptonic_lab_energy_y": 0.12573020064793394,
+              "invariant_minus_lab_y": -1.0692413954238589e-08,
+              "hadronic_energy_transfer_y": 0.12573020064991164,
+              "y_energy_balance_residual": 1.0694391650023505e-08,
+              "Q2_GeV2": 10050.889063084614,
+              "bjorken_x": 0.0004259965823382375,
+              "W2_GeV2": 23583775.575329334
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 19690088,
+          "parent_history_id": 19690085,
+          "generation": 1469,
+          "time_ns": 6261.064504563434,
+          "energy_GeV": 63559327.82751262,
+          "weight": 1,
+          "position_enu_m": [
+            2516.53467574185,
+            2417.018242115776,
+            500.5300791424296
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8774027312474494,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 21419918.86426308,
+              "history_id": 19690091,
+              "parent_history_id": 19690088
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 7907872.166935206,
+              "history_id": 19690092,
+              "parent_history_id": 19690088
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 8693480.509107623,
+              "history_id": 19690093,
+              "parent_history_id": 19690088
+            },
+            {
+              "pdg": 211,
+              "energy_GeV": 10341614.335585414,
+              "history_id": 19690094,
+              "parent_history_id": 19690088
+            },
+            {
+              "pdg": 111,
+              "energy_GeV": 15196437.306402128,
+              "history_id": 19690095,
+              "parent_history_id": 19690088
+            }
+          ],
+          "relative_energy_residual": -7.308477491464669e-08,
+          "relative_momentum_residual": 7.308477516642396e-08
+        }
+      ],
+      "tau_segments": 1470,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.0007559880177723244,
+      "displayed_deposition_fraction": 0.9999857041736232
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 158,
+      "tau_modes": [
+        "muonic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 55020960.92001641
+            },
+            {
+              "history_id": 3,
+              "pdg": 321,
+              "energy_GeV": 2.3520614267847635
+            },
+            {
+              "history_id": 4,
+              "pdg": 2112,
+              "energy_GeV": 2574328.783419864
+            },
+            {
+              "history_id": 5,
+              "pdg": -2112,
+              "energy_GeV": 1867243.3056443953
+            },
+            {
+              "history_id": 6,
+              "pdg": -211,
+              "energy_GeV": 2039293.074358859
+            },
+            {
+              "history_id": 7,
+              "pdg": 211,
+              "energy_GeV": 4080541.7432022686
+            },
+            {
+              "history_id": 8,
+              "pdg": 3122,
+              "energy_GeV": 8029208.316611381
+            },
+            {
+              "history_id": 9,
+              "pdg": -2212,
+              "energy_GeV": 3833433.7211176977
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 1134301.3293223775
+            },
+            {
+              "history_id": 11,
+              "pdg": 321,
+              "energy_GeV": 40272.00035036203
+            },
+            {
+              "history_id": 12,
+              "pdg": 3112,
+              "energy_GeV": 16302.086097567519
+            },
+            {
+              "history_id": 13,
+              "pdg": 2212,
+              "energy_GeV": 67903.26216030045
+            },
+            {
+              "history_id": 14,
+              "pdg": -2212,
+              "energy_GeV": 58064.92127513762
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 49903.49882259293
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 29753.003676844277
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 53476.86898921406
+            },
+            {
+              "history_id": 18,
+              "pdg": 2112,
+              "energy_GeV": 35275.4565715857
+            },
+            {
+              "history_id": 19,
+              "pdg": -2212,
+              "energy_GeV": 11449.104173785438
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 14707.34891508398
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 1922.3538415022367
+            },
+            {
+              "history_id": 22,
+              "pdg": 111,
+              "energy_GeV": 2490.407028230932
+            },
+            {
+              "history_id": 23,
+              "pdg": 211,
+              "energy_GeV": 856.6403115271919
+            },
+            {
+              "history_id": 24,
+              "pdg": 2112,
+              "energy_GeV": 182.89688453557275
+            },
+            {
+              "history_id": 25,
+              "pdg": -2112,
+              "energy_GeV": 313.9361274942112
+            },
+            {
+              "history_id": 26,
+              "pdg": 111,
+              "energy_GeV": 51.31026900657829
+            },
+            {
+              "history_id": 27,
+              "pdg": 130,
+              "energy_GeV": 982770.349982759
+            },
+            {
+              "history_id": 28,
+              "pdg": -211,
+              "energy_GeV": 980593.2692626986
+            },
+            {
+              "history_id": 29,
+              "pdg": 111,
+              "energy_GeV": 142213.3722609348
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 156871.96727121656
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 896143.3527031102
+            },
+            {
+              "history_id": 32,
+              "pdg": 310,
+              "energy_GeV": 488951.33883954387
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 3377.908598837805
+            },
+            {
+              "history_id": 34,
+              "pdg": -321,
+              "energy_GeV": 42706.64907121054
+            },
+            {
+              "history_id": 35,
+              "pdg": 211,
+              "energy_GeV": 26843.0205673047
+            },
+            {
+              "history_id": 36,
+              "pdg": 130,
+              "energy_GeV": 9138.184804559523
+            },
+            {
+              "history_id": 37,
+              "pdg": 111,
+              "energy_GeV": 18867.323859197124
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 11265.705179893834
+            },
+            {
+              "history_id": 39,
+              "pdg": -211,
+              "energy_GeV": 34667.444530247136
+            },
+            {
+              "history_id": 40,
+              "pdg": -211,
+              "energy_GeV": 2.0375041477886495
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 32.59709892026909
+            },
+            {
+              "history_id": 42,
+              "pdg": 211,
+              "energy_GeV": 14.702085015525858
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 18.927066208589284
+            },
+            {
+              "history_id": 44,
+              "pdg": 2212,
+              "energy_GeV": 3.5843231853893815
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.2261941621142749
+            },
+            {
+              "history_id": 46,
+              "pdg": 130,
+              "energy_GeV": 30126.649098391295
+            },
+            {
+              "history_id": 47,
+              "pdg": 130,
+              "energy_GeV": 10570.266377950227
+            },
+            {
+              "history_id": 48,
+              "pdg": 211,
+              "energy_GeV": 4926354.0988544
+            },
+            {
+              "history_id": 49,
+              "pdg": 111,
+              "energy_GeV": 1104243.503579025
+            },
+            {
+              "history_id": 50,
+              "pdg": 211,
+              "energy_GeV": 192455.0096767165
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 220263.7443820353
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 118724.0366513721
+            },
+            {
+              "history_id": 53,
+              "pdg": 111,
+              "energy_GeV": 880207.0826847118
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 2798809.432131284
+            },
+            {
+              "history_id": 55,
+              "pdg": 111,
+              "energy_GeV": 1077506.7720059967
+            },
+            {
+              "history_id": 56,
+              "pdg": 321,
+              "energy_GeV": 182484.17170568262
+            },
+            {
+              "history_id": 57,
+              "pdg": -321,
+              "energy_GeV": 302252.38806083996
+            },
+            {
+              "history_id": 58,
+              "pdg": -3122,
+              "energy_GeV": 38972.62389059534
+            },
+            {
+              "history_id": 59,
+              "pdg": 22,
+              "energy_GeV": 3953.0839727704347
+            },
+            {
+              "history_id": 60,
+              "pdg": 211,
+              "energy_GeV": 9455.571631570358
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12660.148301499805
+            },
+            {
+              "history_id": 62,
+              "pdg": 111,
+              "energy_GeV": 26110.072578447944
+            },
+            {
+              "history_id": 63,
+              "pdg": 211,
+              "energy_GeV": 16205.03572065198
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 20245.890595210163
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 27507.037799531787
+            },
+            {
+              "history_id": 66,
+              "pdg": 211,
+              "energy_GeV": 4.546356057017211
+            },
+            {
+              "history_id": 67,
+              "pdg": -211,
+              "energy_GeV": 0.7435705584974052
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 1.7882588706906364
+            },
+            {
+              "history_id": 69,
+              "pdg": 130,
+              "energy_GeV": 5244166.637883704
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3333.879559443728,
+            500.52949201660203
+          ],
+          "time_s": 3.202744347194889e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 68,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 2,
+              "-211": 12,
+              "15": 1,
+              "22": 1,
+              "111": 15,
+              "130": 5,
+              "211": 15,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 2,
+              "3112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93822049,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93822041,
+                -6.0456135272979736e-09,
+                -99999999.99994843,
+                8.289813995361328e-11
+              ],
+              "corsika_final_minus_initial": [
+                -5.168e-05,
+                7.762046843879222e-11,
+                5.1568e-05,
+                8.289813995361328e-11
+              ],
+              "outgoing_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "outgoing_charged_lepton": [
+                55020960.920016445,
+                16.53675117324479,
+                -55020960.919999614,
+                39.696302214810835
+              ],
+              "hadronic_final_state": [
+                44979040.01820397,
+                -16.536751179290405,
+                -44979039.07994881,
+                -39.696302214727936
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "outgoing_charged_lepton_com": [
+                3768.7014409520234,
+                16.53675117661385,
+                39.696302214810835,
+                3768.455669554245
+              ],
+              "momentum_transfer_com": [
+                3080.6491449854766,
+                -16.53675117661385,
+                -39.696302214810835,
+                3080.894916383255
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -3.5324774216860533e-09,
+              "pythia_com_momentum_residual_GeV": 3.5318592752374124e-09,
+              "pythia_com_max_component_relative_residual": 2.5786951022509556e-13,
+              "corsika_energy_relative_residual": 5.167999951510099e-13,
+              "corsika_momentum_relative_residual": 5.156799951627691e-13,
+              "corsika_max_component_relative_residual": 5.167999951510099e-13
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.4497903840707127,
+              "leptonic_lab_energy_y": 0.44979039079983557,
+              "invariant_minus_lab_y": -6.729122870030579e-09,
+              "hadronic_energy_transfer_y": 0.44979039079931865,
+              "y_energy_balance_residual": 6.728605950190314e-09,
+              "Q2_GeV2": 3363.591845439747,
+              "bjorken_x": 3.985055107830282e-05,
+              "W2_GeV2": 84401789.90059176
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 30358508,
+          "parent_history_id": 30358505,
+          "generation": 1542,
+          "time_ns": 23694.400121465776,
+          "energy_GeV": 50783589.82247167,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5371352966304,
+            -2809.364293612687,
+            500.5343316778419
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.8773875510600959,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 19333355.426374305,
+              "history_id": 30358511,
+              "parent_history_id": 30358508
+            },
+            {
+              "pdg": 13,
+              "energy_GeV": 17451833.72544814,
+              "history_id": 30358512,
+              "parent_history_id": 30358508
+            },
+            {
+              "pdg": -14,
+              "energy_GeV": 13998399.807875969,
+              "history_id": 30358513,
+              "parent_history_id": 30358508
+            }
+          ],
+          "relative_energy_residual": -1.6989213779806956e-08,
+          "relative_momentum_residual": 1.6989213779812997e-08
+        }
+      ],
+      "tau_segments": 1543,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.0017035667624440975,
+      "displayed_deposition_fraction": 0.9999999089652334
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 946,
+      "tau_modes": [
+        "electronic / rock"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 34330909.02767497
+            },
+            {
+              "history_id": 3,
+              "pdg": 211,
+              "energy_GeV": 14546429.48563107
+            },
+            {
+              "history_id": 4,
+              "pdg": -211,
+              "energy_GeV": 327472.3689522717
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 208667.76741650398
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 1645114.768296171
+            },
+            {
+              "history_id": 7,
+              "pdg": 111,
+              "energy_GeV": 51.22807795119783
+            },
+            {
+              "history_id": 8,
+              "pdg": -211,
+              "energy_GeV": 23.77325277442047
+            },
+            {
+              "history_id": 9,
+              "pdg": -321,
+              "energy_GeV": 382.88526092730746
+            },
+            {
+              "history_id": 10,
+              "pdg": 211,
+              "energy_GeV": 228.18571645242548
+            },
+            {
+              "history_id": 11,
+              "pdg": 211,
+              "energy_GeV": 5984.20152026818
+            },
+            {
+              "history_id": 12,
+              "pdg": 111,
+              "energy_GeV": 766.4762698781142
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 397.32179259292855
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 4842.70588425212
+            },
+            {
+              "history_id": 15,
+              "pdg": -211,
+              "energy_GeV": 3172.1195261978123
+            },
+            {
+              "history_id": 16,
+              "pdg": 2212,
+              "energy_GeV": 4200.96019222176
+            },
+            {
+              "history_id": 17,
+              "pdg": -2212,
+              "energy_GeV": 7554.115603938783
+            },
+            {
+              "history_id": 18,
+              "pdg": -321,
+              "energy_GeV": 39130.160021202915
+            },
+            {
+              "history_id": 19,
+              "pdg": 211,
+              "energy_GeV": 15069.485557863767
+            },
+            {
+              "history_id": 20,
+              "pdg": 211,
+              "energy_GeV": 54326.43004177921
+            },
+            {
+              "history_id": 21,
+              "pdg": -211,
+              "energy_GeV": 80426.61703686419
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 504761.7150436892
+            },
+            {
+              "history_id": 23,
+              "pdg": -321,
+              "energy_GeV": 427922.58181751415
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 138564.0987063607
+            },
+            {
+              "history_id": 25,
+              "pdg": 321,
+              "energy_GeV": 85612.07047070173
+            },
+            {
+              "history_id": 26,
+              "pdg": -321,
+              "energy_GeV": 67912.56233406124
+            },
+            {
+              "history_id": 27,
+              "pdg": 111,
+              "energy_GeV": 100443.64305190233
+            },
+            {
+              "history_id": 28,
+              "pdg": 211,
+              "energy_GeV": 195953.4411878336
+            },
+            {
+              "history_id": 29,
+              "pdg": 2112,
+              "energy_GeV": 32780.08254952875
+            },
+            {
+              "history_id": 30,
+              "pdg": 211,
+              "energy_GeV": 795.8448425901668
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3579.9312421912646
+            },
+            {
+              "history_id": 32,
+              "pdg": 111,
+              "energy_GeV": 2813.6057083766036
+            },
+            {
+              "history_id": 33,
+              "pdg": 2112,
+              "energy_GeV": 7144.105108501444
+            },
+            {
+              "history_id": 34,
+              "pdg": -2212,
+              "energy_GeV": 3411.3651345230965
+            },
+            {
+              "history_id": 35,
+              "pdg": 2212,
+              "energy_GeV": 8049.466749837471
+            },
+            {
+              "history_id": 36,
+              "pdg": -3122,
+              "energy_GeV": 9405.590894743633
+            },
+            {
+              "history_id": 37,
+              "pdg": 211,
+              "energy_GeV": 548.6670125253396
+            },
+            {
+              "history_id": 38,
+              "pdg": -211,
+              "energy_GeV": 388.4621523379087
+            },
+            {
+              "history_id": 39,
+              "pdg": 2212,
+              "energy_GeV": 415.7049888839311
+            },
+            {
+              "history_id": 40,
+              "pdg": 111,
+              "energy_GeV": 148.51992387069262
+            },
+            {
+              "history_id": 41,
+              "pdg": 111,
+              "energy_GeV": 17.213107980280903
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 15.118418483740108
+            },
+            {
+              "history_id": 43,
+              "pdg": 111,
+              "energy_GeV": 4.4866754842865575
+            },
+            {
+              "history_id": 44,
+              "pdg": 211,
+              "energy_GeV": 2.2997760736706394
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 0.397515867932998
+            },
+            {
+              "history_id": 46,
+              "pdg": 2212,
+              "energy_GeV": 3.8485391133461753
+            },
+            {
+              "history_id": 47,
+              "pdg": 211,
+              "energy_GeV": 0.3810001696062979
+            },
+            {
+              "history_id": 48,
+              "pdg": 321,
+              "energy_GeV": 18007516.589459404
+            },
+            {
+              "history_id": 49,
+              "pdg": -211,
+              "energy_GeV": 5094572.680586455
+            },
+            {
+              "history_id": 50,
+              "pdg": -321,
+              "energy_GeV": 12877428.033705387
+            },
+            {
+              "history_id": 51,
+              "pdg": 211,
+              "energy_GeV": 528286.4004324506
+            },
+            {
+              "history_id": 52,
+              "pdg": 211,
+              "energy_GeV": 433058.0733166101
+            },
+            {
+              "history_id": 53,
+              "pdg": -211,
+              "energy_GeV": 1366106.320521344
+            },
+            {
+              "history_id": 54,
+              "pdg": 2112,
+              "energy_GeV": 1365912.0480470697
+            },
+            {
+              "history_id": 55,
+              "pdg": -211,
+              "energy_GeV": 690989.7194458968
+            },
+            {
+              "history_id": 56,
+              "pdg": -3112,
+              "energy_GeV": 3076383.3823060277
+            },
+            {
+              "history_id": 57,
+              "pdg": 111,
+              "energy_GeV": 1009727.5310882739
+            },
+            {
+              "history_id": 58,
+              "pdg": 211,
+              "energy_GeV": 100.99589650960623
+            },
+            {
+              "history_id": 59,
+              "pdg": 111,
+              "energy_GeV": 74.65133726871504
+            },
+            {
+              "history_id": 60,
+              "pdg": 321,
+              "energy_GeV": 300.2925142051186
+            },
+            {
+              "history_id": 61,
+              "pdg": -211,
+              "energy_GeV": 12.07378832211245
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1626.7026914343326
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 238.9513461139324
+            },
+            {
+              "history_id": 64,
+              "pdg": -211,
+              "energy_GeV": 6291.300964883134
+            },
+            {
+              "history_id": 65,
+              "pdg": 111,
+              "energy_GeV": 1606.3659168660554
+            },
+            {
+              "history_id": 66,
+              "pdg": 2212,
+              "energy_GeV": 6638.917958625894
+            },
+            {
+              "history_id": 67,
+              "pdg": 211,
+              "energy_GeV": 3825.0598545239577
+            },
+            {
+              "history_id": 68,
+              "pdg": -211,
+              "energy_GeV": 3366.8671046258587
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 1788.678990609546
+            },
+            {
+              "history_id": 70,
+              "pdg": -2112,
+              "energy_GeV": 3544.0158657947045
+            },
+            {
+              "history_id": 71,
+              "pdg": 111,
+              "energy_GeV": 178.18738136795724
+            },
+            {
+              "history_id": 72,
+              "pdg": 211,
+              "energy_GeV": 2425.342006011233
+            },
+            {
+              "history_id": 73,
+              "pdg": -211,
+              "energy_GeV": 67380.39760115491
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 6886.05394682793
+            },
+            {
+              "history_id": 75,
+              "pdg": 211,
+              "energy_GeV": 210023.6114166815
+            },
+            {
+              "history_id": 76,
+              "pdg": 111,
+              "energy_GeV": 37280.24970789536
+            },
+            {
+              "history_id": 77,
+              "pdg": -211,
+              "energy_GeV": 788373.3180671512
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 121755.96242991014
+            },
+            {
+              "history_id": 79,
+              "pdg": 211,
+              "energy_GeV": 320840.5254292168
+            },
+            {
+              "history_id": 80,
+              "pdg": -211,
+              "energy_GeV": 21401.71554067944
+            },
+            {
+              "history_id": 81,
+              "pdg": 211,
+              "energy_GeV": 82208.78581193708
+            },
+            {
+              "history_id": 82,
+              "pdg": -211,
+              "energy_GeV": 543519.1153742442
+            },
+            {
+              "history_id": 83,
+              "pdg": -211,
+              "energy_GeV": 172409.45212898275
+            },
+            {
+              "history_id": 84,
+              "pdg": 111,
+              "energy_GeV": 193577.16437668542
+            },
+            {
+              "history_id": 85,
+              "pdg": 211,
+              "energy_GeV": 4496.545523767239
+            },
+            {
+              "history_id": 86,
+              "pdg": 111,
+              "energy_GeV": 3017.5435469197446
+            },
+            {
+              "history_id": 87,
+              "pdg": -2212,
+              "energy_GeV": 6026.61573835808
+            },
+            {
+              "history_id": 88,
+              "pdg": 111,
+              "energy_GeV": 1430.4376119779788
+            },
+            {
+              "history_id": 89,
+              "pdg": -211,
+              "energy_GeV": 1047.4035739618425
+            },
+            {
+              "history_id": 90,
+              "pdg": 111,
+              "energy_GeV": 6727.150432940309
+            },
+            {
+              "history_id": 91,
+              "pdg": 211,
+              "energy_GeV": 3894.592639310508
+            },
+            {
+              "history_id": 92,
+              "pdg": -211,
+              "energy_GeV": 1379.19247960705
+            },
+            {
+              "history_id": 93,
+              "pdg": 310,
+              "energy_GeV": 5866.671154580061
+            },
+            {
+              "history_id": 94,
+              "pdg": -211,
+              "energy_GeV": 774.1289918707913
+            },
+            {
+              "history_id": 95,
+              "pdg": 111,
+              "energy_GeV": 102.20986724385592
+            },
+            {
+              "history_id": 96,
+              "pdg": -2112,
+              "energy_GeV": 491.3021905704947
+            },
+            {
+              "history_id": 97,
+              "pdg": 111,
+              "energy_GeV": 67.84072133086269
+            },
+            {
+              "history_id": 98,
+              "pdg": 211,
+              "energy_GeV": 64.48914571488714
+            },
+            {
+              "history_id": 99,
+              "pdg": -211,
+              "energy_GeV": 395.5557030417846
+            },
+            {
+              "history_id": 100,
+              "pdg": 211,
+              "energy_GeV": 0.9597731794624145
+            },
+            {
+              "history_id": 101,
+              "pdg": -211,
+              "energy_GeV": 19.813649487883875
+            },
+            {
+              "history_id": 102,
+              "pdg": 130,
+              "energy_GeV": 9097.906975522286
+            },
+            {
+              "history_id": 103,
+              "pdg": 211,
+              "energy_GeV": 24.774595640840193
+            },
+            {
+              "history_id": 104,
+              "pdg": -211,
+              "energy_GeV": 4.30566543873318
+            },
+            {
+              "history_id": 105,
+              "pdg": 111,
+              "energy_GeV": 19.89715062424982
+            },
+            {
+              "history_id": 106,
+              "pdg": 211,
+              "energy_GeV": 13168.885586049288
+            },
+            {
+              "history_id": 107,
+              "pdg": -211,
+              "energy_GeV": 4676.71151807002
+            },
+            {
+              "history_id": 108,
+              "pdg": 111,
+              "energy_GeV": 23705.1819995304
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3931.061924346426,
+            500.52949201660203
+          ],
+          "time_s": 1.210758395024277e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 107,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-3122": 1,
+              "-3112": 1,
+              "-2212": 3,
+              "-2112": 2,
+              "-321": 5,
+              "-211": 27,
+              "15": 1,
+              "111": 26,
+              "130": 1,
+              "211": 28,
+              "310": 1,
+              "321": 3,
+              "2112": 3,
+              "2212": 5
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93827073,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_on_shell_final": [
+                100000000.93827148,
+                -6.113477528095246e-09,
+                -99999999.99999872,
+                4.460881650447845e-11
+              ],
+              "corsika_final_minus_initial": [
+                -6.24e-07,
+                9.756467641520494e-12,
+                1.28e-06,
+                4.460881650447845e-11
+              ],
+              "outgoing_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "outgoing_charged_lepton": [
+                34330909.02767497,
+                24.243328853938788,
+                -34330909.02766362,
+                -13.731931596905275
+              ],
+              "hadronic_final_state": [
+                65669091.9105965,
+                -24.243328860052266,
+                -65669090.97233511,
+                13.731931596949885
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "outgoing_charged_lepton_com": [
+                2351.527217961607,
+                24.24332885604095,
+                -13.731931596905273,
+                2351.3614768439024
+              ],
+              "momentum_transfer_com": [
+                4497.823367975892,
+                -24.24332885604095,
+                13.731931596905273,
+                4497.989109093598
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": -9.276845958083868e-11,
+              "pythia_com_momentum_residual_GeV": 1.0301466027386053e-10,
+              "pythia_com_max_component_relative_residual": 6.7720623179608e-15,
+              "corsika_energy_relative_residual": 6.239999941451822e-15,
+              "corsika_momentum_relative_residual": 1.2799999888046233e-14,
+              "corsika_max_component_relative_residual": 1.2799999879901174e-14
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.656690905524543,
+              "leptonic_lab_energy_y": 0.6566909097232503,
+              "invariant_minus_lab_y": -4.198707270752777e-09,
+              "hadronic_energy_transfer_y": 0.656690909723244,
+              "y_energy_balance_residual": 4.198700942481537e-09,
+              "Q2_GeV2": 2267.280954025686,
+              "bjorken_x": 1.8398632514309533e-05,
+              "W2_GeV2": 123228683.0877556
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 40703816,
+          "parent_history_id": 40703813,
+          "generation": 281,
+          "time_ns": 1503.3191752991843,
+          "energy_GeV": 34235132.88812545,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5354978779824,
+            3843.354408913443,
+            500.52945923047207
+          ],
+          "medium": "rock",
+          "density_kg_m3": 2729,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 14887030.050604116,
+              "history_id": 40703819,
+              "parent_history_id": 40703816
+            },
+            {
+              "pdg": 11,
+              "energy_GeV": 14216916.17255692,
+              "history_id": 40703820,
+              "parent_history_id": 40703816
+            },
+            {
+              "pdg": -12,
+              "energy_GeV": 5131186.918502266,
+              "history_id": 40703821,
+              "parent_history_id": 40703816
+            }
+          ],
+          "relative_energy_residual": 7.405779811882673e-09,
+          "relative_momentum_residual": 7.4057798118838685e-09
+        }
+      ],
+      "tau_segments": 281,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 6.614811445615487e-05,
+      "displayed_deposition_fraction": 1.0000000000000002
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 3605,
+      "tau_modes": [
+        "hadronic / air"
+      ],
+      "CC_vertices": [
+        {
+          "current": "CC",
+          "history_id": 1,
+          "parent_history_id": 0,
+          "generation": 0,
+          "cc_cross_section_cm2": 4.8517943603703196e-33,
+          "nc_cross_section_cm2": 1.9212752683256378e-33,
+          "total_cross_section_cm2": 6.773069628695957e-33,
+          "daughters": [
+            {
+              "history_id": 2,
+              "pdg": 15,
+              "energy_GeV": 87426979.93520662
+            },
+            {
+              "history_id": 3,
+              "pdg": -211,
+              "energy_GeV": 9.925192417497598
+            },
+            {
+              "history_id": 4,
+              "pdg": 111,
+              "energy_GeV": 250.0593726116032
+            },
+            {
+              "history_id": 5,
+              "pdg": 211,
+              "energy_GeV": 42.88966555473662
+            },
+            {
+              "history_id": 6,
+              "pdg": 111,
+              "energy_GeV": 5499.9957725098175
+            },
+            {
+              "history_id": 7,
+              "pdg": 321,
+              "energy_GeV": 113552.89830185319
+            },
+            {
+              "history_id": 8,
+              "pdg": -321,
+              "energy_GeV": 1063048.0405989802
+            },
+            {
+              "history_id": 9,
+              "pdg": 211,
+              "energy_GeV": 67773.2975303138
+            },
+            {
+              "history_id": 10,
+              "pdg": -211,
+              "energy_GeV": 267330.6713116634
+            },
+            {
+              "history_id": 11,
+              "pdg": 111,
+              "energy_GeV": 1098555.667317483
+            },
+            {
+              "history_id": 12,
+              "pdg": 321,
+              "energy_GeV": 131860.7080970151
+            },
+            {
+              "history_id": 13,
+              "pdg": 211,
+              "energy_GeV": 35470.966008491174
+            },
+            {
+              "history_id": 14,
+              "pdg": -211,
+              "energy_GeV": 97540.21987958132
+            },
+            {
+              "history_id": 15,
+              "pdg": 211,
+              "energy_GeV": 23578.076229430713
+            },
+            {
+              "history_id": 16,
+              "pdg": -211,
+              "energy_GeV": 469.33010753291614
+            },
+            {
+              "history_id": 17,
+              "pdg": 211,
+              "energy_GeV": 345.98791514459344
+            },
+            {
+              "history_id": 18,
+              "pdg": 211,
+              "energy_GeV": 1050.9866466335016
+            },
+            {
+              "history_id": 19,
+              "pdg": 111,
+              "energy_GeV": 48.619053205834696
+            },
+            {
+              "history_id": 20,
+              "pdg": 111,
+              "energy_GeV": 0.4974360828418868
+            },
+            {
+              "history_id": 21,
+              "pdg": 3122,
+              "energy_GeV": 5.4379411237398685
+            },
+            {
+              "history_id": 22,
+              "pdg": 211,
+              "energy_GeV": 2.268816426215866
+            },
+            {
+              "history_id": 23,
+              "pdg": 111,
+              "energy_GeV": 2.3606777495501623
+            },
+            {
+              "history_id": 24,
+              "pdg": 211,
+              "energy_GeV": 36.346829451899566
+            },
+            {
+              "history_id": 25,
+              "pdg": -211,
+              "energy_GeV": 16.611178034816135
+            },
+            {
+              "history_id": 26,
+              "pdg": 211,
+              "energy_GeV": 398.2557437301945
+            },
+            {
+              "history_id": 27,
+              "pdg": -211,
+              "energy_GeV": 1057.2002052864784
+            },
+            {
+              "history_id": 28,
+              "pdg": 2112,
+              "energy_GeV": 13220.934561909951
+            },
+            {
+              "history_id": 29,
+              "pdg": -211,
+              "energy_GeV": 5170.608343776159
+            },
+            {
+              "history_id": 30,
+              "pdg": -2112,
+              "energy_GeV": 9353.172414513316
+            },
+            {
+              "history_id": 31,
+              "pdg": 111,
+              "energy_GeV": 3882.385747051897
+            },
+            {
+              "history_id": 32,
+              "pdg": 211,
+              "energy_GeV": 15381.139632895645
+            },
+            {
+              "history_id": 33,
+              "pdg": -211,
+              "energy_GeV": 8523.859605484196
+            },
+            {
+              "history_id": 34,
+              "pdg": 211,
+              "energy_GeV": 1800800.1788206352
+            },
+            {
+              "history_id": 35,
+              "pdg": -211,
+              "energy_GeV": 134588.4738229187
+            },
+            {
+              "history_id": 36,
+              "pdg": 211,
+              "energy_GeV": 179248.19699751277
+            },
+            {
+              "history_id": 37,
+              "pdg": -211,
+              "energy_GeV": 23687.884805386027
+            },
+            {
+              "history_id": 38,
+              "pdg": 211,
+              "energy_GeV": 6764.261864487903
+            },
+            {
+              "history_id": 39,
+              "pdg": 111,
+              "energy_GeV": 168992.72667809488
+            },
+            {
+              "history_id": 40,
+              "pdg": 321,
+              "energy_GeV": 143373.453294985
+            },
+            {
+              "history_id": 41,
+              "pdg": -211,
+              "energy_GeV": 75008.09329997371
+            },
+            {
+              "history_id": 42,
+              "pdg": -211,
+              "energy_GeV": 36332.75881813641
+            },
+            {
+              "history_id": 43,
+              "pdg": 211,
+              "energy_GeV": 4613.416268489507
+            },
+            {
+              "history_id": 44,
+              "pdg": 310,
+              "energy_GeV": 1606.9468511932341
+            },
+            {
+              "history_id": 45,
+              "pdg": -211,
+              "energy_GeV": 1353.6614631490083
+            },
+            {
+              "history_id": 46,
+              "pdg": 111,
+              "energy_GeV": 385.53709637651167
+            },
+            {
+              "history_id": 47,
+              "pdg": -211,
+              "energy_GeV": 537.8283819273377
+            },
+            {
+              "history_id": 48,
+              "pdg": 111,
+              "energy_GeV": 565.2084368794425
+            },
+            {
+              "history_id": 49,
+              "pdg": 211,
+              "energy_GeV": 66.0951048887858
+            },
+            {
+              "history_id": 50,
+              "pdg": -211,
+              "energy_GeV": 352.53616794150554
+            },
+            {
+              "history_id": 51,
+              "pdg": -211,
+              "energy_GeV": 2.80888463416558
+            },
+            {
+              "history_id": 52,
+              "pdg": 111,
+              "energy_GeV": 2.7493292821916944
+            },
+            {
+              "history_id": 53,
+              "pdg": 211,
+              "energy_GeV": 4.325678278697864
+            },
+            {
+              "history_id": 54,
+              "pdg": 111,
+              "energy_GeV": 4.611606682226653
+            },
+            {
+              "history_id": 55,
+              "pdg": 321,
+              "energy_GeV": 1.5854899906727238
+            },
+            {
+              "history_id": 56,
+              "pdg": -211,
+              "energy_GeV": 0.8168611480919319
+            },
+            {
+              "history_id": 57,
+              "pdg": 310,
+              "energy_GeV": 1189266.0823048728
+            },
+            {
+              "history_id": 58,
+              "pdg": 310,
+              "energy_GeV": 65421.37809313768
+            },
+            {
+              "history_id": 59,
+              "pdg": 130,
+              "energy_GeV": 99109.27156567494
+            },
+            {
+              "history_id": 60,
+              "pdg": 130,
+              "energy_GeV": 6300.186670002796
+            },
+            {
+              "history_id": 61,
+              "pdg": 211,
+              "energy_GeV": 4.3703667695270685
+            },
+            {
+              "history_id": 62,
+              "pdg": -211,
+              "energy_GeV": 1.5563355616620018
+            },
+            {
+              "history_id": 63,
+              "pdg": 111,
+              "energy_GeV": 8.288585150786343
+            },
+            {
+              "history_id": 64,
+              "pdg": 22,
+              "energy_GeV": 0.40608888691646106
+            },
+            {
+              "history_id": 65,
+              "pdg": 22,
+              "energy_GeV": 15.334253970200379
+            },
+            {
+              "history_id": 66,
+              "pdg": 111,
+              "energy_GeV": 360290.97040433594
+            },
+            {
+              "history_id": 67,
+              "pdg": 111,
+              "energy_GeV": 933.6383723891769
+            },
+            {
+              "history_id": 68,
+              "pdg": 111,
+              "energy_GeV": 226.37390415328522
+            },
+            {
+              "history_id": 69,
+              "pdg": 111,
+              "energy_GeV": 710.696036728427
+            },
+            {
+              "history_id": 70,
+              "pdg": 211,
+              "energy_GeV": 67.68264957310686
+            },
+            {
+              "history_id": 71,
+              "pdg": -211,
+              "energy_GeV": 39.19027309017819
+            },
+            {
+              "history_id": 72,
+              "pdg": 111,
+              "energy_GeV": 2.06780529678402
+            },
+            {
+              "history_id": 73,
+              "pdg": 111,
+              "energy_GeV": 3.144266262517488
+            },
+            {
+              "history_id": 74,
+              "pdg": 111,
+              "energy_GeV": 1.5388736189259362
+            },
+            {
+              "history_id": 75,
+              "pdg": 22,
+              "energy_GeV": 2.5414836847320825
+            },
+            {
+              "history_id": 76,
+              "pdg": 22,
+              "energy_GeV": 0.9528519821707534
+            },
+            {
+              "history_id": 77,
+              "pdg": 111,
+              "energy_GeV": 1165424.2138835317
+            },
+            {
+              "history_id": 78,
+              "pdg": 111,
+              "energy_GeV": 26.21880687255109
+            },
+            {
+              "history_id": 79,
+              "pdg": 111,
+              "energy_GeV": 91.88754943081767
+            },
+            {
+              "history_id": 80,
+              "pdg": 111,
+              "energy_GeV": 25.40014257837524
+            },
+            {
+              "history_id": 81,
+              "pdg": 130,
+              "energy_GeV": 4143274.037538736
+            }
+          ],
+          "projectile_pdg": 16,
+          "target_pdg": 1000080160,
+          "energy_GeV": 100000000,
+          "cross_section_per_nucleon_cm2": 4.8517943603703196e-33,
+          "target_cross_section_cm2": 7.762870976592511e-32,
+          "position_enu_m": [
+            2516.535431729868,
+            3314.5705044651713,
+            500.52949201660203
+          ],
+          "time_s": 3.2671524217254256e-06,
+          "vertex_audit": {
+            "projectile_pdg": 16,
+            "target_nucleus_pdg": 1000080160,
+            "selected_target_nucleon_pdg": 2212,
+            "expected_outgoing_lepton_pdg": 15,
+            "selected_outgoing_lepton_pdg": 15,
+            "outgoing_lepton_candidate_count": 1,
+            "hard_status23_outgoing_lepton_candidate_count": 1,
+            "expected_outgoing_charged_lepton_pdg": 15,
+            "selected_outgoing_charged_lepton_pdg": 15,
+            "outgoing_charged_lepton_candidate_count": 1,
+            "hard_status23_outgoing_charged_lepton_candidate_count": 1,
+            "final_state_count": 80,
+            "initial_charge_e": 1,
+            "final_charge_e": 1,
+            "final_state_pdg_counts": {
+              "-2112": 1,
+              "-321": 1,
+              "-211": 19,
+              "15": 1,
+              "22": 4,
+              "111": 24,
+              "130": 3,
+              "211": 18,
+              "310": 3,
+              "321": 4,
+              "2112": 1,
+              "3122": 1
+            },
+            "four_momentum_GeV": {
+              "projectile": [
+                100000000,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "selected_target_nucleon": [
+                0.9382721,
+                0,
+                0,
+                0
+              ],
+              "initial": [
+                100000000.93827209,
+                -6.1232339957367655e-09,
+                -100000000,
+                0
+              ],
+              "pythia_raw_final": [
+                100000000.93847203,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_on_shell_final": [
+                100000000.93846987,
+                -6.123100280761719e-09,
+                -100000000.00019988,
+                -1.068115234375e-13
+              ],
+              "corsika_final_minus_initial": [
+                0.000197776,
+                1.337149750471056e-13,
+                -0.000199888,
+                -1.068115234375e-13
+              ],
+              "outgoing_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "outgoing_charged_lepton": [
+                87426979.9352066,
+                -71.83842765675477,
+                -87426979.93515633,
+                60.21654459610205
+              ],
+              "hadronic_final_state": [
+                12573021.003263265,
+                71.83842765063169,
+                -12573020.065043552,
+                -60.21654459610215
+              ],
+              "projectile_com": [
+                6849.3505859375,
+                0,
+                -3.7493994566546443e-25,
+                6849.3505859375
+              ],
+              "selected_target_nucleon_com": [
+                6849.350760734773,
+                0,
+                0,
+                -6849.350696469228
+              ],
+              "outgoing_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "outgoing_charged_lepton_com": [
+                5988.547406475523,
+                -71.83842765140142,
+                60.21654459610203,
+                5987.813464912286
+              ],
+              "momentum_transfer_com": [
+                860.8031794619775,
+                71.83842765140142,
+                -60.21654459610203,
+                861.5371210252139
+              ]
+            },
+            "sqrt_s_GeV": 13698.70140367714,
+            "target_mass_convention": {
+              "selected_nucleon_mass_GeV": 0.9382721,
+              "legacy_nuclear_mass_over_A_GeV": 0.93891875,
+              "legacy_minus_selected_relative_difference": 0.0006891923995181897
+            },
+            "conservation": {
+              "pythia_com_energy_residual_GeV": 1.3695171219296753e-08,
+              "pythia_com_momentum_residual_GeV": 1.3690794276790302e-08,
+              "pythia_com_max_component_relative_residual": 9.99742297880919e-13,
+              "corsika_energy_relative_residual": 1.9777599814432303e-12,
+              "corsika_momentum_relative_residual": 1.998879981245067e-12,
+              "corsika_max_component_relative_residual": 1.998879981245067e-12
+            },
+            "dis_kinematics": {
+              "inelasticity_y": 0.12573018995552,
+              "leptonic_lab_energy_y": 0.12573020064793394,
+              "invariant_minus_lab_y": -1.0692413954238589e-08,
+              "hadronic_energy_transfer_y": 0.12573020064991164,
+              "y_energy_balance_residual": 1.0694391650023505e-08,
+              "Q2_GeV2": 10050.889063084614,
+              "bjorken_x": 0.0004259965823382375,
+              "W2_GeV2": 23583775.575329334
+            }
+          }
+        }
+      ],
+      "tau_decays": [
+        {
+          "parent_pdg": 15,
+          "history_id": 7099006,
+          "parent_history_id": 7099003,
+          "generation": 1544,
+          "time_ns": 8815.64381337402,
+          "energy_GeV": 84799423.3419654,
+          "weight": 1,
+          "position_enu_m": [
+            2516.5340336829795,
+            1651.1746319718548,
+            500.5304807001045
+          ],
+          "medium": "air",
+          "density_kg_m3": 0.877425165328722,
+          "daughters": [
+            {
+              "pdg": 16,
+              "energy_GeV": 28577973.207182676,
+              "history_id": 7099009,
+              "parent_history_id": 7099006
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 10550504.898949098,
+              "history_id": 7099010,
+              "parent_history_id": 7099006
+            },
+            {
+              "pdg": -211,
+              "energy_GeV": 11598645.851126088,
+              "history_id": 7099011,
+              "parent_history_id": 7099006
+            },
+            {
+              "pdg": 211,
+              "energy_GeV": 13797548.873747513,
+              "history_id": 7099012,
+              "parent_history_id": 7099006
+            },
+            {
+              "pdg": 111,
+              "energy_GeV": 20274744.31341325,
+              "history_id": 7099013,
+              "parent_history_id": 7099006
+            }
+          ],
+          "relative_energy_residual": -7.308477510522136e-08,
+          "relative_momentum_residual": 7.30847751052608e-08
+        }
+      ],
+      "tau_segments": 1545,
+      "fixed_east_m": 2516.535431729868,
+      "maximum_east_projection_offset_m": 0.001398046888425597,
+      "displayed_deposition_fraction": 0.9999856900699003
+    }
+  ]
+}

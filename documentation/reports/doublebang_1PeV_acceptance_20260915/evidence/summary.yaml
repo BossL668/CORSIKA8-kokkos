@@ -1,0 +1,7 @@
+showers: 1
+seed: 22309
+start time: 2026-09-15T10:19:43+0800
+end time: 2026-09-15T15:02:16+0800
+runtime: 04:42:33.728348404
+output_dirs:
+  - terrain

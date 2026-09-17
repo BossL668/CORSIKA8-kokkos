@@ -500,7 +500,12 @@ namespace corsika::gpu::em {
         }
       }
       force_small_batch_to_gpu_ = false;
-      force_deferred_product_batch_to_gpu_ = false;
+      // Independent endpoints can accept a prefix while the remaining
+      // fallback daughters are still on the scalar stack. Do not consume
+      // their no-scalar-expansion instruction on that first partial handoff.
+      // The empty-front branch above clears it after all work has drained.
+      if (!backend_.batchIndependentSpecifiedFallbacks())
+        force_deferred_product_batch_to_gpu_ = false;
       consecutive_scalar_expansion_rounds_ = 0;
       last_cpu_expansion_states_.clear();
       std::vector<EmParticleState> current;
@@ -1017,7 +1022,13 @@ namespace corsika::gpu::em {
         TStack& stack,
         std::vector<ProposalFallbackEvent> const& events) {
       auto returned_to_scalar = std::size_t{0};
+      auto deferred_node_refreshes = std::size_t{0};
       for (auto const& event : events) {
+        if (proposalFallbackRequiresInteractionVertex(event.reason) &&
+            event.interaction_vertex_reached != 1) {
+          throw std::runtime_error(
+              "specified PROPOSAL fallback has not reached an interaction vertex");
+        }
         ++statistics_
               .cpu_fallbacks_by_process[event.process_id];
         ++statistics_.cpu_fallbacks_by_reason[
@@ -1028,7 +1039,8 @@ namespace corsika::gpu::em {
                 ScalarProposalFallback>) {
           if (fallback_handler_ != nullptr &&
               fallback_handler_->canHandle(event)) {
-            if (backend_.independentSubshowersEnabled()) {
+            if (backend_.independentSubshowersEnabled() &&
+                !backend_.batchIndependentSpecifiedFallbacks()) {
               auto key=std::make_pair(event.particle.history_id,event.particle.step_id);
               if (!cpu_fallback_steps_.insert(key).second)
                 throw std::runtime_error("duplicate CPU fallback for one transport step");
@@ -1044,20 +1056,36 @@ namespace corsika::gpu::em {
               continue;
             }
             // A specified PROPOSAL completion is independent of every other
-            // particle in the active EM front.  Park it until both resident
-            // device queues and host staging have drained.  Completing it
+            // particle in the active EM front. The single-endpoint policy
+            // parks it until both resident queues and host staging drain;
+            // adaptive independent mode also flushes bounded full batches
+            // below while the peer remains live. Completing every event
             // here would put one or two children on the scalar stack after
             // every device checkpoint and repeatedly rebuild tiny CUDA
             // wavefronts.  Valid contract-0.18 electron/positron columns have
             // a device inverse CDF (including dry-air argon); the remaining
             // specified completions are chiefly rate-only muon radiative
             // branches and exceptional quantile-bound returns.
+            if (backend_.batchIndependentSpecifiedFallbacks()) {
+              auto const key = std::make_pair(event.particle.history_id,
+                                              event.particle.step_id);
+              if (!cpu_fallback_steps_.insert(key).second)
+                throw std::runtime_error("duplicate CPU fallback for one transport step");
+            }
             deferred_fallback_events_.push_back(event);
             ++statistics_.deferred_cpu_fallbacks_queued;
             statistics_.maximum_deferred_cpu_fallback_batch =
                 std::max(
                     statistics_.maximum_deferred_cpu_fallback_batch,
                     deferred_fallback_events_.size());
+            // Only the coordinator mutates this queue and the scalar Stack.
+            // Bound retained completions by 4096 records; flush full batches
+            // at this completed-result boundary, without touching or joining
+            // an in-flight peer. A final partial batch uses the existing
+            // empty-front flush. Every selected process/random state is kept.
+            if (backend_.batchIndependentSpecifiedFallbacks() &&
+                deferred_fallback_events_.size() >= 4096)
+              deferred_node_refreshes += flushDeferredFallbacks(stack, true);
             continue;
           }
         }
@@ -1116,10 +1144,12 @@ namespace corsika::gpu::em {
       }
       statistics_.particles_returned_for_cpu_fallback +=
           returned_to_scalar;
-      return returned_to_scalar;
+      // Deferred completions are already counted in queued/flushed, not a
+      // second time as generic fallback. Their children still need setNodes.
+      return returned_to_scalar + deferred_node_refreshes;
     }
 
-    std::size_t flushDeferredFallbacks(TStack& stack) {
+    std::size_t flushDeferredFallbacks(TStack& stack, bool independent_checkpoint = false) {
       if (deferred_fallback_events_.empty()) {
         return 0;
       }
@@ -1134,9 +1164,13 @@ namespace corsika::gpu::em {
           throw std::logic_error(
               "deferred PROPOSAL fallback handler is unavailable");
         }
-        if (!staged_.empty() ||
+        if (independent_checkpoint &&
+            (!backend_.independentSubshowersEnabled() ||
+             !backend_.batchIndependentSpecifiedFallbacks()))
+          throw std::logic_error("active-front fallback flush requires adaptive independent ownership");
+        if (!independent_checkpoint && (!staged_.empty() ||
             backend_.pendingPhotonCount() != 0 ||
-            backend_.pendingLeptonCount() != 0) {
+            backend_.pendingLeptonCount() != 0)) {
           throw std::logic_error(
               "deferred PROPOSAL fallbacks may only flush after the CUDA EM front drains");
         }

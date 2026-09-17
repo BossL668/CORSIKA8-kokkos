@@ -25,31 +25,74 @@ def save(path, obj):
     temp.replace(path)
 
 
+def check_coalesced_fallbacks(stats):
+    c = stats['accelerator']['cooperative']
+    assert c['specified_fallback_batch_limit'] == 4096
+    queued = stats['deferred_cpu_fallbacks_queued']
+    assert queued == stats['deferred_cpu_fallbacks_flushed'], 'uncommitted specified completion'
+    assert 0 <= stats['maximum_deferred_cpu_fallback_batch'] <= 4096, 'unbounded deferred queue'
+    assert stats['deferred_fallback_scalar_expansion_rounds'] == 0
+    total = sum(stats['cpu_fallbacks_by_reason_name'].values())
+    assert total == sum(stats['cpu_fallbacks_by_process'].values())
+    assert total == queued + stats['cpu_generic_fallbacks'], 'fallback lost or double-counted'
+    assert stats['cpu_completed_selected_losses'] == stats['cpu_completed_native_selection_replays']
+    assert stats['cpu_completed_selected_losses'] == stats['cpu_fallbacks_by_reason_name'].get('native_selection_replay', 0)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for option in ("before", "after", "fixture", "output", "data", "libraries", "antennas"):
         parser.add_argument("--" + option, required=True, type=Path)
     parser.add_argument("--threads", type=int, default=130)
     parser.add_argument("--timing-seeds", type=int, default=2)
+    parser.add_argument("--policy-version", default="adaptive-v2")
+    parser.add_argument("--before-has-policy", action="store_true")
+    parser.add_argument("--high-energy-seeds", type=int, default=0)
+    parser.add_argument("--sample-threads", action="store_true")
+    parser.add_argument("--require-exclusive-gpu", action="store_true",
+                        help="Reject timing contaminated by another GPU process; never stop that process")
+    parser.add_argument("--expected-affinity", help="Inclusive logical CPU range, e.g. 382-511")
+    parser.add_argument("--wait-build-unit")
     args = parser.parse_args()
+    if args.expected_affinity:
+        first, last = map(int, args.expected_affinity.split('-'))
+        assert sorted(os.sched_getaffinity(0)) == list(range(first, last+1))
+        assert last-first+1 == args.threads
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)  # never mix partial attempts
     tools = Path(__file__).resolve().parent
     env = dict(os.environ, CORSIKA_DATA=str(args.data), LD_LIBRARY_PATH=str(args.libraries),
                OMP_NUM_THREADS=str(args.threads), OMP_PROC_BIND="spread",
                OMP_PLACES="threads", OPENBLAS_NUM_THREADS="1", MKL_NUM_THREADS="1",
-               NUMEXPR_NUM_THREADS="1")
+               NUMEXPR_NUM_THREADS="1", OMP_THREAD_LIMIT=str(args.threads),
+               FLUPRO=os.environ.get("FLUPRO", "/home/yuhanglu/fluka"))
+    def status(phase, **extra):
+        save(out/"STATUS.json", dict(phase=phase, updated_unix=time.time(), **extra))
+    status("waiting-for-build", complete=False)
+    if args.wait_build_unit:
+        while subprocess.run(['systemctl','--user','is-active','--quiet',args.wait_build_unit]).returncode == 0:
+            time.sleep(2)
+        code = subprocess.check_output(['systemctl','--user','show',args.wait_build_unit,
+            '-p','ExecMainStatus','--value'], text=True).strip()
+        assert code == '0', 'isolated build failed'
     save(out / "CONFIG.json", dict(arguments={k: str(v) for k, v in vars(args).items()},
         affinity=sorted(os.sched_getaffinity(0)),
         hashes={str(b): hashlib.sha256(b.read_bytes()).hexdigest()
                 for b in (args.before, args.after, args.fixture)}))
 
     def run(label, command, timeout=900):
+        if args.require_exclusive_gpu:
+            from wait_gpu_idle_then_exec import gpu_processes
+            assert not gpu_processes(), 'GPU is occupied before isolated test '+label
+        status(label, complete=False)
         record = dict(command=list(map(str, command)), complete=False)
         save(out / (label + ".json"), record)
         started = time.monotonic()
         peak = 0
         samples = []
+        next_threads = 0.
+        next_exclusivity = 0.
+        foreign_gpu_pids = set()
         with (out / (label + ".log")).open("w") as log, \
              (out / (label + ".telemetry.jsonl")).open("w") as telemetry:
             process = subprocess.Popen(command, cwd=out, env=env,
@@ -79,6 +122,31 @@ def main():
                         capture_output=True, text=True, timeout=10).stdout.strip()
                     sample = dict(elapsed_s=elapsed, cpu_s=cpu, rss_bytes=rss,
                                   available_bytes=free, gpu=gpu)
+                    if args.require_exclusive_gpu and elapsed >= next_exclusivity:
+                        next_exclusivity = elapsed+5.
+                        foreign = set(gpu_processes())-{process.pid}
+                        foreign_gpu_pids.update(foreign)
+                        sample['foreign_gpu_pids'] = sorted(foreign)
+                    if args.sample_threads and elapsed >= next_threads:
+                        # Stream telemetry to disk; never retain thread traces in RAM.
+                        next_threads = elapsed+5.
+                        sample['threads'] = {}
+                        for task in Path('/proc/%d/task' % process.pid).glob('*'):
+                            try:
+                                tf = (task/'stat').read_text().rsplit(')',1)[1].split()
+                                allowed = sorted(os.sched_getaffinity(int(task.name)))
+                                sample['threads'][task.name] = dict(
+                                    name=(task/'comm').read_text().strip(),
+                                    cpu_s=(int(tf[11])+int(tf[12]))/os.sysconf('SC_CLK_TCK'),
+                                    last_cpu=int(tf[36]), affinity=allowed)
+                                if args.expected_affinity:
+                                    assert set(allowed) <= set(range(first,last+1)), 'thread escaped CPU binding'
+                            except (FileNotFoundError, ProcessLookupError):
+                                continue
+                        sample['gpu_state_csv'] = subprocess.run(['nvidia-smi',
+                            '--query-gpu=pstate,temperature.gpu,power.draw,clocks.sm,clocks.mem',
+                            '--format=csv,noheader,nounits'], capture_output=True,
+                            text=True, timeout=10).stdout.strip()
                     telemetry.write(json.dumps(sample) + "\n")
                     telemetry.flush()
                     samples.append((elapsed, cpu))
@@ -91,15 +159,21 @@ def main():
                 waiter.join()
                 record.update(returncode=code, process_s=finished[0]-started,
                               peak_rss_bytes=peak)
+                record['gpu_exclusivity_checked'] = args.require_exclusive_gpu
+                record['foreign_gpu_pids'] = sorted(foreign_gpu_pids)
+                record['performance_valid'] = not foreign_gpu_pids
                 if len(samples) > 1:
                     record["mean_cpu_percent"] = 100*(samples[-1][1]-samples[0][1])/(samples[-1][0]-samples[0][0])
                     record["peak_cpu_percent"] = max(100*(b[1]-a[1])/(b[0]-a[0])
                                                      for a, b in zip(samples, samples[1:]))
                 if code:
                     raise RuntimeError("nonzero exit; see " + label + ".log")
+                if foreign_gpu_pids:
+                    raise RuntimeError("completed test had competing GPU processes; exclude this timing")
                 record["complete"] = True
             except BaseException as error:
                 record["error"] = repr(error)
+                status(label+"-failed", complete=False, error=repr(error))
                 if process.poll() is None:
                     os.killpg(process.pid, signal.SIGTERM)
                     try:
@@ -124,7 +198,8 @@ def main():
         help_text.append(re.sub(
             r"(?m)^\[corsika:info    \(c8_air_shower\.cpp:\d+\)\] (?=Please cite)",
             "[corsika:info (source line)] ", text))
-    after = re.sub(r"(?m)^  --kokkos-cooperative-policy[^\n]*\n(?: {4,}\S[^\n]*\n)*", "", help_text[1])
+    after = help_text[1] if args.before_has_policy else re.sub(
+        r"(?m)^  --kokkos-cooperative-policy[^\n]*\n(?: {4,}\S[^\n]*\n)*", "", help_text[1])
     diff = "".join(difflib.unified_diff(help_text[0].splitlines(True), after.splitlines(True)))
     (out / "help-unexpected.diff").write_text(diff)
     assert not diff, "unexpected CLI change, inspect help-unexpected.diff"
@@ -175,11 +250,19 @@ def main():
     save(out/"adaptive-N32.json", lifecycle)
     summary = yaml.safe_load((out/"adaptive-N32/gpu_em/summary.yaml").read_text())
     assert len(summary) == 32
+    shard_storage = None
     for event in summary.values():
         assert event["complete"]
         c = event["statistics"]["accelerator"]["cooperative"]
-        assert c["scheduling_policy"] == "adaptive-v2"
+        assert c["scheduling_policy"] == args.policy_version
         assert c["subshower_cuda_submissions"] == c["subshower_cuda_commits"]
+        if args.policy_version in ('adaptive-v11-host-profile-shards', 'adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+            current = (c['host_profile_shards'], c['host_profile_shard_bytes'])
+            assert 1 < current[0] <= 256 and 0 < current[1] <= 16 * 2**20
+            assert shard_storage is None or current == shard_storage, 'profile shard storage grew between showers'
+            shard_storage = current
+        if args.policy_version in ('adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+            check_coalesced_fallbacks(event['statistics'])
     lifecycle["complete"] = True
     save(out/"adaptive-N32.json", lifecycle)
     save(out/"CORRECTNESS_GATES.json", dict(passed=True, physics_statistics_accepted=False,
@@ -187,7 +270,8 @@ def main():
 
     timing = []
     def event(mode, energy, seed, label):
-        record = run(label, command(args.after, label, mode, energy, seed), timeout=1800)
+        record = run(label, command(args.after, label, mode, energy, seed),
+                     timeout=43200 if energy >= 100000000 else 1800)
         record.update(process_complete=True, complete=False)
         save(out/(label+".json"), record)
         data = yaml.safe_load((out/label/"gpu_em/summary.yaml").read_text())["shower_0"]
@@ -202,15 +286,49 @@ def main():
         assert bool(a["gpu"]) == (mode == "adaptive")
         if mode == "adaptive":
             c = a["cooperative"]
-            assert c["scheduling_policy"] == "adaptive-v2"
+            assert c["scheduling_policy"] == args.policy_version
             assert c["subshower_cuda_submissions"] == c["subshower_cuda_commits"] > 0
             assert c["subshower_openmp_epochs"] > 0
+            if args.policy_version in ('adaptive-v4-bounded-batching','adaptive-v5-work-quantum','adaptive-v6-tail-grain','adaptive-v7-gpu-continuation','adaptive-v8-bounded-continuation','adaptive-v9-foreground-continuation','adaptive-v10-continuation-learning','adaptive-v11-host-profile-shards','adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                steps = waves = jobs = 0
+                for endpoint in ('cuda','openmp'):
+                    ep = c['adaptive'][endpoint]
+                    jobs += sum(ep['job_input_histogram_floor_log2'])
+                    for kind in ('photon','lepton'):
+                        steps += ep[kind]['transport_records']
+                        waves += ep[kind]['resident_wavefronts']
+                assert steps == s['gpu_particles'] == s['profile']['steps'], 'physical step accounting'
+                assert waves == s['resident_photon_wavefronts']+s['resident_lepton_wavefronts'], 'wave accounting'
+                assert jobs == c['subshower_cuda_commits']+c['subshower_openmp_epochs'], 'batch histogram accounting'
+                if args.policy_version in ('adaptive-v5-work-quantum','adaptive-v6-tail-grain','adaptive-v7-gpu-continuation','adaptive-v8-bounded-continuation','adaptive-v9-foreground-continuation','adaptive-v10-continuation-learning','adaptive-v11-host-profile-shards','adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                    reasons=sum(sum(c['adaptive'][e][k]['completion_reasons'])
+                                for e in ('cuda','openmp') for k in ('photon','lepton'))
+                    assert reasons==jobs, 'exclusive completion reason accounting'
+                    if args.policy_version in ('adaptive-v7-gpu-continuation','adaptive-v8-bounded-continuation','adaptive-v9-foreground-continuation','adaptive-v10-continuation-learning','adaptive-v11-host-profile-shards','adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                        cap=2 if args.policy_version=='adaptive-v7-gpu-continuation' else 16
+                        assert c['cuda_completion_packets']+c['subshower_cuda_autonomous_continuations']==c['subshower_cuda_commits']
+                        assert c['subshower_cuda_autonomous_continuations']<=(cap-1)*c['cuda_completion_packets']
+                        assert c['cuda_completion_mailbox_capacity']==cap
+                        assert c['cuda_completion_buffer_delay_ms']>=c['cuda_result_service_delay_ms']
+                        if cap==16:
+                            assert sum(c['cuda_continuation_stops'])==c['cuda_completion_packets']
+                            assert c['maximum_cuda_packet_calls']<=cap
+                            assert c['cuda_completion_retention_budget_bytes']==64*2**20
+                        if args.policy_version in ('adaptive-v9-foreground-continuation','adaptive-v10-continuation-learning','adaptive-v11-host-profile-shards','adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                            assert c['subshower_cuda_foreground_packets']<=c['cuda_completion_packets']
+                            assert c['subshower_cuda_foreground_continuations']<=c['subshower_cuda_autonomous_continuations']
+                if args.policy_version in ('adaptive-v11-host-profile-shards', 'adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                    assert 1 < c['host_profile_shards'] <= 256
+                    assert 0 < c['host_profile_shard_bytes'] <= 16 * 2**20
+                if args.policy_version in ('adaptive-v12-coalesced-fallback','adaptive-v13-independent-service-horizon'):
+                    check_coalesced_fallbacks(s)
         for algorithm in ("CoREAS", "ZHS"):
             parquet = pq.ParquetFile(out/label/algorithm/"observers.parquet")
             assert parquet.metadata.num_rows > 0
             for batch in parquet.iter_batches(columns=["Ex", "Ey", "Ez"], use_threads=False):
                 assert all(np.isfinite(col.to_numpy()).all() for col in batch.columns)
-        record.update(mode=mode, seed=seed, accelerator=a, complete=True)
+        record.update(mode=mode, energy_GeV=energy, seed=seed, accelerator=a,
+                      transport_records=s['gpu_particles'], complete=True)
         save(out/(label+".json"), record)
         return record
     for mode in ("openmp", "adaptive"):
@@ -222,9 +340,21 @@ def main():
             save(out/"TIMING_PARTIAL.json", timing)
     medians = {mode: statistics.median(r["process_s"] for r in timing if r["mode"] == mode)
                for mode in ("openmp", "adaptive")}
+    autonomous_calls = sum(r['accelerator'].get('cooperative', {}).get(
+        'subshower_cuda_autonomous_continuations', 0) for r in timing)
     save(out/"PERFORMANCE_RESULT.json", dict(complete=True, timing=timing, median_s=medians,
          openmp_over_adaptive=medians["openmp"]/medians["adaptive"],
+         autonomous_gpu_calls=autonomous_calls,
+         autonomous_gpu_path_exercised=autonomous_calls>0,
          note="Pilot only; no 500-event physics acceptance or production recommendation."))
+    high = []
+    for i in range(args.high_energy_seeds):
+        seed = 2026110001+i
+        # Start the requested dual test first; no concurrent CPU/GPU comparator.
+        for mode in (('adaptive','openmp') if i%2 == 0 else ('openmp','adaptive')):
+            high.append(event(mode, 100000000, seed, '100PeV-%d-%s' % (seed,mode)))
+            save(out/'TIMING_100PEV_PARTIAL.json', high)
+    status('complete-pilot-not-ensemble-acceptance', complete=True)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,35 @@
+id: S0_SILICA_TRANSPORT_PROXY
+description: Silica transport proxy (SiO2)
+provenance: documentation/materials.yaml (2026-09-13); synthetic radio constants,
+  not site measurements
+transport:
+  density_kg_m3: 2650
+  composition_basis: nucleus_number_fraction
+  nuclei:
+  - element: Si
+    Z: 14
+    A: 28
+    number_fraction: 0.3333333333333333
+  - element: O
+    Z: 8
+    A: 16
+    number_fraction: 0.6666666666666666
+  ionisation:
+    model: explicit
+    reference_density_kg_m3: 2650
+    I_eV: 139.2
+    Cbar: 3.81679772036614
+    x0: 0.09808840344269923
+    x1: 2.9620884034426993
+    a: 0.08408
+    m: 3.5064
+    delta0: 0
+radio:
+  model: constant_real_index_and_grey_field_attenuation
+  refractive_index: 2.23606797749979
+  field_attenuation_length_m: 100
+  relative_permeability: 1
+magnetic_field_enu_T:
+- 0
+- 0
+- 0

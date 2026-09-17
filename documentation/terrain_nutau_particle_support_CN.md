@@ -53,7 +53,7 @@ CTW2011 CC 拟合的 **`1e4–1e12 GeV`** 门禁限制。
 | [c8_terrain_cascade.cpp](../applications/c8_terrain_cascade.cpp) | 高层粒子/模型装配、CLI、输出生命周期；原 process 顺序不变 |
 | [TerrainTauDecay.hpp](../applications/detail/mountain/TerrainTauDecay.hpp) | 包装原生 Pythia8 `Decay`；只记录 τ 衰变，不额外抽随机数 |
 | [TerrainShowerOutput.hpp](../applications/detail/mountain/TerrainShowerOutput.hpp) | 流式 track、沉积、时间窗存活粒子；记录 history/parent ID |
-| [TerrainEmSession.cpp](../src/terrain/TerrainEmSession.cpp) | 多介质 EM 的可选步长/时间窗限制；不修改共用空气 kernel |
+| [InterfaceEmStep.hpp](../corsika/modules/transport/detail/InterfaceEmStep.hpp)（原 TerrainEmSession.cpp） | 多介质 EM 的可选步长/时间窗限制；不修改共用空气 kernel |
 | [TerrainEmRouter.hpp](../applications/detail/mountain/TerrainEmRouter.hpp) | 独立窗口终止记录；仍只路由 γ/e± |
 | [testMountainNeutrino.cpp](../tests/modules/testMountainNeutrino.cpp) | 六种中微子、τ 保留、顶点电荷/四动量、能区/输入门禁测试 |
 

@@ -192,6 +192,10 @@ namespace corsika::gpu::em {
 
   struct ProposalFallbackEvent {
     EmParticleState particle{};
+    // A selected final state is legal only after transport reached its vertex.
+    // Process/component hashes alone do not establish that position and time
+    // have advanced. Generic pre-transport failures keep this flag zero.
+    std::uint32_t interaction_vertex_reached{};
     std::uint64_t input_index{};
     std::int32_t process_id{};
     ProposalFallbackReason reason{
@@ -255,6 +259,12 @@ namespace corsika::gpu::em {
    */
   struct EmInteractionRecord {
     EmParticleState particle{};
+    // A photon can select a CPU-only loss/endpoint before transport, but must
+    // still compete its sampled flight against geometry and cuts. Negative
+    // means no completion is pending; otherwise this is a ProposalFallbackReason.
+    std::int32_t deferred_photon_fallback_reason{-1};
+    std::int32_t deferred_photon_table_status{};
+    std::uint32_t interaction_vertex_reached{};
     std::uint64_t input_index{};
     std::int32_t process_id{};
     EmInteractionStatus status{EmInteractionStatus::Selected};
@@ -588,11 +598,34 @@ namespace corsika::gpu::em {
     bool independent_drivers{};
     bool independent_subshowers{};
     bool adaptive_policy{};
+    // Bounded host-only integer profile replicas, never full per-thread arenas.
+    std::size_t host_profile_shards{}, host_profile_shard_bytes{};
     // [endpoint CUDA/OpenMP][kind photon/lepton]; host-call costs, not kernel time.
     std::array<std::array<double,2>,2> adaptive_records_per_ms{};
     std::array<std::array<std::uint64_t,2>,2> adaptive_observations{};
     std::array<std::array<std::size_t,2>,2> adaptive_wave_limit{};
+    // Completed physical steps, unlike repeatedly counted job inputs.
+    std::array<std::array<std::uint64_t,2>,2> adaptive_transport_records{};
+    std::array<std::array<std::uint64_t,2>,2> adaptive_resident_wavefronts{};
+    std::array<std::array<std::uint64_t,2>,2> adaptive_full_observations{};
+    // [endpoint][kind][completed, minimum, workspace, history, wave limit, other].
+    std::array<std::array<std::array<std::uint64_t,6>,2>,2> adaptive_completion_reasons{};
+    std::array<std::array<std::size_t,2>,2> adaptive_input_limit{};
+    // floor(log2(inputs)), final bin >=2^20; bounded, no per-job trace growth.
+    std::array<std::array<std::uint64_t,21>,2> adaptive_job_input_histogram{};
+    std::array<std::uint64_t,2> adaptive_species_coalesces{};
     double adaptive_migration_ms{};
+    std::uint64_t subshower_cuda_autonomous_continuations{};
+    /** Submissions during coordinator scalar-yield; not kernel overlap time. */
+    std::uint64_t subshower_cuda_foreground_packets{};
+    std::uint64_t subshower_cuda_foreground_continuations{};
+    double cuda_completion_buffer_delay_ms{};
+    std::uint64_t cuda_completion_mailbox_capacity{};
+    std::uint64_t cuda_completion_retention_budget_bytes{};
+    std::uint64_t cuda_completion_peak_bytes{};
+    std::uint64_t maximum_cuda_packet_calls{};
+    // completed, no-progress, memory, call-limit, handoff, time, disabled.
+    std::array<std::uint64_t,7> cuda_continuation_stops{};
     std::uint64_t subshower_cuda_submissions{}, subshower_cuda_commits{};
     std::uint64_t subshower_openmp_epochs{}, maximum_host_epochs_per_cuda_job{};
     std::uint64_t subshower_tail_migrations{}, subshower_host_queue_peak_bytes{};
@@ -604,6 +637,11 @@ namespace corsika::gpu::em {
     double coordinator_idle_wait_ms{}, cuda_result_service_delay_ms{};
     std::uint64_t independent_joint_calls{};
     double cuda_driver_wall_ms{}, joint_wall_ms{}, endpoint_window_overlap_ms{};
+    // CPU-primary helper only: event-scoped blocking waits, never global CUDA
+    // scheduling flags. Durations overlap OpenMP work and are not kernel time.
+    bool auxiliary_blocking_wait_enabled{};
+    std::uint64_t auxiliary_blocking_wait_calls{};
+    double auxiliary_blocking_wait_ms{};
     double cuda_finished_before_host_ms{}, host_finished_before_cuda_ms{};
     std::uint64_t cuda_input_particles{}, openmp_input_particles{};
     std::uint64_t openmp_slices{}, slices_while_cuda_pending{}, oversized_slices{};

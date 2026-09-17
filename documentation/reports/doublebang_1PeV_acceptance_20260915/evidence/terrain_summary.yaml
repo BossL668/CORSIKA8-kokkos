@@ -1,0 +1,46 @@
+steps: 5353854
+rock_steps: 5353851
+air_steps: 3
+material_mismatches: 0
+surface_ambiguities: 0
+rock_to_air: 2
+air_to_rock: 2
+world_escapes: 0
+deposited_energy_GeV: 4606.6854805652629
+accelerated_steps: 5345280
+device_binding_energy_GeV: 0.00032588355893757668
+device_geometry_audit:
+  prepared_records: 5345280
+  batches: 404
+  maximum_threads: 32
+  coordinate_free_bvh: true
+  host_geometry_bytes: 70228928
+  policy: same CPU midpoint/10 nm checks; ordered output and ledger
+csv_row_limit: 10000000000
+csv_truncated: false
+finite_window_survivors: 0
+finite_window_escaped_total_GeV: 0
+finite_window_escaped_neutrino_GeV: 0
+finite_window_semantics: remaining total energy is escape, not deposition; distinct from world escapes
+deposition_rows: 4870796
+deposition_csv_truncated: false
+dem_coverage_boundary: true
+domain_exits: 1
+domain_escaped_total_GeV: 2.2642543701452817
+domain_exit_rows_truncated: false
+profile_truncation_policy: fail incomplete before dropping any track or deposit row
+profile_scope: all recorded transport/deposition inside DEM coverage; outside tail is censored, not deposited
+domain_exits_by_pdg:
+  14:
+    count: 1
+    weighted_total_GeV: 2.2642543701452817
+neutrino_model_domain:
+  required: false
+  uncovered_transported_histories: 1
+  weighted_energy_at_first_uncovered_step_GeV: 2.2642543701452817
+  all_observed_neutrinos_in_CTW_domain: false
+  not_a_deposition_or_interaction_probability: true
+  by_pdg:
+    14:
+      histories: 1
+      weighted_energy_GeV: 2.2642543701452817

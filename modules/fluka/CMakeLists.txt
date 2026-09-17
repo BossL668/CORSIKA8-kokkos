@@ -62,7 +62,10 @@ else()
     # build shared library containing FLUKA + our own implementation of flrndm_()
     # Note: This apparently works only when built as shared lib, not possible so easily as static lib
 
-    add_library(fluka SHARED fluka.cpp)
+    add_library(fluka SHARED fluka.cpp ${input_dir}/FlukaDiagnosticTimer.cpp)
+    # Preserve the original fpenab_ initializer, but cancel its non-signal-safe
+    # periodic diagnostic immediately afterwards, in every application/backend.
+    target_link_options(fluka PRIVATE "LINKER:--wrap=fpenab_")
     target_link_libraries(fluka PRIVATE flukahp-norndm)
     target_link_libraries(fluka PUBLIC modules_common)
     if (fluka_have_flkavr)

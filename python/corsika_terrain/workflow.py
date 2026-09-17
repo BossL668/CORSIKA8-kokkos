@@ -81,7 +81,7 @@ def region_settings(bounds, output, cache=None, provider='skadi', spacing_arcsec
         source=dict(provider=provider),output_directory=str(output/'terrain'),
         cache_directory=str(Path(cache or default_cache()).expanduser().resolve()),
         mesh=dict(spacing_arcsec=spacing_arcsec,bottom_depth_m=bottom_depth_m,
-                  boundary_padding_m=1.e-6),medium=dict(density_g_cm3=2.65),antennas=antennas,
+                  boundary_padding_m=1.e-6),medium=dict(material='SiO2'),antennas=antennas,
         limits=dict(max_tiles=4,max_vertices=120000,max_faces=250000,max_estimated_memory_mb=1024))
 
 

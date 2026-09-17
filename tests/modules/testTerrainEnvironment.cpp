@@ -112,16 +112,19 @@ TEST_CASE("Terrain leapfrog reproduces the stock air trajectory and zero-field r
   p.position=track.getPosition(1.);p.node=rock;p.direction=track.getDirection(1.);
   auto [straight,outside]=tracking.getTrack(p);CHECK(outside==air);
   CHECK((straight.getDirection(1.)-p.direction).getNorm()<1.e-14);
-  // In a mesh-free atmosphere, use the unmodified air tracking as an oracle.
+  // Same polynomial as stock air, evaluated at the same physical times. The
+  // terrain radio accuracy cap introduced in the prior magnetic audit makes
+  // its step shorter; identical full-step durations are no longer the contract.
   terrain::Environment reference;terrain::buildAtmosphere(reference,cfg);
   p.position=Point(cs,10000_m,0_m,10000_m);p.node=reference.getUniverse()->getContainingNode(p.position);
   tracking_leapfrog_curved::Tracking original;
   auto [expected,originalNext]=original.getTrack(p);auto [actual,actualNext]=tracking.getTrack(p);
   CHECK(actualNext==originalNext);
-  CHECK(actual.getDuration()/1_s==Approx(expected.getDuration()/1_s).epsilon(2.e-14));
+  double fraction=actual.getDuration()/expected.getDuration();
+  REQUIRE(fraction>0.); REQUIRE(fraction<1.);
   for(double u:{0.,.25,.5,1.}) {
-    CHECK((actual.getPosition(u)-expected.getPosition(u)).getNorm()/1_m<1.e-8);
-    CHECK((actual.getDirection(u)-expected.getDirection(u)).getNorm()<2.e-14);
+    CHECK((actual.getPosition(u)-expected.getPosition(u*fraction)).getNorm()/1_m<1.e-8);
+    CHECK((actual.getDirection(u)-expected.getDirection(u*fraction)).getNorm()<2.e-14);
   }
   auto a=actual.getPosition(0.),b=actual.getPosition(1.);
   auto delta=p.getVelocity()*actual.getDuration();

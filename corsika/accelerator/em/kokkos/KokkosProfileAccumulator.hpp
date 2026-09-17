@@ -17,6 +17,7 @@
 #include <corsika/accelerator/em/common/PhotonPairKinematics.hpp>
 #include <corsika/accelerator/em/detail/ProfileAccumulationStep.hpp>
 #include <corsika/accelerator/em/detail/CooperativeProfileMerge.hpp>
+#include <corsika/accelerator/em/detail/HostProfileShards.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
@@ -161,11 +162,24 @@ namespace corsika::accelerator::em::kokkos_detail {
       Kokkos::deep_copy(
           execution, counters_, gpu::em::detail::DeviceProfileCounters{});
       execution.fence("reset Kokkos resident profile");
+      host_shards_.reset(view_);
       downloaded_ = false;
       fixed_snapshot_sealed_ = false;
     }
 
     bool enabled() const noexcept { return enabled_; }
+    void enableCooperativeHostShards(std::size_t workers, std::size_t budget) {
+#ifdef KOKKOS_ENABLE_OPENMP
+      if constexpr (std::is_same_v<ExecutionSpace, Kokkos::OpenMP>) {
+        if (!enabled_ || downloaded_ || fixed_snapshot_sealed_)
+          throw std::logic_error("host profile shards require a fresh profile");
+        host_shards_.configure(view_, workers, budget);
+        return;
+      }
+#endif
+      throw std::logic_error("profile shards require the OpenMP execution space");
+    }
+    detail::HostProfileShards const& hostShards() const noexcept { return host_shards_; }
     void requireOpenForAccumulation() const {
       if (fixed_snapshot_sealed_)
         throw std::logic_error("profile endpoint already committed; reset before new tracks");
@@ -176,7 +190,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     std::size_t deviceBytes() const noexcept {
       return histograms_.extent(0) * sizeof(long long) +
              counters_.extent(0) *
-                 sizeof(gpu::em::detail::DeviceProfileCounters);
+                 sizeof(gpu::em::detail::DeviceProfileCounters) + host_shards_.bytes();
     }
 
     void accumulatePhoton(
@@ -258,6 +272,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       out.histograms.resize(histograms_.extent(0));
       for(std::size_t i=0;i<out.histograms.size();++i) out.histograms[i]=host_histograms_(i);
       detail::validateFixedProfile(out);
+      host_shards_.mergeInto(out);
       return out;
     }
 
@@ -265,6 +280,8 @@ namespace corsika::accelerator::em::kokkos_detail {
         ExecutionSpace const& execution = {}) {
       if (!enabled_)
         throw std::logic_error("Kokkos resident profile is not enabled");
+      if (host_shards_.enabled())
+        throw std::logic_error("host profile shards require the checked fixed snapshot path");
       if (downloaded_)
         throw std::logic_error(
             "Kokkos resident profile was downloaded more than once");
@@ -344,6 +361,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
 
   private:
+    detail::HostProfileShards host_shards_;
     gpu::em::GpuEmConfig::ProfileProjection fixed_snapshot_config_{};
     Kokkos::View<long long*, memory_space> histograms_{};
     Kokkos::View<gpu::em::detail::DeviceProfileCounters*, memory_space>

@@ -41,7 +41,8 @@ def main():
                      'corsika/accelerator/em/common/TransportMass.hpp',
                      'corsika/accelerator/em/detail/LeptonTransportStep.hpp',
                      'tests/accelerator/MagneticLinearGateChecks.hpp',
-                     'src/terrain/TerrainEmSession.cpp'):
+                     'src/transport/InterfaceEmSession.cpp',
+                     'corsika/modules/transport/detail/InterfaceEmStep.hpp'):
         manifest['sources'][relative] = digest(source / relative)
     for name in ('CMakeCache.txt',):
         (args.output / name).write_bytes((args.build / name).read_bytes())

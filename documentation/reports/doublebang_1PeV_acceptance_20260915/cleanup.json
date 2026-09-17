@@ -1,0 +1,32 @@
+{
+  "user_request": "Delete this incomplete event raw data; retain audit and restart with emthin=1e-4 and increased queue capacity",
+  "time_utc": "2026-09-15T08:32:57.341484+00:00",
+  "files": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/runs/openmp_SiO2_21CMA80_1PeV_seed22309/output/terrain/tracks.csv.gz",
+      "bytes": 805326330,
+      "sha256": "99dc559ed0714c0c4b7f3e2d74b6860f6ae5c722fb89f6a8db0a30496d5de350",
+      "deleted": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/runs/openmp_SiO2_21CMA80_1PeV_seed22309/output/terrain/deposits.csv.gz",
+      "bytes": 274109652,
+      "sha256": "d1a5d24df0d597ff8cd7d446e96a091186a0fa4081c075c4ca32d96c565b22bf",
+      "deleted": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/runs/openmp_SiO2_21CMA80_1PeV_seed22309/output/terrain/domain_exits.csv.gz",
+      "bytes": 215,
+      "sha256": "91c3596276dae9068e5f59377c4b0f709d4d28a23b6b88ce1bc8d2bda0d63e14",
+      "deleted": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/runs/openmp_SiO2_21CMA80_1PeV_seed22309/output/terrain/window_survivors.csv.gz",
+      "bytes": 68,
+      "sha256": "65b310e706b12c661bab551db8a51e302cc1d7b8ae1eae011fc88ba6bb819da1",
+      "deleted": true
+    }
+  ],
+  "total_bytes": 1079436265,
+  "audit_retained": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/report/failure_acceptance_20260915"
+}

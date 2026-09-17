@@ -181,9 +181,11 @@ namespace corsika::accelerator::em::detail {
       record.loss_quantile = selection.residual_quantile;
       if (proposalNativeSelectionRequiresReplay(
               particle.pid, record.process_id, record.loss_quantile)) {
-        output.fallback = makeProcessFallbackEvent(
-            record, ProposalFallbackReason::NativeSelectionReplay);
-        output.fallback_flag = 1;
+        // Selection is not a vertex. The photon must first fly the sampled
+        // grammage (or stop at an earlier boundary/cut). Final-state
+        // classification completes this request only at the transported vertex.
+        record.deferred_photon_fallback_reason = static_cast<std::int32_t>(
+            ProposalFallbackReason::NativeSelectionReplay);
         return output;
       }
     
@@ -199,6 +201,13 @@ namespace corsika::accelerator::em::detail {
           loss.status == table::TableLookupStatus::Success ? 0u : 1u;
     
     if (loss.status != table::TableLookupStatus::Success) {
+      auto const reason = proposalFallbackReason(loss.status);
+      if (proposalFallbackRequiresSelectedLoss(reason)) {
+        record.deferred_photon_fallback_reason = static_cast<std::int32_t>(reason);
+        record.deferred_photon_table_status = static_cast<std::int32_t>(loss.status);
+        record.energy_fraction = loss.value; // diagnostic only; CPU completes v
+        return output;
+      }
       output.fallback = makeTableFallbackEvent(
           particle, loss_query, loss,
           proposal_native ? ProposalSelectionDrawId : InteractionLossDrawId,

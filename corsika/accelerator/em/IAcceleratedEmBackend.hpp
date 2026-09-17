@@ -62,6 +62,10 @@ namespace corsika::accelerator::em {
     // wavefront API unchanged. All callbacks execute on the calling thread.
     virtual bool independentSubshowersEnabled() const noexcept { return false; }
     virtual bool independentSubshowersReady() const noexcept { return false; }
+    // Coordinator-only policy, never queried from a device kernel. Adaptive
+    // endpoints may coalesce specified CPU completions without joining the
+    // other endpoint. Legacy independent/single backends retain their policy.
+    virtual bool batchIndependentSpecifiedFallbacks() const noexcept { return false; }
     virtual std::size_t advanceIndependentSubshowers(
         std::vector<gpu::em::EmParticleState> const&,
         detail::SubshowerCallbacks const&) {

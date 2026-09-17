@@ -1,0 +1,44 @@
+[
+  {
+    "run": "openmp_seed158",
+    "decays": [
+      {
+        "mode": "muonic control",
+        "medium": "air",
+        "cc_to_decay_distance_km": 2.124959120513673,
+        "cc_to_decay_time_us": 7.088100663672048,
+        "tau_energy_PeV": 54.2430300843789
+      }
+    ],
+    "tau_segments": 1205,
+    "maximum_east_projection_offset_m": 0.0005999999539199052
+  },
+  {
+    "run": "openmp_seed3605",
+    "decays": [
+      {
+        "mode": "hadronic cascade",
+        "medium": "air",
+        "cc_to_decay_distance_km": 6.942906456789568,
+        "cc_to_decay_time_us": 23.15904310304424,
+        "tau_energy_PeV": 72.65810859195226
+      }
+    ],
+    "tau_segments": 1247,
+    "maximum_east_projection_offset_m": 0.005975054694317805
+  },
+  {
+    "run": "openmp_seed946",
+    "decays": [
+      {
+        "mode": "electronic cascade",
+        "medium": "air",
+        "cc_to_decay_distance_km": 2.2019634474423344,
+        "cc_to_decay_time_us": 7.344959450055103,
+        "tau_energy_PeV": 33.35458910461073
+      }
+    ],
+    "tau_segments": 2806,
+    "maximum_east_projection_offset_m": 0.0013797889987472445
+  }
+]

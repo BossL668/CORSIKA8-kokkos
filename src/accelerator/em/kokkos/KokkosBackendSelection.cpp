@@ -5,9 +5,9 @@ namespace corsika::accelerator::em {
 std::string resolveKokkosExecutionBackend(std::string const& requested) {
 #if defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
   auto const selected = requested.empty() ? std::string{"cuda"} : requested;
-  if (selected != "cuda" && selected != "openmp" && selected != "cuda-openmp")
+  if (selected != "cuda" && selected != "openmp" && selected != "cuda-openmp" && selected != "openmp-cuda")
     throw std::invalid_argument(
-        "This dual Kokkos binary supports cuda, openmp or experimental cuda-openmp");
+        "This dual Kokkos binary supports cuda, openmp, cuda-openmp or openmp-cuda");
   return selected;
 #else
 #if defined(CORSIKA8_KOKKOS_BACKEND_OPENMP)

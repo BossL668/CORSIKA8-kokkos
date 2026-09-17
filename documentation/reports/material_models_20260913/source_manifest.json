@@ -1,0 +1,225 @@
+{
+  "scope": "Owned material-interface edits only; unrelated workspace changes preserved",
+  "files": [
+    {
+      "path": "applications/CMakeLists.txt",
+      "sha256": "20067201404c640f5554c434b891ccedafabbbd477cfe1f291b10f520017c8a7",
+      "before_sha256": "0919dfe796b7564074f2fcc3e2d33d85d69530580d252a938b4639ed87b193b1"
+    },
+    {
+      "path": "applications/c8_terrain_cascade.cpp",
+      "sha256": "9de1283cf3e2ed3c525507fe6015f3bed5c699e38fa1b9ba467d8faa11e0c5f4",
+      "before_sha256": "20038c48d83c5f8d9edfc66fe240040c95689600d12a371f5a89fc33e60833f2"
+    },
+    {
+      "path": "applications/c8_terrain_environment.cpp",
+      "sha256": "8ebaa49b0e29d7168ccd111d341942bfdf267dc00b9edf214f927843fe65665b",
+      "before_sha256": "d2f0459c06c9174578d44367e4b5941d7868e08648c11625fc420bfcf81c56dc"
+    },
+    {
+      "path": "applications/detail/mountain/FlukaMaterialBridge.f",
+      "sha256": "ec3c141ba38edb851d1e1a48a05e8a459e0597b76c34bf9def09944f31f2f9ff",
+      "before_sha256": null
+    },
+    {
+      "path": "applications/detail/mountain/MaterialFlukaInteraction.hpp",
+      "sha256": "71912744ac1759c682651362bd0b02de427a2a073efc448adc35afc17a7a1316",
+      "before_sha256": null
+    },
+    {
+      "path": "applications/detail/mountain/TerrainEmPreparation.hpp",
+      "sha256": "b49dc632a130dc34a3dbcfdfae20866601da396826d1ea12823cd3b441460fc9",
+      "before_sha256": "825a2f3d129f45251094261069347a2940318a56561b95fb59159d317ef981c0"
+    },
+    {
+      "path": "applications/detail/mountain/TerrainMaterialConfig.hpp",
+      "sha256": "0f3a7fd539f1b0c5f7d0d40a6257e9b55b465fcb1ad2c9cd398cbf586ca10502",
+      "before_sha256": null
+    },
+    {
+      "path": "applications/detail/mountain/TerrainRadioConfig.hpp",
+      "sha256": "416ce1783392d998608d80c5daa5d26cdc8298fe363887bbf6fb7bdf4f8de9bc",
+      "before_sha256": "c4187e69542f77fbee1fe68e42170f00575aa88337f603e12c485aa3a7aaa229"
+    },
+    {
+      "path": "applications/detail/mountain/TerrainScene.hpp",
+      "sha256": "d91e0954878d93a81b75be208da53c7e6e7fade3c3d8057dcd127621d5b3eb98",
+      "before_sha256": "ddc387f44351327b86b5cc311a7502c74364e4da3a57d67e8a0f8bdae31c4f74"
+    },
+    {
+      "path": "configs/mountain/materials/custom_example.yaml",
+      "sha256": "a8bbf719cd6c44c415f66bd793b7e4f334af5837d787fc26312e80be45ffae77",
+      "before_sha256": null
+    },
+    {
+      "path": "configs/mountain/materials/granite.yaml",
+      "sha256": "13b112872e46d4c66ef0ab06ba0d37e9ea86d507a509823c73e4e8927d7ea7e7",
+      "before_sha256": null
+    },
+    {
+      "path": "configs/mountain/materials/limestone.yaml",
+      "sha256": "fc6be4f193a49d8c0dec632a209b2cc25c7ae2834b983cc51f4f382cd1652e15",
+      "before_sha256": null
+    },
+    {
+      "path": "configs/mountain/materials/silica.yaml",
+      "sha256": "b320e499884a91e96e86a3b4fad5bdb512a1681f48e685684fad4d0179de6ad6",
+      "before_sha256": null
+    },
+    {
+      "path": "configs/mountain/terrain_region_21cma.yaml",
+      "sha256": "fae4a7eb91eb6d1e460f7dbdfc02ec674fcb4443a662d360731151c9ea029720",
+      "before_sha256": "6aa300c72212ce3aed9f819bc8b9639c742fdc76e5119137cf1b63f1018b3408"
+    },
+    {
+      "path": "corsika/modules/terrain/TerrainAtmosphere.hpp",
+      "sha256": "618f288b1c7e798163f8eaf0588b209f70e4c241e812041462d91fae05bf4691",
+      "before_sha256": "47c33bc111f1a50805b1f1fa4c4bcb56416e96a9b93aa91832fb0200b3a58849"
+    },
+    {
+      "path": "corsika/modules/transport/MaterialHadronLoss.hpp",
+      "sha256": "120330a869988ed6fb819db862b112f1bc4d2e870ecdf46833d78eb44e5060a6",
+      "before_sha256": null
+    },
+    {
+      "path": "corsika/modules/transport/MaterialModel.hpp",
+      "sha256": "e8f6f76f9fa6bb2be69fa5a8cf36cc6bf003a8e8ca381ecc36091a24117fd718",
+      "before_sha256": null
+    },
+    {
+      "path": "corsika/modules/transport/MaterialProposalEnvironment.hpp",
+      "sha256": "45e5ab232e8e63035ca8c4fd0ff68aca8fd72f057c3def5f7357f4b073bf3ed6",
+      "before_sha256": null
+    },
+    {
+      "path": "documentation/generic_material_interface_transport_CN.md",
+      "sha256": "217bff3b9a63239172fe26242cbca2f3fb7e3f8e60b4cfa18069c0ea17f9301b",
+      "before_sha256": "26c02988eece439a0d7d24a5cdcc2b84b1d8a027baa6c674fc5d3f50b76542a2"
+    },
+    {
+      "path": "documentation/interface_kokkos_radio_CN.md",
+      "sha256": "a5ddb41427ec92f5e20ba066d65944e049d38fea3a9ae682ddfbbd699f7890e2",
+      "before_sha256": "a6c3420186d8387672f799ae7176ca8411866533fdb56ac81deb45b0ea5d8932"
+    },
+    {
+      "path": "documentation/mountain_material_models_CN.md",
+      "sha256": "7afe3d07375762e5ade0f9297165fcbe336322d1ab938c4e953d1f48ac8f6412",
+      "before_sha256": null
+    },
+    {
+      "path": "documentation/reports/doublebang_radio_audit_20260912/SLIDES_CN.md",
+      "sha256": "2933df84139f2c8f032e473fc89d4aaebb83a27b5d63af22221bb1a48857a6f6",
+      "before_sha256": "33361df80e439ee4900e9a8076fab8e34863a633a22b5f4af6cb5bd468fe52cf"
+    },
+    {
+      "path": "documentation/reports/material_models_20260913/SLIDES_CN.md",
+      "sha256": "c3facee3f16173ae420b91b2b372913d90481bbeb4b34ee3b849aa82a41d70cc",
+      "before_sha256": null
+    },
+    {
+      "path": "python/corsika_terrain/scene.py",
+      "sha256": "27a3daa1ae3aeb4981682eae0b12520757419f4e5d6dacad4845f7ad3e308ea8",
+      "before_sha256": "e2116856ae578a65f0e409bdbdf2f5c83711ab186bf9f32af05a91f33ae74042"
+    },
+    {
+      "path": "python/corsika_terrain/workflow.py",
+      "sha256": "4c633e59ca91846a71ce01303b1f8c01d52e2fce7505ef948ae1f8cfc995466e",
+      "before_sha256": "7d526c36d3958980e44624cf193f42186ade3857ec349b8529a3562c6e9033eb"
+    },
+    {
+      "path": "tests/modules/CMakeLists.txt",
+      "sha256": "f011e771a9d91587d104ab5be20fdad2d2f00cb7c7d772d4262e4b0e39c8f891",
+      "before_sha256": "74255570d1a6ab271aee141f3c65a752c9cf011430be258638b6fb9baef566b8"
+    },
+    {
+      "path": "tests/modules/testMountainMaterials.cpp",
+      "sha256": "1307ba5ed0a9461ca726d1da90bfc68b06058bb0affbc3a9dc68f78f2e8f60cc",
+      "before_sha256": null
+    },
+    {
+      "path": "tests/modules/testTerrainEnvironment.cpp",
+      "sha256": "b4ef3502ff755bacd556e0a0f76e441e7bc0326d10f59823cc94ccbcfed6ce1f",
+      "before_sha256": "093b9b3d3bd5989b972bd764b18c575ea1cd63f4d191de4a882589ce702d6e3b"
+    },
+    {
+      "path": "validation/terrain/material_models/FlukaMaterialOracle.cpp",
+      "sha256": "777f9d08c9d258a7645ed7166d7fdf49950529a881549cf120f5ad688ef500e1",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/MaterialOracle.cpp",
+      "sha256": "8a00263c8e2e1ac9b9eeb5f16e671fb095af972c48eeb190f52d6cb3a6e65ada",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/admission_psr.py",
+      "sha256": "781439736f8b43eb3830dc2e1a4becfd838e064ae219648cb53e605119c68015",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/analyze_psr.py",
+      "sha256": "aec5a81f5fab3d1f9c3d79642ad98e4cf8ea280ca423ed6f0a9b746d2d872c50",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/build_and_test_psr.sh",
+      "sha256": "61ad27d909aa563ff7502db24df2e184b324c7cbde14b326a89e6822b6dff0a8",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/compare_fluka_psr.py",
+      "sha256": "39b4d08c2f9e5e3dba77f4b424d9820e8b98b81fb24b9d71b3a9ae414d026afb",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/early_controls_psr.py",
+      "sha256": "0e9e8235386783fc036bc488105960aa8b6f151eede36d96ed5f0b72d64d4469",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/run_psr.py",
+      "sha256": "d591b4ebb6ac8a6447c683d6d608c0d1805eb9f451c54d61dbf66a8b77390d40",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/material_models/run_psr.sh",
+      "sha256": "d0955b32433d974c62f978c4a7b692f1334527bf4ddceeb2ca08c832f100c0f8",
+      "before_sha256": null
+    },
+    {
+      "path": "validation/terrain/test_workflow.py",
+      "sha256": "a368fd38e60a8382a89a0ce42481e53c982707c1e14f372ff734fb828894e7b0",
+      "before_sha256": "9c4f9c938af716a5249b04be5d9a0b3cc7a8756f30b10e035d3058d939089477"
+    }
+  ],
+  "provided_inputs": {
+    "documentation/material.md": "cb5ddf72e7f0d6a69f5dab72fbd767b1476e813a1fa0d5d99056934fd7aa5145",
+    "documentation/materials.yaml": "e64c16c95b4f80483d60af93e857b02cd589ec27679efb800247c9ac9815b204"
+  },
+  "report_artifacts": {
+    "granite_resolved.yaml": "efdefad1d1d5992afe444307ad94a6bbfccde8af69a0ec52541f62a450b7f808",
+    "silica_resolved.yaml": "47d9ad852a8096c9faec05e87d0716c4cf50e7714626d3d7185a39d0fa0e6cf2",
+    "validation.json": "034c3d3e58dab5c13d0b82ef22aa554c677c3cd593b7a6ab978f66dfb218672c",
+    "limestone_resolved.yaml": "9e160820b5e043408f54603efa80242ffa4a064004493f7ad324c1474a537290",
+    "SLIDES_CN.md": "c3facee3f16173ae420b91b2b372913d90481bbeb4b34ee3b849aa82a41d70cc",
+    "figures/material_attenuation.png": "2683d786326e48649d012e4a69f42163d5f0343468efa9c6debe0c4d52cf7b84",
+    "figures/material_waveforms.png": "20c24e48a374e917c347ec3d4a20fb28f2a4061079f1a3b1cda58ad5a3258885",
+    "figures/material_lpm.png": "d13a49d5acd5e668c11e587b21b2662910e52702246c99d03a53cdacc898a8b2",
+    "evidence/openmp-placement.json": "5d9a0ec9620619b7de917c2b6649ca6a91648c8aa9dd12ae41e7ce497a7bb7be",
+    "evidence/tests-preparation.log": "8245b611ef415b47027f0efcfd96f5193ae6a3e8fdc89d2cbc0e89eb85452c53",
+    "evidence/tests-openmp-full.log": "c1e69a592c7304a4236ca1a439b6f35781f796471214656681bb842178c03867",
+    "evidence/tests-openmp-final-material.log": "43ee412633a33ab0171b01f4cb3f741eda56ff38306f48d6aa77592530536cf8",
+    "evidence/admission.json": "f24752048a1a690f05fc92e0e02febba71931474143d72aa2eff759ab6a9df9e",
+    "evidence/tests-cuda-full.log": "4a07d3721f2fe3869db1d937d07c444257e9ab134871f5cf6d34338e2987ff1b",
+    "evidence/tests-cuda-final-material.log": "28bf4dfe5142da6edaf279a08e83d8dfb55e9363f8afbc9ebfc14454af59f45a",
+    "evidence/environment.json": "52be2bfd228d103b3ad3a802cb5f4a4bee12dc9bbdb9f90e0a26e4e23441cca8",
+    "evidence/fluka-stock.txt": "02d519993fb1100260631d5cb8a6c3294c04d66b5afd2c2bb69cf97f8c75c69c",
+    "evidence/limestone_lpm.csv": "6ab0acb9c0258fd174e5b1dd21ef476191d2fe51c8b6f26071455cb4848b7ca5",
+    "evidence/fluka-validation.json": "1bec6da4ad612677d8ced7b98a10b233016f27885e62a0a1ea1e99f43228391b",
+    "evidence/cuda-placement.json": "37ec2347ee0d1769a57861b504fd4958ddcb43e96103324f2237f2af1392ab4c",
+    "evidence/silica_lpm.csv": "6c9f3561a05b567e6b71e441d3099bd18f53931635a76c71b954578f0f990ebd",
+    "evidence/granite_lpm.csv": "9141a605a52b056ab38f1f40ea3b8e702bf04ac7e98098ce7ecd1854484ba8fa",
+    "evidence/fluka-expanded.txt": "02d519993fb1100260631d5cb8a6c3294c04d66b5afd2c2bb69cf97f8c75c69c"
+  },
+  "remote_root": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913"
+}

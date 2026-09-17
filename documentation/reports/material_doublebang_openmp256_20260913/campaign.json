@@ -1,0 +1,992 @@
+{
+  "created_utc": "2026-09-13T14:43:26.045411+00:00",
+  "host": "psrpku2025",
+  "cases": [
+    {
+      "tag": "openmp_silica_SiO2_seed158",
+      "material": "silica_SiO2",
+      "label": "Silica (SiO2)",
+      "seed": 158,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed158/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "158",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/modules/data",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed158/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed946",
+      "material": "silica_SiO2",
+      "label": "Silica (SiO2)",
+      "seed": 946,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed946/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "946",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/modules/data",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed946/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_silica_SiO2_seed3605",
+      "material": "silica_SiO2",
+      "label": "Silica (SiO2)",
+      "seed": 3605,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed3605/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "3605",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/source/modules/data",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_silica_SiO2_seed3605/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed158",
+      "material": "limestone_CaCO3",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 158,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed158/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "158",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/limestone",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed158/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed946",
+      "material": "limestone_CaCO3",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 946,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed946/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "946",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/limestone",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed946/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_limestone_CaCO3_seed3605",
+      "material": "limestone_CaCO3",
+      "label": "Calcite / limestone (CaCO3)",
+      "seed": 3605,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed3605/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "3605",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/limestone",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_limestone_CaCO3_seed3605/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158",
+      "material": "granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 158,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "158",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/granite",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed158/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+      "material": "granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 946,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "946",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/granite",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed946/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    },
+    {
+      "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605",
+      "material": "granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe",
+      "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+      "seed": 3605,
+      "command": [
+        "taskset",
+        "-c",
+        "0-255",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+        "--scene",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+        "--output",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605/output",
+        "--primary",
+        "nu_tau",
+        "--energy-GeV",
+        "1e8",
+        "--seed",
+        "3605",
+        "--position-m",
+        "2516.535431729868",
+        "4294.03815963489",
+        "500.52949201660203",
+        "--direction",
+        "-6.123233995736766e-17",
+        "-1",
+        "0",
+        "--neutrino-channels",
+        "cc+nc",
+        "--tau-decay-model",
+        "tauola",
+        "--emcut-GeV",
+        ".1",
+        "--hadcut-GeV",
+        "10",
+        "--mucut-GeV",
+        ".3",
+        "--emthin",
+        ".01",
+        "--max-weight",
+        "50000",
+        "--transport-window-ns",
+        "100000",
+        "--magnetic-field",
+        "igrf14",
+        "--magnetic-year",
+        "2027",
+        "--em-backend",
+        "kokkos",
+        "--threads",
+        "256",
+        "--batch",
+        "4096",
+        "--device-memory-MiB",
+        "1536",
+        "--track-row-limit",
+        "100000000",
+        "--transport-step-limit",
+        "100000000",
+        "--aux-cache",
+        "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+        "--energy-ledger",
+        "--em-scheduler",
+        "resident",
+        "--resident-capacity",
+        "262144"
+      ],
+      "cache": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/table-cache/granite",
+      "reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/status.json",
+      "command_changes": [
+        {
+          "index": 3,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/build-openmp/applications/c8_terrain_cascade",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade"
+        },
+        {
+          "index": 5,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/scene_radio.yaml",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml"
+        },
+        {
+          "index": 7,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605/output"
+        },
+        {
+          "index": 55,
+          "previous": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/auxiliary",
+          "current": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+      "sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+      "sha256": "13b112872e46d4c66ef0ab06ba0d37e9ea86d507a509823c73e4e8927d7ea7e7"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_expected.yaml",
+      "sha256": "efdefad1d1d5992afe444307ad94a6bbfccde8af69a0ec52541f62a450b7f808"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/limestone_CaCO3.yaml",
+      "sha256": "fc6be4f193a49d8c0dec632a209b2cc25c7ae2834b983cc51f4f382cd1652e15"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/limestone_CaCO3_expected.yaml",
+      "sha256": "9e160820b5e043408f54603efa80242ffa4a064004493f7ad324c1474a537290"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/material.md",
+      "sha256": "cb5ddf72e7f0d6a69f5dab72fbd767b1476e813a1fa0d5d99056934fd7aa5145"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/material_source_manifest.json",
+      "sha256": "aaddd34c9c630128c099faceaa80799c54daacb3134ab653f0afdcab0bfcb4a1"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/materials.yaml",
+      "sha256": "e64c16c95b4f80483d60af93e857b02cd589ec27679efb800247c9ac9815b204"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/owned_run.py",
+      "sha256": "b6e80540992a50be5cc4cd6ed907b1b354f81e04f61a65b3bed020c666f8667f"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/previous_scene.yaml",
+      "sha256": "b959a6a9ac3ab4f5835ee8c5b2cf3fb95006c8aff61c6e7d3209dd3688a032e8"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/silica_SiO2.yaml",
+      "sha256": "b320e499884a91e96e86a3b4fad5bdb512a1681f48e685684fad4d0179de6ad6"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/silica_SiO2_expected.yaml",
+      "sha256": "47d9ad852a8096c9faec05e87d0716c4cf50e7714626d3d7185a39d0fa0e6cf2"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+      "sha256": "17b7c21b19edd614311a8a44ed80646cadeed01339b1dbd2981d2223189c2485"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/limestone_CaCO3.yaml",
+      "sha256": "d7a30d9e89a4ef3b06b9d8ca9f879758571f9903663eca28f3ba8435cf3ef173"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/silica_SiO2.yaml",
+      "sha256": "27ce21f08d61dfbd9904781ad19f5af1af493c203f3a964f3ecdf2c5dc3ff977"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/terrain_enu.ply",
+      "sha256": "5060f55efc6a3dae8ab94c6ef2a27356521b56797ed059a1c150c3a47c2d7c1a"
+    }
+  ],
+  "runtime_libraries": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/fluka/libfluka.so",
+      "sha256": "3dfc3362c527465fba0316f99c25ec85dda1b0cf2bc181f769ca4ea95b2d115c"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/sibyll/libSIBYLL23d.so",
+      "sha256": "1e9af05d6c1d55cec4ff8c369c8e1cd7f780893c19d4a16e72a7869cab2938f7"
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgfortran.so.5",
+      "sha256": "76fb77f82ed24462361890482c1a3fb3e2b6693eaa60edb42938eee2ea51ba92"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/qgsjetII/libQGSJetII.so",
+      "sha256": "a25beaeddd8cb1166767722813211cc0f5a4d0c415898e04e30c7b1f235a1ea6"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/qgsjetIII/libQGSJetIII.so",
+      "sha256": "f527ea855c947e9cbface73db965433c71b55ef67baef4d84e5e9f6a18a5f41d"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/conex/cxroot/libCONEXsibyll.so",
+      "sha256": "bedfabadd77a61d327dd7af21980dcb2f2f45a97197603d01ae6f1f221e6122c"
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/epos-lhc/libEPOS_LHC.so",
+      "sha256": "dce66585ccb2b014689c32edaaeb257acc88e92cadba179d2baf97b2f7e86c1b"
+    },
+    {
+      "path": "/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/toolchain-cuda126/targets/x86_64-linux/lib/libcudart.so.12",
+      "sha256": "8a8579b35d2c4a15d0eabd9a8501cc03134b5ba2be300f7e00aa69795d9b1981"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcuda.so.1",
+      "sha256": "266916dac6c5e7e4655526570cf303a6cc017880d2552960abc66017a7c98cf4"
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libquadmath.so.0",
+      "sha256": "101d2609b7712c08bf44627ab6daa0a87a63f24bf69a553602e820a146549c58"
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libstdc++.so.6",
+      "sha256": "c2dcf94f4495b783f828927fdb9a69f25ca83bf81ed6e707c5c1c401d5e3e1db"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libm.so.6",
+      "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0"
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgomp.so.1",
+      "sha256": "5b4f3667439008b505ebbfa7f0289d27be135632919c827c520987c55054ae6f"
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgcc_s.so.1",
+      "sha256": "11fdd1b51b3d44930f8f31ae4924518e1e7b021d66a0af23f0693b1680d7c3c5"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libc.so.6",
+      "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libmvec.so.1",
+      "sha256": "57329ee0018b8fd8f8e51af5f87c723b6ecdf04679f4493134beab0f45d58ec5"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+      "sha256": "c2994527172cc23b7fb0f7d611b71e00a37da27af12c2e5e9e0dc1a742886c96"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+      "sha256": "90491a21ce44efcf3bd4b65ec82501c091d7ebe7f8d9b341dd01d721001d9ecd"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/librt.so.1",
+      "sha256": "6d072187d88e092e81561a44c03a4a41397319022c6d43519757cc051c576d82"
+    }
+  ],
+  "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+  "physical_cores": 256,
+  "execution": "sequential OpenMP resident queue; CoREAS + ZHS",
+  "material_reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913",
+  "source_reference": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912"
+}

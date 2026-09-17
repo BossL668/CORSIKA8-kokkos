@@ -1,0 +1,16 @@
+{
+  "state": "complete",
+  "completed": [
+    "openmp_silica_SiO2_seed158",
+    "openmp_silica_SiO2_seed946",
+    "openmp_silica_SiO2_seed3605",
+    "openmp_limestone_CaCO3_seed158",
+    "openmp_limestone_CaCO3_seed946",
+    "openmp_limestone_CaCO3_seed3605",
+    "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed158",
+    "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+    "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed3605"
+  ],
+  "total": 9,
+  "updated_utc": "2026-09-14T01:35:03.421232+00:00"
+}

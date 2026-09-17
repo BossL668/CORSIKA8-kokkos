@@ -24,6 +24,7 @@
 #include <corsika/accelerator/em/common/Types.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosPhysicsContext.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosResidentMemoryBudget.hpp>
+#include <corsika/accelerator/em/kokkos/ResidentExecutionWait.hpp>
 
 namespace corsika::accelerator::em::kokkos_detail {
 
@@ -696,7 +697,8 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
 
     std::vector<gpu::em::EmParticleState> download(
-        ExecutionSpace const& execution) const {
+        ExecutionSpace const& execution,
+        ResidentExecutionWait<ExecutionSpace>* const blocking_wait = nullptr) const {
       if (size_ == 0) return {};
       // upload() records the execution-space instance that owns all pending
       // queue work.  Always enqueue the pack/copy behind that work instead of
@@ -720,7 +722,14 @@ namespace corsika::accelerator::em::kokkos_detail {
               host_staging_, std::make_pair<std::size_t>(0, size_)),
           Kokkos::subview(
               aos_staging_, std::make_pair<std::size_t>(0, size_)));
-      ordered_execution.fence("download Kokkos EM wavefront");
+      // Only CPU-primary's explicit blocking mode changes this boundary.
+      // In particular, never introduce a progress callback/reentrant host-work
+      // point here for GPU-primary or other existing callers. The queue's
+      // owning stream, not the compatibility argument, orders pack and copy.
+      auto* const waiter = blocking_wait && blocking_wait->blockingEnabled()
+                               ? blocking_wait : nullptr;
+      waitResidentExecution(
+          ordered_execution, "download Kokkos EM wavefront", waiter);
       execution_synchronized_ = true;
 
       std::vector<gpu::em::EmParticleState> output(size_);

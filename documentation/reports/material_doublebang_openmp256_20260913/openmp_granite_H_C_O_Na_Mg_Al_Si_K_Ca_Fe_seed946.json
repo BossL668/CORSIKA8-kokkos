@@ -1,0 +1,387 @@
+{
+  "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+  "label": "Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)",
+  "material": "granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe",
+  "seed": 946,
+  "peaks": [
+    {
+      "observer": "E01",
+      "peak_V_m": 2.7991290007637945e-12,
+      "peak_time_us": 25.6953125,
+      "component": "Ey"
+    },
+    {
+      "observer": "E20",
+      "peak_V_m": 9.024028312270285e-12,
+      "peak_time_us": 22.472656249999996,
+      "component": "Ey"
+    },
+    {
+      "observer": "N10",
+      "peak_V_m": 7.201919760800429e-13,
+      "peak_time_us": 30.988281250000004,
+      "component": "Ey"
+    }
+  ],
+  "decays": [
+    {
+      "channel": "electronic",
+      "medium": "rock",
+      "energy_PeV": 34.23513288812545,
+      "time_us": 1.5033191752991844,
+      "axis_distance_km": 0.45068375072144684
+    }
+  ],
+  "coreas_zhs_relative_l2": 1.8124744658859092e-09,
+  "checks": {
+    "complete": true,
+    "pending_empty": true,
+    "medium_valid": true,
+    "all_tracks": true,
+    "all_deposits": true,
+    "energy_ledger": true,
+    "natural_tau": true,
+    "neutrino_vertex_conservation": true,
+    "tau_decay_conservation": true,
+    "radio_complete": true,
+    "both_algorithms": true,
+    "radio_errors": true,
+    "single_finalization": true,
+    "three_grids": true,
+    "paired_source_precision": true,
+    "source_inventory": true,
+    "csv_count": true,
+    "finite_transport": true,
+    "causal_transport": true,
+    "paired_equivalence": true,
+    "finite_radio": true
+  },
+  "material_model": {
+    "id": "G0_GRANITE_REFERENCE",
+    "description": "Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe); PNNL composition, Bragg-Sternheimer ionisation approximation",
+    "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+    "transport": {
+      "density_kg_m3": 2729,
+      "composition_basis": "nucleus_number_fraction",
+      "nuclei": [
+        {
+          "element": "H",
+          "Z": 1,
+          "A": 1,
+          "number_fraction": 0.027122
+        },
+        {
+          "element": "C",
+          "Z": 6,
+          "A": 12,
+          "number_fraction": 0.000502
+        },
+        {
+          "element": "O",
+          "Z": 8,
+          "A": 16,
+          "number_fraction": 0.607735
+        },
+        {
+          "element": "Na",
+          "Z": 11,
+          "A": 23,
+          "number_fraction": 0.025866
+        },
+        {
+          "element": "Mg",
+          "Z": 12,
+          "A": 24,
+          "number_fraction": 0.018081
+        },
+        {
+          "element": "Al",
+          "Z": 13,
+          "A": 27,
+          "number_fraction": 0.062783
+        },
+        {
+          "element": "Si",
+          "Z": 14,
+          "A": 28,
+          "number_fraction": 0.205927
+        },
+        {
+          "element": "K",
+          "Z": 19,
+          "A": 39,
+          "number_fraction": 0.013938
+        },
+        {
+          "element": "Ca",
+          "Z": 20,
+          "A": 40,
+          "number_fraction": 0.01896
+        },
+        {
+          "element": "Fe",
+          "Z": 26,
+          "A": 56,
+          "number_fraction": 0.019086
+        }
+      ],
+      "ionisation": {
+        "model": "explicit",
+        "reference_density_kg_m3": 2729,
+        "I_eV": 132.0614501519769,
+        "Cbar": 3.741275350138768,
+        "x0": 0.2,
+        "x1": 3,
+        "a": 0.1284730918796078,
+        "m": 3,
+        "delta0": 0
+      }
+    },
+    "radio": {
+      "model": "constant_real_index_and_grey_field_attenuation",
+      "refractive_index": 2.23606797749979,
+      "field_attenuation_length_m": 86.85889638065036,
+      "relative_permeability": 1
+    },
+    "magnetic_field_enu_T": [
+      0,
+      0,
+      0
+    ]
+  },
+  "diagnostics": {
+    "steps": 10912682,
+    "rock_steps": 10911507,
+    "air_steps": 1175,
+    "material_mismatches": 0,
+    "surface_ambiguities": 0,
+    "rock_to_air": 777,
+    "air_to_rock": 466,
+    "world_escapes": 0,
+    "deposited_energy_GeV": 81439385.54118529,
+    "accelerated_steps": 9826945,
+    "device_binding_energy_GeV": 9.465223262015624e-05,
+    "csv_row_limit": 100000000,
+    "csv_truncated": false,
+    "finite_window_survivors": 312,
+    "finite_window_escaped_total_GeV": 20020232.57817239,
+    "finite_window_escaped_neutrino_GeV": 20020232.57817239,
+    "finite_window_semantics": "remaining total energy is escape, not deposition; distinct from world escapes",
+    "deposition_rows": 18548271,
+    "deposition_csv_truncated": false,
+    "neutrino_model_domain": {
+      "required": false,
+      "uncovered_transported_histories": 310,
+      "weighted_energy_at_first_uncovered_step_GeV": 2015.6090660089988,
+      "all_observed_neutrinos_in_CTW_domain": false,
+      "not_a_deposition_or_interaction_probability": true,
+      "by_pdg": {
+        "-14": {
+          "histories": 126,
+          "weighted_energy_GeV": 762.1788635055084
+        },
+        "-12": {
+          "histories": 21,
+          "weighted_energy_GeV": 97.83498139617117
+        },
+        "12": {
+          "histories": 12,
+          "weighted_energy_GeV": 70.34643247790544
+        },
+        "14": {
+          "histories": 151,
+          "weighted_energy_GeV": 1085.2487886294143
+        }
+      }
+    }
+  },
+  "accelerator": {
+    "execution_space": "OpenMP",
+    "execution_concurrency": 256,
+    "device_bytes": 1080147848,
+    "projected_peak_device_bytes": 1109507976,
+    "batches": 2866,
+    "particles_advanced": 9826945,
+    "specified_cpu_fallbacks": 7745,
+    "cuts": 713371,
+    "world_escapes": 0,
+    "finite_window_survivors": 0,
+    "cpu_direction_roundoff_canonicalizations": 0,
+    "peak_host_staging_particles": 4096,
+    "pending_particles": 0,
+    "resident_capacity": 262144,
+    "peak_resident_particles": 4096,
+    "cpu_uploaded_particles": 647692,
+    "cpu_upload_batches": 2398,
+    "device_enqueued_particles": 9179253,
+    "resident_cascade_calls": 2410,
+    "maximum_call_wavefronts": 149,
+    "control_downloads": 2866,
+    "record_downloads": 2410,
+    "downloaded_records": 9826945,
+    "peak_buffered_records": 4096,
+    "scope": "two-sided EM transport with resident interface CoREAS and ZHS radio; one shared source queue"
+  },
+  "energy_ledger": {
+    "enabled": true,
+    "initial_GeV": 100000000,
+    "deposited_GeV": 81439385.54118529,
+    "window_survivor_GeV": 20020232.57817239,
+    "world_escape_GeV": 0,
+    "cpu_continuous_removed_GeV": 177204.88769206204,
+    "device_continuous_removed_GeV": 12854944.48911928,
+    "cpu_cut_total_GeV": 25746167.054213993,
+    "cpu_cut_rest_GeV": 12536204.900760846,
+    "device_cut_total_GeV": 55449306.91587905,
+    "device_cut_rest_GeV": 252032.90493893463,
+    "device_deposit_GeV": 68052218.50005938,
+    "cpu_unthinned_generator_balance_GeV": 11299680.772758536,
+    "device_unthinned_generator_balance_GeV": 9065.757986823655,
+    "cpu_thinning_jump_GeV": 277.40158257373776,
+    "device_thinning_jump_GeV": 2938831.9929069784,
+    "removed_but_not_in_deposit_GeV": 12788237.805719092,
+    "removed_minus_deposit_minus_cut_rest_GeV": 1.9310810415618107e-05,
+    "recorded_offset_GeV": 1459618.1193576753,
+    "predicted_offset_GeV": 1459618.1195158202,
+    "unexplained_GeV": -0.00015814497055544052,
+    "unexplained_over_initial": -1.5814497055544052e-12,
+    "cpu_generator_balance_by_parent_pdg": {
+      "-3322": 967.081047201348,
+      "-3312": 622.6339665282289,
+      "-3222": 3193.336699424193,
+      "-3212": 9.098194059912676e-05,
+      "-3122": 62252.23651640692,
+      "-3112": 4531.33436090445,
+      "-2212": 244670.31717204908,
+      "-2112": 252022.6506298497,
+      "-321": 504781.396156928,
+      "-311": 2.1916427006551942e-11,
+      "-211": 3717805.1105614584,
+      "-13": 12.425574889249527,
+      "-11": 1607.1374550252172,
+      "11": 662.9961318281022,
+      "13": 12.321146497628478,
+      "15": 2.166544956726284,
+      "16": 0.9382714873354416,
+      "22": 557300.3228910288,
+      "111": 76.80949636476039,
+      "113": 6.223363223599454e-05,
+      "130": 524105.1682429888,
+      "211": 3705652.167785154,
+      "221": -0.001738518553473443,
+      "310": 358847.2258862113,
+      "311": 8.737329507471636e-09,
+      "321": 539960.0629229643,
+      "2112": 372123.0252258952,
+      "2212": 360234.4788973983,
+      "3112": 5717.651750498281,
+      "3122": 76076.98864729652,
+      "3212": 0.00011748977015318442,
+      "3222": 3876.3951483321357,
+      "3312": 1013.4616126917279,
+      "3322": 1537.9337490676896,
+      "3334": 14.999735015472517
+    },
+    "device_generator_balance_by_process": {
+      "1000000002": -0.05430637077085924,
+      "1000000003": 835.6101975062878,
+      "1000000004": -0.00030745345666820863,
+      "1000000010": 6712.997640400531,
+      "1000000012": 1517.2216963861856,
+      "1000000013": -0.022097754259839623,
+      "1000000016": 0.005164109139079755
+    },
+    "device_thinning_jump_by_process": {
+      "1000000002": 1564801.8298971648,
+      "1000000003": 16948.130041983604,
+      "1000000004": 0,
+      "1000000010": 13473.639525381604,
+      "1000000012": 13218.866682933729,
+      "1000000013": 1330389.5267595146,
+      "1000000016": 0
+    },
+    "cpu_vertices": 1065354,
+    "device_vertices": 8783274,
+    "sign_convention": "after-before for generator/thinning; positive removed energy; total energies in GeV",
+    "generator_balance_is_not_a_pure_numerical_error": true,
+    "scope": "algebraic transport ledger; generator balance includes target exchange and untracked generator states"
+  },
+  "neutrino_interaction_count": 1,
+  "deposited_GeV": 81439385.54120135,
+  "status": {
+    "tag": "openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946",
+    "backend": "openmp",
+    "command": [
+      "taskset",
+      "-c",
+      "0-255",
+      "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/bundle/c8_terrain_cascade",
+      "--scene",
+      "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/scenes/granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe.yaml",
+      "--output",
+      "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_doublebang_openmp256_20260913/runs/openmp_granite_H_C_O_Na_Mg_Al_Si_K_Ca_Fe_seed946/output",
+      "--primary",
+      "nu_tau",
+      "--energy-GeV",
+      "1e8",
+      "--seed",
+      "946",
+      "--position-m",
+      "2516.535431729868",
+      "4294.03815963489",
+      "500.52949201660203",
+      "--direction",
+      "-6.123233995736766e-17",
+      "-1",
+      "0",
+      "--neutrino-channels",
+      "cc+nc",
+      "--tau-decay-model",
+      "tauola",
+      "--emcut-GeV",
+      ".1",
+      "--hadcut-GeV",
+      "10",
+      "--mucut-GeV",
+      ".3",
+      "--emthin",
+      ".01",
+      "--max-weight",
+      "50000",
+      "--transport-window-ns",
+      "100000",
+      "--magnetic-field",
+      "igrf14",
+      "--magnetic-year",
+      "2027",
+      "--em-backend",
+      "kokkos",
+      "--threads",
+      "256",
+      "--batch",
+      "4096",
+      "--device-memory-MiB",
+      "1536",
+      "--track-row-limit",
+      "100000000",
+      "--transport-step-limit",
+      "100000000",
+      "--aux-cache",
+      "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/auxiliary",
+      "--energy-ledger",
+      "--em-scheduler",
+      "resident",
+      "--resident-capacity",
+      "262144"
+    ],
+    "returncode": 0,
+    "stop_reason": null,
+    "wall_s": 2786.563819867006,
+    "peak_rss_kib": 2945576,
+    "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+    "scene_sha256": "17b7c21b19edd614311a8a44ed80646cadeed01339b1dbd2981d2223189c2485",
+    "binary_unchanged": true,
+    "complete": true,
+    "error": null
+  }
+}

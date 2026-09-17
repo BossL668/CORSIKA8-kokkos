@@ -9,7 +9,64 @@ find_package(Threads REQUIRED)
 target_link_libraries(testIndependentEndpointDriver PRIVATE Threads::Threads)
 target_link_libraries(testIndependentSubshowerPump PRIVATE Threads::Threads)
 
+# Selection is a host-only API: test every compiled configuration without
+# pretending that this proves HIP/SYCL device compilation or runtime support.
+foreach (selection_backend IN ITEMS CUDA_OPENMP CUDA OPENMP HIP SYCL)
+  set(selection_target testKokkosExecutionSelection_${selection_backend})
+  add_executable(${selection_target} testKokkosExecutionSelection.cpp
+    ${CMAKE_SOURCE_DIR}/src/accelerator/em/kokkos/KokkosBackendSelection.cpp)
+  target_include_directories(${selection_target} PRIVATE ${CMAKE_SOURCE_DIR})
+  target_compile_features(${selection_target} PRIVATE cxx_std_17)
+  target_compile_definitions(${selection_target} PRIVATE
+    CORSIKA8_KOKKOS_BACKEND_${selection_backend}=1)
+  add_test(NAME ${selection_target} COMMAND ${selection_target})
+endforeach ()
+
 if (CORSIKA_ENABLE_KOKKOS)
+  add_executable(testProposalFallbackVertexGate testProposalFallbackVertexGate.cpp)
+  target_link_libraries(testProposalFallbackVertexGate PRIVATE CORSIKA8 PROPOSAL::PROPOSAL)
+  add_dependencies(testProposalFallbackVertexGate GenParticlesHeaders)
+  add_test(NAME testProposalFallbackVertexGate COMMAND testProposalFallbackVertexGate)
+
+  add_executable(testPhotonFallbackVertex testPhotonFallbackVertex.cpp)
+  target_link_libraries(testPhotonFallbackVertex PRIVATE CORSIKA8 Kokkos::kokkos)
+  add_dependencies(testPhotonFallbackVertex GenParticlesHeaders)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(testPhotonFallbackVertex.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testPhotonFallbackVertex PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      target_compile_options(testPhotonFallbackVertex PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+    endif()
+    target_link_libraries(testPhotonFallbackVertex PRIVATE CUDA::cudart CUDA::cuda_driver)
+    target_link_options(testPhotonFallbackVertex PRIVATE "LINKER:--no-as-needed")
+    set_target_properties(testPhotonFallbackVertex PROPERTIES
+      CUDA_STANDARD 17 CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+  elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties(testPhotonFallbackVertex.cpp PROPERTIES LANGUAGE HIP)
+  endif()
+  add_test(NAME testPhotonFallbackVertex COMMAND testPhotonFallbackVertex)
+  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+    add_test(NAME testPhotonFallbackVertexOpenMP COMMAND testPhotonFallbackVertex openmp)
+  endif()
+  if (CORSIKA_KOKKOS_BACKEND MATCHES "^(OPENMP|CUDA_OPENMP)$")
+    # Host-only Kokkos instance: no CUDA initialization in this exact-ledger test.
+    add_executable(testKokkosHostProfileShards EXCLUDE_FROM_ALL
+      testKokkosHostProfileShards.cpp)
+    target_link_libraries(testKokkosHostProfileShards PRIVATE CORSIKA8KokkosEm)
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      # The combined Kokkos package requires NVCC to include its public headers;
+      # this test still initializes/executes only the OpenMP instance.
+      set_source_files_properties(testKokkosHostProfileShards.cpp PROPERTIES LANGUAGE CUDA)
+      target_compile_options(testKokkosHostProfileShards PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+      set_target_properties(testKokkosHostProfileShards PROPERTIES
+        CUDA_STANDARD 17 CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+    endif()
+    add_dependencies(testKokkosHostProfileShards GenParticlesHeaders)
+    add_test(NAME testKokkosHostProfileShards COMMAND testKokkosHostProfileShards 4)
+    set_tests_properties(testKokkosHostProfileShards PROPERTIES
+      ENVIRONMENT "OMP_NUM_THREADS=4;OMP_PROC_BIND=spread;OMP_PLACES=threads")
+  endif()
   # Opt-in small runtime/control probe. Not an EM/radio acceptance and not
   # installed with production applications. Use the standalone probe CMake
   # project to exercise this without rebuilding production artifacts.
@@ -83,10 +140,14 @@ if (CORSIKA_ENABLE_KOKKOS)
     set_source_files_properties(LiveFinalStateDriver.cpp PROPERTIES LANGUAGE HIP)
   endif()
   # Isolated terrain device test, including the opt-in material step limiter.
-  foreach(terrain_test IN ITEMS testKokkosTerrainSession testTerrainCurvedBoundary)
+  foreach(terrain_test IN ITEMS testKokkosTerrainSession testTerrainCurvedBoundary testKokkosInterfaceQueue testKokkosInterfaceRadio testKokkosInterfaceRadioWaveforms testKokkosInterfaceRadioBvh)
   add_executable(${terrain_test} ${terrain_test}.cpp)
   target_include_directories(${terrain_test} PRIVATE ${CMAKE_SOURCE_DIR})
   target_link_libraries(${terrain_test} PRIVATE Kokkos::kokkos CORSIKA8)
+  if(terrain_test MATCHES "^testKokkosInterfaceRadio")
+    target_link_libraries(${terrain_test} PRIVATE CORSIKA8::InterfaceRadio)
+    target_compile_definitions(${terrain_test} PRIVATE C8_INTERFACE_EXECUTION_${C8_INTERFACE_EXECUTION_SPACE}=1)
+  endif()
   add_dependencies(${terrain_test} GenParticlesHeaders)
   target_compile_features(${terrain_test} PRIVATE cxx_std_17)
   if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
@@ -106,10 +167,24 @@ if (CORSIKA_ENABLE_KOKKOS)
   elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
     set_source_files_properties(${terrain_test}.cpp PROPERTIES LANGUAGE HIP)
   endif()
+  if(NOT terrain_test MATCHES "^testKokkosInterfaceRadio(Waveforms|Bvh)$")
   add_test(NAME ${terrain_test} COMMAND ${terrain_test})
   set_tests_properties(${terrain_test} PROPERTIES
     ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false")
+  endif()
   endforeach()
+
+  target_sources(testKokkosInterfaceRadioBvh PRIVATE InterfaceRadioBvhMeshLoader.cpp)
+
+  set_tests_properties(testKokkosInterfaceRadio PROPERTIES
+    ENVIRONMENT "C8_INTERFACE_TEST_THREADS=${C8_INTERFACE_TEST_THREADS};OMP_NUM_THREADS=${C8_INTERFACE_TEST_THREADS};OMP_PROC_BIND=spread;OMP_PLACES=threads")
+
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    target_compile_options(testKokkosInterfaceQueue PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+  endif()
+  set_tests_properties(testKokkosInterfaceQueue PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=${C8_INTERFACE_TEST_THREADS};OMP_PROC_BIND=spread;OMP_PLACES=threads")
+  target_link_libraries(testKokkosInterfaceQueue PRIVATE CORSIKA8InterfaceEm)
 
   # Opt-in finite convex environment and homogeneous-medium radio checks. These
   # use the same execution-space selection as the regular Kokkos test targets.

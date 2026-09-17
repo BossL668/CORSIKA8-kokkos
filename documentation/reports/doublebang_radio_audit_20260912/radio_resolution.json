@@ -1,0 +1,171 @@
+{
+  "presets": [
+    {
+      "preset": "Fine reference preset",
+      "strict_suite_passed": true,
+      "comparisons": 36,
+      "max_current_oracle_l2": 0.00046171860885214195,
+      "max_coreas_zhs_l2": 2.545665504953757e-12,
+      "max_backend_l2": 2.5269237854920424e-14,
+      "max_matched_split_l2": 4.2437630775233186e-14,
+      "failed_case_checks": []
+    },
+    {
+      "preset": "Production preset",
+      "strict_suite_passed": false,
+      "comparisons": 36,
+      "max_current_oracle_l2": 0.0020235388565237288,
+      "max_coreas_zhs_l2": 1.338988564212406e-07,
+      "max_backend_l2": 8.572903236104489e-14,
+      "max_matched_split_l2": 0.0015218341619847376,
+      "failed_case_checks": [
+        {
+          "case": "boundary",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "boundary_grazing",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "boundary_reverse",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_boundary",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_boundary_reverse",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_unsplit",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_unsplit_reverse",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "radial",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "shadow",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "uniform",
+          "backend": "CUDA",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "boundary",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "boundary_grazing",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "boundary_reverse",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_boundary",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_boundary_reverse",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_unsplit",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "matched_unsplit_reverse",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "radial",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "shadow",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        },
+        {
+          "case": "uniform",
+          "backend": "OPENMP",
+          "checks": [
+            "coreas_zhs_equivalence"
+          ]
+        }
+      ]
+    }
+  ],
+  "production_current_oracle_gate": 0.005,
+  "production_paired_gate": 1e-05,
+  "production_current_oracle_passed": true,
+  "production_paired_passed": true,
+  "strict_matched_split_gate": 1e-10,
+  "note": "Original strict summaries are retained. Production preset fails the strict 1e-9 paired and 1e-10 matched-split criteria. The measured split dependence is reported as a finite-segment approximation, not relabeled an exact identity. The independent current comparison excludes the Nyquist bin. Both models use the same radiation-only real-ray geometrical-optics scope."
+}

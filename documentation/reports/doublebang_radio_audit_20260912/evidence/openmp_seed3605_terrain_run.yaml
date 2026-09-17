@@ -1,0 +1,805 @@
+complete: true
+backend: kokkos-proposal-native
+radio: kokkos-interface-coreas-zhs
+magnetic_field_model: igrf14
+magnetic_year: 2027
+air_magnetic_field_enu_T:
+  - 1.1256674219440438e-06
+  - 2.4892494879019225e-05
+  - -5.1356450219810849e-05
+magnetic_height_reference: WGS84 ellipsoidal; atmosphere density uses ASL
+magnetic_coefficients_file: /data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/source/resources/GeoMag/IGRF14.COF
+rock_magnetic_field_enu_T:
+  - 0
+  - 0
+  - 0
+scene:
+  atmosphere:
+    model: us_standard_bk
+    origin_altitude_asl_m: 2801.9999999999714
+    sea_level_refractive_index: 1.000327
+  geometry:
+    air_refractive_index: 1.0
+    attenuation_length_m: 100.0
+    boundary_padding_m: 1.0e-06
+    kind: terrain_mesh
+    material: SiO2
+    mesh_path: /data/yhlu/CorsikaData/corsika_validation_results/beta5_nutau100PeV_openmp120_20260910_v1/bundle/terrain_enu.ply
+    rock_density_g_cm3: 2.65
+    rock_hadronic_target_approximation: sio2_stoichiometric_fluka_qgsjetii
+    rock_reference_enu_m:
+      - 2450.1139845374446
+      - 4394.778267364436
+      - 464.1122969849589
+    rock_refractive_index: 2.0
+  provenance:
+    mesh_sha256: 5060f55efc6a3dae8ab94c6ef2a27356521b56797ed059a1c150c3a47c2d7c1a
+    radio_disabled: false
+    source: /mnt/d/CorsikaData/corsika8_wsl_test_archive_20260830/corsika8-mountain/diagnostic_results/figures/terrain_nutau_v1
+    radio_note: Three original stations; 100 m FIELD attenuation length is an explicit model assumption, not a measured site value.
+  radio:
+    observers:
+      - name: E01
+        position_enu_m:
+          - 397.88140553660566
+          - -2028.7543838949
+          - -145.70048570153665
+      - name: E20
+        position_enu_m:
+          - 1677.6818310890271
+          - -2030.0016098328992
+          - -114.16758852890496
+      - name: N10
+        position_enu_m:
+          - -1160.5292565842756
+          - 537.1068996418721
+          - -100.32429011659633
+    enabled: true
+    start_ns: -1000.0
+    sample_rate_GHz: 0.256
+    samples: 131072
+    moment_order: 12
+    subdivision_frequency_GHz: 0.256
+    fraunhofer_limit: 0.025
+    maximum_subdivision_depth: 20
+    mesh_maximum_segment_m: 0.1
+    memory_MiB: 1024
+    air_index_model: native
+    index_table_step_m: 10.0
+    optical_integration_samples: 64
+    rock_attenuation_length_m: 100.0
+  schema_version: 1
+  site:
+    coordinate_frame: geographic_ENU
+    geoid_undulation_m: -51.75540861320496
+    latitude_deg: 42.942499999999995
+    longitude_deg: 86.7125
+    origin_ellipsoidal_height_m: 2750.2445913867664
+material_interface:
+  outside_region: 0
+  inside_region: 1
+  inside_medium: silicon_dioxide_fused_quartz
+  legacy_rock_label: enclosed region, not necessarily SiO2
+mesh_sha256: 5060f55efc6a3dae8ab94c6ef2a27356521b56797ed059a1c150c3a47c2d7c1a
+terrain_straight_intersection: indexed-shared-vertices-v2
+terrain_curved_intersection: quadratic-plane-v1 (indexed feature ownership pending)
+seed: 3605
+primary: nu_tau
+energy_GeV: 100000000
+position_m:
+  - 2516.5354317298679
+  - 4294.0381596348898
+  - 500.52949201660203
+direction:
+  - -6.123233995736766e-17
+  - -1
+  - 0
+conditional_forced_CC: false
+conditional_forced_NC: false
+neutrino_channels: cc+nc
+neutrino_limits: CTW CC/NC >=10 TeV; no nuclear shadowing, sub-10-TeV weak transport or validated CC spin/energy-loss depolarization
+physics_capabilities:
+  weak_transport_below_10TeV: false
+  event_CC_spin_density: false
+  tau_material_depolarization: false
+  tauola_prescribed_longitudinal_density_matrix: true
+transported_CC_taus: true
+cpu_only_species: hadrons, muons, taus, neutrinos; Kokkos transports gamma/e-/e+ only
+emcut_GeV: 0.10000000000000001
+hadcut_GeV: 10
+mucut_GeV: 0.29999999999999999
+emthin: 0.01
+max_weight: 50000
+max_step_m: unlimited
+transport_step_limit: 100000000
+transport_window_ns: 100000
+hadronic_models: FLUKA + QGSJet-II.04 (80 GeV/nucleon)
+em_scheduler: resident
+accelerator_constants:
+  version: 1
+  magnetic_rigidity_GeV_per_T_m: 0.29979251468343893
+  boundary_mass_convention: corsika_transport
+magnetic_trajectory:
+  policy: quadratic-step-accuracy-cap-v1
+  maximum_deflection_parameter_rad: 4.0000000000000003e-05
+  maximum_local_chord_excess_before_roundoff: 8.0000000000000003e-10
+  scope: shared terrain CPU and interface Kokkos cap; original air tracker unchanged
+material_tables:
+  - hash: 759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4
+    auxiliary_hash: 87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe
+    device_bytes: 46280944
+  - hash: 27d14a183d0f82918708c30828c736191ffe650449d9c0d35a7a558d69680b45
+    auxiliary_hash: eed4ed9afbbad802d938f039a8286bb210a5d4c5209c837051e918883bf1905c
+    device_bytes: 32074768
+accelerator:
+  execution_space: OpenMP
+  execution_concurrency: 256
+  device_bytes: 966498440
+  projected_peak_device_bytes: 995858568
+  batches: 6392
+  particles_advanced: 6999679
+  specified_cpu_fallbacks: 5645
+  cuts: 507552
+  world_escapes: 0
+  finite_window_survivors: 0
+  cpu_direction_roundoff_canonicalizations: 0
+  peak_host_staging_particles: 4096
+  pending_particles: 0
+  resident_capacity: 262144
+  peak_resident_particles: 4096
+  cpu_uploaded_particles: 457798
+  cpu_upload_batches: 1698
+  device_enqueued_particles: 6541881
+  resident_cascade_calls: 1716
+  maximum_call_wavefronts: 1024
+  control_downloads: 6392
+  record_downloads: 1716
+  downloaded_records: 6999679
+  peak_buffered_records: 4096
+  scope: two-sided EM transport with resident interface CoREAS and ZHS radio; one shared source queue
+radio_result:
+  CoREAS:
+    algorithm: CoREAS interface endpoints
+    device_tracks: 5447563
+    cpu_tracks: 508930
+    roundoff_limited_tracks: 118558
+    track_observer_pairs: 17869479
+    paths: 6250746
+    direct_paths: 1053936
+    transmitted_paths: 5196810
+    blocked_paths: 20669590
+    leaves: 28394032
+    downloads: 1
+    wavefronts: 6517
+    out_of_window: 0
+    errors: 0
+    moment_arrays: 2
+    moment_bytes: 490733568
+    endpoint_contributions: 12501482
+    regularized_pairs: 5
+    boundary_endpoints: 7049
+    directory: /data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output/radio/CoREAS
+    complete: true
+  ZHS:
+    algorithm: ZHS continuous interval moments
+    device_tracks: 5447563
+    cpu_tracks: 508930
+    roundoff_limited_tracks: 118558
+    track_observer_pairs: 17869479
+    paths: 6250746
+    direct_paths: 1053936
+    transmitted_paths: 5196810
+    blocked_paths: 20669590
+    leaves: 28394032
+    downloads: 1
+    wavefronts: 6517
+    out_of_window: 0
+    errors: 0
+    moment_arrays: 1
+    moment_bytes: 245366784
+    directory: /data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output/radio/ZHS
+    complete: true
+  algorithms:
+    - CoREAS
+    - ZHS
+  execution_space: OpenMP
+  device_tracks: 5447563
+  cpu_tracks: 508930
+  track_observer_pairs: 17869479
+  downloads: 1
+  moment_arrays: 3
+  wavefronts: 6517
+  radio_kernel_launches: 13034
+  device_bytes: 751054144
+  out_of_window: 0
+  errors: 0
+  directory: /data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/openmp_seed3605/output/radio
+  complete: true
+diagnostics:
+  steps: 7813400
+  rock_steps: 7648550
+  air_steps: 164850
+  material_mismatches: 0
+  surface_ambiguities: 0
+  rock_to_air: 2146
+  air_to_rock: 13967
+  world_escapes: 0
+  deposited_energy_GeV: 70653592.555758789
+  accelerated_steps: 6999679
+  device_binding_energy_GeV: 0.0038997999021892315
+  csv_row_limit: 100000000
+  csv_truncated: false
+  finite_window_survivors: 1069
+  finite_window_escaped_total_GeV: 24498808.804852359
+  finite_window_escaped_neutrino_GeV: 24498808.804852359
+  finite_window_semantics: remaining total energy is escape, not deposition; distinct from world escapes
+  deposition_rows: 13245402
+  deposition_csv_truncated: false
+  neutrino_model_domain:
+    required: false
+    uncovered_transported_histories: 1068
+    weighted_energy_at_first_uncovered_step_GeV: 12539.927151104248
+    all_observed_neutrinos_in_CTW_domain: false
+    not_a_deposition_or_interaction_probability: true
+    by_pdg:
+      -14:
+        histories: 501
+        weighted_energy_GeV: 5918.3330497773086
+      -12:
+        histories: 40
+        weighted_energy_GeV: 338.3350453311711
+      12:
+        histories: 36
+        weighted_energy_GeV: 524.01316185590849
+      14:
+        histories: 491
+        weighted_energy_GeV: 5759.2458941398672
+energy_ledger:
+  enabled: true
+  initial_GeV: 100000000
+  deposited_GeV: 70653592.555758789
+  window_survivor_GeV: 24498808.804852359
+  world_escape_GeV: 0
+  cpu_continuous_removed_GeV: 215488.87951382485
+  device_continuous_removed_GeV: 12115435.010616673
+  cpu_cut_total_GeV: 19138240.097837392
+  cpu_cut_rest_GeV: 9703929.6249715723
+  device_cut_total_GeV: 49109718.562385812
+  device_cut_rest_GeV: 221360.36960981842
+  device_deposit_GeV: 61003793.20339267
+  cpu_unthinned_generator_balance_GeV: 8771357.5448786542
+  device_unthinned_generator_balance_GeV: 7654.4430269149279
+  cpu_thinning_jump_GeV: 3091.4198799064502
+  device_thinning_jump_GeV: -3704412.0524024488
+  removed_but_not_in_deposit_GeV: 9925289.9945949093
+  removed_minus_deposit_minus_cut_rest_GeV: 1.3519329399969138e-05
+  recorded_offset_GeV: -4847598.6393888593
+  predicted_offset_GeV: -4847598.6392118838
+  unexplained_GeV: -0.00017697517159831477
+  unexplained_over_initial: -1.7697517159831477e-12
+  cpu_generator_balance_by_parent_pdg:
+    -3322: 756.15992674458482
+    -3312: 687.06338253558806
+    -3222: 2922.6320705701205
+    -3212: 6.3164592524902509e-05
+    -3122: 46772.418452067344
+    -3112: 3044.8975997343596
+    -2212: 185268.15364198844
+    -2112: 185601.38214511727
+    -321: 382423.25536012446
+    -311: 1.5432832095596538e-11
+    -211: 2797884.7371258806
+    -13: 27.267508383929385
+    -11: 513.87717086129726
+    11: 1660.5458856815922
+    13: 35.723774246103403
+    15: 6.8509639554322348
+    16: 0.93846984537231037
+    22: 714914.60839323897
+    111: 10.308480626268507
+    113: 4.3079659412137428e-05
+    130: 395946.28829552402
+    211: 2766325.5487363148
+    221: -0.0012708877370586451
+    310: 265497.36208117276
+    311: 2.1822304380192392e-11
+    321: 403311.3031405551
+    2112: 278726.20392354263
+    2212: 271406.27222076879
+    3112: 4094.59702008678
+    3122: 58144.126466360271
+    3212: 8.2278218931209832e-05
+    3222: 3439.1455938782715
+    3312: 824.2318854895542
+    3322: 1111.6462457243747
+  device_generator_balance_by_process:
+    1000000002: -0.047598821379720782
+    1000000003: 924.13326828407162
+    1000000004: -0.00021225907347357761
+    1000000010: 5644.4606860424783
+    1000000012: 1085.1727706424299
+    1000000013: -0.019270944274134661
+    1000000016: 0.74338397067725093
+  device_thinning_jump_by_process:
+    1000000002: -2328024.0162739004
+    1000000003: 30496.454844031105
+    1000000004: 0
+    1000000010: -9164.4370001530624
+    1000000012: -4658.9908558224797
+    1000000013: -1393061.0631166042
+    1000000016: 0
+  cpu_vertices: 746753
+  device_vertices: 6101721
+  sign_convention: after-before for generator/thinning; positive removed energy; total energies in GeV
+  generator_balance_is_not_a_pure_numerical_error: true
+  scope: algebraic transport ledger; generator balance includes target exchange and untracked generator states
+neutrino:
+  schema_version: 4
+  module: corsika.modules.neutrino.MountainNeutrinoInteraction
+  physics_scope: selected_CC_NC_channels_free_stationary_nucleon_impulse_approximation
+  neutral_current_included: true
+  charged_current_included: true
+  regenerated_neutrinos_reenter_transport: true
+  regeneration_energy_domain_GeV:
+    - 10000
+    - 1000000000000
+  full_neutrino_physics_validated: false
+  nuclear_shadowing_included: false
+  complete_tau_regeneration_included: false
+  earth_propagation_included: false
+  forced_vertex_is_conditional: false
+  event_rate_weight_provided: false
+  geometry_probability_weight_provided: false
+  forced_target_selection: composition_times_A_times_enabled_CTW_rates_isoscalar
+  pythia_final_state_Q2_min_GeV2: 25
+  low_Q2_final_states_validated: false
+  primary_energy_min_GeV: 10000
+  primary_energy_max_GeV: 1000000000000
+  secondary_below_fit_treatment: zero_CC_NC_rate_transport_to_escape_not_energy_deposition_MODEL_LIMITATION
+  sampling_mode: natural_exponential_grammage
+  force_interaction_called: false
+  final_state_generator: CORSIKA8_Pythia8_selected_CC_or_NC_project_local_audited
+  target_kinematics_convention: impulse_approximation_free_stationary_p_or_n_sampled_from_Z_over_A
+  residual_nucleus_treatment: not_present_in_inclusive_neutrino_nucleon_final_state
+  cross_section_model: CTW2011_CC_NC_central_isoscalar_per_nucleon
+  cross_section_reference: Connolly_Thorne_Waters_PRD83_113009_2011_Eq7_TableIII
+  interaction_count: 1
+  interactions:
+    - current: CC
+      history_id: 1
+      parent_history_id: 0
+      generation: 0
+      cc_cross_section_cm2: 4.8517943603703196e-33
+      nc_cross_section_cm2: 1.9212752683256378e-33
+      total_cross_section_cm2: 6.7730696286959571e-33
+      daughters:
+        - history_id: 2
+          pdg: 15
+          energy_GeV: 87426979.935206622
+        - history_id: 3
+          pdg: -211
+          energy_GeV: 9.9251924174975983
+        - history_id: 4
+          pdg: 111
+          energy_GeV: 250.05937261160321
+        - history_id: 5
+          pdg: 211
+          energy_GeV: 42.889665554736617
+        - history_id: 6
+          pdg: 111
+          energy_GeV: 5499.9957725098175
+        - history_id: 7
+          pdg: 321
+          energy_GeV: 113552.89830185319
+        - history_id: 8
+          pdg: -321
+          energy_GeV: 1063048.0405989802
+        - history_id: 9
+          pdg: 211
+          energy_GeV: 67773.297530313794
+        - history_id: 10
+          pdg: -211
+          energy_GeV: 267330.67131166341
+        - history_id: 11
+          pdg: 111
+          energy_GeV: 1098555.6673174831
+        - history_id: 12
+          pdg: 321
+          energy_GeV: 131860.7080970151
+        - history_id: 13
+          pdg: 211
+          energy_GeV: 35470.966008491174
+        - history_id: 14
+          pdg: -211
+          energy_GeV: 97540.219879581316
+        - history_id: 15
+          pdg: 211
+          energy_GeV: 23578.076229430713
+        - history_id: 16
+          pdg: -211
+          energy_GeV: 469.33010753291614
+        - history_id: 17
+          pdg: 211
+          energy_GeV: 345.98791514459344
+        - history_id: 18
+          pdg: 211
+          energy_GeV: 1050.9866466335016
+        - history_id: 19
+          pdg: 111
+          energy_GeV: 48.619053205834696
+        - history_id: 20
+          pdg: 111
+          energy_GeV: 0.49743608284188678
+        - history_id: 21
+          pdg: 3122
+          energy_GeV: 5.4379411237398685
+        - history_id: 22
+          pdg: 211
+          energy_GeV: 2.2688164262158659
+        - history_id: 23
+          pdg: 111
+          energy_GeV: 2.3606777495501623
+        - history_id: 24
+          pdg: 211
+          energy_GeV: 36.346829451899566
+        - history_id: 25
+          pdg: -211
+          energy_GeV: 16.611178034816135
+        - history_id: 26
+          pdg: 211
+          energy_GeV: 398.25574373019452
+        - history_id: 27
+          pdg: -211
+          energy_GeV: 1057.2002052864784
+        - history_id: 28
+          pdg: 2112
+          energy_GeV: 13220.934561909951
+        - history_id: 29
+          pdg: -211
+          energy_GeV: 5170.608343776159
+        - history_id: 30
+          pdg: -2112
+          energy_GeV: 9353.1724145133157
+        - history_id: 31
+          pdg: 111
+          energy_GeV: 3882.3857470518969
+        - history_id: 32
+          pdg: 211
+          energy_GeV: 15381.139632895645
+        - history_id: 33
+          pdg: -211
+          energy_GeV: 8523.8596054841964
+        - history_id: 34
+          pdg: 211
+          energy_GeV: 1800800.1788206352
+        - history_id: 35
+          pdg: -211
+          energy_GeV: 134588.47382291869
+        - history_id: 36
+          pdg: 211
+          energy_GeV: 179248.19699751277
+        - history_id: 37
+          pdg: -211
+          energy_GeV: 23687.884805386027
+        - history_id: 38
+          pdg: 211
+          energy_GeV: 6764.261864487903
+        - history_id: 39
+          pdg: 111
+          energy_GeV: 168992.72667809488
+        - history_id: 40
+          pdg: 321
+          energy_GeV: 143373.453294985
+        - history_id: 41
+          pdg: -211
+          energy_GeV: 75008.093299973712
+        - history_id: 42
+          pdg: -211
+          energy_GeV: 36332.758818136412
+        - history_id: 43
+          pdg: 211
+          energy_GeV: 4613.4162684895073
+        - history_id: 44
+          pdg: 310
+          energy_GeV: 1606.9468511932341
+        - history_id: 45
+          pdg: -211
+          energy_GeV: 1353.6614631490083
+        - history_id: 46
+          pdg: 111
+          energy_GeV: 385.53709637651167
+        - history_id: 47
+          pdg: -211
+          energy_GeV: 537.82838192733766
+        - history_id: 48
+          pdg: 111
+          energy_GeV: 565.2084368794425
+        - history_id: 49
+          pdg: 211
+          energy_GeV: 66.095104888785798
+        - history_id: 50
+          pdg: -211
+          energy_GeV: 352.53616794150554
+        - history_id: 51
+          pdg: -211
+          energy_GeV: 2.80888463416558
+        - history_id: 52
+          pdg: 111
+          energy_GeV: 2.7493292821916944
+        - history_id: 53
+          pdg: 211
+          energy_GeV: 4.3256782786978638
+        - history_id: 54
+          pdg: 111
+          energy_GeV: 4.611606682226653
+        - history_id: 55
+          pdg: 321
+          energy_GeV: 1.5854899906727238
+        - history_id: 56
+          pdg: -211
+          energy_GeV: 0.81686114809193189
+        - history_id: 57
+          pdg: 310
+          energy_GeV: 1189266.0823048728
+        - history_id: 58
+          pdg: 310
+          energy_GeV: 65421.378093137682
+        - history_id: 59
+          pdg: 130
+          energy_GeV: 99109.271565674935
+        - history_id: 60
+          pdg: 130
+          energy_GeV: 6300.1866700027958
+        - history_id: 61
+          pdg: 211
+          energy_GeV: 4.3703667695270685
+        - history_id: 62
+          pdg: -211
+          energy_GeV: 1.5563355616620018
+        - history_id: 63
+          pdg: 111
+          energy_GeV: 8.2885851507863428
+        - history_id: 64
+          pdg: 22
+          energy_GeV: 0.40608888691646106
+        - history_id: 65
+          pdg: 22
+          energy_GeV: 15.334253970200379
+        - history_id: 66
+          pdg: 111
+          energy_GeV: 360290.97040433594
+        - history_id: 67
+          pdg: 111
+          energy_GeV: 933.63837238917688
+        - history_id: 68
+          pdg: 111
+          energy_GeV: 226.37390415328522
+        - history_id: 69
+          pdg: 111
+          energy_GeV: 710.69603672842698
+        - history_id: 70
+          pdg: 211
+          energy_GeV: 67.682649573106858
+        - history_id: 71
+          pdg: -211
+          energy_GeV: 39.190273090178188
+        - history_id: 72
+          pdg: 111
+          energy_GeV: 2.0678052967840199
+        - history_id: 73
+          pdg: 111
+          energy_GeV: 3.1442662625174882
+        - history_id: 74
+          pdg: 111
+          energy_GeV: 1.5388736189259362
+        - history_id: 75
+          pdg: 22
+          energy_GeV: 2.5414836847320825
+        - history_id: 76
+          pdg: 22
+          energy_GeV: 0.9528519821707534
+        - history_id: 77
+          pdg: 111
+          energy_GeV: 1165424.2138835317
+        - history_id: 78
+          pdg: 111
+          energy_GeV: 26.218806872551092
+        - history_id: 79
+          pdg: 111
+          energy_GeV: 91.887549430817671
+        - history_id: 80
+          pdg: 111
+          energy_GeV: 25.400142578375242
+        - history_id: 81
+          pdg: 130
+          energy_GeV: 4143274.0375387361
+      projectile_pdg: 16
+      target_pdg: 1000080160
+      energy_GeV: 100000000
+      cross_section_per_nucleon_cm2: 4.8517943603703196e-33
+      target_cross_section_cm2: 7.7628709765925114e-32
+      position_enu_m:
+        - 2516.5354317298679
+        - 3286.8618460657717
+        - 500.52949201660203
+      time_s: 3.3595785574069286e-06
+      vertex_audit:
+        projectile_pdg: 16
+        target_nucleus_pdg: 1000080160
+        selected_target_nucleon_pdg: 2212
+        expected_outgoing_lepton_pdg: 15
+        selected_outgoing_lepton_pdg: 15
+        outgoing_lepton_candidate_count: 1
+        hard_status23_outgoing_lepton_candidate_count: 1
+        expected_outgoing_charged_lepton_pdg: 15
+        selected_outgoing_charged_lepton_pdg: 15
+        outgoing_charged_lepton_candidate_count: 1
+        hard_status23_outgoing_charged_lepton_candidate_count: 1
+        final_state_count: 80
+        initial_charge_e: 1
+        final_charge_e: 1
+        final_state_pdg_counts:
+          -2112: 1
+          -321: 1
+          -211: 19
+          15: 1
+          22: 4
+          111: 24
+          130: 3
+          211: 18
+          310: 3
+          321: 4
+          2112: 1
+          3122: 1
+        four_momentum_GeV:
+          projectile:
+            - 100000000
+            - -6.1232339957367655e-09
+            - -100000000
+            - 0
+          selected_target_nucleon:
+            - 0.93827210000000005
+            - 0
+            - 0
+            - 0
+          initial:
+            - 100000000.93827209
+            - -6.1232339957367655e-09
+            - -100000000
+            - 0
+          pythia_raw_final:
+            - 100000000.93847203
+            - -6.1231002807617189e-09
+            - -100000000.00019988
+            - -1.068115234375e-13
+          corsika_on_shell_final:
+            - 100000000.93846987
+            - -6.1231002807617189e-09
+            - -100000000.00019988
+            - -1.068115234375e-13
+          corsika_final_minus_initial:
+            - 0.00019777600000000001
+            - 1.3371497504710561e-13
+            - -0.00019988800000000001
+            - -1.068115234375e-13
+          outgoing_lepton:
+            - 87426979.935206607
+            - -71.838427656754774
+            - -87426979.93515633
+            - 60.216544596102047
+          outgoing_charged_lepton:
+            - 87426979.935206607
+            - -71.838427656754774
+            - -87426979.93515633
+            - 60.216544596102047
+          hadronic_final_state:
+            - 12573021.003263265
+            - 71.838427650631687
+            - -12573020.065043552
+            - -60.216544596102153
+          projectile_com:
+            - 6849.3505859375
+            - 0
+            - -3.7493994566546443e-25
+            - 6849.3505859375
+          selected_target_nucleon_com:
+            - 6849.3507607347728
+            - 0
+            - 0
+            - -6849.3506964692278
+          outgoing_lepton_com:
+            - 5988.5474064755226
+            - -71.838427651401418
+            - 60.216544596102032
+            - 5987.8134649122858
+          outgoing_charged_lepton_com:
+            - 5988.5474064755226
+            - -71.838427651401418
+            - 60.216544596102032
+            - 5987.8134649122858
+          momentum_transfer_com:
+            - 860.80317946197749
+            - 71.838427651401418
+            - -60.216544596102032
+            - 861.53712102521388
+        sqrt_s_GeV: 13698.70140367714
+        target_mass_convention:
+          selected_nucleon_mass_GeV: 0.93827210000000005
+          legacy_nuclear_mass_over_A_GeV: 0.93891875000000002
+          legacy_minus_selected_relative_difference: 0.00068919239951818973
+        conservation:
+          pythia_com_energy_residual_GeV: 1.3695171219296753e-08
+          pythia_com_momentum_residual_GeV: 1.3690794276790302e-08
+          pythia_com_max_component_relative_residual: 9.9974229788091903e-13
+          corsika_energy_relative_residual: 1.9777599814432303e-12
+          corsika_momentum_relative_residual: 1.9988799812450671e-12
+          corsika_max_component_relative_residual: 1.9988799812450671e-12
+        dis_kinematics:
+          inelasticity_y: 0.12573018995551999
+          leptonic_lab_energy_y: 0.12573020064793394
+          invariant_minus_lab_y: -1.0692413954238589e-08
+          hadronic_energy_transfer_y: 0.12573020064991164
+          y_energy_balance_residual: 1.0694391650023505e-08
+          Q2_GeV2: 10050.889063084614
+          bjorken_x: 0.00042599658233823752
+          W2_GeV2: 23583775.575329334
+tau:
+  tau_mass_GeV: 1.7769299999999999
+  tau_rest_lifetime_s: 2.903449e-13
+  tau_decay_count: 1
+  decays:
+    - parent_pdg: 15
+      history_id: 12397431
+      parent_history_id: 12397428
+      generation: 1246
+      time_ns: 26518.621660451172
+      energy_GeV: 72658108.591952249
+      weight: 1
+      position_enu_m:
+        - 2516.5294566751736
+        - -3656.0446107193975
+        - 500.53452976173696
+      medium: air
+      density_kg_m3: 0.87734805350477807
+      daughters:
+        - pdg: 16
+          energy_GeV: 24486268.877701256
+          history_id: 12397434
+          parent_history_id: 12397431
+        - pdg: -211
+          energy_GeV: 9039916.7875992414
+          history_id: 12397435
+          parent_history_id: 12397431
+        - pdg: -211
+          energy_GeV: 9937988.2145220246
+          history_id: 12397436
+          parent_history_id: 12397431
+        - pdg: 211
+          energy_GeV: 11822059.217652701
+          history_id: 12397437
+          parent_history_id: 12397431
+        - pdg: 111
+          energy_GeV: 17371870.184275527
+          history_id: 12397438
+          parent_history_id: 12397431
+      relative_energy_residual: -7.3084775022455889e-08
+      relative_momentum_residual: 7.3084775022503376e-08
+  native_decay_scheduling: true
+  force_decay_called: false
+  decay_model: stock CORSIKA TAUOLA for transported tau; Pythia8 for other decays
+  tau_decay_backend: tauola
+  upstream_tauola_helicity: left
+  tauola_cpp_rng: CORSIKA tauola stream
+  tauola_fortran_rng: RANMAR seeded once from CORSIKA tauola stream
+  tauola_fortran_seed: 71058414
+  tauola_high_energy_boost: "E>=1000 GeV: conditioned generation frame + known-mass COMBoost"
+  tauola_mass_convention: scoped CORSIKA stable-particle masses v1; Fortran REAL*4 precision; original globals restored
+  tauola_effective_nutau_mass_GeV: 0
+  tauola_decay_energy_renormalized: false
+  spin_density_matrix_transferred_from_CC: false
+  prescribed_polarization_enabled: false
+  polarization_model: original_CORSIKA_fixed_TAUOLA_helicity_NOT_event_CC_spin
+  energy_loss_depolarization_included: false
+  longitudinal_polarization_at_decay_supported: true
+  transverse_spin_transport_included: false
+shower_seconds: 2063.7847977070001

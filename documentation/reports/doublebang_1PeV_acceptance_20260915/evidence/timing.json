@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "started_utc": "2026-09-15T02:18:41.371757+00:00",
+  "finished_utc": "2026-09-15T07:02:17.273157+00:00",
+  "process_wall_seconds": 17015.84733705799,
+  "shower_seconds": null,
+  "execution_timing": null,
+  "peak_rss_GiB": 74.45509719848633,
+  "wall_scope": "Process launch through exit, including initialization and all simulation/radio file output; excludes later audit and archive."
+}

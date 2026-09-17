@@ -11,7 +11,7 @@
 - Kokkos 处理光子、电子、正电子及当前支持的 muon 输运，包含传播、能损、相互作用、cut、thinning、profile 和 CoREAS/ZHS 累积。
 - PROPOSAL 原生样条经只读接口导出到 Kokkos 数据结构，保留版本、介质、cut、能区和哈希检查；不要求用户先运行完整制表工具。
 - 强子模型、衰变及不支持的末态仍走 CPU，保留单核标量 PROPOSAL 对照。本文科研配置采用 SIBYLL-2.3d + 用户合法安装的 FLUKA。
-- 一次 shower 选择 OpenMP **或** GPU，不叠加多核强子调度，不做 MPI/多卡粒子栈分发。不是所有物理过程都已 GPU 化。
+- 默认单端模式一次 shower 选择 OpenMP **或** GPU；组合构建另有显式空气双端协同实验（第 8 节）。不叠加多核强子调度，不做 MPI/多卡粒子栈分发。不是所有物理过程都已 GPU 化。
 
 ### 1.1 两种构建方式，共用同一套物理源码
 
@@ -35,6 +35,7 @@ flowchart TD
     INST --> ELF["install/cuda-openmp/bin/c8_air_shower"]
     ELF --> SELECT["启动参数 --kokkos-execution cuda 或 openmp"]
     SELECT --> ONE["整个进程只运行所选的一个 EM/radio 实例"]
+    ELF --> COOP["显式 cuda-openmp / openmp-cuda：空气双端协同实验，见第 8 节"]
 ```
 
 默认部署是“同一源码、独立二进制、统一入口”：编译时生成后端实例，运行时选择已经安装的程序，不临时编译。OpenMP 与 GPU 可同时安装，但独立 GPU 程序使用 Kokkos Serial host，独立 OpenMP 程序不需要 GPU runtime。这是本项目的组织方式，不是声称 Kokkos 只能这样使用。
@@ -399,6 +400,40 @@ install/cuda-openmp/bin/c8_air_shower \
 它不同于上面的单端模式，不是生产默认，也不用于山体输运。
 隔离构建、回归结果和性能限制见[独立子级联队列验收记录](documentation/cuda_em_refactor/beta5_independent_subshower_queues_CN.md)。
 
+组合空气程序新增实验性的 **`openmp-cuda`（CPU 优先）**。`cuda-openmp`
+省略策略参数时保留原 GPU 优先独立队列及实测吞吐分配，并非固定比例。
+`openmp-cuda` 保留 CPU 的批量容量，GPU 作为辅助。当前的
+`cpu-primary-v2-simple` 保留两端各自的完整工作区容量，只按实测吞吐学习
+输入分配比例，在空闲且安全的边界再平衡；不预测完成时间，也不按吞吐比
+缩小输入容量。两种模式都使用同一套 EM/CoREAS/ZHS 物理内核；强子仍由单线程
+协调器处理，不保证两端在每个阶段持续满载。
+
+重新构建组合程序后直接调用（不是统一启动器）：
+
+```bash
+# GPU 优先，OpenMP 独立演化分配到的子级联。
+install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
+  --em-backend kokkos --radio-backend kokkos \
+  --kokkos-execution cuda-openmp --kokkos-num-threads 20 \
+  --antenna-file antennas.txt -f output_gpu_primary
+
+# CPU 优先，GPU 辅助；同一个二进制、同样的物理参数。
+install/cuda-openmp/bin/c8_air_shower -p 2212 -E 100000 \
+  --em-backend kokkos --radio-backend kokkos \
+  --kokkos-execution openmp-cuda --kokkos-num-threads 130 \
+  --antenna-file antennas.txt -f output_cpu_primary
+```
+
+线程数按机器实际资源填写。执行名称顺序只选择调度优先级，不选择另一套
+物理算法。禁止 `--hadronic-workers > 1`，也不允许 `openmp-cuda` 混用
+另一个实验性的 `--kokkos-cooperative-policy adaptive`。CPU 优先模式仍需要
+可用 NVIDIA GPU；没有 GPU 的服务器应使用独立 OpenMP 构建。
+本地GPU优先和PSR CPU优先各五种子短测已完成，均未证明净加速。PSR的
+CPU优先有效OpenMP吞吐下降；保留完整容量不等于保住单端性能，仍需隔离诊断。这些模式
+仍属实验选项，没有自动替换安装目录或默认模式。详见
+[v1 两机比较](documentation/cuda_em_refactor/beta5_priority_endpoints_v1_20260912_CN.md)
+和[简化策略与验收进度](documentation/cuda_em_refactor/beta5_priority_endpoints_v2_simple_20260912_CN.md)。
+
 项目根目录的最简加速调用：
 
 ```bash
@@ -421,7 +456,7 @@ install/bin/c8_air_shower --backend openmp \
 | 参数 | 含义 / 默认 |
 |---|---|
 | `--backend openmp/cuda/hip/sycl` | 统一启动器参数：选择已安装程序；省略为 `auto` |
-| `--kokkos-execution cuda\|openmp` | 组合应用参数：选择同一程序内实例；加速模式下省略默认 CUDA |
+| `--kokkos-execution cuda\|openmp\|cuda-openmp\|openmp-cuda` | 组合空气应用：选择单实例或显式 GPU/CPU 优先协同；加速模式下省略默认 CUDA |
 | `-p`、`-E` | 初级 PDG、总能量 GeV；光子 22、电子 11、质子 2212 |
 | `-z`、`-a` | 天顶角/方位角，度；默认 0/0 |
 | `-s`、`-N` | seed / 同进程顺序事件数；默认自动 seed / 1 |
@@ -448,6 +483,8 @@ install/bin/c8_air_shower --backend openmp \
 随后加入[逐事件内存释放修复](documentation/cuda_em_refactor/beta5_event_memory_release_20260907_CN.md)：每个 shower 结束后将 YAML 报告流式写入磁盘、提交 Parquet 缓冲、释放已消费的强子计时明细；原生 PROPOSAL 表及有界的输运/射电工作区继续复用。**修复需重新编译才生效，不会改变正在运行的归档程序。** Parquet 分块会改变，但物理数据列、数值和事件顺序保持不变。长批次仍需内存保护：分配器缓存和文件 footer 元数据可能继续小幅增长。
 
 另加入 [ZHS 窗口边界修复](documentation/cuda_em_refactor/beta5_zhs_window_edge_fix_20260907_CN.md)：标量 observer 与 Kokkos 射电公共代码均先完整累积首末矢势 bin，再求导，避免旧时间戳裁剪制造第一个/最后一个电场离群点。这不是平滑波形或删掉端点；真实脉冲、输出时间轴和点数保留，CoREAS 时间门禁及粒子输运不变。重新编译后生效；历史数据和正在运行的归档程序不自动改变。真实脉冲超出记录范围的问题仍需用加宽时间窗检查。
+
+2026-09-17 加入[光子 CPU 回退顶点修复](documentation/cuda_em_refactor/beta5_photon_fallback_vertex_fix_20260917_CN.md)：选中需要 CPU 完成的过程后，必须先传播至真实反应顶点，不能在步前位置直接生成末态。旧路径会使光核/μ 对源项在大气层界附近人为集中，影响强子、正负 μ 子以及后续 EM/射电。需重新编译；旧加速样本不能靠平滑 profile 修复，应保留版本标签并重新做物理统计验收。
 
 ## 9. HIP / SYCL：目标机器上的进阶构建
 

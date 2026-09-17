@@ -39,6 +39,7 @@ std::vector<corsika::terrain::TerrainEmMaterial> prepareEmMaterials(
   rock.number_of_layers=1;rock.number_of_convex_planes=6;rock.convex_boundary_tolerance_m=1.e-8;
   rock.atmosphere_layers[0].density_model=gpu::em::DensityModel::Homogeneous;
   rock.atmosphere_layers[0].density_parameter_a=scene.atmosphere.rock_density_g_cm3;
+  for(int axis=0;axis<3;++axis) rock.magnetic_field_T[axis]=scene.material.magnetic_field_T[axis];
   rock.atmosphere_layers[0].medium_id=1;rock.observation_plane_normal[2]=1.;
   auto const& box=mesh.nodes.at(0);double lo[3]={box.low.x-1.,box.low.y-1.,box.low.z-1.};
   double hi[3]={box.high.x+1.,box.high.y+1.,box.high.z+1.};

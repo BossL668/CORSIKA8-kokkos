@@ -7,7 +7,12 @@
 namespace corsika::accelerator::em::kokkos_detail {
 class CudaCompletionTicket {
  public:
-  CudaCompletionTicket() { check(cudaEventCreateWithFlags(&event_, cudaEventDisableTiming)); }
+  explicit CudaCompletionTicket(bool const blocking_sync = false)
+      : blocking_sync_(blocking_sync) {
+    check(cudaEventCreateWithFlags(
+        &event_, cudaEventDisableTiming |
+                     (blocking_sync_ ? cudaEventBlockingSync : 0U)));
+  }
   ~CudaCompletionTicket() { if (event_) cudaEventDestroy(event_); }
   CudaCompletionTicket(CudaCompletionTicket const&) = delete;
   CudaCompletionTicket& operator=(CudaCompletionTicket const&) = delete;
@@ -25,6 +30,16 @@ class CudaCompletionTicket {
     if (!ready()) throw std::logic_error("CUDA control data is not ready");
     pending_ = false;
   }
+  // Only the explicit blocking ticket may put its CUDA driver to sleep. The
+  // ordinary polling ticket and all existing callers retain their semantics.
+  void consumeBlocking() {
+    if (!blocking_sync_)
+      throw std::logic_error("CUDA control ticket does not support blocking waits");
+    if (!pending_)
+      throw std::logic_error("CUDA control ticket was not submitted");
+    check(cudaEventSynchronize(event_));
+    pending_ = false;
+  }
   bool pending() const noexcept { return pending_; }
   // Exceptional cleanup only: wait for this event, never the whole device.
   cudaError_t drainNoThrow() noexcept {
@@ -40,5 +55,6 @@ class CudaCompletionTicket {
   }
   cudaEvent_t event_{};
   bool pending_{};
+  bool blocking_sync_{};
 };
 } // namespace corsika::accelerator::em::kokkos_detail

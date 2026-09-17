@@ -472,6 +472,9 @@ int main(int argc, char** argv) {
       auto const& expected = expected_interactions[i];
       if (actual.particle.history_id != expected.particle.history_id ||
           actual.status != expected.status ||
+          actual.interaction_vertex_reached != expected.interaction_vertex_reached ||
+          actual.deferred_photon_fallback_reason != expected.deferred_photon_fallback_reason ||
+          actual.deferred_photon_table_status != expected.deferred_photon_table_status ||
           actual.process_id != expected.process_id ||
           actual.component_hash != expected.component_hash ||
           actual.distance_uniform != expected.distance_uniform ||
@@ -489,6 +492,7 @@ int main(int argc, char** argv) {
       auto const& actual = selected.fallback_events[i];
       auto const& expected = expected_fallbacks[i];
       if (actual.particle.history_id != expected.particle.history_id ||
+          actual.interaction_vertex_reached != expected.interaction_vertex_reached ||
           actual.reason != expected.reason ||
           actual.process_id != expected.process_id ||
           actual.component_hash != expected.component_hash) {
@@ -522,6 +526,8 @@ int main(int argc, char** argv) {
       auto const& expected = expected_records[i];
       if (actual.start.history_id != expected.start.history_id ||
           actual.limit != expected.limit ||
+          actual.interaction.interaction_vertex_reached != expected.interaction.interaction_vertex_reached ||
+          actual.interaction.deferred_photon_fallback_reason != expected.interaction.deferred_photon_fallback_reason ||
           actual.start_layer_index != expected.start_layer_index ||
           actual.end_layer_index != expected.end_layer_index ||
           !closeEnough(actual.distance_m, expected.distance_m) ||

@@ -104,7 +104,24 @@ namespace corsika::accelerator::em::detail {
   downloadFirstInteractionSnapshot() override;
     KokkosRuntimeInfo const& runtimeInfo() const noexcept override;
     void setCooperativeProgress(std::function<bool()> progress) override {
-      impl_->cooperative_wait_.progress = std::move(progress);
+      impl_->cooperative_wait_.setProgress(std::move(progress));
+    }
+    void setCooperativeBlockingWait(bool const enabled) override {
+      impl_->requireInitialized();
+      if (!impl_->runtime_.info().cooperative_runtime ||
+          impl_->statistics_.particles_advanced != 0 ||
+          // Fused resident transport uses these counters, not particles_advanced.
+          // They also cover the standalone transport-oracle entry points.
+          impl_->statistics_.photon_transport_batches != 0 ||
+          impl_->statistics_.lepton_transport_batches != 0 ||
+          !impl_->pending_photons_.empty() || !impl_->pending_leptons_.empty())
+        throw std::logic_error(
+            "Blocking CUDA waits require an idle cooperative endpoint before transport");
+      impl_->cooperative_wait_.setBlocking(enabled);
+    }
+    CooperativeCudaWaitStatistics cooperativeWaitStatistics() const override {
+      auto const& wait = impl_->cooperative_wait_;
+      return {wait.blockingEnabled(), wait.blockingCalls(), wait.blockingHostSeconds()};
     }
     void setCooperativePendingInputLimit(std::size_t count) override {
       impl_->cooperative_pending_limit_ = count;
@@ -125,6 +142,23 @@ namespace corsika::accelerator::em::detail {
           impl_->execution_);
       impl_->execution_.fence("prepare bounded cooperative endpoint workspace");
       impl_->refreshDeviceMemoryStatistics();
+    }
+    std::pair<std::size_t, std::size_t> enableCooperativeHostProfileShards() override {
+      impl_->requireInitialized();
+      if (!impl_->runtime_.info().cooperative_runtime ||
+          !impl_->runtime_.info().openmp || impl_->runtime_.info().gpu ||
+          impl_->statistics_.particles_advanced != 0)
+        throw std::logic_error("host profile shards require an idle cooperative OpenMP endpoint");
+      auto& profile = impl_->profile_accumulator_;
+      if (!profile.enabled()) return {};
+      auto const retained = impl_->retainedDeviceBytes();
+      auto const available = impl_->memory_budget_bytes_ == 0
+          ? HostProfileShards::MaximumBytes
+          : impl_->memory_budget_bytes_ - std::min(retained, impl_->memory_budget_bytes_);
+      profile.enableCooperativeHostShards(
+          static_cast<std::size_t>(impl_->runtime_.info().host_threads), available);
+      impl_->refreshDeviceMemoryStatistics();
+      return {profile.hostShards().count(), profile.hostShards().bytes()};
     }
     std::vector<gpu::em::EmParticleState> takeCooperativePending(
         bool photons, std::size_t count) override {
@@ -858,6 +892,7 @@ namespace corsika::accelerator::em::detail {
         !impl_->pending_leptons_.empty())
       throw std::logic_error(
           "cannot begin a new Kokkos shower with pending cross-species particles");
+    impl_->cooperative_wait_.resetStatistics();
     auto const static_statistics = impl_->statistics_;
     impl_->config_.random_seed = shower.random_seed;
     impl_->config_.shower_id = shower.shower_id;

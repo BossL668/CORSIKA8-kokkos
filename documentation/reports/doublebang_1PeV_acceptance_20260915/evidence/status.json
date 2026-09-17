@@ -1,0 +1,9 @@
+{
+  "complete": false,
+  "returncode": 1,
+  "stop_reason": null,
+  "wall_s": 17015.84733705799,
+  "peak_rss_GiB": 74.45509719848633,
+  "error": "interface resident successors exceed capacity; input retained",
+  "binary_sha256": "6e4d4a0da37bf434a80db782804594dd80443296052746bbce2a48273db14b1d"
+}

@@ -1,0 +1,515 @@
+{
+  "audit_time_utc": "2026-09-15T08:29:23.123990+00:00",
+  "event": "openmp_SiO2_21CMA80_1PeV_seed22309",
+  "passed": false,
+  "classification": "INCOMPLETE_QUEUE_CAPACITY_FAILURE",
+  "simulation_complete": false,
+  "status": {
+    "complete": false,
+    "returncode": 1,
+    "stop_reason": null,
+    "wall_s": 17015.84733705799,
+    "peak_rss_GiB": 74.45509719848633,
+    "error": "interface resident successors exceed capacity; input retained",
+    "binary_sha256": "6e4d4a0da37bf434a80db782804594dd80443296052746bbce2a48273db14b1d"
+  },
+  "timing": {
+    "complete": false,
+    "started_utc": "2026-09-15T02:18:41.371757+00:00",
+    "finished_utc": "2026-09-15T07:02:17.273157+00:00",
+    "process_wall_seconds": 17015.84733705799,
+    "shower_seconds": null,
+    "execution_timing": null,
+    "peak_rss_GiB": 74.45509719848633,
+    "wall_scope": "Process launch through exit, including initialization and all simulation/radio file output; excludes later audit and archive."
+  },
+  "affinity": {
+    "verified": true,
+    "threads_inspected": 259,
+    "singleton_physical_cores": 256
+  },
+  "queue_capacity": 262144,
+  "saved_prefix_readable": true,
+  "files": [
+    {
+      "file": "tracks.csv.gz",
+      "rows": 5353854,
+      "summary_rows": 5353854,
+      "row_count_matches": true,
+      "gzip_read_to_eof": true,
+      "nonfinite_numeric_values": 0,
+      "compressed_bytes": 805326330,
+      "last_step": 5353854,
+      "step_gaps": 0,
+      "medium_counts": {
+        "rock": 5353851,
+        "air": 3
+      },
+      "pdg_counts": {
+        "11": 3656953,
+        "22": 765628,
+        "-11": 922699,
+        "-211": 1914,
+        "2212": 1857,
+        "211": 1838,
+        "111": 866,
+        "2112": 703,
+        "-13": 389,
+        "13": 259,
+        "321": 223,
+        "-321": 101,
+        "130": 86,
+        "311": 79,
+        "310": 77,
+        "-311": 45,
+        "3122": 36,
+        "-2112": 19,
+        "-2212": 19,
+        "221": 14,
+        "3222": 10,
+        "3212": 8,
+        "-3122": 7,
+        "113": 4,
+        "14": 4,
+        "1000010020": 4,
+        "-3112": 4,
+        "3112": 3,
+        "16": 2,
+        "3322": 2,
+        "-3222": 1
+      }
+    },
+    {
+      "file": "deposits.csv.gz",
+      "rows": 4870796,
+      "summary_rows": 4870796,
+      "row_count_matches": true,
+      "gzip_read_to_eof": true,
+      "nonfinite_numeric_values": 0,
+      "compressed_bytes": 274109652,
+      "weighted_energy_sum_GeV": 4606.685480565272
+    },
+    {
+      "file": "domain_exits.csv.gz",
+      "rows": 1,
+      "summary_rows": 1,
+      "row_count_matches": true,
+      "gzip_read_to_eof": true,
+      "nonfinite_numeric_values": 0,
+      "compressed_bytes": 215,
+      "weighted_energy_sum_GeV": 2.2642543701452817
+    },
+    {
+      "file": "window_survivors.csv.gz",
+      "rows": 0,
+      "summary_rows": 0,
+      "row_count_matches": true,
+      "gzip_read_to_eof": true,
+      "nonfinite_numeric_values": 0,
+      "compressed_bytes": 68,
+      "weighted_energy_sum_GeV": 0.0
+    }
+  ],
+  "deposited_energy_summary_GeV": 4606.685480565263,
+  "deposit_csv_minus_summary_GeV": 9.094947017729282e-12,
+  "tau_track_rows_in_saved_prefix": 0,
+  "last_primary_track": {
+    "step": 2,
+    "pdg": 16,
+    "weight": 1,
+    "medium": "rock",
+    "x0_m": 2516.5354317299,
+    "y0_m": 4244.0381596349,
+    "z0_m": 500.5294920166,
+    "x1_m": 2516.5354317299,
+    "y1_m": 2875.067042152,
+    "z1_m": 500.5294920166,
+    "t0_s": 1.668e-07,
+    "t1_s": 4.7332e-06,
+    "E0_GeV": 1000000.0,
+    "E1_GeV": 1000000.0,
+    "nx0": -6.123233996e-17,
+    "ny0": -1.0,
+    "nz0": 0.0,
+    "nx1": -6.123233996e-17,
+    "ny1": -1.0,
+    "nz1": 0.0,
+    "history_id": 1,
+    "parent_history_id": 0
+  },
+  "topology": "not accepted: complete interaction/decay diagnostics unavailable",
+  "full_energy_closure": "not available: live queues and incomplete buffered records are not a final energy ledger",
+  "radio_output_files": [],
+  "radio_validation": "unavailable: final spectra/waveforms were not produced",
+  "observer_input_valid": true,
+  "observer_coordinates_match_audited_bundle": true,
+  "station_input_audit": {
+    "count": 80,
+    "names_complete_unique": true,
+    "all_inside_dem": true,
+    "all_native_model_heights_dem_plus_1m": true,
+    "model_heights_are_survey_measurements": false,
+    "packed_dms_max_error_deg": 6.052601975170546e-09,
+    "maximum_coordinate_error_m": 4.6583770219960515e-09,
+    "maximum_horizontal_roundtrip_error_deg": 5.826450433232822e-13,
+    "clearance_range_m": [
+      0.9999999960879222,
+      1.0000000014783552
+    ],
+    "model_minus_measured_range_m": [
+      -1.0040607492542222,
+      14.090658599847757
+    ],
+    "raw_measurements_below_model_surface": [
+      "E01",
+      "E02",
+      "E03",
+      "E04",
+      "E05",
+      "E06",
+      "E07",
+      "E08",
+      "E09",
+      "E10",
+      "E11",
+      "E12",
+      "E13",
+      "E14",
+      "E15",
+      "E17",
+      "E19",
+      "E20",
+      "W01",
+      "W02",
+      "W03",
+      "W04",
+      "W05",
+      "W06",
+      "W08",
+      "W09",
+      "W10",
+      "W11",
+      "W12",
+      "W13",
+      "W14",
+      "W15",
+      "W16",
+      "W17",
+      "W18",
+      "W19",
+      "W20",
+      "N20",
+      "N19",
+      "N18",
+      "N17",
+      "N16",
+      "N15",
+      "N14",
+      "N13",
+      "N12",
+      "N11",
+      "N10",
+      "N09",
+      "N08",
+      "N07",
+      "N06",
+      "N05",
+      "N04",
+      "N03",
+      "N02",
+      "N01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20"
+    ],
+    "E01_dump_centroid_minus_survey_reference_ENU_m": [
+      -0.9562399564777073,
+      16.70478068785028,
+      7.736798491813154
+    ],
+    "EW_centroid_recalculation_max_error_m": 5.784979090471199e-07,
+    "EW_station_measurement_counts": {
+      "E01": 6,
+      "E02": 6,
+      "E03": 6,
+      "E04": 6,
+      "E05": 6,
+      "E06": 6,
+      "E07": 6,
+      "E08": 6,
+      "E09": 6,
+      "E10": 6,
+      "E11": 6,
+      "E12": 6,
+      "E13": 6,
+      "E14": 6,
+      "E15": 6,
+      "E16": 6,
+      "E17": 4,
+      "E18": 6,
+      "E19": 6,
+      "E20": 6,
+      "W01": 4,
+      "W02": 6,
+      "W03": 6,
+      "W04": 6,
+      "W05": 6,
+      "W06": 6,
+      "W07": 6,
+      "W08": 6,
+      "W09": 6,
+      "W10": 6,
+      "W11": 6,
+      "W12": 4,
+      "W13": 6,
+      "W14": 6,
+      "W15": 6,
+      "W16": 6,
+      "W17": 6,
+      "W18": 6,
+      "W19": 6,
+      "W20": 6
+    },
+    "relative_table_reproduction_error_m": {
+      "E": 4.1639236829098454e-13,
+      "W": 3.5435320660529647e-13,
+      "N": 3.234390533179976e-11,
+      "S": 1.3138318022434052e-11
+    },
+    "relative_table_warning": "EW values use the dump E01 centroid and each station basis; NS uses the 2016 E01 survey reference and its basis. Do not interpret the merged relative table as one common ENU frame.",
+    "raw_measurements_below_model_surface_count": 77,
+    "source_sha256": {
+      "terrain_grid.npz": "7307a147c9a780aa216e5560cd9685e8660fb5f6dd66be64b67fcafc19cd64c3",
+      "antenna_coord.dat": "c3fd1ecafb6338f3d0af9a4021391974dc7230ae43c55bcb727991e02cfc3d97",
+      "antenna_positions_enu.csv": "de2185e04d1085c0f317f90ebab3e9d67328a4d36d91bc71ad7dd5052841883b",
+      "generate_table.py": "fed2d7174fe72ef6ef141164705d0f9f19b979c976e56e27a910d1866bc7c801",
+      "reference_point.txt": "b9875638f042e07abce3d2970e5123ed31e7202f7f79714f6893268db288de6a",
+      "20160810.csv": "0dab944d3d91ba59703b0d79d8d8034eb2ebd672dd04f8cbafc537a0bc8e4d07",
+      "observers.yaml": "fda1597aa84a10d18f2d075e055c3b3fccf216bbb3ab30aa2e2b0138ff8ef5f3",
+      "us_nga_egm96_15.tif": "db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d",
+      "antenna_location_21cma.txt": "f757d9dee09b8d583b8b15b0d99599e378dd97c1bbcbb9a4bed87fcb95bb7b27",
+      "dump.txt": "2084d1e5fcd3269edd6bae67a1cfa4d0c0968a04c6d75b340c60fd3339209c1d",
+      "terrain_manifest.yaml": "83c356360f0382a8dafd89a7b989bf031678c60f1e0c5e42161e7376fbf9be29",
+      "README.md": "bdf4e9cd920e5d8a73486578c59804d8f9606adb0298e698ee4a882e150316fb"
+    },
+    "height_policy": "Preserve surveyed longitude/latitude; WGS84 ellipsoidal versus EGM96 orthometric heights distinguished; model antenna is 1 m above triangulated DEM along ENU Up."
+  },
+  "station_geometry_note": "Prior validated coordinates; DEM+1m model heights, not measured phase centers",
+  "binary_matches_campaign": true,
+  "runtime_libraries": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/fluka/libfluka.so",
+      "sha256": "3dfc3362c527465fba0316f99c25ec85dda1b0cf2bc181f769ca4ea95b2d115c",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/sibyll/libSIBYLL23d.so",
+      "sha256": "1e9af05d6c1d55cec4ff8c369c8e1cd7f780893c19d4a16e72a7869cab2938f7",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgfortran.so.5",
+      "sha256": "76fb77f82ed24462361890482c1a3fb3e2b6693eaa60edb42938eee2ea51ba92",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/qgsjetII/libQGSJetII.so",
+      "sha256": "a25beaeddd8cb1166767722813211cc0f5a4d0c415898e04e30c7b1f235a1ea6",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/qgsjetIII/libQGSJetIII.so",
+      "sha256": "f527ea855c947e9cbface73db965433c71b55ef67baef4d84e5e9f6a18a5f41d",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/conex/cxroot/libCONEXsibyll.so",
+      "sha256": "bedfabadd77a61d327dd7af21980dcb2f2f45a97197603d01ae6f1f221e6122c",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/modules/epos-lhc/libEPOS_LHC.so",
+      "sha256": "dce66585ccb2b014689c32edaaeb257acc88e92cadba179d2baf97b2f7e86c1b",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/toolchain-cuda126/targets/x86_64-linux/lib/libcudart.so.12",
+      "sha256": "8a8579b35d2c4a15d0eabd9a8501cc03134b5ba2be300f7e00aa69795d9b1981",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcuda.so.1",
+      "sha256": "266916dac6c5e7e4655526570cf303a6cc017880d2552960abc66017a7c98cf4",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libquadmath.so.0",
+      "sha256": "101d2609b7712c08bf44627ab6daa0a87a63f24bf69a553602e820a146549c58",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libstdc++.so.6",
+      "sha256": "c2dcf94f4495b783f828927fdb9a69f25ca83bf81ed6e707c5c1c401d5e3e1db",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libm.so.6",
+      "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgomp.so.1",
+      "sha256": "5b4f3667439008b505ebbfa7f0289d27be135632919c827c520987c55054ae6f",
+      "matches": true
+    },
+    {
+      "path": "/home/yuhanglu/miniconda/envs/corsika_venv/lib/libgcc_s.so.1",
+      "sha256": "11fdd1b51b3d44930f8f31ae4924518e1e7b021d66a0af23f0693b1680d7c3c5",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libc.so.6",
+      "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libmvec.so.1",
+      "sha256": "57329ee0018b8fd8f8e51af5f87c723b6ecdf04679f4493134beab0f45d58ec5",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+      "sha256": "c2994527172cc23b7fb0f7d611b71e00a37da27af12c2e5e9e0dc1a742886c96",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+      "sha256": "90491a21ce44efcf3bd4b65ec82501c091d7ebe7f8d9b341dd01d721001d9ecd",
+      "matches": true
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/librt.so.1",
+      "sha256": "6d072187d88e092e81561a44c03a4a41397319022c6d43519757cc051c576d82",
+      "matches": true
+    }
+  ],
+  "campaign_file_checks": [
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/LPM_to_1EeV.json",
+      "sha256": "d358883feb872e9fa67dbd495d2151092cfba1f9728fb2e7e9fc71bdcdfe407d",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/c8_terrain_cascade",
+      "sha256": "6e4d4a0da37bf434a80db782804594dd80443296052746bbce2a48273db14b1d",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/observers.yaml",
+      "sha256": "fda1597aa84a10d18f2d075e055c3b3fccf216bbb3ab30aa2e2b0138ff8ef5f3",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/silica_SiO2.yaml",
+      "sha256": "b320e499884a91e96e86a3b4fad5bdb512a1681f48e685684fad4d0179de6ad6",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/silica_SiO2_expected.yaml",
+      "sha256": "47d9ad852a8096c9faec05e87d0716c4cf50e7714626d3d7185a39d0fa0e6cf2",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/stations_80_audit.csv",
+      "sha256": "52928eaac636308c462477080d08f1a19ee99fd3029b5022b5dd7d01f1845b39",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/stations_80_audit.json",
+      "sha256": "799408006eff700542d84cf02c1cd9bc46881c02871a6c7abb7209af4bc13200",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/terrain_grid.npz",
+      "sha256": "7307a147c9a780aa216e5560cd9685e8660fb5f6dd66be64b67fcafc19cd64c3",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/bundle/terrain_manifest.yaml",
+      "sha256": "83c356360f0382a8dafd89a7b989bf031678c60f1e0c5e42161e7376fbf9be29",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/archive_psr.py",
+      "sha256": "42923d90f4cbd819852ab5b69e166e046884dab2c8de5cb99721c3436cd25c6f",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/audit_psr.py",
+      "sha256": "acb9c0d7583784b4bd3191e066c6388c0f8b8ebab0198eec78ca805e68c0f6b5",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/classify_psr.py",
+      "sha256": "ff9a9a161a7a4ac49689295d760216b2323d58f63957725f703ca1068db11be5",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/legacy_classifier.py",
+      "sha256": "89f47a98cc8f5685f3b74de04ad061dcb228f5879d266743da2bfc5b2c003ada",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/legacy_driver.py",
+      "sha256": "730c136cc61f28e55f5d047d69ff352e87a558f6be549db2377b4ceff3eb52fc",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/code/run_psr.py",
+      "sha256": "7310f60e99882560fc9e52036f4fda26135eefd8cbcea96b84d5a9ae3ffd9b42",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/scenes/silica_SiO2_21CMA80.yaml",
+      "sha256": "f5c43dd93771bee22abad9dfee2f236cebd2481a0423adaae6dc8ce36b27cfde",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/preflight/scan.log",
+      "sha256": "e051098a727655e570ff7c040b84e96ca6fe0881196dc95ab83956cedca4c30e",
+      "matches": true
+    },
+    {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_energy_ladder_1PeV_20260915/preflight/seeds_1PeV.csv",
+      "sha256": "91dabd7b9fbbcfeaba097df75151851ae2979f45eb03344522d4516ddbaf4871",
+      "matches": true
+    }
+  ],
+  "last_resource": {
+    "elapsed_s": 17009.271764071,
+    "rss_GiB": 74.4141197205,
+    "available_GiB": 166.4746780396,
+    "free_disk_GiB": 338.1435241699,
+    "recorded_steps_prefix": 5337360,
+    "pid": 1130695
+  },
+  "production_changes": "none; no simulation restarted; failed data preserved",
+  "audit_wall_seconds": 17.140080443990882
+}

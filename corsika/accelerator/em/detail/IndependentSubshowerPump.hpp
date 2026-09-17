@@ -3,6 +3,7 @@
 #include <corsika/accelerator/em/detail/CooperativeBackendMerge.hpp>
 #include <corsika/accelerator/em/detail/IndependentEndpointDriver.hpp>
 #include <corsika/accelerator/em/detail/CooperativeHostPolicy.hpp>
+#include <corsika/accelerator/em/detail/CpuPrimarySubshowerPolicy.hpp>
 #include <corsika/accelerator/em/detail/AdaptiveSubshowerControl.hpp>
 #include <corsika/accelerator/em/detail/SubshowerCallbacks.hpp>
 #include <algorithm>
@@ -31,6 +32,7 @@ template<class Endpoint> class IndependentSubshowerPump {
     std::array<std::vector<Particle>, 2> waiting;
     std::array<std::size_t, 2> resident{}, capacity{};
     unsigned next_kind{};
+    std::array<unsigned,2> deferrals{};
     std::size_t count(unsigned kind) const {
       return resident[kind] + waiting[kind].size();
     }
@@ -42,6 +44,9 @@ template<class Endpoint> class IndependentSubshowerPump {
     std::size_t count{}, waves{}, minimum{};
     std::size_t resident_input{};
     bool bounded_input{};
+    bool scalar_foreground_continuation{};
+    std::size_t input_limit{};
+    double target_ms{};
     std::uint64_t first{}, limit{}, sequence{};
   };
   struct Completion {
@@ -50,15 +55,41 @@ template<class Endpoint> class IndependentSubshowerPump {
     Job identity;
     Clock::time_point begin, end;
   };
+  // One in-flight driver packet, with time/call/memory bounded continuation.
+  // All history ranges are reserved by the coordinator BEFORE submission.
+  static constexpr std::size_t maximum_packet_calls=16;
+  static constexpr std::size_t maximum_cpu_primary_packet_calls=4;
+  struct Packet {
+    std::vector<Completion> results;
+    std::uint64_t retained_bytes{};
+    unsigned stop_reason{6};
+  };
+  struct Continuation {
+    std::uint64_t first{},stride{},limit{};
+    std::array<std::uint64_t,2> lease{};
+    std::array<std::size_t,2> capacity{};
+    AdaptiveSubshowerControl control;
+    double target_ms{};
+    std::size_t maximum_calls{1};
+    bool fixed_cpu_primary{};
+    bool enabled{};
+  };
  public:
   IndependentSubshowerPump(Endpoint& gpu, Endpoint& cpu, Statistics& statistics,
                            std::function<void()> select_device,
                            std::function<void(bool)> observe_host = {},
-                           std::size_t host_threads = 20,bool adaptive = false)
+                           std::size_t host_threads = 20,bool adaptive = false,
+                           std::uint64_t continuation_retention_bytes = 64U<<20,
+                           bool cpu_primary = false)
       : gpu_(gpu), cpu_(cpu), stats_(statistics),
         select_device_(std::move(select_device)), observe_host_(std::move(observe_host)),
-        initial_host_share_(adaptive?.5:CooperativeHostPolicy::initialShare(host_threads)),
-        adaptive_(adaptive) {
+        initial_host_share_(cpu_primary?1.-CpuPrimarySubshowerPolicy::initial_gpu_share:
+            adaptive?.5:CooperativeHostPolicy::initialShare(host_threads)),
+        adaptive_(adaptive),cpu_primary_(cpu_primary),continuation_retention_bytes_(continuation_retention_bytes) {
+    if (cpu_primary_ && adaptive_) throw std::invalid_argument("CPU-primary and experimental adaptive policies are mutually exclusive");
+    if(!continuation_retention_bytes_)
+      throw std::invalid_argument("Zero subshower continuation retention budget");
+    control_.setHostInitialBatch(CooperativeHostPolicy::capacity(host_threads));
     for (unsigned e=0; e<2; ++e) {
       auto& b=endpoint(e); auto& p=peers_[e];
       p.capacity={b.maximumResidentPhotonBatchSize(), b.maximumResidentLeptonBatchSize()};
@@ -69,6 +100,11 @@ template<class Endpoint> class IndependentSubshowerPump {
     }
     stats_.independent_subshowers=true;
     stats_.adaptive_policy=adaptive_;
+    if(adaptive_ || cpu_primary_) {
+      stats_.cuda_completion_mailbox_capacity=cpu_primary_?
+          maximum_cpu_primary_packet_calls:maximum_packet_calls;
+      stats_.cuda_completion_retention_budget_bytes=continuation_retention_bytes_;
+    }
     stats_.openmp_batch_target=peers_[1].capacity[1];
     stats_.subshower_initial_host_share=initial_host_share_;
   }
@@ -113,6 +149,7 @@ template<class Endpoint> class IndependentSubshowerPump {
       if (gpuReady()) collect(callbacks);
       auto accepted=enqueue(input);
       rebalance();
+      publishHostWork(callbacks);
       if (!flight_.valid() && !peers_[0].empty()) launch(callbacks);
       if (!yield(callbacks) && !peers_[1].empty()) {
         auto job=prepare(1, callbacks);
@@ -146,9 +183,13 @@ template<class Endpoint> class IndependentSubshowerPump {
           }
         }
         commit(1,std::move(result),callbacks);
+        publishHostWork(callbacks);
       }
       if (gpuReady()) collect(callbacks);
-      if (!flight_.valid() && !peers_[0].empty() && !yield(callbacks)) launch(callbacks);
+      // collect() may itself return scalar work. Publish that state before
+      // launching, so an empty OpenMP queue is not confused with an idle host.
+      if(adaptive_ || cpu_primary_)publishHostWork(callbacks);
+      if (!flight_.valid() && !peers_[0].empty() && (adaptive_ || cpu_primary_ || !yield(callbacks))) launch(callbacks);
       // No runnable host work: bounded blocking poll avoids a busy spin. It
       // does not wait for the entire GPU batch, and never waits with CPU work.
       if (flight_.valid() && peers_[1].empty() && !yield(callbacks)) {
@@ -172,6 +213,15 @@ template<class Endpoint> class IndependentSubshowerPump {
  private:
   Endpoint& endpoint(unsigned e) {return e==0?gpu_:cpu_;}
   static bool yield(SubshowerCallbacks const& c) {return c.yield_to_scalar && c.yield_to_scalar();}
+  void publishHostWork(SubshowerCallbacks const& callbacks) {
+    bool scalar=yield(callbacks);
+    gpu_scalar_foreground_.store(scalar,std::memory_order_release);
+    // Scalar fallback/stack work occupies the SAME coordinator as OpenMP.
+    // Its unrelated particle histories do not require the CUDA queue to wait.
+    // Request a checkpoint when the host genuinely needs fresh work instead.
+    gpu_needs_handoff_.store((adaptive_ || cpu_primary_)?(peers_[1].empty() && !scalar):
+        (peers_[1].empty() || scalar),std::memory_order_release);
+  }
   static double milliseconds(Clock::time_point a,Clock::time_point b) {
     return std::chrono::duration<double,std::milli>(b-a).count();
   }
@@ -188,6 +238,7 @@ template<class Endpoint> class IndependentSubshowerPump {
       else if(gpu::em::isChargedLeptonPid(p.pid)) ++incoming[1];
       else throw std::invalid_argument("Unsupported independent subshower PID");
     }
+    if(cpu_primary_) return enqueueCpuPrimary(input, incoming);
     if(adaptive_) return enqueueAdaptive(input);
     auto keep=gpu_.minimumBatchSize(); // immutable after initialization
     std::array<std::size_t,2> host_quota{};
@@ -222,26 +273,68 @@ template<class Endpoint> class IndependentSubshowerPump {
     unsigned k=p.next_kind;
     if(!p.count(k)) k=1-k;
     if(!p.count(k)) throw std::logic_error("Submitting an empty subshower epoch");
+    if(cpu_primary_ && e==1) {
+      auto selected=CpuPrimarySubshowerPolicy::selectHostSpecies(
+          p.next_kind, {p.count(0),p.count(1)}, p.capacity,
+          cpu_.minimumBatchSize(), p.deferrals);
+      if(selected!=k) ++stats_.adaptive_species_coalesces[1];
+      k=selected;
+    }
+    auto target=adaptive_?control_.targetMs(e,k,flight_.valid()):
+        AdaptiveSubshowerControl::epoch_target_ms;
+    if(adaptive_) {
+      auto useful=std::min(gpu_.minimumBatchSize(),p.capacity[k]);
+      // Coalesce the small species while processing a useful batch of the
+      // other species. No sleeping for an empty future queue; a lone tail
+      // drains immediately. Eight deferrals bound species starvation.
+      if(p.count(k)<useful && p.count(1-k)>=useful && p.deferrals[k]<8) {
+        ++p.deferrals[k];k=1-k;
+        ++stats_.adaptive_species_coalesces[e];
+      }
+      p.deferrals[k]=0;
+    }
+    if(adaptive_)target=control_.targetMs(e,k,flight_.valid());
     p.next_kind=1-k; // each endpoint alternates its own photon/lepton queues
     Job job;job.kind=k;job.sequence=++submitted_[e];
-    auto target=adaptive_ && e==1?control_.hostTargetMs(flight_.valid()):
-        AdaptiveSubshowerControl::epoch_target_ms;
-    auto capacity=adaptive_ && e==1?control_.inputLimit(e,k,p.capacity[k],target):
-        p.capacity[k];
-    auto external=std::min(capacity,p.waiting[k].size());
+    auto capacity=adaptive_ && e==1?control_.inputLimit(e,k,p.capacity[k],target):p.capacity[k];
+    // Match the standalone router's primary fill order: already resident
+    // particles retain their arena slots; new waiting input uses the spare
+    // capacity. In particular, do not evict a mature front with fresh input.
+    auto protected_resident=cpu_primary_ && e==1?std::min(capacity,p.resident[k]):0;
+    auto external=std::min(capacity-protected_resident,p.waiting[k].size());
     job.input.assign(p.waiting[k].begin(),p.waiting[k].begin()+external);
     p.waiting[k].erase(p.waiting[k].begin(),p.waiting[k].begin()+external);
     auto resident=std::min(capacity-external,p.resident[k]);
     job.resident_input=resident;
     job.bounded_input=adaptive_ && e==1;
     job.count=external+resident;
+    job.input_limit=capacity;job.target_ms=target;
     p.resident[k]-=resident; // ownership moves to the job, not a second queue entry
     job.waves=adaptive_?control_.waves(e,k,job.count,target):
         (k==0?16:(e==0?gpu_lepton_waves_:8));
+    if(cpu_primary_ && k==1) job.waves=e==1?
+        CpuPrimarySubshowerPolicy::host_lepton_waves:CpuPrimarySubshowerPolicy::auxiliary_lepton_waves;
     // Split tails must not return after every single wave merely because
     // each half is smaller than the original unsplit 4096-input threshold.
     // The measured epoch controller already supplies a bounded hand-off.
     job.minimum=adaptive_?1:(e==0?gpu_.minimumBatchSize():1);
+    if(cpu_primary_) job.minimum=e==0?1:
+        CpuPrimarySubshowerPolicy::hostCheckpointMinimum(job.count,cpu_.minimumBatchSize());
+    if(adaptive_ && e==0 && job.count>=gpu_.minimumBatchSize())
+      // Newly generated other-species particles are not reflected in the
+      // coordinator's count until return. Let a big front hand off its small
+      // tail so those daughters can form the next useful front. A job which
+      // STARTS small still drains with minimum=1, avoiding single-step tails.
+      job.minimum=gpu_.minimumBatchSize();
+    if(adaptive_ && e==1) {
+      // An independent host epoch may now run >8 waves. Do not spend hundreds
+      // of 130-thread barriers draining a vanishing front while other-species
+      // daughters wait. Rejoin/coalesce at a useful native-sized boundary.
+      // A small initial batch uses a proportional threshold, not an immediate
+      // one-wave return. This is a lossless scheduler checkpoint, never a cut.
+      job.minimum=std::min(gpu_.minimumBatchSize(),
+                           std::max<std::size_t>(1,job.count/4));
+    }
     if(adaptive_) stats_.adaptive_wave_limit[e][k]=job.waves;
     auto n=static_cast<std::uint64_t>(job.count);
     if(n>std::numeric_limits<std::uint64_t>::max()/192)
@@ -283,34 +376,172 @@ template<class Endpoint> class IndependentSubshowerPump {
     done.identity=std::move(job);
     return done;
   }
+  static std::uint64_t retainedBytes(Completion const& result) {
+    // Count allocated capacity, not size. A new call is allowed only while
+    // the PREVIOUS results fit the retention budget: peak is bounded by that
+    // budget plus one ordinary result, whose existing backend limits apply.
+    std::uint64_t bytes=sizeof(Completion);
+    auto add=[&](auto const& values) {
+      using T=typename std::decay_t<decltype(values)>::value_type;
+      if(values.capacity()>std::numeric_limits<std::uint64_t>::max()/sizeof(T))
+        throw std::overflow_error("Subshower completion capacity overflow");
+      bytes=cooperativeAdd(bytes,static_cast<std::uint64_t>(values.capacity()*sizeof(T)));
+    };
+    add(result.identity.input);
+    std::visit([&](auto const& r) {
+      add(r.cpu_spill_particles);add(r.fallback_events);add(r.observations);
+      add(r.interaction_records);add(r.step_records);add(r.projected_step_records);
+      add(r.final_state_records);
+      if constexpr(std::is_same_v<std::decay_t<decltype(r)>,Photon>) {
+        add(r.electromagnetic_secondaries);add(r.remaining_photons);
+      } else {
+        add(r.generated_photons);add(r.remaining_leptons);add(r.decay_candidates);
+      }
+    },result.result);
+    return bytes;
+  }
   void launch(SubshowerCallbacks const& callbacks) {
     auto job=prepare(0,callbacks);
+    Continuation continuation;
+    bool foreground=yield(callbacks);
+    continuation.fixed_cpu_primary=cpu_primary_;
+    continuation.maximum_calls=cpu_primary_?maximum_cpu_primary_packet_calls:maximum_packet_calls;
+    continuation.enabled=(adaptive_ || cpu_primary_) && (!peers_[1].empty() || foreground);
+    if(continuation.enabled) {
+      continuation.capacity=peers_[0].capacity;
+      if(adaptive_) {
+        continuation.control=control_; // private snapshot; never shares mutable host estimates
+        // The CPU's measured useful epoch sets the service horizon. This is
+        // long on a CPU-heavy server, short when CUDA is the faster endpoint.
+        continuation.target_ms=std::max(control_.targetMs(1,0,true),control_.targetMs(1,1,true));
+      }
+      // CPU-primary uses a fixed small packet, not a time/rate controller.
+      // Every follow-up lease is reserved here; the driver never touches Stack.
+      for(unsigned k=0;k<2;++k) {
+        auto n=static_cast<std::uint64_t>(continuation.capacity[k]);
+        if(n>std::numeric_limits<std::uint64_t>::max()/192)
+          throw std::overflow_error("Subshower continuation history request overflow");
+        auto per_call=k==0?32*n:std::max(3*n,std::min<std::uint64_t>(1U<<20,192*n));
+        continuation.lease[k]=per_call;
+        continuation.stride=std::max(continuation.stride,per_call);
+      }
+      // One ordered bank, NOT separate photon/lepton banks: repeated species
+      // alternation must never allocate children from an earlier ID interval.
+      if(continuation.stride>std::numeric_limits<std::uint64_t>::max()/(continuation.maximum_calls-1))
+        throw std::overflow_error("Subshower continuation bank overflow");
+      auto reserve=continuation.stride*(continuation.maximum_calls-1);
+      continuation.first=callbacks.reserve_histories(reserve);
+      continuation.limit=cooperativeAdd(continuation.first,reserve);
+      if(!continuation.first || continuation.first<last_history_limit_)
+        throw std::logic_error("Overlapping/nonmonotonic continuation history lease");
+      last_history_limit_=continuation.limit;
+    }
     flight_kind_=job.kind;flight_count_=job.count;
     host_epochs_in_flight_=0;
     flight_host_starved_ms_=0.;
     gpu_begin_ns_=0;gpu_end_ns_=0;
-    flight_=driver_.submit([this,job=std::move(job)]() mutable {
+    flight_=driver_.submit([this,job=std::move(job),continuation=std::move(continuation)]() mutable {
       select_device_();
       gpu_begin_ns_.store(nanoseconds(Clock::now()),std::memory_order_release);
-      auto done=execute(gpu_,std::move(job));
-      gpu_end_ns_.store(nanoseconds(done.end),std::memory_order_release);
-      return done;
+      Packet packet;packet.results.reserve(continuation.enabled?continuation.maximum_calls:1);
+      packet.results.push_back(execute(gpu_,std::move(job)));
+      packet.retained_bytes=(adaptive_ || cpu_primary_)?retainedBytes(packet.results.back()):0;
+      // No coordinator-owned queue, callback or mutable estimate is touched.
+      // The driver may learn from its own completed calls in its PRIVATE copy.
+      // If the host needs work, hand over this lossless checkpoint instead of
+      // extending a slow GPU tail. The horizon is checked between complete
+      // calls, not kernel preemption or a particle cut.
+      while(continuation.enabled) {
+        auto const& last=packet.results.back();
+        if(!last.resident[0] && !last.resident[1]) {packet.stop_reason=0;break;}
+        if(!std::visit([](auto const& r){return r.wavefronts!=0;},last.result)) {packet.stop_reason=1;break;}
+        if(packet.retained_bytes>=continuation_retention_bytes_) {packet.stop_reason=2;break;}
+        if(packet.results.size()==continuation.maximum_calls) {packet.stop_reason=3;break;}
+        if(gpu_needs_handoff_.load(std::memory_order_acquire)) {packet.stop_reason=4;break;}
+        if(!continuation.fixed_cpu_primary &&
+           milliseconds(packet.results.front().begin,last.end)>=continuation.target_ms) {packet.stop_reason=5;break;}
+        // Refresh before planning the next autonomous call. Keeping the launch
+        // snapshot unchanged can repeat a one/two-wave lease for all 16 calls,
+        // although each short completed call demonstrates room for growth.
+        // The coordinator independently observes each result exactly once at
+        // commit; this private calibration never mutates global statistics.
+        if(!continuation.fixed_cpu_primary) {
+          std::visit([&](auto const& result) {
+            auto const& id=last.identity;
+            continuation.control.observe(0,id.kind,id.count,result.wavefronts,id.waves,
+                result.transport_records,milliseconds(last.begin,last.end),
+                id.input_limit,id.target_ms);
+          },last.result);
+        }
+        unsigned k=1-last.identity.kind;
+        if(!last.resident[k])k=1-k;
+        auto useful=gpu_.minimumBatchSize();
+        if(last.resident[k]<useful && last.resident[1-k]>=useful)k=1-k;
+        Job follow;follow.kind=k;follow.sequence=cooperativeAdd(
+            packet.results.front().identity.sequence,static_cast<std::uint64_t>(packet.results.size()));
+        follow.scalar_foreground_continuation=gpu_scalar_foreground_.load(std::memory_order_acquire);
+        follow.count=std::min(last.resident[k],continuation.capacity[k]);
+        follow.resident_input=follow.count;follow.input_limit=continuation.capacity[k];
+        if(continuation.fixed_cpu_primary) {
+          follow.waves=k==0?16:CpuPrimarySubshowerPolicy::auxiliary_lepton_waves;
+          follow.minimum=1;
+        } else {
+          follow.target_ms=continuation.control.targetMs(0,k,true);
+          follow.waves=continuation.control.waves(0,k,follow.count,follow.target_ms);
+          follow.minimum=follow.count>=useful?useful:1;
+        }
+        follow.first=cooperativeAdd(continuation.first,
+            continuation.stride*static_cast<std::uint64_t>(packet.results.size()-1));
+        follow.limit=cooperativeAdd(follow.first,continuation.lease[k]);
+        if(follow.limit>continuation.limit)
+          throw std::logic_error("Subshower continuation bank exhausted");
+        packet.results.push_back(execute(gpu_,std::move(follow)));
+        packet.retained_bytes=cooperativeAdd(packet.retained_bytes,retainedBytes(packet.results.back()));
+      }
+      gpu_end_ns_.store(nanoseconds(packet.results.back().end),std::memory_order_release);
+      return packet;
     });
     ++stats_.subshower_cuda_submissions;
+    if((adaptive_ || cpu_primary_) && foreground)++stats_.subshower_cuda_foreground_packets;
   }
   void collect(SubshowerCallbacks const& callbacks) {
     if(!gpuReady()) throw std::logic_error("Blocking subshower collect is forbidden");
-    auto result=flight_.get();
+    auto packet=flight_.get();
     driver_.waitIdle(); // packaged_task teardown, after result is already ready
+    auto const packet_limit=cpu_primary_?maximum_cpu_primary_packet_calls:
+        (adaptive_?maximum_packet_calls:1);
+    if(packet.results.empty() || packet.results.size()>packet_limit)
+      throw std::logic_error("Invalid independent completion mailbox size");
+    auto received=Clock::now();
+    // This is actual GPU idle time after the LAST autonomous call. The first
+    // result may wait in the mailbox while the GPU is still doing useful work.
+    stats_.cuda_result_service_delay_ms+=milliseconds(packet.results.back().end,received);
+    if(adaptive_ || cpu_primary_) {
+      stats_.cuda_completion_peak_bytes=std::max(stats_.cuda_completion_peak_bytes,packet.retained_bytes);
+      stats_.maximum_cuda_packet_calls=std::max(stats_.maximum_cuda_packet_calls,
+          static_cast<std::uint64_t>(packet.results.size()));
+      ++stats_.cuda_continuation_stops.at(packet.stop_reason);
+    }
+    for(std::size_t i=1;i<packet.results.size();++i) {
+      submitted_[0]=cooperativeAdd(submitted_[0],std::uint64_t{1});
+      stats_.subshower_cuda_submissions=cooperativeAdd(stats_.subshower_cuda_submissions,std::uint64_t{1});
+      stats_.subshower_cuda_autonomous_continuations=cooperativeAdd(
+          stats_.subshower_cuda_autonomous_continuations,std::uint64_t{1});
+      if(packet.results[i].identity.scalar_foreground_continuation)
+        ++stats_.subshower_cuda_foreground_continuations;
+      stats_.cuda_input_particles=cooperativeAdd(stats_.cuda_input_particles,
+          static_cast<std::uint64_t>(packet.results[i].identity.count));
+    }
+    for(auto& result:packet.results) {
     stats_.cuda_driver_wall_ms+=milliseconds(result.begin,result.end);
-    stats_.cuda_result_service_delay_ms+=milliseconds(result.end,Clock::now());
+    if(adaptive_ || cpu_primary_)stats_.cuda_completion_buffer_delay_ms+=milliseconds(result.end,received);
     auto duration=milliseconds(result.begin,result.end);
     if(adaptive_)control_.observeGpuDuration(duration);
     stats_.subshower_maximum_cuda_epoch_ms=std::max(
         stats_.subshower_maximum_cuda_epoch_ms,duration);
     // A slow GPU must reach a safe redistribution boundary when the CPU is
     // starved. Never interrupt a kernel or alter a particle's physical step.
-    if(!adaptive_ && result.identity.kind==1) {
+    if(!adaptive_ && !cpu_primary_ && result.identity.kind==1) {
       if(flight_host_starved_ms_>5. && duration>100.) {
         auto target=static_cast<std::size_t>(result.identity.waves*100./duration);
         auto next=std::max<std::size_t>(16,std::min(gpu_lepton_waves_/2,target));
@@ -320,9 +551,11 @@ template<class Endpoint> class IndependentSubshowerPump {
         gpu_lepton_waves_=std::min<std::size_t>(1024,2*gpu_lepton_waves_);
       }
     }
-    stats_.subshower_gpu_lepton_wave_limit=gpu_lepton_waves_;
+    stats_.subshower_gpu_lepton_wave_limit=cpu_primary_?
+        CpuPrimarySubshowerPolicy::auxiliary_lepton_waves:gpu_lepton_waves_;
     ++stats_.subshower_cuda_commits;
     commit(0,std::move(result),callbacks);
+    }
   }
   void retain(unsigned e,unsigned k,std::vector<Particle>& values,std::vector<Particle>& spill) {
     auto& p=peers_[e];auto& queue=p.waiting[k];
@@ -348,12 +581,39 @@ template<class Endpoint> class IndependentSubshowerPump {
       double rate=result.transport_records/std::max(elapsed,1.e-6);
       auto& average=rates_[job.kind][e];
       if(rate>0) average=average==0?rate:.8*average+.2*rate;
+      if(cpu_primary_) {
+        stats_.adaptive_transport_records[e][job.kind]=cooperativeAdd(
+            stats_.adaptive_transport_records[e][job.kind],result.transport_records);
+        stats_.adaptive_resident_wavefronts[e][job.kind]=cooperativeAdd(
+            stats_.adaptive_resident_wavefronts[e][job.kind],static_cast<std::uint64_t>(result.wavefronts));
+        auto count=job.count;std::size_t bin=0;
+        while(count>1 && bin+1<stats_.adaptive_job_input_histogram[e].size()) {count>>=1;++bin;}
+        ++stats_.adaptive_job_input_histogram[e][bin];
+      }
       if(adaptive_) {
         control_.observe(e,job.kind,job.count,result.wavefronts,job.waves,
-                         result.transport_records,elapsed);
+                         result.transport_records,elapsed,job.input_limit,job.target_ms);
         auto const& s=control_.sample(e,job.kind);
         stats_.adaptive_records_per_ms[e][job.kind]=s.records_per_ms;
         stats_.adaptive_observations[e][job.kind]=s.observations;
+        stats_.adaptive_transport_records[e][job.kind]=cooperativeAdd(
+            stats_.adaptive_transport_records[e][job.kind],result.transport_records);
+        stats_.adaptive_resident_wavefronts[e][job.kind]=cooperativeAdd(
+            stats_.adaptive_resident_wavefronts[e][job.kind],static_cast<std::uint64_t>(result.wavefronts));
+        stats_.adaptive_input_limit[e][job.kind]=job.input_limit;
+        stats_.adaptive_full_observations[e][job.kind]=s.full_observations;
+        // One exclusive reason for every completed job. No unbounded trace.
+        unsigned reason=5; // other: diagnostics must expose unexpected exits
+        if(result.workspace_limit_checkpoint)reason=2;
+        else if(result.below_minimum_batch_checkpoint)reason=1;
+        else if(result.completed)reason=0;
+        else if(result.wavefronts>=job.waves)reason=4;
+        if constexpr(std::is_same_v<std::decay_t<decltype(result)>,Lepton>)
+          if(result.history_range_exhausted)reason=3;
+        ++stats_.adaptive_completion_reasons[e][job.kind][reason];
+        auto value=job.count;std::size_t bin=0;
+        while(value>1 && bin+1<stats_.adaptive_job_input_histogram[e].size()) {value>>=1;++bin;}
+        ++stats_.adaptive_job_input_histogram[e][bin];
       }
       using R=std::decay_t<decltype(result)>;
       if constexpr(std::is_same_v<R,Photon>) {
@@ -413,6 +673,7 @@ template<class Endpoint> class IndependentSubshowerPump {
     return false;
   }
   void rebalance() {
+    if(cpu_primary_) {rebalanceCpuPrimary();return;}
     if(adaptive_) {rebalanceAdaptive();return;}
     // Coordinator-owned waiting vectors are NOT read by the GPU driver:
     // prepare() moves a separate input capture into the submitted job.
@@ -465,6 +726,79 @@ template<class Endpoint> class IndependentSubshowerPump {
   }
   std::size_t outstanding(unsigned e,unsigned k) const {
     return peers_[e].count(k)+(e==0 && flight_.valid() && flight_kind_==k?flight_count_:0);
+  }
+  std::size_t enqueueCpuPrimary(std::vector<Particle> const& input,
+                                std::array<std::size_t,2> incoming) {
+    std::array<std::size_t,2> quota{};
+    for(unsigned k=0;k<2;++k) {
+      auto total=incoming[k]+peers_[1].count(k);
+      auto keep=CpuPrimarySubshowerPolicy::hostReserve(peers_[1].capacity[k],cpu_.minimumBatchSize());
+      auto capacity=peers_[0].capacity[k], already=outstanding(0,k);
+      auto useful=CpuPrimarySubshowerPolicy::helperMinimum(capacity,gpu_.minimumBatchSize());
+      if(total>keep && already<capacity && incoming[k]>=useful && total-keep>=useful)
+        quota[k]=std::min({incoming[k],total-keep,2*capacity-already,
+          std::max(useful,static_cast<std::size_t>(incoming[k]*
+              CpuPrimarySubshowerPolicy::gpuShare(rates_[k][1],rates_[k][0])))});
+    }
+    std::size_t accepted=0;
+    for(auto const& particle:input) {
+      unsigned k=particle.pid==22?0:1;
+      unsigned e=quota[k]?0:1;
+      auto room=[&](unsigned side){return peers_[side].waiting[k].size()<2*peers_[side].capacity[k];};
+      if(!room(e)) {
+        // A full coordinator queue is backpressure, not permission to seed a
+        // tiny helper job outside the quota above. The router retains the
+        // unaccepted suffix; the CPU still executes its queued epoch below.
+        if(e==1 || !room(1))break;
+        e=1;
+      }
+      peers_[e].waiting[k].push_back(particle);
+      if(e==0 && quota[k])--quota[k];
+      ++accepted;
+    }
+    return accepted;
+  }
+  void moveCpuPrimaryWork(unsigned source,unsigned k,std::size_t count) {
+    auto& donor=peers_[source];auto& receiver=peers_[1-source];
+    auto n=std::min(count,donor.waiting[k].size());
+    auto& from=donor.waiting[k];auto& to=receiver.waiting[k];
+    to.insert(to.end(),std::make_move_iterator(from.end()-n),std::make_move_iterator(from.end()));
+    from.erase(from.end()-n,from.end());
+    if(count>n) {
+      if(source==0 && flight_.valid())throw std::logic_error("CPU-primary attempted in-flight device migration");
+      auto moved=endpoint(source).takeCooperativePending(k==0,count-n);
+      if(moved.size()!=count-n)throw std::logic_error("CPU-primary migration count mismatch");
+      to.insert(to.end(),std::make_move_iterator(moved.begin()),std::make_move_iterator(moved.end()));
+      donor.resident[k]-=count-n;
+    }
+    stats_.migration_bytes=cooperativeAdd(stats_.migration_bytes,count*sizeof(Particle));
+    ++stats_.subshower_tail_migrations;
+    if(flight_.valid()) {
+      ++stats_.subshower_inflight_waiting_migrations;
+      stats_.subshower_inflight_waiting_particles+=count;
+    }
+  }
+  void rebalanceCpuPrimary() {
+    for(unsigned k=0;k<2;++k) {
+      auto& host=peers_[1];auto& device=peers_[0];
+      // Do not undo the just-computed throughput split merely because the
+      // host batch is not full. Steal only when the primary has no work.
+      if(host.empty()) {
+        auto available=flight_.valid()?device.waiting[k].size():device.count(k);
+        auto n=std::min(available,host.capacity[k]-host.count(k));
+        if(n)moveCpuPrimaryWork(0,k,n);
+      }
+      // An empty helper takes only a measured share of primary surplus.
+      // No predicted completion times or repeated balancing while both run.
+      if(flight_.valid() || !device.empty())continue;
+      auto keep=CpuPrimarySubshowerPolicy::hostReserve(host.capacity[k],cpu_.minimumBatchSize());
+      auto useful=CpuPrimarySubshowerPolicy::helperMinimum(device.capacity[k],gpu_.minimumBatchSize());
+      if(host.count(k)<=keep || host.count(k)-keep<useful)continue;
+      auto surplus=host.count(k)-keep;
+      auto n=std::min({device.capacity[k],surplus,std::max(useful,
+          static_cast<std::size_t>(surplus*CpuPrimarySubshowerPolicy::gpuShare(rates_[k][1],rates_[k][0])))});
+      if(n>=useful)moveCpuPrimaryWork(1,k,n);
+    }
   }
   double estimatedLoad(unsigned e) const {
     double load=0.;
@@ -522,7 +856,9 @@ template<class Endpoint> class IndependentSubshowerPump {
       auto sum=control_.unitCost(source,k)+control_.unitCost(destination,k);
       auto predicted=std::min(static_cast<double>(cap),saving/sum);
       auto count=static_cast<std::size_t>(predicted);
-      if(!count)continue;
+      // Transferring a handful of particles changes ownership but cannot
+      // amortize a new launch/scan/radio batch. Do not oscillate tiny tails.
+      if(count<256)continue;
       double source_load=source==0?a:b,destination_load=destination==0?a:b;
       double before=std::max(source_load,destination_load);
       double after=std::max(source_load-count*control_.unitCost(source,k),
@@ -531,7 +867,7 @@ template<class Endpoint> class IndependentSubshowerPump {
       // Compare the predicted critical path, not only donor work removed.
       // Hysteresis prevents oscillatory migrations between two nonempty peers.
       if(benefit<=1.+2.*count*migration_ms_per_particle_+
-          (receiver.empty()?0.:.1*before))continue;
+          (receiver.empty()?0.:.25*before))continue;
       auto begin=Clock::now();
       auto& from=donor.waiting[k];auto& to=receiver.waiting[k];
       auto host=std::min(count,from.size());
@@ -568,11 +904,14 @@ template<class Endpoint> class IndependentSubshowerPump {
   std::array<std::uint64_t,2> submitted_{},committed_{};
   std::uint64_t last_history_limit_{},host_epochs_in_flight_{};
   unsigned flight_kind_{}; std::size_t flight_count_{};
-  bool advancing_{},failed_{},adaptive_{};
+  bool advancing_{},failed_{},adaptive_{},cpu_primary_{};
+  std::uint64_t continuation_retention_bytes_;
   AdaptiveSubshowerControl control_;
   double migration_ms_per_particle_{};
   std::atomic<std::int64_t> gpu_begin_ns_{0},gpu_end_ns_{0};
-  std::future<Completion> flight_;
+  std::atomic<bool> gpu_needs_handoff_{true};
+  std::atomic<bool> gpu_scalar_foreground_{false};
+  std::future<Packet> flight_;
   IndependentEndpointDriver driver_; // drain before queues, callbacks and Views
 };
 } // namespace corsika::accelerator::em::detail

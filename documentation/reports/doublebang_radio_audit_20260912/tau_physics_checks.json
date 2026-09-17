@@ -1,0 +1,49 @@
+{
+  "groups": [
+    {
+      "pdg": 15,
+      "energy_GeV": 10000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 4.599125388671875e-07,
+      "max_momentum_relative_residual": 4.599124996248396e-07
+    },
+    {
+      "pdg": 15,
+      "energy_GeV": 100000000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 8.998308688e-07,
+      "max_momentum_relative_residual": 8.9983086896e-07
+    },
+    {
+      "pdg": 15,
+      "energy_GeV": 1000000000000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 4.0301031194624e-07,
+      "max_momentum_relative_residual": 4.0301031194624e-07
+    },
+    {
+      "pdg": -15,
+      "energy_GeV": 10000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 6.36835047265625e-07,
+      "max_momentum_relative_residual": 6.36835004480362e-07
+    },
+    {
+      "pdg": -15,
+      "energy_GeV": 100000000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 1.29090688448e-06,
+      "max_momentum_relative_residual": 1.29090688448e-06
+    },
+    {
+      "pdg": -15,
+      "energy_GeV": 1000000000000.0,
+      "decays": 300,
+      "max_energy_relative_residual": 6.46100582137856e-07,
+      "max_momentum_relative_residual": 6.461005822164992e-07
+    }
+  ],
+  "spin_configurations": 60,
+  "pion_draws": 180000,
+  "maximum_absolute_spin_pull": 3.171161887398186
+}

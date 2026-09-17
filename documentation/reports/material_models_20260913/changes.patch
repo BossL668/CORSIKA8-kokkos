@@ -1,0 +1,2124 @@
+--- a/applications/CMakeLists.txt
++++ b/applications/CMakeLists.txt
+@@ -219,8 +219,24 @@
+   endif ()
+ endif ()
+ if (CORSIKA_BUILD_MOUNTAIN_APPLICATION AND WITH_FLUKA)
++  # Independent adapter for more than ten elemental targets. Do not change
++  # the air wrapper or redistribute the user's licensed FLUKA headers.
++  find_path(C8_TERRAIN_FLUKA_INCLUDE_DIR "(FLKMAT)"
++    HINTS "$ENV{FLUPRO}/flukapro" REQUIRED)
++  # Parenthesized FLUKA filenames are parsed as archive members by GNU make.
++  # Normalize only the private build copies, preserving installed headers.
++  set(_terrain_fluka_includes "${CMAKE_CURRENT_BINARY_DIR}/fluka-material-includes")
++  file(MAKE_DIRECTORY "${_terrain_fluka_includes}")
++  foreach(_terrain_fluka_common DIMPAR FLKMAT FLKCMP)
++    configure_file("${C8_TERRAIN_FLUKA_INCLUDE_DIR}/(${_terrain_fluka_common})"
++      "${_terrain_fluka_includes}/fluka_${_terrain_fluka_common}.inc" COPYONLY)
++  endforeach()
++  add_library(C8TerrainFlukaMaterialBridge OBJECT detail/mountain/FlukaMaterialBridge.f)
++  target_include_directories(C8TerrainFlukaMaterialBridge PRIVATE
++    "${_terrain_fluka_includes}")
+   add_executable(c8_terrain_cascade c8_terrain_cascade.cpp
+-    ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp)
++    ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp
++    $<TARGET_OBJECTS:C8TerrainFlukaMaterialBridge>)
+   target_link_libraries(c8_terrain_cascade PRIVATE CORSIKA8 fluka)
+   target_compile_definitions(c8_terrain_cascade PRIVATE
+     CORSIKA8_TERRAIN_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF")
+@@ -260,7 +276,8 @@
+           $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+       endif()
+       add_executable(${_terrain_audit_app} EXCLUDE_FROM_ALL c8_terrain_cascade.cpp
+-        ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp)
++        ${CMAKE_SOURCE_DIR}/src/accelerator/em/tables/Sha256.cpp
++        $<TARGET_OBJECTS:C8TerrainFlukaMaterialBridge>)
+       target_link_libraries(${_terrain_audit_app} PRIVATE CORSIKA8 fluka ${_terrain_audit_lib})
+       target_compile_definitions(${_terrain_audit_app} PRIVATE CORSIKA8_WITH_KOKKOS_EM=1
+         CORSIKA8_TERRAIN_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF")
+--- a/applications/c8_terrain_cascade.cpp
++++ b/applications/c8_terrain_cascade.cpp
+@@ -1,5 +1,5 @@
+ /* Independent geographic terrain transport application.
+- * CPU reference or bounded Kokkos multi-material EM; IGRF14 in air, B=0 in rock.
++ * CPU reference or bounded Kokkos multi-material EM; IGRF14 in air, material B inside.
+  * Optional interface ZHS/CoREAS radio: single transmitted GO branches, straight legs.
+  */
+ #include <corsika/framework/core/Cascade.hpp>
+@@ -20,6 +20,9 @@
+ #include <corsika/modules/neutrino/TransportedLeptons.hpp>
+ #include <corsika/modules/terrain/TerrainMagneticTracking.hpp>
+ #include <corsika/modules/transport/InterfaceTracking.hpp>
++#include <corsika/modules/transport/MaterialProposalEnvironment.hpp>
++#include <corsika/modules/transport/MaterialHadronLoss.hpp>
++#include "detail/mountain/MaterialFlukaInteraction.hpp"
+ #include <corsika/modules/terrain/TerrainMagneticField.hpp>
+ #include <corsika/modules/writers/SubWriter.hpp>
+ #include <corsika/output/OutputManager.hpp>
+@@ -141,7 +144,7 @@
+   auto* tauolaHelicityOption = app.add_option("--tauola-helicity", tauolaHelicity,
+       "Original TAUOLA fixed-helicity convention; not an event-level CC spin calculation")
+       ->check(CLI::IsMember({"left", "unpolarized", "right"}));
+-  app.add_option("--magnetic-field", magnetic, "Air field; rock is always B=0")
++  app.add_option("--magnetic-field", magnetic, "Air field; embedded field comes from the material card (default zero)")
+       ->check(CLI::IsMember({"igrf14", "none"}));
+   app.add_option("--magnetic-year", year)->check(CLI::Range(2025., 2030.));
+   app.add_option("--igrf-file", igrfFile)->check(CLI::ExistingFile);
+@@ -195,11 +198,15 @@
+           scene.yaml["site"]["latitude_deg"].as<double>(),
+           scene.yaml["site"]["longitude_deg"].as<double>());
+     }
+-    // Native five-layer atmosphere owns the validated DEM child. Air has B, rock has none.
++    // Native five-layer atmosphere owns the DEM child and its selected material.
+     auto mesh = scene.build(env);
+     // Stock PROPOSAL keys use composition: reject ambiguous material properties
+     // before constructing any calculator (e.g. coexisting water and ice banks).
+     interfaces::validateCalculatorMaterialKeys(env);
++    interfaces::MaterialProposalEnvironment materialEnvironment(env);
++    std::clog << "[terrain] material: " << scene.material.description << " [" << scene.material.id << "]\n";
++    if(scene.legacy_material_overrides)
++      std::clog << "[terrain] legacy density/index/attenuation overrides selected material; see resolved_material in terrain_run.yaml\n";
+     for (double v : position) {
+       if (!std::isfinite(v)) throw std::invalid_argument("nonfinite injection");
+     }
+@@ -250,7 +257,7 @@
+     //    from the geometry's name. The default SiO2/air target set is unchanged.
+     auto targets=interfaces::collectNuclearTargets(env);
+     std::clog << "[terrain] initializing FLUKA environment targets\n";
+-    corsika::fluka::Interaction low(targets);
++    terrainapp::MaterialFlukaInteraction low(targets);
+     if (std::signal(SIGALRM, SIG_IGN) == SIG_ERR) {
+       throw std::runtime_error("cannot disable FLUKA diagnostic timer");
+     }
+@@ -261,10 +268,10 @@
+     proposal::ThresholdPhotoproductionModel threshold;
+     proposal::HadronicInteractionModelFallback photoWithThreshold(photo, threshold);
+     std::clog << "[terrain] initializing native PROPOSAL interaction calculators\n";
+-    proposal::Interaction em(env, photoWithThreshold, high, 80_GeV);
++    proposal::Interaction em(materialEnvironment, photoWithThreshold, high, 80_GeV);
+     std::clog << "[terrain] initializing native PROPOSAL continuous calculators\n";
+-    proposal::ContinuousProcess<SubWriter<terrainapp::ShowerOutput>> continuous(env, diagnostics);
+-    BetheBlochPDG<SubWriter<terrainapp::ShowerOutput>> hadronLoss(diagnostics);
++    proposal::ContinuousProcess<SubWriter<terrainapp::ShowerOutput>> continuous(materialEnvironment, diagnostics);
++    interfaces::MaterialHadronLoss<SubWriter<terrainapp::ShowerOutput>> hadronLoss(diagnostics);
+     auto losses = make_select(
+         [](TerrainStack::particle_type const& p) { return is_hadron(p.getPID()); },
+         hadronLoss, continuous);
+@@ -316,11 +323,30 @@
+     summary["air_magnetic_field_enu_T"] = scene.atmosphere.air_magnetic_field_enu_T;
+     summary["magnetic_height_reference"] = "WGS84 ellipsoidal; atmosphere density uses ASL";
+     summary["magnetic_coefficients_file"] = igrfFile;
+-    summary["rock_magnetic_field_enu_T"] = std::array<double,3>{0.,0.,0.};
++    summary["rock_magnetic_field_enu_T"] = scene.material.magnetic_field_T;
+     summary["scene"] = scene.yaml;
+     summary["material_interface"]["outside_region"] = 0;
+     summary["material_interface"]["inside_region"] = 1;
+-    summary["material_interface"]["inside_medium"] = mediumData(scene.atmosphere.embedded_medium).getName();
++    summary["material_interface"]["inside_medium"] = scene.material.id;
++    summary["resolved_material"] = terrainapp::materialConfig(scene.material);
++    summary["fluka_target_initialization"] = low.expandedSetup() ?
++        "one bootstrap compound; individual elemental targets" : "stock elemental regions";
++    summary["fluka_isotope_policy"] = "elemental natural-isotope FLUKA targets; Z-only native setup API";
++    summary["legacy_material_overrides"] = scene.legacy_material_overrides;
++    summary["material_ionisation_model"] = scene.material.ionisation_model==interfaces::IonisationModel::BraggSternheimer ?
++        "Bragg log-I + approximate condensed Sternheimer" :
++        (scene.material.ionisation_model==interfaces::IonisationModel::NistDensityScaled ? "NIST compound, density scaled" : "explicit coefficients");
++    summary["hadron_continuous_loss"] = hadronLoss.getConfig();
++    for(auto const& v:em.nativeCalculatorViews()) {
++      if(v.projectile!=Code::Photon) continue;
++      auto const& m=*v.medium; YAML::Node p;
++      p["name"]=m.GetName(); p["density_g_cm3"]=m.GetMassDensity();
++      p["I_eV"]=m.GetI(); p["Z_over_A"]=m.GetZA();
++      p["radiation_length_g_cm2"]=m.GetRadiationLength();
++      p["components"]=m.GetNumComponents(); p["composition_hash"]=v.medium_hash;
++      p["photon_pair_LPM"]=v.photon_pair_lpm!=nullptr;
++      summary["proposal_materials"].push_back(p);
++    }
+     summary["material_interface"]["legacy_rock_label"] = "enclosed region, not necessarily SiO2";
+     summary["mesh_sha256"] = scene.mesh_hash;
+     summary["terrain_straight_intersection"] = "indexed-shared-vertices-v2";
+--- a/applications/c8_terrain_environment.cpp
++++ b/applications/c8_terrain_environment.cpp
+@@ -21,6 +21,8 @@
+     YAML::Node result;
+     result["complete"]=false;
+     result["scope"]="geometry/material/antenna admission only; no shower or radio";
++    result["resolved_material"]=terrainapp::materialConfig(scene.material);
++    result["legacy_material_overrides"]=scene.legacy_material_overrides;
+     result["mesh_vertices"]=info.vertices;result["mesh_triangles"]=info.triangles;
+     result["mesh_sha256"]=scene.mesh_hash;
+     result["minimum_altitude_asl_m"]=info.minimum_altitude_asl_m;
+@@ -39,7 +41,7 @@
+     result["complete"]=true;result["scene"]=scene.yaml;
+     std::ofstream file(output);if(!file)throw std::runtime_error("cannot create output");
+     file<<result<<'\n';if(!file)throw std::runtime_error("output write failure");
+-    std::cout<<"Validated "<<info.triangles<<" triangles, "<<result["observers"].size()<<" air observers\n";
++    std::cout<<"Validated "<<info.triangles<<" triangles, "<<result["observers"].size()<<" air observers; material: "<<scene.material.description<<'\n';
+     return 0;
+   }catch(std::exception const& e){std::cerr<<e.what()<<'\n';return 1;}
+ }
+--- /dev/null
++++ b/applications/detail/mountain/FlukaMaterialBridge.f
+@@ -0,0 +1,49 @@
++C     Mountain-only setup; uses the user's installed FLUKA include files.
++C     The auxiliary compound initializes all elemental targets with one
++C     region. Its arbitrary weights are NEVER used for shower sampling:
++C     CORSIKA selects the returned pure elements using the material card.
++      SUBROUTINE C8_MATERIAL_FLUKA_SETUP(N,IZ,MT,STATUS)
++     & BIND(C,NAME="c8_material_fluka_setup")
++      IMPLICIT NONE
++      INCLUDE 'fluka_DIMPAR.inc'
++      INCLUDE 'fluka_FLKMAT.inc'
++      INCLUDE 'fluka_FLKCMP.inc'
++      INTEGER N, IZ(N), MT(N), STATUS, NEL(1), COMPOUND(1), IFL
++      INTEGER I,J,K,M
++      DOUBLE PRECISION WF(N)
++      LOGICAL LPRINT
++      CHARACTER*8 CRVRCK
++      STATUS=1
++      IF(N.LT.1.OR.N.GT.92) RETURN
++      IF(ANY(IZ.LT.1).OR.ANY(IZ.GT.92)) RETURN
++      NEL(1)=N
++      WF=1.D0/N
++      IFL=1
++      LPRINT=.FALSE.
++      CRVRCK='76466879'
++      CALL STPXYZ(1,NEL,IZ,WF,N,1.D11,0.D0,-1.D0,IFL,
++     &            LPRINT,COMPOUND,CRVRCK)
++C     Verify the loaded library/header layout and every target mapping.
++      STATUS=2
++      J=COMPOUND(1)
++      IF(J.LT.1.OR.J.GT.MXXMDF) RETURN
++      IF(N.EQ.1) THEN
++         IF(ICOMP(J).NE.0) RETURN
++         IF(ABS(ZTAR(J)-DBLE(IZ(1))).GT.1.D-12) RETURN
++         MT(1)=J
++         STATUS=0
++         RETURN
++      END IF
++      IF(ICOMPL(J).NE.N) RETURN
++      K=ICOMP(J)
++      IF(K.LT.1.OR.K+N-1.GT.ICOMAX) RETURN
++      STATUS=3
++      DO I=1,N
++         M=MATNUM(K+I-1)
++         IF(M.LT.1.OR.M.GT.MXXMDF) RETURN
++         IF(ICOMP(M).NE.0) RETURN
++         IF(ABS(ZTAR(M)-DBLE(IZ(I))).GT.1.D-12) RETURN
++         MT(I)=M
++      END DO
++      STATUS=0
++      END
+--- /dev/null
++++ b/applications/detail/mountain/MaterialFlukaInteraction.hpp
+@@ -0,0 +1,332 @@
++#pragma once
++#include <map>
++#include <corsika/modules/FLUKA.hpp>
++// Mountain-only FLUKA target setup, adapted from the CORSIKA BSD-3-Clause wrapper.
++// Original air FLUKA headers and the external FLUKA library are unchanged.
++/*
++ * (c) Copyright 2022 CORSIKA Project, corsika-project@lists.kit.edu
++ *
++ * This software is distributed under the terms of the 3-clause BSD license.
++ * See file LICENSE for a full version of the license.
++ */
++
++
++#include <vector>
++#include <utility>
++#include <memory>
++#include <tuple>
++
++#include <corsika/media/Environment.hpp>
++#include <corsika/media/NuclearComposition.hpp>
++#include <corsika/framework/geometry/FourVector.hpp>
++#include <corsika/framework/core/HadronicBatchProtocol.hpp>
++#include <corsika/framework/utility/COMBoost.hpp>
++#include <corsika/framework/core/Logging.hpp>
++#include <corsika/framework/core/PhysicalUnits.hpp>
++#include <corsika/framework/random/RNGManager.hpp>
++
++namespace corsika::applications::terrain::fluka_detail {
++  using corsika::fluka::convertToFluka;
++  using corsika::fluka::FLUKACodeIntType;
++  extern "C" void c8_material_fluka_setup(int const*,int const*,int*,int*);
++  /**
++   * This class exposes the (hadronic) interactions of FLUKA. FLUKA needs to be
++   * initialized with a predefined set of target materials and a flag describing the type
++   * of interactions (elastic, inelastic, electromagnetic dissociation). Currently, only
++   * inelastic events are supported.
++   */
++  class ExpandedInteractionModel {
++  public:
++    static constexpr HadronicWorkerModel
++        hadronic_worker_model =
++            HadronicWorkerModel::Fluka;
++
++    /**
++     * One FLUKA final-state particle in the original CORSIKA frame.
++     *
++     * Keeping this value independent of SecondaryView is the serialization boundary
++     * needed by a process-isolated FLUKA worker.  The tuple deliberately matches the
++     * existing addSecondary() input, so the legacy scalar path does not need a second
++     * kinematic conversion.
++     */
++    using FinalStateParticle =
++        std::tuple<Code, HEPEnergyType, DirectionVector>;
++    using FinalState = std::vector<FinalStateParticle>;
++
++    /**
++     * Create a new ExpandedInteractionModel. The FLUKA materials are collected from the elements
++     * present in the environment. Each element is its own FLUKA material, no FLUKA
++     * compounds are used.
++     */
++    ExpandedInteractionModel(std::set<Code> const&);
++
++    //! Return the cross-section of a given combination of projectile/target.
++    CrossSectionType getCrossSection(Code projectileId, Code targetId,
++                                     FourMomentum const& projectileP4,
++                                     FourMomentum const& targetP4) const;
++
++    bool isValid(Code projectileID, Code targetID, HEPEnergyType sqrtS) const;
++    bool isValid(Code projectileID, int material, HEPEnergyType sqrtS) const;
++
++    //! convert target Code to FLUKA material number
++    int getMaterialIndex(Code targetID) const;
++
++    /**
++     * Generate a FLUKA final state without modifying a CORSIKA stack.
++     *
++     * FLUKA itself remains process-global and must not be called concurrently inside
++     * one process.  This method separates that non-thread-safe call from the subsequent
++     * deterministic SecondaryView commit, allowing future workers to return a complete
++     * final state to the owner of the main stack.
++     */
++    FinalState generateFinalState(
++        Code projectileId, Code targetId,
++        FourMomentum const& projectileP4,
++        FourMomentum const& targetP4);
++
++    /**
++     * Perform an interaction. Since FLUKA expects a fixed-target configuration, we
++     * perform a Lorentz transform into the rest frame of the target.
++     */
++    template <typename TSecondaryView>
++    void doInteraction(TSecondaryView& view, Code const projectileId, Code const targetId,
++                       FourMomentum const& projectileP4, FourMomentum const& targetP4);
++
++  private:
++    default_prng_type& RNG_ = RNGManager<>::getInstance().getRandomStream("fluka");
++    std::vector<std::pair<Code, int>> const
++        materials_; //!< map target Code to FLUKA material no.
++    std::shared_ptr<spdlog::logger> logger_ = get_logger("corsika_FLUKA_Interaction");
++    std::unique_ptr<double[]> cumsgx_; //!< dump for evtxyz cumsg*, never read again
++
++    static std::vector<std::pair<Code, int>> genFlukaMaterials(std::set<Code> const&);
++  };
++
++  inline static int const iflxyz_ = 1;
++} // namespace corsika::fluka
++
++
++/*
++ * (c) Copyright 2022 CORSIKA Project, corsika-project@lists.kit.edu
++ *
++ * This software is distributed under the terms of the 3-clause BSD license.
++ * See file LICENSE for a full version of the license.
++ */
++
++#pragma once
++
++#include <algorithm>
++#include <cstdlib>
++#include <vector>
++#include <iterator>
++#include <set>
++#include <utility>
++#include <string_view>
++
++#include <boost/iterator/zip_iterator.hpp>
++#include <Eigen/Dense>
++
++#include <corsika/media/Environment.hpp>
++#include <corsika/media/NuclearComposition.hpp>
++#include <corsika/framework/geometry/FourVector.hpp>
++#include <corsika/framework/core/ParticleProperties.hpp>
++#include <corsika/framework/core/EnergyMomentumOperations.hpp>
++#include <corsika/framework/core/PhysicalUnits.hpp>
++#include <corsika/modules/Random.hpp>
++#include <corsika/modules/fluka/ParticleConversion.hpp>
++
++#include <FLUKA.hpp>
++
++namespace corsika::applications::terrain::fluka_detail {
++  inline ExpandedInteractionModel::ExpandedInteractionModel(std::set<Code> const& nuccomp)
++      : materials_{genFlukaMaterials(nuccomp)}
++      , cumsgx_{std::make_unique<double[]>(materials_.size() * 3)} {
++    CORSIKA_LOGGER_INFO(logger_, "FLUKA version {}", ::fluka::get_version());
++    for (auto const& [code, matno] : materials_) {
++      CORSIKA_LOGGER_DEBUG(logger_, "FLUKA material initialization: {} -> {}",
++                           get_name(code, full_name{}), matno);
++    }
++
++    if (int const ndmhep = ::fluka::ndmhep_(); ::fluka::nmxhep != ndmhep) {
++      CORSIKA_LOGGER_CRITICAL(logger_, "HEPEVT dimension mismatch. FLUKA reports %d",
++                              ndmhep);
++      throw std::runtime_error{"FLUKA HEPEVT dimension mismatch"};
++    }
++
++    corsika::connect_random_stream(RNG_, ::fluka::set_rng_function);
++  }
++
++  inline bool ExpandedInteractionModel::isValid(Code projectileID, int material,
++                                        HEPEnergyType /*sqrtS*/) const {
++    if (!fluka::canInteract(projectileID)) {
++      // invalid projectile
++      return false;
++    }
++
++    if (material < 0) {
++      // invalid/uninitialized target
++      return false;
++    }
++
++    // TODO: check validity range of sqrtS
++    return true;
++  }
++
++  inline bool ExpandedInteractionModel::isValid(Code projectileID, Code targetID,
++                                        HEPEnergyType sqrtS) const {
++    return isValid(projectileID, getMaterialIndex(targetID), sqrtS);
++  }
++
++  inline int ExpandedInteractionModel::getMaterialIndex(Code targetID) const {
++    auto compare = [=](std::pair<Code, int> const& p) { return p.first == targetID; };
++    if (auto it = std::find_if(materials_.cbegin(), materials_.cend(), compare);
++        it == materials_.cend()) {
++      return -1;
++    } else {
++      return it->second;
++    }
++  }
++
++  inline CrossSectionType ExpandedInteractionModel::getCrossSection(
++      Code const projectileId, Code const targetId, FourMomentum const& projectileP4,
++      FourMomentum const& targetP4) const {
++    auto const flukaMaterial = getMaterialIndex(targetId);
++
++    HEPEnergyType const sqrtS = (projectileP4 + targetP4).getNorm();
++    if (!isValid(projectileId, flukaMaterial, sqrtS)) { return CrossSectionType::zero(); }
++
++    COMBoost const targetRestBoost{targetP4.getSpaceLikeComponents(), get_mass(targetId)};
++    FourMomentum const projectileLab4mom = targetRestBoost.toCoM(projectileP4);
++    HEPEnergyType const Elab = projectileLab4mom.getTimeLikeComponent();
++    auto constexpr invGeV = 1 / 1_GeV;
++    double const labMomentum =
++        projectileLab4mom.getSpaceLikeComponents().getNorm() * invGeV;
++
++    auto const plab = projectileLab4mom.getSpaceLikeComponents();
++
++    CORSIKA_LOGGER_DEBUG(logger_, fmt::format("Elab = {} GeV", Elab * invGeV));
++    auto const flukaCodeProj =
++        static_cast<FLUKACodeIntType>(convertToFluka(projectileId));
++
++    double const dummyEkin = 0;
++    CrossSectionType const xs = ::fluka::sgmxyz_(&flukaCodeProj, &flukaMaterial,
++                                                 &dummyEkin, &labMomentum, &iflxyz_) *
++                                1_mb;
++    return xs;
++  }
++
++  template <typename TSecondaryView>
++  inline void ExpandedInteractionModel::doInteraction(TSecondaryView& view,
++                                              Code const projectileId,
++                                              Code const targetId,
++                                              FourMomentum const& projectileP4,
++                                              FourMomentum const& targetP4) {
++    auto finalState =
++        generateFinalState(projectileId, targetId, projectileP4, targetP4);
++    for (auto& secondary : finalState) {
++      view.addSecondary(std::move(secondary));
++    }
++  }
++
++  inline ExpandedInteractionModel::FinalState ExpandedInteractionModel::generateFinalState(
++      Code const projectileId, Code const targetId,
++      FourMomentum const& projectileP4,
++      FourMomentum const& targetP4) {
++    auto const flukaCodeProj =
++        static_cast<FLUKACodeIntType>(convertToFluka(projectileId));
++    auto const flukaMaterial = getMaterialIndex(targetId);
++
++    HEPEnergyType const sqrtS = (projectileP4 + targetP4).getNorm();
++    if (!isValid(projectileId, flukaMaterial, sqrtS)) {
++      std::string const errmsg = fmt::format(
++          "Event generation with invalid configuration requested: proj: {}, target: {}",
++          get_name(projectileId, full_name{}), get_name(targetId, full_name{}));
++      CORSIKA_LOGGER_CRITICAL(logger_, errmsg);
++      throw std::runtime_error{errmsg.c_str()};
++    }
++
++    COMBoost const targetRestBoost{targetP4.getSpaceLikeComponents(), get_mass(targetId)};
++    FourMomentum const projectileLab4mom = targetRestBoost.toCoM(projectileP4);
++    auto constexpr invGeV = 1 / 1_GeV;
++
++    auto const plab = projectileLab4mom.getSpaceLikeComponents();
++    auto const& cs = plab.getCoordinateSystem();
++    auto const labMomentum = plab.getNorm();
++    double const labMomentumGeV = labMomentum * invGeV;
++
++    auto const direction = (plab / labMomentum).getComponents().getEigenVector();
++
++    double const dummyEkin = 0;
++    ::fluka::evtxyz_(&flukaCodeProj, &flukaMaterial, &dummyEkin, &labMomentumGeV,
++                     &direction[0], &direction[1], &direction[2], &iflxyz_, cumsgx_.get(),
++                     cumsgx_.get() + materials_.size(),
++                     cumsgx_.get() + materials_.size() * 2);
++
++    FinalState finalState;
++    finalState.reserve(static_cast<std::size_t>(::fluka::hepevt_.nhep));
++    for (int i = 0; i < ::fluka::hepevt_.nhep; ++i) {
++      int const status = ::fluka::hepevt_.isthep[i];
++      if (status != 1) // skip non-final-state particles
++        continue;
++
++      auto const pdg = static_cast<corsika::PDGCode>(::fluka::hepevt_.idhep[i]);
++      auto const c8code = corsika::convert_from_PDG(pdg);
++      auto const mom = QuantityVector<hepenergy_d>{
++          Eigen::Map<Eigen::Vector3d>(&::fluka::hepevt_.phep[i][0]) *
++          (1_GeV).magnitude()};
++      auto const pPrime = mom.getNorm();
++      auto const c8mass = corsika::get_mass(c8code);
++
++      auto const fourMomCollisionFrame =
++          FourVector{calculate_total_energy(pPrime, c8mass), MomentumVector{cs, mom}};
++      auto const fourMomOrigFrame = targetRestBoost.fromCoM(fourMomCollisionFrame);
++      auto const momOrigFrame = fourMomOrigFrame.getSpaceLikeComponents();
++      auto const p = momOrigFrame.getNorm();
++
++      finalState.emplace_back(
++          c8code, corsika::calculate_kinetic_energy(p, c8mass),
++          momOrigFrame / p);
++    }
++    return finalState;
++  }
++
++  inline std::vector<std::pair<Code,int>> ExpandedInteractionModel::genFlukaMaterials(std::set<Code> const& targets) {
++    if(!std::getenv("FLUPRO")) throw std::runtime_error("FLUPRO is required for mountain FLUKA materials");
++    std::map<int,int> elemental;
++    for(auto code:targets) elemental.emplace(get_nucleus_Z(code),0);
++    int count=elemental.size(),status=0;
++    std::vector<int> Z,indices(count); for(auto x:elemental) Z.push_back(x.first);
++    c8_material_fluka_setup(&count,Z.data(),indices.data(),&status);
++    if(status) throw std::runtime_error("FLUKA material bootstrap/ABI verification failed: "+std::to_string(status));
++    std::size_t i=0; for(auto& x:elemental) x.second=indices[i++];
++    std::vector<std::pair<Code,int>> mapping;
++    for(auto code:targets) mapping.emplace_back(code,elemental.at(get_nucleus_Z(code)));
++    return mapping;
++  }
++} // namespace corsika::applications::terrain::fluka_detail
++
++
++namespace corsika::applications::terrain {
++// Keep the stock implementation for <=10 targets. The expanded entry changes
++// only setup; its collision/kinematic implementation is copied from the same
++// CORSIKA FLUKA wrapper above. FLUKA targets remain elemental (natural isotopes).
++class MaterialFlukaInteraction : public InteractionProcess<MaterialFlukaInteraction> {
++  std::unique_ptr<fluka::InteractionModel> stock_;
++  std::unique_ptr<fluka_detail::ExpandedInteractionModel> expanded_;
++public:
++  explicit MaterialFlukaInteraction(std::set<Code> const& targets) {
++    if(targets.size()<=10) stock_=std::make_unique<fluka::InteractionModel>(targets);
++    else expanded_=std::make_unique<fluka_detail::ExpandedInteractionModel>(targets);
++  }
++  bool expandedSetup() const { return bool(expanded_); }
++  bool isValid(Code p,Code t,HEPEnergyType s) const {
++    return stock_ ? stock_->isValid(p,t,s) : expanded_->isValid(p,t,s);
++  }
++  CrossSectionType getCrossSection(Code p,Code t,FourMomentum const& a,FourMomentum const& b) const {
++    return stock_ ? stock_->getCrossSection(p,t,a,b) : expanded_->getCrossSection(p,t,a,b);
++  }
++  template<class View> void doInteraction(View& v,Code p,Code t,FourMomentum const& a,FourMomentum const& b) {
++    if(stock_) stock_->doInteraction(v,p,t,a,b); else expanded_->doInteraction(v,p,t,a,b);
++  }
++};
++} // namespace corsika::applications::terrain
+--- a/applications/detail/mountain/TerrainEmPreparation.hpp
++++ b/applications/detail/mountain/TerrainEmPreparation.hpp
+@@ -39,6 +39,7 @@
+   rock.number_of_layers=1;rock.number_of_convex_planes=6;rock.convex_boundary_tolerance_m=1.e-8;
+   rock.atmosphere_layers[0].density_model=gpu::em::DensityModel::Homogeneous;
+   rock.atmosphere_layers[0].density_parameter_a=scene.atmosphere.rock_density_g_cm3;
++  for(int axis=0;axis<3;++axis) rock.magnetic_field_T[axis]=scene.material.magnetic_field_T[axis];
+   rock.atmosphere_layers[0].medium_id=1;rock.observation_plane_normal[2]=1.;
+   auto const& box=mesh.nodes.at(0);double lo[3]={box.low.x-1.,box.low.y-1.,box.low.z-1.};
+   double hi[3]={box.high.x+1.,box.high.y+1.,box.high.z+1.};
+--- /dev/null
++++ b/applications/detail/mountain/TerrainMaterialConfig.hpp
+@@ -0,0 +1,94 @@
++// YAML admission and reproducible, resolved output for independent material cards.
++#pragma once
++#include <corsika/modules/transport/MaterialModel.hpp>
++#include <yaml-cpp/yaml.h>
++#include <filesystem>
++
++namespace corsika::applications::terrain {
++inline void materialKeys(YAML::Node const& n, std::set<std::string> const& allowed) {
++  if(!n.IsMap()) throw std::invalid_argument("material section must be a mapping");
++  for(auto const& p:n) if(!allowed.count(p.first.as<std::string>()))
++    throw std::invalid_argument("unknown material field: "+p.first.as<std::string>());
++}
++inline interfaces::MaterialModel readMaterial(YAML::Node const& input) {
++  using namespace interfaces;
++  if(!input || input.IsNull()) return materialPreset("SiO2");
++  if(input.IsScalar()) return materialPreset(input.as<std::string>());
++  materialKeys(input,{"preset","id","description","provenance","transport","radio","magnetic_field_enu_T"});
++  auto m=materialPreset(input["preset"].as<std::string>("SiO2"));
++  if(input["id"]) m.id=input["id"].as<std::string>();
++  if(input["description"]) m.description=input["description"].as<std::string>();
++  if(input["provenance"]) m.provenance=input["provenance"].as<std::string>();
++  if(auto t=input["transport"]) {
++    materialKeys(t,{"density_kg_m3","composition_basis","nuclei","ionisation"});
++    if(t["density_kg_m3"]) m.density_kg_m3=t["density_kg_m3"].as<double>();
++    if(t["composition_basis"] && t["composition_basis"].as<std::string>()!="nucleus_number_fraction")
++      throw std::invalid_argument("material composition_basis must be nucleus_number_fraction");
++    if(auto ns=t["nuclei"]) {
++      if(!ns.IsSequence()) throw std::invalid_argument("material nuclei must be a sequence");
++      m.nuclei.clear();
++      for(auto n:ns) {
++        materialKeys(n,{"element","Z","A","number_fraction"});
++        m.nuclei.push_back({n["Z"].as<int>(),n["A"].as<int>(),n["number_fraction"].as<double>()});
++      }
++      if(!t["ionisation"])
++        throw std::invalid_argument("a changed composition requires an explicit ionisation model");
++    }
++    if(auto p=t["ionisation"]) {
++      materialKeys(p,{"model","reference_medium","I_eV","Cbar","x0","x1","a","m","delta0","reference_density_kg_m3"});
++      auto model=p["model"].as<std::string>();
++      if(model=="nist_density_scaled") {
++        materialKeys(p,{"model","reference_medium"});
++        m.ionisation_model=IonisationModel::NistDensityScaled;
++        if(p["reference_medium"]) m.reference_medium=materialPreset(p["reference_medium"].as<std::string>()).reference_medium;
++      } else if(model=="bragg_sternheimer") {
++        materialKeys(p,{"model"}); m.ionisation_model=IonisationModel::BraggSternheimer;
++      }
++      else if(model=="explicit") {
++        materialKeys(p,{"model","I_eV","Cbar","x0","x1","a","m","delta0","reference_density_kg_m3"});
++        m.ionisation_model=IonisationModel::Explicit;
++        auto& d=m.explicit_transport;
++        d.Ieff_=p["I_eV"].as<double>(); d.Cbar_=p["Cbar"].as<double>();
++        d.x0_=p["x0"].as<double>(); d.x1_=p["x1"].as<double>();
++        d.aa_=p["a"].as<double>(); d.sk_=p["m"].as<double>(); d.dlt0_=p["delta0"].as<double>();
++        d.corrected_density_=p["reference_density_kg_m3"].as<double>()*.001;
++      } else throw std::invalid_argument("unknown material ionisation model: "+model);
++    }
++  }
++  if(auto r=input["radio"]) {
++    materialKeys(r,{"model","refractive_index","field_attenuation_length_m","relative_permeability",
++                   "material_dispersion_enabled","frequency_dependent_attenuation_enabled"});
++    if(r["model"].as<std::string>("constant_real_index_and_grey_field_attenuation")!="constant_real_index_and_grey_field_attenuation" ||
++       r["relative_permeability"].as<double>(1.)!=1. || r["material_dispersion_enabled"].as<bool>(false) ||
++       r["frequency_dependent_attenuation_enabled"].as<bool>(false))
++      throw std::invalid_argument("material radio currently requires isotropic mu_r=1, constant real n and grey field attenuation");
++    if(r["refractive_index"]) m.refractive_index=r["refractive_index"].as<double>();
++    if(r["field_attenuation_length_m"]) m.field_attenuation_length_m=r["field_attenuation_length_m"].as<double>();
++  }
++  if(auto b=input["magnetic_field_enu_T"]) {
++    if(!b.IsSequence() || b.size()!=3) throw std::invalid_argument("material magnetic field requires three ENU components");
++    for(int i=0;i<3;++i) m.magnetic_field_T[i]=b[i].as<double>();
++  }
++  m.transportProperties(); return m;
++}
++inline YAML::Node materialConfig(interfaces::MaterialModel const& m) {
++  auto d=m.transportProperties(); YAML::Node n;
++  n["id"]=m.id; n["description"]=m.description; n["provenance"]=m.provenance;
++  auto t=n["transport"]; t["density_kg_m3"]=m.density_kg_m3;
++  t["composition_basis"]="nucleus_number_fraction";
++  for(auto c:m.nuclei) {
++    YAML::Node row; row["element"]=mediumData(static_cast<Medium>(c.Z-1)).getSymbol();
++    row["Z"]=c.Z; row["A"]=c.A; row["number_fraction"]=c.number_fraction;
++    t["nuclei"].push_back(row);
++  }
++  auto p=t["ionisation"]; p["model"]="explicit";
++  p["reference_density_kg_m3"]=d.corrected_density_*1000.;
++  p["I_eV"]=d.Ieff_; p["Cbar"]=d.Cbar_; p["x0"]=d.x0_; p["x1"]=d.x1_;
++  p["a"]=d.aa_; p["m"]=d.sk_; p["delta0"]=d.dlt0_;
++  n["radio"]["model"]="constant_real_index_and_grey_field_attenuation";
++  n["radio"]["refractive_index"]=m.refractive_index;
++  n["radio"]["field_attenuation_length_m"]=m.field_attenuation_length_m;
++  n["radio"]["relative_permeability"]=1.; n["magnetic_field_enu_T"]=m.magnetic_field_T;
++  return n;
++}
++} // namespace corsika::applications::terrain
+--- a/applications/detail/mountain/TerrainRadioConfig.hpp
++++ b/applications/detail/mountain/TerrainRadioConfig.hpp
+@@ -19,7 +19,7 @@
+   c.maximum_device_bytes=input["memory_MiB"].as<std::size_t>(256)*1024u*1024u;
+   c.propagation.optical_integration_samples=input["optical_integration_samples"].as<unsigned>(64);
+   auto& rock=c.propagation.media[1];rock.refractive_index=scene.atmosphere.rock_refractive_index;
+-  rock.attenuation_length_m=input["rock_attenuation_length_m"].as<double>(HUGE_VAL);
++  rock.attenuation_length_m=scene.material.field_attenuation_length_m;
+   auto& air=c.propagation.media[0];air.refractive_index=input["uniform_air_index"].as<double>(scene.atmosphere.sea_level_refractive_index);
+   auto mode=input["air_index_model"].as<std::string>("native");
+   if(mode!="native"&&mode!="uniform")throw std::invalid_argument("radio air_index_model must be native or uniform");
+--- a/applications/detail/mountain/TerrainScene.hpp
++++ b/applications/detail/mountain/TerrainScene.hpp
+@@ -6,6 +6,7 @@
+ #include <filesystem>
+ #include <fstream>
+ #include <set>
++#include "TerrainMaterialConfig.hpp"
+ 
+ namespace corsika::applications::terrain {
+ using namespace corsika::units::si;
+@@ -19,26 +20,49 @@
+   corsika::terrain::TerrainAtmosphereConfig atmosphere;
+   std::filesystem::path mesh;
+   std::string mesh_hash;
++  interfaces::MaterialModel material;
++  bool legacy_material_overrides{false};
+   explicit Scene(std::filesystem::path const& file):yaml(YAML::LoadFile(file.string())),atmosphere{0.} {
+     if(yaml["schema_version"].as<int>()!=1||yaml["site"]["coordinate_frame"].as<std::string>()!="geographic_ENU"||
+        yaml["atmosphere"]["model"].as<std::string>()!="us_standard_bk"||
+        yaml["geometry"]["kind"].as<std::string>()!="terrain_mesh")
+       throw std::invalid_argument("requires versioned ENU terrain/USStdBK scene");
+-    auto material=yaml["geometry"]["material"].as<std::string>();
+-    if(material=="Water"||material=="Ice") {
+-      atmosphere.embedded_medium=material=="Water"?Medium::WaterLiquid:Medium::WaterIce;
+-      atmosphere.embedded_nuclei={Code::Hydrogen,Code::Oxygen};
+-      atmosphere.embedded_number_fractions={2./3.,1./3.};
+-    } else if(material!="SiO2")
+-      throw std::invalid_argument("unsupported scene material: use SiO2, Water or Ice; C++ interface accepts explicit material properties");
++    auto geometry=yaml["geometry"];
++    if(geometry["material_file"]) {
++      if(geometry["material"]) throw std::invalid_argument("choose material or material_file, not both");
++      std::filesystem::path path=geometry["material_file"].as<std::string>();
++      if(path.is_relative()) path=std::filesystem::absolute(file).parent_path()/path;
++      material=readMaterial(YAML::LoadFile(path.string()));
++    } else material=readMaterial(geometry["material"]);
++    auto legacy=[&](YAML::Node const& value,double& destination,double scale) {
++      if(!value) return;
++      double v=value.as<double>()*scale;
++      // New map/file cards have one owner. Redundant equal legacy fields are
++      // accepted so scenes can be migrated without any ambiguity.
++      if(v!=destination && (geometry["material_file"] || geometry["material"].IsMap()))
++        throw std::invalid_argument("legacy material parameter conflicts with selected material card");
++      if(v!=destination) legacy_material_overrides=true;
++      destination=v;
++    };
++    legacy(geometry["rock_density_g_cm3"],material.density_kg_m3,1000.);
++    legacy(geometry["rock_refractive_index"],material.refractive_index,1.);
++    if(geometry["attenuation_length_m"])
++      throw std::invalid_argument("geometry.attenuation_length_m was not a radio input; use material.radio.field_attenuation_length_m");
++    legacy(yaml["radio"]["rock_attenuation_length_m"],material.field_attenuation_length_m,1.);
++    material.transportProperties();
++    atmosphere.material=std::make_shared<interfaces::MaterialModel const>(material);
++    atmosphere.embedded_medium=material.reference_medium;
++    auto composition=material.composition();
++    atmosphere.embedded_nuclei=composition.getComponents();
++    atmosphere.embedded_number_fractions=composition.getFractions();
+     auto site=yaml["site"];
+     double lat=site["latitude_deg"].as<double>(),lon=site["longitude_deg"].as<double>();
+     if(!std::isfinite(lat)||std::abs(lat)>90.||!std::isfinite(lon)||std::abs(lon)>180.)
+       throw std::invalid_argument("invalid scene geographic origin");
+     atmosphere.origin_altitude_asl_m=yaml["atmosphere"]["origin_altitude_asl_m"].as<double>();
+     atmosphere.sea_level_refractive_index=yaml["atmosphere"]["sea_level_refractive_index"].as<double>();
+-    atmosphere.rock_density_g_cm3=yaml["geometry"]["rock_density_g_cm3"].as<double>();
+-    atmosphere.rock_refractive_index=yaml["geometry"]["rock_refractive_index"].as<double>();
++    atmosphere.rock_density_g_cm3=material.density_kg_m3*.001;
++    atmosphere.rock_refractive_index=material.refractive_index;
+     auto h=site["origin_ellipsoidal_height_m"].as<double>(),n=site["geoid_undulation_m"].as<double>();
+     if(!std::isfinite(h)||!std::isfinite(n)||std::abs(h-n-atmosphere.origin_altitude_asl_m)>1.e-6)
+       throw std::invalid_argument("ASL/ellipsoidal/geoid height mismatch");
+--- /dev/null
++++ b/configs/mountain/materials/custom_example.yaml
+@@ -0,0 +1,11 @@
++# Example sensitivity variation; supply your own measurement provenance.
++preset: Calcite
++id: CALCITE_DENSITY_SENSITIVITY_EXAMPLE
++description: Homogeneous calcite (CaCO3) density variation, not a resolved pore geometry
++provenance: Example only; radio constants inherited from the dense calcite / limestone proxy
++transport:
++  density_kg_m3: 2500.0
++radio:
++  refractive_index: 2.449489742783178
++  field_attenuation_length_m: 14.476482730108396
++magnetic_field_enu_T: [0.0, 0.0, 0.0]
+--- /dev/null
++++ b/configs/mountain/materials/granite.yaml
+@@ -0,0 +1,7 @@
++# Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe).
++# PNNL nucleus number fractions with representative isotopes:
++# H-1=0.027122, C-12=0.000502, O-16=0.607735, Na-23=0.025866,
++# Mg-24=0.018081, Al-27=0.062783, Si-28=0.205927, K-39=0.013938,
++# Ca-40=0.018960, Fe-56=0.019086. Not a pure SiO2 mineral.
++# Source ID: G0_GRANITE_REFERENCE; Bragg-Sternheimer ionisation approximation.
++preset: Granite
+--- /dev/null
++++ b/configs/mountain/materials/limestone.yaml
+@@ -0,0 +1,3 @@
++# Limestone / dense calcite proxy (CaCO3): C-12 : O-16 : Ca-40 = 1 : 3 : 1.
++# Source ID: L0_LIMESTONE_CALCITE_PROXY. Fractions are nucleus counts.
++preset: Calcite
+--- /dev/null
++++ b/configs/mountain/materials/silica.yaml
+@@ -0,0 +1,3 @@
++# Silica transport proxy (SiO2): O-16 : Si-28 = 2 : 1 by nucleus count.
++# Source ID: S0_SILICA_TRANSPORT_PROXY in documentation/materials.yaml.
++preset: SiO2
+--- a/configs/mountain/terrain_region_21cma.yaml
++++ b/configs/mountain/terrain_region_21cma.yaml
+@@ -18,7 +18,8 @@
+     bottom_depth_m: 500.0
+     boundary_padding_m: 1.0e-6
+   medium:
+-    density_g_cm3: 2.65
++    material: SiO2
++    # Optional density_g_cm3 overrides the material card in the native scene.
+   antennas:
+     format: 21cma_station_centres
+     station_directory: ~/21cma-stations
+--- a/corsika/modules/terrain/TerrainAtmosphere.hpp
++++ b/corsika/modules/terrain/TerrainAtmosphere.hpp
+@@ -10,6 +10,7 @@
+ #include <corsika/media/UniformRefractiveIndex.hpp>
+ #include <corsika/media/UniformMagneticField.hpp>
+ #include <corsika/modules/transport/HomogeneousMaterial.hpp>
++#include <corsika/modules/transport/MaterialModel.hpp>
+ 
+ namespace corsika::terrain {
+   using Interface=IRefractiveIndexModel<IMediumPropertyModel<IMagneticFieldModel<IMediumModel>>>;
+@@ -29,6 +30,9 @@
+     Medium embedded_medium{Medium::SiliconDioxideFusedQuartz};
+     std::vector<Code> embedded_nuclei{get_nucleus_code(28,14),Code::Oxygen};
+     std::vector<double> embedded_number_fractions{1./3.,2./3.};
++    // Optional reusable material card. Legacy direct C++ geometry callers keep
++    // their explicit homogeneous material; YAML scenes always resolve a card.
++    std::shared_ptr<interfaces::MaterialModel const> material{};
+   };
+   inline Point earthCenter(Environment const& env,TerrainAtmosphereConfig const& cfg) {
+     return Point(env.getCoordinateSystem(),0_m,0_m,
+@@ -84,7 +88,8 @@
+     auto rock=env.createNode<ClosedMesh>(std::move(mesh));
+     interfaces::HomogeneousMaterial material{cfg.embedded_medium,NuclearComposition(cfg.embedded_nuclei,cfg.embedded_number_fractions),
+         cfg.rock_density_g_cm3,cfg.rock_refractive_index,{0.,0.,0.}};
+-    rock->setModelProperties(material.makeModel<Interface>(env.getCoordinateSystem()));
++    if(cfg.material) rock->setModelProperties(cfg.material->makeModel<Interface>(env.getCoordinateSystem()));
++    else rock->setModelProperties(material.makeModel<Interface>(env.getCoordinateSystem()));
+     info.mesh=&static_cast<ClosedMesh const&>(rock->getVolume());
+     parent->addChild(std::move(rock));
+     return info;
+--- /dev/null
++++ b/corsika/modules/transport/MaterialHadronLoss.hpp
+@@ -0,0 +1,71 @@
++/* Material-aware heavy charged-particle collision loss. Adapted from the
++ * CORSIKA BetheBlochPDG process (BSD-3-Clause), with the fixed nitrogen record
++ * and its empirical air radiative term removed for embedded materials. */
++#pragma once
++#include <corsika/modules/transport/MaterialModel.hpp>
++#include <corsika/modules/energy_loss/BetheBlochPDG.hpp>
++
++namespace corsika::interfaces {
++inline double densityEffect(MediumData const& d,double betaGamma) {
++  double x=std::log10(betaGamma);
++  if(x>=d.x1_) return 2.*std::log(10.)*x-d.Cbar_;
++  if(x>=d.x0_) return 2.*std::log(10.)*x-d.Cbar_+d.aa_*std::pow(d.x1_-x,d.sk_);
++  return d.dlt0_*std::pow(10.,2.*(x-d.x0_));
++}
++// Positive stopping power in MeV cm2/g. Leading Bethe stopping with Sternheimer
++// density effect; no claim of low-energy shell/Barkas/effective-ion-charge physics.
++inline double hadronStoppingPower(MediumData const& d,double mass_MeV,
++                                 double totalEnergy_MeV,int charge) {
++  if(charge==0) return 0.;
++  if(!(mass_MeV>0. && totalEnergy_MeV>mass_MeV))
++    throw std::invalid_argument("Bethe stopping requires a moving massive charged particle");
++  double gamma=totalEnergy_MeV/mass_MeV, bg2=(gamma-1.)*(gamma+1.);
++  double beta2=bg2/(gamma*gamma), me=Electron::mass/1_MeV;
++  double ratio=me/mass_MeV;
++  double tmax=2.*me*bg2/(1.+2.*gamma*ratio+ratio*ratio);
++  double I=d.Ieff_*1.e-6;
++  double bracket=.5*std::log(2.*me*bg2*tmax/(I*I))-beta2-.5*densityEffect(d,std::sqrt(bg2));
++  double loss=.307075*double(charge)*charge*d.Z_over_A_/beta2*bracket;
++  if(!std::isfinite(loss) || loss<=0.)
++    throw std::runtime_error("material Bethe approximation outside validity; raise the hadron cut or provide a low-energy loss model");
++  return loss;
++}
++
++template<class Output=WriterOff>
++class MaterialHadronLoss : public ContinuousProcess<MaterialHadronLoss<Output>>, public Output {
++  BetheBlochPDG<Output> air_;
++  template<class Particle> static bool usesCard(Particle const& p) {
++    return dynamic_cast<MaterialTransportProvider const*>(&p.getNode()->getModelProperties());
++  }
++public:
++  template<class... Args> explicit MaterialHadronLoss(Args&&... args)
++      : Output(args...),air_(args...) {}
++  template<class Particle> static auto stopping(Particle const& p) {
++    return hadronStoppingPower(transportData(p.getNode()->getModelProperties()),
++        p.getMass()/1_MeV,p.getEnergy()/1_MeV,p.getChargeNumber())*1_MeV*square(1_cm)/1_g;
++  }
++  template<class Particle> ProcessReturn doContinuous(Step<Particle>& step,bool limit) {
++    auto const& p=step.getParticlePre();
++    if(!usesCard(p)) return air_.doContinuous(step,limit);
++    if(p.getChargeNumber()==0) return ProcessReturn::Ok;
++    auto grammage=p.getNode()->getModelProperties().getIntegratedGrammage(step.getStraightTrack());
++    auto loss=std::min(step.getEkinPre(),stopping(p)*grammage);
++    step.add_dEkin(-loss);
++    Output::write(step.getPositionPre(),step.getPositionPost(),p.getPID(),p.getWeight()*loss);
++    return ProcessReturn::Ok;
++  }
++  template<class Particle,class Track> LengthType getMaxStepLength(Particle const& p,Track const& track) const {
++    if(!usesCard(p)) return air_.getMaxStepLength(p,track);
++    if(p.getChargeNumber()==0) return std::numeric_limits<double>::infinity()*1_m;
++    auto energy=p.getKineticEnergy();
++    auto target=std::max(.9*energy,get_kinetic_energy_propagation_threshold(p.getPID())*.99999);
++    auto grammage=std::max(energy-target,HEPEnergyType::zero())/stopping(p);
++    return p.getNode()->getModelProperties().getArclengthFromGrammage(track,grammage);
++  }
++  YAML::Node getConfig() const override {
++    YAML::Node n; n["type"]="MaterialHadronLoss";
++    n["embedded"]="leading Bethe + material Sternheimer; no empirical air radiative term";
++    n["outside"]="original BetheBlochPDG"; return n;
++  }
++};
++} // namespace corsika::interfaces
+--- /dev/null
++++ b/corsika/modules/transport/MaterialModel.hpp
+@@ -0,0 +1,171 @@
++/* Homogeneous, isotropic material cards shared by shower and radio adapters.
++ * No YAML, geometry, PROPOSAL or device ownership is required by this interface. */
++#pragma once
++#include <corsika/modules/transport/HomogeneousMaterial.hpp>
++#include <algorithm>
++#include <limits>
++#include <string>
++
++namespace corsika::interfaces {
++struct MaterialTransportProvider {
++  virtual MediumData const& materialTransportData() const = 0;
++  virtual ~MaterialTransportProvider() = default;
++};
++template<class Properties>
++MediumData const& transportData(Properties const& properties) {
++  if(auto p=dynamic_cast<MaterialTransportProvider const*>(&properties))
++    return p->materialTransportData();
++  return mediumData(properties.getMedium());
++}
++template<class Base> class MaterialPropertyModel : public Base, public MaterialTransportProvider {
++  MediumData data_;
++public:
++  template<class... Args> MaterialPropertyModel(MediumData data, Args&&... args)
++      : Base(std::forward<Args>(args)...), data_(std::move(data)) {}
++  MediumData const& materialTransportData() const override { return data_; }
++};
++
++struct MaterialNucleus { int Z, A; double number_fraction; };
++enum class IonisationModel { NistDensityScaled, BraggSternheimer, Explicit };
++
++struct MaterialModel {
++  std::string id, description, provenance;
++  std::vector<MaterialNucleus> nuclei;
++  double density_kg_m3{}, refractive_index{}, field_attenuation_length_m{};
++  std::array<double,3> magnetic_field_T{};
++  // This enum identifies the reference record only. transportProperties() is
++  // authoritative; the granite/custom mixture never uses standard-rock data.
++  Medium reference_medium{Medium::SiliconDioxideFusedQuartz};
++  IonisationModel ionisation_model{IonisationModel::NistDensityScaled};
++  MediumData explicit_transport{};
++
++  void validate() const {
++    if(id.empty() || nuclei.empty() || nuclei.size()>16 ||
++       !std::isfinite(density_kg_m3) || density_kg_m3<=0. ||
++       !std::isfinite(refractive_index) || refractive_index<1. ||
++       !(field_attenuation_length_m>0.))
++      throw std::invalid_argument("invalid material identity, density, index or field attenuation length");
++    std::set<std::pair<int,int>> seen; double sum=0.;
++    for(auto const& n:nuclei) {
++      // The supported nuclear/hadronic interface uses A<=238 and Z<=92.
++      if(n.Z<1 || n.Z>92 || n.A<n.Z || n.A>238 ||
++         !std::isfinite(n.number_fraction) || n.number_fraction<=0. ||
++         !seen.emplace(n.Z,n.A).second)
++        throw std::invalid_argument("invalid or duplicate material nucleus");
++      sum+=n.number_fraction;
++    }
++    if(std::abs(sum-1.)>1.e-10)
++      throw std::invalid_argument("material requires normalized nucleus NUMBER fractions (not mass fractions)");
++    for(double b:magnetic_field_T) if(!std::isfinite(b))
++      throw std::invalid_argument("nonfinite material magnetic field");
++    if(ionisation_model==IonisationModel::NistDensityScaled) {
++      // Do not silently reuse a compound's I and density effect for a different
++      // chemical recipe. Order-independent comparison, with isotope mass allowed.
++      std::map<int,double> actual, expected;
++      for(auto n:nuclei) actual[n.Z]+=n.number_fraction;
++      if(reference_medium==Medium::SiliconDioxideFusedQuartz) expected={{8,2./3.},{14,1./3.}};
++      else if(reference_medium==Medium::CalciumCarbonate) expected={{6,.2},{8,.6},{20,.2}};
++      else if(reference_medium==Medium::WaterLiquid || reference_medium==Medium::WaterIce) expected={{1,2./3.},{8,1./3.}};
++      else throw std::invalid_argument("unsupported NIST compound; use an explicit or Bragg-Sternheimer transport model");
++      if(actual.size()!=expected.size()) throw std::invalid_argument("composition does not match NIST compound");
++      for(auto const& p:expected) if(std::abs(actual[p.first]-p.second)>1.e-10)
++        throw std::invalid_argument("composition does not match NIST compound");
++    }
++  }
++  NuclearComposition composition() const {
++    validate(); std::vector<Code> codes; std::vector<double> fractions;
++    for(auto n:nuclei) {
++      codes.push_back(get_nucleus_code(n.A,n.Z)); fractions.push_back(n.number_fraction);
++    }
++    return NuclearComposition(codes,fractions);
++  }
++  double ZOverA() const {
++    validate();
++    double z=0.,a=0.;
++    for(auto n:nuclei) { z+=n.number_fraction*n.Z; a+=n.number_fraction*n.A; }
++    return z/a; // A-number approximation, identical to PROPOSAL components.
++  }
++  std::vector<double> massFractions() const {
++    validate();
++    double a=0.; for(auto n:nuclei) a+=n.number_fraction*n.A;
++    std::vector<double> w; for(auto n:nuclei) w.push_back(n.number_fraction*n.A/a);
++    return w;
++  }
++  MediumData transportProperties() const {
++    validate(); auto data=ionisation_model==IonisationModel::Explicit ? explicit_transport : mediumData(reference_medium);
++    double const rho=density_kg_m3*.001;
++    if(ionisation_model==IonisationModel::NistDensityScaled) {
++      // Tabulated parameters are referenced to corrected_density, exactly as
++      // in stock PROPOSAL construction. Shift delta(x) to the selected density.
++      double const ratio=rho/data.getCorrectedDensity();
++      double const shift=.5*std::log10(ratio);
++      data.Cbar_-=std::log(ratio); data.x0_-=shift; data.x1_-=shift;
++    } else if(ionisation_model==IonisationModel::BraggSternheimer) {
++      // Bragg electron-weighted log(I); NIST elemental records occupy Z-1.
++      // Chemical binding is not measured by this mixture approximation.
++      double electrons=0.,logI=0.;
++      for(auto n:nuclei) {
++        double weight=n.number_fraction*n.Z;
++        logI+=weight*std::log(mediumData(static_cast<Medium>(n.Z-1)).getIeff());
++        electrons+=weight;
++      }
++      data.Ieff_=std::exp(logI/electrons);
++      double const plasma=28.816*std::sqrt(rho*ZOverA()); // eV, rho in g/cm3
++      data.Cbar_=1.+2.*std::log(data.Ieff_/plasma);
++      bool low=data.Ieff_<100.;
++      data.x0_=data.Cbar_<=(low?3.681:5.215) ? .2 : .326*data.Cbar_-(low?1.:1.5);
++      data.x1_=low?2.:3.; data.sk_=3.; data.dlt0_=0.;
++      data.aa_=(data.Cbar_-2.*std::log(10.)*data.x0_)/std::pow(data.x1_-data.x0_,3.);
++    } else if(!std::isfinite(data.getCorrectedDensity()) || data.getCorrectedDensity()<=0. ||
++              std::abs(data.getCorrectedDensity()-rho)>1.e-10*std::max(1.,rho)) {
++      throw std::invalid_argument("explicit transport coefficients must be supplied at the selected material density");
++    }
++    data.name_=id; data.pretty_name_=description; data.Z_over_A_=ZOverA();
++    data.sternheimer_density_=rho; data.corrected_density_=rho;
++    data.state_=ionisation_model==IonisationModel::NistDensityScaled ?
++        mediumData(reference_medium).getStateOfMatter() : StateOfMatter::Solid;
++    data.type_=MediumType::Mixture;
++    for(double v:{data.Ieff_,data.Cbar_,data.x0_,data.x1_,data.aa_,data.sk_,data.dlt0_})
++      if(!std::isfinite(v)) throw std::invalid_argument("nonfinite material ionisation parameter");
++    if(data.Ieff_<=0. || data.x1_<=data.x0_ || data.aa_<0. || data.sk_<=0. || data.dlt0_<0.)
++      throw std::invalid_argument("invalid material ionisation/density-effect model");
++    return data;
++  }
++  template<class Interface> auto makeModel(CoordinateSystemPtr const& cs) const {
++    using namespace units::si;
++    using Base=UniformRefractiveIndex<MediumPropertyModel<UniformMagneticField<HomogeneousMedium<Interface>>>>;
++    return std::make_unique<MaterialPropertyModel<Base>>(transportProperties(),
++        refractive_index,reference_medium,
++        MagneticFieldVector(cs,magnetic_field_T[0]*1_T,magnetic_field_T[1]*1_T,magnetic_field_T[2]*1_T),
++        density_kg_m3*1_kg/(1_m*1_m*1_m),composition());
++  }
++};
++
++inline MaterialModel materialPreset(std::string const& name) {
++  MaterialModel m; m.provenance="documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements";
++  if(name=="SiO2" || name=="S0_SILICA_TRANSPORT_PROXY") {
++    m.id="S0_SILICA_TRANSPORT_PROXY"; m.description="Silica transport proxy (SiO2)";
++    m.nuclei={{14,28,1./3.},{8,16,2./3.}};
++    m.density_kg_m3=2650.; m.refractive_index=std::sqrt(5.); m.field_attenuation_length_m=100.;
++  } else if(name=="Limestone" || name=="Calcite" || name=="L0_LIMESTONE_CALCITE_PROXY") {
++    m.id="L0_LIMESTONE_CALCITE_PROXY"; m.description="Dense calcite / limestone proxy (CaCO3)";
++    m.nuclei={{6,12,.2},{8,16,.6},{20,40,.2}}; m.reference_medium=Medium::CalciumCarbonate;
++    m.density_kg_m3=2710.; m.refractive_index=std::sqrt(6.); m.field_attenuation_length_m=14.476482730108396;
++  } else if(name=="Granite" || name=="G0_GRANITE_REFERENCE") {
++    m.id="G0_GRANITE_REFERENCE"; m.description="Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe); PNNL composition, Bragg-Sternheimer ionisation approximation";
++    m.nuclei={{1,1,.027122},{6,12,.000502},{8,16,.607735},{11,23,.025866},{12,24,.018081},
++              {13,27,.062783},{14,28,.205927},{19,39,.013938},{20,40,.018960},{26,56,.019086}};
++    m.density_kg_m3=2729.; m.refractive_index=std::sqrt(5.); m.field_attenuation_length_m=86.85889638065036;
++    m.ionisation_model=IonisationModel::BraggSternheimer;
++    m.reference_medium=Medium::StandardRock; // compatibility enum only; never its coefficients
++  } else if(name=="Water" || name=="Ice") {
++    m.id=name; m.description=name+" (H2O) homogeneous compatibility model";
++    m.nuclei={{1,1,2./3.},{8,16,1./3.}};
++    m.reference_medium=name=="Water"?Medium::WaterLiquid:Medium::WaterIce;
++    m.density_kg_m3=name=="Water"?1000.:917.; m.refractive_index=name=="Water"?1.33:1.78;
++    m.field_attenuation_length_m=std::numeric_limits<double>::infinity();
++    m.provenance="Legacy compatibility defaults; supply a measured radio model for physical studies";
++  } else throw std::invalid_argument("unknown material preset: "+name);
++  m.transportProperties(); return m;
++}
++} // namespace corsika::interfaces
+--- /dev/null
++++ b/corsika/modules/transport/MaterialProposalEnvironment.hpp
+@@ -0,0 +1,59 @@
++/* Construction-only view: inject resolved material properties into the original
++ * PROPOSAL constructors without modifying the air application's modules. */
++#pragma once
++#include <corsika/modules/transport/MaterialModel.hpp>
++#include <iomanip>
++#include <sstream>
++
++namespace corsika::interfaces {
++struct MaterialMediumReference { MediumData const* data; };
++// ADL in ProposalProcessBase's dependent mediumData(prop.getMedium()) call.
++inline MediumData const& mediumData(MaterialMediumReference ref) { return *ref.data; }
++
++inline std::string transportKey(MediumData const& d) {
++  std::ostringstream s; s<<std::setprecision(17);
++  for(double v:{d.Ieff_,d.Cbar_,d.x0_,d.x1_,d.aa_,d.sk_,d.dlt0_,d.corrected_density_}) s<<v<<',';
++  return s.str();
++}
++template<class Environment> class MaterialProposalEnvironment {
++  Environment const& env_;
++  template<class Properties> struct PropertiesView {
++    Properties const& p;
++    MaterialMediumReference getMedium() const { return {&transportData(p)}; }
++    auto const& getNuclearComposition() const { return p.getNuclearComposition(); }
++  };
++  template<class Node> struct NodeView {
++    Node const& node;
++    bool hasModelProperties() const { return node.hasModelProperties(); }
++    auto getModelProperties() const {
++      using P=std::remove_reference_t<decltype(node.getModelProperties())>;
++      return PropertiesView<P>{node.getModelProperties()};
++    }
++  };
++public:
++  explicit MaterialProposalEnvironment(Environment const& env):env_(env) {
++    // Include composition itself: the legacy composition hash is not collision
++    // resistant, and equal hashes must never merge two distinct materials.
++    std::map<std::size_t,std::string> keys;
++    env_.getUniverse()->walk([&](auto const& node) {
++      if(!node.hasModelProperties()) return;
++      auto const& p=node.getModelProperties(); auto const& c=p.getNuclearComposition();
++      std::vector<std::pair<int,double>> components;
++      for(std::size_t i=0;i<c.getSize();++i)
++        components.emplace_back(static_cast<int>(c.getComponents()[i]),c.getFractions()[i]);
++      std::sort(components.begin(),components.end());
++      std::ostringstream key; key<<transportKey(transportData(p))<<std::setprecision(17);
++      for(auto x:components) key<<x.first<<':'<<x.second<<',';
++      auto [it,inserted]=keys.emplace(c.getHash(),key.str());
++      if(!inserted && it->second!=key.str())
++        throw std::invalid_argument("different transport materials share a PROPOSAL composition key; independent calculator owners required");
++    });
++  }
++  MaterialProposalEnvironment const* getUniverse() const { return this; }
++  template<class Visitor> void walk(Visitor&& visitor) const {
++    env_.getUniverse()->walk([&](auto const& node) {
++      using N=std::remove_reference_t<decltype(node)>; NodeView<N> view{node}; visitor(view);
++    });
++  }
++};
++} // namespace corsika::interfaces
+--- a/documentation/generic_material_interface_transport_CN.md
++++ b/documentation/generic_material_interface_transport_CN.md
+@@ -4,6 +4,9 @@
+ 
+ 2026-09-11：实现已独立为 `CORSIKA8::InterfaceEm`，并增加常驻粒子队列。
+ 当前接口、构建与测试说明见[独立跨介质常驻输运](interface_resident_transport_CN.md)。
++2026-09-13：山体应用新增[统一材料模型](mountain_material_models_CN.md)，可选择二氧化硅 SiO₂、
++石灰岩／方解石 CaCO₃、花岗岩十元素参考混合物，统一 shower、LPM 与射电参数；
++SiO₂ 默认按提供文件取 n=√5。下文旧 SiO₂ 数值属于此前验证记录。
+ 
+ ## 接口层次
+ 
+--- a/documentation/interface_kokkos_radio_CN.md
++++ b/documentation/interface_kokkos_radio_CN.md
+@@ -1,4 +1,7 @@
+ # 独立跨介质 Kokkos 山体射电模块
++
++2026-09-13：山体介质参数统一由[材料模型](mountain_material_models_CN.md)提供，
++包括折射率和电场衰减长度。旧场景的分散参数需要按该文迁移；SiO₂ 默认已更新为文件中的二氧化硅基准（n=√5）。
+ 
+ 模块位于 `corsika/modules/radio/interface/`，CMake 目标为
+ `CORSIKA8::InterfaceRadio`。它复用 mountain 的有限轨迹 ZHS、Snell/Fresnel、
+--- /dev/null
++++ b/documentation/mountain_material_models_CN.md
+@@ -0,0 +1,185 @@
++# 山体材料模型
++
++`c8_terrain_cascade` 的 shower 与射电共同读取一个材料模型。基准按你提供的
++[materials.yaml](materials.yaml) 中二氧化硅基准（`S0_SILICA_TRANSPORT_PROXY`）定义；默认折射率为 √5。
++原始 [material.md](material.md) 和 [materials.yaml](materials.yaml) 保留为参数来源，
++它们本身不是运行卡；其中推荐花岗岩的建议不会改变你指定的 SiO₂ 默认值。
++
++| 选择名 | 模型 | 密度 kg/m³ | 折射率 n | 电场衰减长度 m |
++|---|---|---:|---:|---:|
++| `SiO2` / `S0_SILICA_TRANSPORT_PROXY` | SiO₂，O:Si 核数比 2:1 | 2650 | √5 | 100 |
++| `Limestone` / `Calcite` / `L0_LIMESTONE_CALCITE_PROXY` | 致密 CaCO₃，C:O:Ca=1:3:1 | 2710 | √6 | 14.47648 |
++| `Granite` / `G0_GRANITE_REFERENCE` | 花岗岩参考混合物：H、C、O、Na、Mg、Al、Si、K、Ca、Fe | 2729 | √5 | 86.85890 |
++
++这里的“石灰岩”是致密方解石代理，“花岗岩”是指定混合物；不存在适用于所有
++碳酸盐或硅酸盐的唯一参数。单一代表同位素、均匀密度、各向同性、μᵣ=1 是当前假设。
++折射率和衰减长度是文件给定的研究常数，不是 21CMA 山体实测值。
++
++材料名称和图例写明成分，S0/L0/G0 仅是来源文件的兼容编号。
++花岗岩没有单一化学式，当前采用以下核数分数，不能把这张表当作氧化物质量分数：
++
++| 核种 | 核数分数 | 核种 | 核数分数 |
++|---|---:|---|---:|
++| H-1 | 0.027122 | Al-27 | 0.062783 |
++| C-12 | 0.000502 | Si-28 | 0.205927 |
++| O-16 | 0.607735 | K-39 | 0.013938 |
++| Na-23 | 0.025866 | Ca-40 | 0.018960 |
++| Mg-24 | 0.018081 | Fe-56 | 0.019086 |
++
++## 怎么选择
++
++在已有完整场景中，仅替换材料部分，地形、坐标、天线和 shower 命令继续使用原配置：
++
++```yaml
++geometry:
++  # 保留 kind、mesh_path、boundary_padding_m、rock_reference_enu_m 等几何项
++  material:
++    preset: Calcite  # Limestone / dense calcite (CaCO3)
++```
++
++或者使用独立文件，路径相对于场景文件：
++
++```yaml
++geometry:
++  material_file: /path/to/configs/mountain/materials/limestone.yaml
++```
++
++现成的 [SiO₂](../configs/mountain/materials/silica.yaml)、
++[石灰岩](../configs/mountain/materials/limestone.yaml)、
++[花岗岩](../configs/mountain/materials/granite.yaml) 和
++[参数变化示例](../configs/mountain/materials/custom_example.yaml) 可直接选用。
++`material` 与 `material_file` 二选一。射电仍按原方式启用，默认一起计算 CoREAS 与 ZHS。
++
++**迁移旧场景时，删除 `geometry.rock_density_g_cm3`、`geometry.rock_refractive_index`、
++`geometry.attenuation_length_m` 和 `radio.rock_attenuation_length_m`，改用材料卡。**
++尤其旧的 `n=2` 不会因为文件写着 SiO₂ 就自动变成 √5。
++旧标量材料名仍兼容显式密度/n/射电衰减覆盖，并在输出标记 `legacy_material_overrides`；
++新材料映射或材料文件与旧字段冲突时直接报错。旧几何字段 `attenuation_length_m`
++从来不是本程序有效的射电输入，现在明确拒绝，避免误以为它已生效。
++地形准备程序生成的新版 native 场景已改为选择 `SiO2`，不再带入旧 n=2。
++
++## 怎么增加模型
++
++材料可以继承预设，只覆盖密度或射电常数。改变组分则必须同时指定电离模型：
++
++```yaml
++preset: Calcite
++id: MY_CALCITE_MODEL
++description: Custom calcite (CaCO3) model
++provenance: Replace with measurement or model provenance
++transport:
++  density_kg_m3: 2710
++  composition_basis: nucleus_number_fraction
++  nuclei:
++    - {element: C, Z: 6, A: 12, number_fraction: 0.2}
++    - {element: O, Z: 8, A: 16, number_fraction: 0.6}
++    - {element: Ca, Z: 20, A: 40, number_fraction: 0.2}
++  ionisation:
++    model: nist_density_scaled
++    reference_medium: Calcite
++radio:
++  refractive_index: 2.449489742783178
++  field_attenuation_length_m: 14.476482730108396
++magnetic_field_enu_T: [0, 0, 0]
++```
++
++核数分数必须归一化，不能把质量分数直接填进去。支持不超过 16 个核种；
++水和冰的旧选择名也保留为兼容入口，研究其射电时需补充适用频段的物理参数。
++任意新配方可选 `bragg_sternheimer`，或提供 `explicit`
++电离参数：`I_eV, Cbar, x0, x1, a, m, delta0, reference_density_kg_m3`。
++`Cbar` 取正号约定；PROPOSAL 构造时按原接口转成 `C=-Cbar`。
++显式参数的参考密度必须等于选定密度。材料卡未知字段、错误组分和暂不支持的频散选项会报错。
++
++## 这些参数实际接到了哪里
++
++| 参数 | shower | 射电 |
++|---|---|---|
++| 核种与核数分数 | 核靶集合、QGSJet、PROPOSAL 元素过程、散射/LPM；FLUKA 入口按 Z 映射天然元素靶 | 通过实际 shower 轨迹改变源 |
++| 密度 | 克深、相互作用距离、连续能损、CPU/设备环境及 LPM 局部密度 | 不再通过空气关系式猜测岩石 n |
++| 平均激发能与密度效应 | CPU PROPOSAL 与其导出的 Kokkos 表；山体强子连续能损 | 通过轨迹改变源 |
++| n | 环境模型中的折射率 | 源介质、Cherenkov 相位、Snell/Fresnel、光程时延 |
++| L_E | 不改变粒子输运 | 沿每段介质路径乘 `exp(-l/L_E)`，是电场幅度，不是功率长度 |
++| B_ENU | 山体 CPU 跟踪与设备环境，默认零场 | 通过带电粒子轨迹改变辐射 |
++
++SiO₂ 和 CaCO₃ 采用仓库 NIST 化合物的 I、Sternheimer 参数，按选定密度移动密度效应曲线。
++花岗岩采用电子数加权 `ln I = Σ(xᵢZᵢ ln Iᵢ)/Σ(xᵢZᵢ)`，再构建凝聚态 Sternheimer 近似，
++不是借用二氧化硅或 standard rock 的电离参数。这是一项有明确来源的近似，不能替代矿物样品测量。
++密度效应近似的公式与适用定义参见 [Geant4 Physics Reference Manual](https://geant4.web.cern.ch/documentation/pipelines/master/prm_html/PhysicsReferenceManual/electromagnetic/electron_incident/ionisation/eion.html)。
++
++检查发现旧 `BetheBlochPDG` 写死了氮气参数。新增的山体 `MaterialHadronLoss` 使用材料的
++I、Z/A 和密度效应计算带电强子的主要碰撞能损，并去掉原模块经验性的空气 `bE` 项。
++这是主要 Bethe 项近似，不宣称覆盖低能壳层、Barkas 或重离子有效电荷修正；
++强相互作用仍由 FLUKA/QGSJet 处理，μ/τ 能损仍交给 PROPOSAL。
++本次没有改动原空气应用、空气过程类和空气射电模块。
++
++花岗岩加大气共有 12 种元素。实际模拟发现原 FLUKA 初始化入口的区域数组上限为 10，
++不能直接给每个元素分配一个区域。新增的山体适配器用一个辅助混合物初始化所有元素，
++随后取出其纯元素靶编号；shower 的靶抽样仍由 CORSIKA 按真实材料组分完成，
++**辅助混合物的权重不参与 shower**。不超过 10 个靶时继续调用原入口。
++该适配器单独编译，使用已安装 FLUKA 的匹配头文件；原空气 FLUKA 包装和外部库均未修改。
++默认从 `$FLUPRO/flukapro` 读取 `(DIMPAR)`、`(FLKMAT)`、`(FLKCMP)`；
++也可用 CMake 的 `C8_TERRAIN_FLUKA_INCLUDE_DIR` 指定匹配版本的目录。
++
++还需区分核种与元素：原 FLUKA `STPXYZ` 接口只接收 Z，不接收 A，因此其低能强子过程
++使用天然同位素元素靶。材料卡指定的代表 A 用于 PROPOSAL、质量／核靶等 CORSIKA 输入，
++不能据此宣称 FLUKA 也执行了同样的纯同位素计算。新入口保留这个已明确记录的近似。
++
++每次输出 `terrain_run.yaml` 中的 `resolved_material`、`proposal_materials`、
++`material_tables` 可核对输入、实际 CPU 计算器和设备表。
++`resolved_material` 是完整参数快照，可单独保存为材料文件重放。
++其中 `description` 给出材料名称，`transport.nuclei` 逐项给出元素符号、Z、A 和核数分数；
++组分的数值定义以 Z、A 和 `number_fraction` 为准，`element` 是便于阅读的标注。
++组分或输运参数变化会更换表/辅助数据指纹；只变 n 或 L_E 不更换电磁输运表。
++
++C++ 接口位于 [MaterialModel.hpp](../corsika/modules/transport/MaterialModel.hpp)：
++`materialPreset()` 选择模型，`makeModel<Interface>()` 构造环境属性。
++使用 `interfaces::transportData(properties)` 读取完整输运参数；
++旧 `getMedium()` 枚举仅用于兼容，无法表达任意混合物。
++构造原有 PROPOSAL 过程时使用
++[MaterialProposalEnvironment](../corsika/modules/transport/MaterialProposalEnvironment.hpp) 视图，
++由它将完整材料数据交给原计算器；山体应用已经完成这一接线。
++
++当前山体应用仍是一块均匀材料的 DEM 加外部大气；本接口支持**逐次选择不同材料**，
++尚不把一个 DEM 内部分割成多个矿层。灰色衰减、直线光路/Snell 接口的原有传播范围也没有扩大。
++密度或组分变化要重新跑 shower；n/L_E 变化要重新积累每条轨迹的射电，不能只缩放总波形。
++SiO₂ 基准的 n 和输运密度效应、山体强子能损均已更新，先前 double-bang 图属于旧版本结果。
++
++## 验证记录
++
++测试和算例仅在 PSR 上执行，OpenMP 使用 256 线程；CUDA 使用服务器 GPU。
++脚本位于 [validation/terrain/material_models](../validation/terrain/material_models)。
++OpenMP、CUDA 各 10 项 C++ 检查通过，Python 配置／地形检查 41 项通过。
++四份独立材料文件通过实际场景加载；旧 n=2 与新材料卡冲突时按预期拒绝。
++FLUKA 扩展入口与原入口分别在独立进程初始化：10 种元素、4 种入射强子、
++3 个动能共 120 个截面点，以及同种子下的 3 个质子—氧核碰撞事件，输出逐行一致。
++加入该适配器后，两种后端重新编译并通过材料／环境检查，输运和射电内核代码未变。
++
++原生 PROPOSAL 与可移植 LPM 实现共比较 1,800 个点：SiO₂ 240 点、CaCO₃ 360 点、
++花岗岩十元素混合物 1,200 点；涵盖光子成对与电子轫致辐射、各组分、
++1 GeV–100 PeV、五个能量分数和三个密度比例。最大相对差约 `3.9e-16`。
++这是原生计算器与可移植实现的主机数值对照，CUDA 实际执行另外由运行跟踪检查。
++
++最终 19 个真实输运算例全部完成：三种材料各在 OpenMP／CUDA 下进行
++10 GeV 电子射电开／关对照（12 个），100 GeV 质子（6 个），另加 CaCO₃ 的纯 CPU
++PROPOSAL 电子对照（1 个）。每组射电开／关的输运 CSV 完全一致，材料错配为零，
++能量账最大未解释相对残差约 `7.8e-16`。两种后端导出的材料表和辅助表指纹相同。
++
++| 材料 | 原生／可移植 LPM 最大相对差 | CUDA CoREAS／ZHS 频谱相对 L2 差 |
++|---|---:|---:|
++| 二氧化硅 SiO₂ | 3.87e-16 | 6.11e-9 |
++| 石灰岩／方解石 CaCO₃ | 2.99e-16 | 1.13e-8 |
++| 花岗岩十元素混合物 | 2.81e-16 | 3.67e-9 |
++
++GPU 跟踪记录中，三种材料分别有 1034、606、1220 次输运内核执行，
++均有真实的 CoREAS 和 ZHS GPU 内核，常驻粒子队列分配在 CUDA 内存中；
++三份射电累加数组各在结束时回传一次。控制状态和诊断记录仍有回传，不能称为“零传输”。
++
++这些算例使用 1100 ns 输运时间窗，终止时仍存活的粒子计入能量账；
++它们验证材料接线、数值一致性与设备执行，**不等于完整 shower 收敛、矿物样品验证，
++也不是新的 100 PeV double-bang 结果**。图中各材料只有一个电子事件，不能用于统计幅度排序。
++
++图和简短读图说明见 [PPT 格式 Markdown](reports/material_models_20260913/SLIDES_CN.md)。
++最终模拟清单与数值结果见 [validation.json](reports/material_models_20260913/validation.json)，
++原生对照数据和测试日志保存在同目录的 `evidence/`。
++完整模拟、GPU 跟踪和独立构建保留在 PSR：
++`/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913`。
+--- a/documentation/reports/doublebang_radio_audit_20260912/SLIDES_CN.md
++++ b/documentation/reports/doublebang_radio_audit_20260912/SLIDES_CN.md
+@@ -17,6 +17,9 @@
+ 
+ 图展示实际模拟；两个产生顶点不自动等于可分辨的两个射电脉冲。
+ 
++版本说明：本报告图使用当时的 SiO₂ 配置。2026-09-13 的[统一材料接口](../../mountain_material_models_CN.md)
++已改用文件中的二氧化硅 SiO₂ 基准（S0，n=√5），并更新材料密度效应及山体强子能损；本页后的旧图属于旧版本结果。
++
+ [详细代码检查与物理限制](AUDIT_CN.md) · [逐例结果](RESULTS_CN.md)
+ 
+ ---
+--- /dev/null
++++ b/documentation/reports/material_models_20260913/SLIDES_CN.md
+@@ -0,0 +1,45 @@
++---
++marp: true
++paginate: true
++title: 山体材料接口与射电诊断
++---
++
++# 山体材料：同一份参数接入 shower 与射电
++
++| 材料 | 密度 kg/m³ | n | 电场衰减长度 |
++|---|---:|---:|---:|
++| 二氧化硅 SiO₂（基准） | 2650 | √5 | 100 m |
++| 石灰岩／方解石 CaCO₃ | 2710 | √6 | 14.48 m |
++| 花岗岩十元素参考混合物 | 2729 | √5 | 86.86 m |
++
++花岗岩组分：H、C、O、Na、Mg、Al、Si、K、Ca、Fe；核数分数见[材料说明](../../mountain_material_models_CN.md)。
++
++参数按提供文件封装，射电常数属于研究模型，不是当地岩石实测值。
++PSR 上 19 个短时输运算例通过；三种材料均确认实际 GPU 输运和射电计算。
++
++---
++
++# 看 LPM：原生计算器与可移植实现是否重合
++
++![width:1000px](figures/material_lpm.png)
++
++空心圆是原生 PROPOSAL，黑色叉号是可移植实现。重合说明转换一致；连线只引导读图。
++纵轴越低，LPM 抑制越强。图中是 O-16 靶核、能量分数 0.5；数值检查还覆盖其他组分和参数。
++
++---
++
++# 看波形：CoREAS 与 ZHS 是否重合
++
++![height:480px](figures/material_waveforms.png)
++
++真实 10 GeV 电子算例，CUDA 常驻队列；同一天线、同一事件的原始幅度和到达时间。
++实线与虚线应重合。不同材料各一个事件，不能据此确定统计上的幅度排序。
++
++---
++
++# 看衰减：路径每增加一个 L_E，电场剩下约 37%
++
++![width:800px](figures/material_attenuation.png)
++
++这是材料模型的 `exp(-l/L_E)` 曲线，未包含几何扩散和界面透射。
++功率按电场平方衰减。石灰岩／方解石曲线降得快，是所选 14.48 m 模型的结果。
+--- a/python/corsika_terrain/scene.py
++++ b/python/corsika_terrain/scene.py
+@@ -46,6 +46,15 @@
+     # This belongs to the old uniform-air geometry product. In a native
+     # atmosphere the authoritative refractivity is the per-layer model below.
+     geometry.pop("air_refractive_index", None)
++    # The old uniform-air product hard-coded n=2. Native beta5 scenes select
++    # the documented silica (SiO2) card; retain only explicitly configured density.
++    medium = manifest["configuration"].get("medium", {})
++    material = dict(preset=medium.get("material", "SiO2"))
++    if "density_g_cm3" in medium:
++        material["transport"] = dict(density_kg_m3=1000.*float(medium["density_g_cm3"]))
++    geometry["material"] = material
++    for key in ("rock_density_g_cm3", "rock_refractive_index", "rock_hadronic_target_approximation", "attenuation_length_m"):
++        geometry.pop(key, None)
+     geometry["rock_reference_enu_m"] = [0., 0., float(height)-1.]
+     observers = yaml.safe_load((product / "observers.yaml").read_text())["radio"]["observers"]
+     return dict(schema_version=1,
+--- a/python/corsika_terrain/workflow.py
++++ b/python/corsika_terrain/workflow.py
+@@ -81,7 +81,7 @@
+         source=dict(provider=provider),output_directory=str(output/'terrain'),
+         cache_directory=str(Path(cache or default_cache()).expanduser().resolve()),
+         mesh=dict(spacing_arcsec=spacing_arcsec,bottom_depth_m=bottom_depth_m,
+-                  boundary_padding_m=1.e-6),medium=dict(density_g_cm3=2.65),antennas=antennas,
++                  boundary_padding_m=1.e-6),medium=dict(material='SiO2'),antennas=antennas,
+         limits=dict(max_tiles=4,max_vertices=120000,max_faces=250000,max_estimated_memory_mb=1024))
+ 
+ 
+--- a/tests/modules/CMakeLists.txt
++++ b/tests/modules/CMakeLists.txt
+@@ -37,8 +37,19 @@
+ CORSIKA_ADD_TEST (testMountainTauSpin SOURCES testMountainTauSpin.cpp)
+ CORSIKA_ADD_TEST (testMountainRadio SOURCES testMountainRadio.cpp)
+ CORSIKA_ADD_TEST (testTerrainEnvironment SOURCES testTerrainEnvironment.cpp)
++CORSIKA_ADD_TEST (testMountainMaterials SOURCES testMountainMaterials.cpp)
++target_compile_definitions(testMountainMaterials PRIVATE MATERIAL_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
++if(TARGET C8TerrainFlukaMaterialBridge)
++  add_executable(testFlukaMaterialOracle EXCLUDE_FROM_ALL
++    ../../validation/terrain/material_models/FlukaMaterialOracle.cpp
++    $<TARGET_OBJECTS:C8TerrainFlukaMaterialBridge>)
++  target_link_libraries(testFlukaMaterialOracle PRIVATE CORSIKA8)
++endif()
+ 
+ if(CORSIKA_BUILD_MOUNTAIN_APPLICATION AND CORSIKA_ENABLE_KOKKOS AND WITH_FLUKA)
++  add_executable(testMaterialOracle EXCLUDE_FROM_ALL ../../validation/terrain/material_models/MaterialOracle.cpp)
++  target_link_libraries(testMaterialOracle PRIVATE CORSIKA8 CORSIKA8TerrainEm)
++  add_dependencies(testMaterialOracle GenParticlesHeaders GenMediaProperties)
+   add_executable(testInterfaceTransport EXCLUDE_FROM_ALL testInterfaceTransport.cpp)
+   target_link_libraries(testInterfaceTransport PRIVATE CORSIKA8 CORSIKA8TerrainEm)
+   add_dependencies(testInterfaceTransport GenParticlesHeaders GenMediaProperties)
+--- /dev/null
++++ b/tests/modules/testMountainMaterials.cpp
+@@ -0,0 +1,96 @@
++#include <catch2/catch_all.hpp>
++#include <corsika/modules/terrain/TerrainAtmosphere.hpp>
++#include <corsika/modules/transport/MaterialProposalEnvironment.hpp>
++#include <corsika/modules/transport/MaterialHadronLoss.hpp>
++#include "../../applications/detail/mountain/TerrainMaterialConfig.hpp"
++#include <iostream>
++using namespace corsika;
++using namespace corsika::units::si;
++using Catch::Approx;
++namespace api=corsika::interfaces;
++namespace app=corsika::applications::terrain;
++
++TEST_CASE("Mountain presets reproduce the supplied research cards", "[material]") {
++  auto cards=YAML::LoadFile(std::string(MATERIAL_SOURCE_DIR)+"/documentation/materials.yaml");
++  for(auto card:cards["material_cards"]) {
++    auto m=api::materialPreset(card["id"].as<std::string>());
++    CHECK(m.density_kg_m3==card["transport"]["density_kg_m3"].as<double>());
++    CHECK(m.refractive_index==Approx(card["radio"]["refractive_index"].as<double>()).epsilon(1.e-15));
++    CHECK(m.field_attenuation_length_m==card["radio"]["field_attenuation_length_m"].as<double>());
++    std::map<std::pair<int,int>,double> expected,actual;
++    for(auto n:card["transport"]["nuclei"]) expected[{n["Z"].as<int>(),n["A"].as<int>()}]=n["number_fraction"].as<double>();
++    for(auto n:m.nuclei) actual[{n.Z,n.A}]=n.number_fraction;
++    REQUIRE(expected.size()==actual.size());
++    for(auto n:expected) CHECK(actual.at(n.first)==n.second);
++    auto roundtrip=app::readMaterial(app::materialConfig(m));
++    CHECK(roundtrip.composition().getHash()==m.composition().getHash());
++    CHECK(api::transportKey(roundtrip.transportProperties())==api::transportKey(m.transportProperties()));
++    CHECK(roundtrip.field_attenuation_length_m==m.field_attenuation_length_m);
++  }
++  CHECK(api::materialPreset("SiO2").refractive_index==std::sqrt(5.));
++  CHECK(api::materialPreset("Calcite").ZOverA()==.5);
++  auto silica=api::materialPreset("SiO2");
++  CHECK(silica.massFractions()[0]==Approx(28./60.));
++  CHECK(silica.massFractions()[1]==Approx(32./60.));
++}
++
++TEST_CASE("NIST density shifts and mixture ionisation use selected material", "[material]") {
++  for(auto name:{"SiO2","Calcite"}) {
++    auto m=api::materialPreset(name); auto d=m.transportProperties();
++    auto ref=corsika::mediumData(m.reference_medium);
++    double ratio=m.density_kg_m3*.001/ref.corrected_density_;
++    CHECK(d.Ieff_==ref.Ieff_); CHECK(d.corrected_density_==m.density_kg_m3*.001);
++    for(double bg:{.1,1.,10.,100.,1.e4,1.e8})
++      CHECK(api::densityEffect(d,bg)==Approx(api::densityEffect(ref,bg*std::sqrt(ratio))).margin(1.e-13));
++    CHECK(api::hadronStoppingPower(d,938.27208816,1938.27208816,1)>1.);
++    CHECK(api::hadronStoppingPower(d,938.27208816,1938.27208816,0)==0.);
++  }
++  auto g=api::materialPreset("Granite"); auto d=g.transportProperties();
++  // Independent elemental I inputs from the bundled NIST records (eV).
++  std::map<int,double> I{{1,19.2},{6,78.},{8,95.},{11,149.},{12,156.},
++                        {13,166.},{14,173.},{19,190.},{20,191.},{26,286.}};
++  double logI=0.,electrons=0.;
++  for(auto n:g.nuclei) { logI+=n.number_fraction*n.Z*std::log(I.at(n.Z)); electrons+=n.number_fraction*n.Z; }
++  CHECK(d.Ieff_==Approx(std::exp(logI/electrons)).epsilon(1.e-14));
++  CHECK(api::densityEffect(d,std::pow(10.,d.x0_))==Approx(0.).margin(1.e-13));
++  CHECK(d.Ieff_!=corsika::mediumData(Medium::StandardRock).Ieff_);
++  auto doubled=g; doubled.density_kg_m3*=2.;
++  CHECK(doubled.transportProperties().Cbar_==Approx(d.Cbar_-std::log(2.)));
++}
++
++TEST_CASE("Material view passes resolved data and rejects ambiguous calculator keys", "[material]") {
++  terrain::Environment env; auto cs=env.getCoordinateSystem();
++  auto add=[&](api::MaterialModel const& m,double x) {
++    auto n=env.createNode<Sphere>(Point(cs,x*1_m,0_m,0_m),1_m);
++    n->setModelProperties(m.makeModel<terrain::Interface>(cs)); env.getUniverse()->addChild(std::move(n));
++  };
++  auto silica=api::materialPreset("SiO2"); add(silica,0.);
++  api::MaterialProposalEnvironment view(env); int count=0;
++  view.getUniverse()->walk([&](auto const& n) {
++    if(!n.hasModelProperties()) return;
++    auto p=n.getModelProperties(); auto const& d=mediumData(p.getMedium());
++    CHECK(d.corrected_density_==2.65); CHECK(d.name_==silica.id); ++count;
++  });
++  CHECK(count==1);
++  auto optical=silica; optical.refractive_index=3.; optical.field_attenuation_length_m=30.; add(optical,3.);
++  CHECK_NOTHROW(api::MaterialProposalEnvironment(env)); // optical edits do not alter EM tables
++  auto dense=silica; dense.density_kg_m3*=1.1; add(dense,6.);
++  CHECK_THROWS(api::MaterialProposalEnvironment(env));
++}
++
++TEST_CASE("Invalid and unsupported material cards fail before tables are built", "[material]") {
++  auto m=api::materialPreset("SiO2");
++  m.nuclei[0].number_fraction=-1.; CHECK_THROWS(m.validate());
++  m=api::materialPreset("SiO2"); m.nuclei[0].number_fraction=.5; CHECK_THROWS(m.validate());
++  m=api::materialPreset("SiO2"); m.nuclei[0].Z=13; CHECK_THROWS(m.transportProperties());
++  m=api::materialPreset("SiO2"); m.field_attenuation_length_m=NAN; CHECK_THROWS(m.validate());
++  m.field_attenuation_length_m=INFINITY; CHECK_NOTHROW(m.validate());
++  CHECK_THROWS(app::readMaterial(YAML::Load("{preset: SiO2, radio: {frequency_dependent_attenuation_enabled: true}}")));
++  CHECK_THROWS(app::readMaterial(YAML::Load("{preset: SiO2, radio: {attenuation_length: 10}}")));
++  CHECK_THROWS(app::readMaterial(YAML::Load("{transport: {composition_basis: mass_fraction}}")));
++  auto explicitCard=app::materialConfig(api::materialPreset("SiO2"));
++  explicitCard["transport"]["ionisation"]["reference_density_kg_m3"]=NAN;
++  CHECK_THROWS(app::readMaterial(explicitCard));
++  CHECK_THROWS(app::readMaterial(YAML::Load("{transport: {ionisation: {model: bragg_sternheimer, I_eV: 200}}}")));
++  CHECK_THROWS(api::materialPreset("Carbonate")); // no universal carbonate recipe
++}
+--- a/tests/modules/testTerrainEnvironment.cpp
++++ b/tests/modules/testTerrainEnvironment.cpp
+@@ -112,16 +112,19 @@
+   p.position=track.getPosition(1.);p.node=rock;p.direction=track.getDirection(1.);
+   auto [straight,outside]=tracking.getTrack(p);CHECK(outside==air);
+   CHECK((straight.getDirection(1.)-p.direction).getNorm()<1.e-14);
+-  // In a mesh-free atmosphere, use the unmodified air tracking as an oracle.
++  // Same polynomial as stock air, evaluated at the same physical times. The
++  // terrain radio accuracy cap introduced in the prior magnetic audit makes
++  // its step shorter; identical full-step durations are no longer the contract.
+   terrain::Environment reference;terrain::buildAtmosphere(reference,cfg);
+   p.position=Point(cs,10000_m,0_m,10000_m);p.node=reference.getUniverse()->getContainingNode(p.position);
+   tracking_leapfrog_curved::Tracking original;
+   auto [expected,originalNext]=original.getTrack(p);auto [actual,actualNext]=tracking.getTrack(p);
+   CHECK(actualNext==originalNext);
+-  CHECK(actual.getDuration()/1_s==Approx(expected.getDuration()/1_s).epsilon(2.e-14));
++  double fraction=actual.getDuration()/expected.getDuration();
++  REQUIRE(fraction>0.); REQUIRE(fraction<1.);
+   for(double u:{0.,.25,.5,1.}) {
+-    CHECK((actual.getPosition(u)-expected.getPosition(u)).getNorm()/1_m<1.e-8);
+-    CHECK((actual.getDirection(u)-expected.getDirection(u)).getNorm()<2.e-14);
++    CHECK((actual.getPosition(u)-expected.getPosition(u*fraction)).getNorm()/1_m<1.e-8);
++    CHECK((actual.getDirection(u)-expected.getDirection(u*fraction)).getNorm()<2.e-14);
+   }
+   auto a=actual.getPosition(0.),b=actual.getPosition(1.);
+   auto delta=p.getVelocity()*actual.getDuration();
+--- /dev/null
++++ b/validation/terrain/material_models/FlukaMaterialOracle.cpp
+@@ -0,0 +1,52 @@
++// PSR-only comparison of original and expanded FLUKA material setup.
++#include "../../../applications/detail/mountain/MaterialFlukaInteraction.hpp"
++#include <corsika/modules/terrain/TerrainAtmosphere.hpp>
++#include <fstream>
++#include <iomanip>
++#include <csignal>
++#include <unistd.h>
++using namespace corsika;
++using namespace corsika::units::si;
++namespace t=corsika::applications::terrain;
++template<class Model> void probe(Model& model,std::set<Code> const& targets,std::string const& output) {
++  std::signal(SIGALRM,SIG_IGN); ::alarm(0);
++  terrain::Environment env; auto cs=env.getCoordinateSystem();
++  std::ofstream file(output); if(!file) throw std::runtime_error("cannot create FLUKA oracle output");
++  file<<std::setprecision(17);
++  for(auto target:targets) for(auto pid:{Code::Proton,Code::Neutron,Code::PiPlus,Code::PiMinus})
++    for(double energy:{1.,10.,50.}) {
++      auto E=get_mass(pid)+energy*1_GeV;
++      FourMomentum projectile(E,MomentumVector(cs,0_GeV,0_GeV,calculate_momentum(E,get_mass(pid))));
++      FourMomentum stationary(get_mass(target),MomentumVector(cs,0_GeV,0_GeV,0_GeV));
++      auto xs=model.getCrossSection(pid,target,projectile,stationary)/1_mb;
++      if(!std::isfinite(xs) || xs<=0.) throw std::runtime_error("invalid FLUKA cross section");
++      file<<"XS "<<static_cast<int>(pid)<<' '<<get_nucleus_Z(target)<<' '<<energy<<' '<<xs<<'\n';
++    }
++  auto target=get_nucleus_code(16,8); auto E=10_GeV+Proton::mass;
++  FourMomentum projectile(E,MomentumVector(cs,0_GeV,0_GeV,calculate_momentum(E,Proton::mass)));
++  FourMomentum stationary(get_mass(target),MomentumVector(cs,0_GeV,0_GeV,0_GeV));
++  for(int event=0;event<3;++event) {
++    auto particles=model.generateFinalState(Code::Proton,target,projectile,stationary);
++    file<<"EVENT "<<event<<' '<<particles.size()<<'\n';
++    for(auto const& particle:particles) {
++      auto const& [pid,ekin,direction]=particle;
++      auto v=direction.getComponents().getEigenVector();
++      file<<"PARTICLE "<<static_cast<int>(pid)<<' '<<ekin/1_GeV<<' '<<v[0]<<' '<<v[1]<<' '<<v[2]<<'\n';
++    }
++  }
++}
++int main(int argc,char** argv) {
++  try {
++    if(argc!=3) throw std::runtime_error("FlukaMaterialOracle stock|expanded OUTPUT");
++    logging::set_level(logging::level::warn);
++    auto& rng=RNGManager<>::getInstance(); rng.registerRandomStream("fluka"); rng.setSeed(1731);
++    std::set<Code> targets;
++    for(auto za:{std::pair{1,1},std::pair{6,12},std::pair{7,14},std::pair{8,16},std::pair{11,23},
++                 std::pair{12,24},std::pair{13,27},std::pair{14,28},std::pair{18,40},std::pair{26,56}})
++      targets.insert(get_nucleus_code(za.second,za.first));
++    if(std::string(argv[1])=="stock") {corsika::fluka::InteractionModel model(targets); probe(model,targets,argv[2]);}
++    else if(std::string(argv[1])=="expanded") {t::fluka_detail::ExpandedInteractionModel model(targets); probe(model,targets,argv[2]);}
++    else throw std::runtime_error("unknown FLUKA oracle mode");
++    return 0;
++  } catch(std::exception const& e) {std::cerr<<e.what()<<'\n'; return 1;}
++}
+--- /dev/null
++++ b/validation/terrain/material_models/MaterialOracle.cpp
+@@ -0,0 +1,65 @@
++// PSR-only oracle: actual scalar PROPOSAL versus portable LPM snapshots,
++// using the same resolved material construction as the mountain application.
++#include <corsika/modules/transport/MaterialProposalEnvironment.hpp>
++#include <corsika/modules/terrain/TerrainAtmosphere.hpp>
++#include <corsika/modules/PROPOSAL.hpp>
++#include <corsika/accelerator/em/common/tables/ProposalNativeAux.hpp>
++#include <fstream>
++#include <iostream>
++#include <iomanip>
++using namespace corsika;
++using namespace corsika::units::si;
++struct NoHadronic {
++  template<class... Args> void doInteraction(Args&&...) {throw std::runtime_error("not a shower");}
++  bool isValid(Code,Code,HEPEnergyType) const {return true;}
++};
++int main(int argc,char** argv) {
++  try {
++    if(argc!=4) throw std::runtime_error("usage: MaterialOracle PRESET AUX_CACHE CSV");
++    logging::set_level(logging::level::warn);
++    RNGManager<>::getInstance().registerRandomStream("proposal");
++    for(auto p:proposal::tracked) set_energy_production_threshold(p,100_MeV);
++    auto m=interfaces::materialPreset(argv[1]); auto expected=m.transportProperties();
++    terrain::Environment env; auto cs=env.getCoordinateSystem();
++    auto world=env.createNode<Sphere>(Point(cs,0_m,0_m,0_m),1000_m);
++    world->setModelProperties(m.makeModel<terrain::Interface>(cs)); env.getUniverse()->addChild(std::move(world));
++    interfaces::MaterialProposalEnvironment view(env); NoHadronic had;
++    proposal::Interaction interaction(view,had,had,80_GeV);
++    auto views=interaction.nativeCalculatorViews();
++    auto aux=gpu::em::tables::loadOrCreateProposalNativeAux(views,argv[2]);
++    std::ofstream csv(argv[3]); if(!csv) throw std::runtime_error("cannot create oracle CSV");
++    csv<<"material,process,Z,A,energy_MeV,fraction,density_scale,native,portable,relative_error\n"<<std::setprecision(17);
++    double maximum=0.; std::size_t count=0;
++    for(auto const& v:views) {
++      if(v.projectile!=Code::Photon && v.projectile!=Code::Electron) continue;
++      auto const& medium=*v.medium;
++      if(medium.GetI()!=expected.Ieff_ || medium.GetMassDensity()!=expected.corrected_density_ ||
++         medium.GetNumComponents()!=int(m.nuclei.size()) ||
++         std::abs(medium.GetZA()-m.ZOverA())>1.e-14)
++        throw std::runtime_error("scalar calculator did not receive selected material");
++      for(auto const& component:medium.GetComponents())
++        for(double energy:{1.e3,1.e6,1.e9,1.e11}) for(double f:{.01,.1,.5,.9,.99}) for(double scale:{.5,1.,2.}) {
++          double native=0.,portable=0.; bool ok=false;
++          if(v.projectile==Code::Photon) {
++            if(!v.photon_pair_lpm) throw std::runtime_error("missing pair LPM");
++            native=v.photon_pair_lpm->suppression_factor(energy,f,component,scale);
++            auto result=gpu::em::photonPairLpmSuppressionFactor(aux.photon_pair_lpm,component.GetHash(),energy,f,scale*medium.GetMassDensity());
++            portable=result.survival_probability; ok=result.status==gpu::em::PhotonPairLpmStatus::Success;
++          } else {
++            if(!v.brems_lpm) throw std::runtime_error("missing brems LPM");
++            native=v.brems_lpm->suppression_factor(energy,f,component,scale);
++            auto result=gpu::em::bremsLpmSuppressionFactor(aux.brems_lpm,component.GetHash(),energy,f,scale*medium.GetMassDensity());
++            portable=result.survival_probability; ok=result.status==gpu::em::BremsLpmStatus::Success;
++          }
++          double error=std::abs(native-portable)/std::max(1.e-30,std::abs(native));
++          if(!ok || !std::isfinite(error) || error>2.e-10) throw std::runtime_error("material LPM oracle mismatch");
++          maximum=std::max(maximum,error); ++count;
++          csv<<m.id<<','<<(v.projectile==Code::Photon?"pair":"brems")<<','<<component.GetNucCharge()<<','<<component.GetAtomicNum()
++             <<','<<energy<<','<<f<<','<<scale<<','<<native<<','<<portable<<','<<error<<'\n';
++        }
++    }
++    if(!count || !csv) throw std::runtime_error("empty/incomplete oracle output");
++    std::cout<<m.id<<" points="<<count<<" maximum_relative_error="<<std::setprecision(17)<<maximum<<'\n';
++    return 0;
++  } catch(std::exception const& e) {std::cerr<<e.what()<<'\n';return 1;}
++}
+--- /dev/null
++++ b/validation/terrain/material_models/admission_psr.py
+@@ -0,0 +1,29 @@
++#!/usr/bin/env python3
++"""Exercise material_file and conflict rejection through the real scene loader."""
++import copy,json,pathlib,subprocess
++import yaml
++ROOT=pathlib.Path('/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913')
++case=ROOT/'admission'; case.mkdir(exist_ok=True)
++base=yaml.safe_load((ROOT/'silica_off.yaml').read_text())
++binary=ROOT/'build-openmp/applications/c8_terrain_environment'
++results=[]
++for label in ['silica','limestone','granite','custom_example']:
++    scene=copy.deepcopy(base)
++    del scene['geometry']['material']
++    scene['geometry']['material_file']=str(ROOT/'source/configs/mountain/materials'/(label+'.yaml'))
++    path=case/(label+'.yaml'); path.write_text(yaml.safe_dump(scene))
++    output=case/(label+'-admitted.yaml')
++    command=['taskset','-c','0-255',str(binary),'--config',str(path),'--output',str(output)]
++    with (case/(label+'.log')).open('w') as log:
++        subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
++    result=yaml.safe_load(output.read_text()); assert result['complete']
++    assert not result['legacy_material_overrides']
++    results.append(dict(case=label,complete=True,material=result['resolved_material']))
++bad=copy.deepcopy(base); bad['geometry']['rock_refractive_index']=2.
++path=case/'conflict.yaml'; path.write_text(yaml.safe_dump(bad))
++proc=subprocess.run([str(binary),'--config',str(path),'--output',str(case/'rejected.yaml')],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
++assert proc.returncode!=0 and 'conflicts' in proc.stdout
++assert not (case/'rejected.yaml').exists()
++results.append(dict(case='legacy_conflict',rejected=True,message=proc.stdout))
++(ROOT/'admission.json').write_text(json.dumps(results,indent=2))
++print('4 material-file admissions and conflicting legacy parameters checked')
+--- /dev/null
++++ b/validation/terrain/material_models/analyze_psr.py
+@@ -0,0 +1,125 @@
++#!/usr/bin/env python3
++"""PSR-only diagnostics; plots use English and real oracle/shower outputs."""
++import csv, hashlib, json, pathlib
++from collections import Counter
++import numpy as np
++import yaml
++import matplotlib
++matplotlib.use('Agg')
++import matplotlib.pyplot as plt
++
++ROOT=pathlib.Path('/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913')
++REPORT=ROOT/'report'; FIG=REPORT/'figures'; FIG.mkdir(parents=True,exist_ok=True)
++labels=['silica','limestone','granite']
++titles=['Silica (SiO2)', 'Limestone / calcite (CaCO3)',
++        'Granite (H, C, O, Na, Mg, Al, Si, K, Ca, Fe)']
++for backend in ['openmp','cuda']:
++    if not (ROOT/('MATERIAL_RUNS_'+backend.upper()+'_PASSED')).exists(): raise RuntimeError('Incomplete '+backend)
++
++result={'backends':{},'lpm':{},'cross_backend_table_identity':True}
++result['materials']={label:yaml.safe_load((ROOT/(label+'_resolved.yaml')).read_text()) for label in labels}
++result['fluka_target_comparison']=json.loads((ROOT/'fluka-validation.json').read_text())
++if not result['fluka_target_comparison']['exact_output_identity']:
++    raise RuntimeError('FLUKA material setup comparison failed')
++result['cuda_residency']={}
++grids={'interface_radio_moments','interface_radio_coreas_regularized_moments','interface_radio_zhs_moments'}
++for label in labels:
++    folder=ROOT/'runs'/('cuda_'+label+'_on')
++    summary=yaml.safe_load((folder/'output/terrain_run.yaml').read_text())
++    accelerator=summary['accelerator']; counts=Counter(); downloads=Counter(); allocations=set()
++    for line in (folder/'cupti.jsonl').open():
++        e=json.loads(line)
++        if e['event']=='gpu_kernel':
++            for key,pattern in [('transport','InterfaceStepKernel'),('CoREAS','CoreasEndpointKernel'),('ZHS','AccumulateKernel')]:
++                if pattern in e['name']: counts[key]+=1
++        if e['event']=='allocate' and e.get('space')=='Cuda': allocations.add(e.get('label'))
++        if e['event']=='copy_begin' and e.get('src_label') in grids and e.get('dst_space')=='Host' and e.get('bytes',0)>0:
++            downloads[e['src_label']]+=1
++    checks=dict(cuda_execution=accelerator['execution_space']=='Cuda',
++                resident_queue=accelerator['resident_capacity']>0 and accelerator['device_enqueued_particles']>0,
++                gpu_transport=counts['transport']>0,gpu_coreas=counts['CoREAS']>0,gpu_zhs=counts['ZHS']>0,
++                resident_particle_allocation='interface_resident_particles' in allocations,
++                one_final_copy_per_radio_grid=all(downloads[g]==1 for g in grids))
++    if not all(checks.values()): raise RuntimeError('CUDA material residency checks: '+str(checks))
++    result['cuda_residency'][label]=dict(checks=checks,kernels=dict(counts),grid_downloads=dict(downloads),
++        uploaded_particles=accelerator['cpu_uploaded_particles'],device_enqueued_particles=accelerator['device_enqueued_particles'],
++        control_downloads=accelerator['control_downloads'],record_downloads=accelerator['record_downloads'])
++for backend in ['openmp','cuda']:
++    rows=json.loads((ROOT/('materials_'+backend+'.json')).read_text())
++    if len(rows)!=len(labels): raise RuntimeError('Incomplete material inventory: '+backend)
++    result['backends'][backend]=[dict(material=r['material'],radio_preserves_transport=r['radio_does_not_change_transport'],
++        coreas_zhs_relative_l2=r['pair'][1]['checks']['coreas_zhs_relative_l2'],
++        proposal_material=r['pair'][1]['proposal_material'],tables=r['pair'][1]['material_tables']) for r in rows]
++for a,b in zip(result['backends']['openmp'],result['backends']['cuda']):
++    if a['material']!=b['material'] or len(a['tables'])!=2 or len(b['tables'])!=2:
++        raise RuntimeError('Material inventory differs by backend')
++    for ta,tb in zip(a['tables'],b['tables']):
++        if ta['hash']!=tb['hash'] or ta['auxiliary_hash']!=tb['auxiliary_hash']:
++            result['cross_backend_table_identity']=False
++if not result['cross_backend_table_identity']: raise RuntimeError('Material table identity differs by backend')
++
++fig,axes=plt.subplots(1,2,figsize=(10,3.8),constrained_layout=True)
++for label,title in zip(labels,titles):
++    a=np.genfromtxt(str(ROOT/(label+'_lpm.csv')),delimiter=',',names=True,dtype=None,encoding='utf-8')
++    maximum=float(np.max(a['relative_error'])); result['lpm'][label]=dict(points=len(a),maximum_relative_error=maximum)
++    for ax,process in zip(axes,['pair','brems']):
++        select=(a['process']==process)&(a['Z']==8)&(a['fraction']==.5)&(a['density_scale']==1.)
++        data=a[select]; order=np.argsort(data['energy_MeV']); data=data[order]
++        ax.semilogx(data['energy_MeV']*1.e6,data['native'],'o-',label=title,markerfacecolor='none',markersize=7)
++        ax.semilogx(data['energy_MeV']*1.e6,data['portable'],'x',color='black',markersize=5)
++        ax.set(xlabel='Incident energy [eV]',ylabel='LPM suppression factor',title=('Photon pair creation' if process=='pair' else 'Electron bremsstrahlung'))
++        ax.grid(alpha=.25); ax.set_ylim(0,1.05)
++axes[0].legend(fontsize=8)
++fig.suptitle('Sampled O-16 target, energy fraction = 0.5; circles: native PROPOSAL, crosses: portable snapshots',fontsize=10)
++fig.savefig(FIG/'material_lpm.png',dpi=170); plt.close(fig)
++
++fig,axes=plt.subplots(3,1,figsize=(9,8),constrained_layout=True)
++for ax,label,title in zip(axes,labels,titles):
++    arrays=[]
++    for algorithm in ['CoREAS','ZHS']:
++        path=ROOT/'runs'/('cuda_'+label+'_on')/'output/radio'/algorithm/'field.csv'
++        a=np.genfromtxt(str(path),delimiter=',',names=True); a=a[a['observer']==0]
++        arrays.append(a)
++    z=arrays[1]; components=['Ex_V_m','Ey_V_m','Ez_V_m']
++    name=max(components,key=lambda k:np.max(np.abs(z[k])))
++    peak=int(np.argmax(np.abs(z[name]))); centre=z['time_s'][peak]*1.e9
++    for a,algorithm,style in zip(arrays,['CoREAS','ZHS'],['-','--']):
++        ax.plot(a['time_s']*1.e9,a[name]*1.e6,style,label=algorithm,lw=1.2)
++    ax.set(xlabel='Arrival time [ns]',ylabel=name[:2]+' [microvolt/m]',title=title+' | 10 GeV electron, CUDA resident queue')
++    ax.set_xlim(centre-160,centre+300); ax.grid(alpha=.25); ax.legend(fontsize=8)
++fig.suptitle('Raw simulation waveforms at diagnostic_overhead; no normalization or time shift',fontsize=11)
++fig.savefig(FIG/'material_waveforms.png',dpi=170); plt.close(fig)
++
++fig,ax=plt.subplots(figsize=(7,3.8),constrained_layout=True)
++distance=np.linspace(0,300,400)
++for label,title in zip(labels,titles):
++    model=yaml.safe_load((ROOT/(label+'_resolved.yaml')).read_text())
++    length=model['radio']['field_attenuation_length_m']
++    ax.semilogy(distance,np.exp(-distance/length),label=title+' (L_E=%.2f m)'%length)
++ax.set(xlabel='Path length inside material [m]',ylabel='Electric-field attenuation E/E0',title='Selected constant attenuation models (not measured site curves)',ylim=(1.e-5,1))
++ax.grid(alpha=.25); ax.legend(fontsize=8); fig.savefig(FIG/'material_attenuation.png',dpi=170); plt.close(fig)
++
++statuses=[]
++for p in sorted((ROOT/'runs').glob('*/status.json')):
++    s=json.loads(p.read_text()); record={k:s[k] for k in ['tag','complete','returncode','wall_s','binary_sha256']}
++    run=yaml.safe_load((p.parent/'output/terrain_run.yaml').read_text())
++    record['energy_ledger_relative_residual']=run['energy_ledger']['unexplained_over_initial']
++    record['material_mismatches']=run['diagnostics']['material_mismatches']
++    record['finite_window_survivors']=run.get('accelerator',{}).get('finite_window_survivors')
++    if abs(record['energy_ledger_relative_residual'])>=1.e-8 or record['material_mismatches']!=0:
++        raise RuntimeError('Material transport audit failed: '+s['tag'])
++    checks=p.parent/'checks.json'
++    if checks.exists():
++        record['checks']=json.loads(checks.read_text())['checks']
++        if not all(record['checks'].values()): raise RuntimeError('Failed transport/radio check: '+s['tag'])
++    elif s['tag']!='cpu_limestone': raise RuntimeError('Missing case checks: '+s['tag'])
++    statuses.append(record)
++if not all(s['complete'] and s['returncode']==0 for s in statuses): raise RuntimeError('Incomplete run in final inventory')
++expected={backend+'_'+label+'_'+mode for backend in ['openmp','cuda'] for label in labels for mode in ['off','on','proton']}|{'cpu_limestone'}
++if {s['tag'] for s in statuses}!=expected: raise RuntimeError('Final inventory must contain all 19 material runs')
++result['runs']=statuses
++result['warning']='Integration/oracle checks, not mineral sample validation or full shower convergence.'
++(REPORT/'validation.json').write_text(json.dumps(result,indent=2))
++for label in labels:
++    (REPORT/(label+'_resolved.yaml')).write_bytes((ROOT/(label+'_resolved.yaml')).read_bytes())
++print(json.dumps(result,indent=2))
+--- /dev/null
++++ b/validation/terrain/material_models/build_and_test_psr.sh
+@@ -0,0 +1,32 @@
++#!/usr/bin/env bash
++set -eo pipefail
++source /home/yuhanglu/miniconda/etc/profile.d/conda.sh
++conda activate corsika_venv
++c8_root=/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913
++c8_previous=/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/psr-t400-cooperative-20260911
++c8_cuda=/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/toolchain-cuda126
++export PATH="$CONDA_PREFIX/bin:$c8_cuda/bin:$PATH"
++export CC="$CONDA_PREFIX/bin/gcc" CXX="$CONDA_PREFIX/bin/g++"
++export CUDAHOSTCXX="$CXX" CUDACXX="$c8_cuda/bin/nvcc" CUDA_HOME="$c8_cuda"
++export FLUPRO=/home/yuhanglu/fluka
++export CXXFLAGS="-I$c8_cuda/targets/x86_64-linux/include"
++export LDFLAGS="-L$c8_cuda/targets/x86_64-linux/lib -L$c8_cuda/targets/x86_64-linux/lib/stubs -L/usr/lib/x86_64-linux-gnu -Wl,--sysroot=/"
++export LD_LIBRARY_PATH="$c8_cuda/targets/x86_64-linux/lib:$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
++export OMP_NUM_THREADS=256 OMP_PROC_BIND=spread OMP_PLACES=threads OPENBLAS_NUM_THREADS=1
++for c8_mode in OPENMP CUDA; do
++  c8_build="$c8_root/build-${c8_mode,,}"
++  cmake -S "$c8_root/source" -B "$c8_build" \
++    -DCMAKE_TOOLCHAIN_FILE="$c8_previous/deps/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$c8_previous/deps" \
++    -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON -DCORSIKA_KOKKOS_BACKEND=CUDA_OPENMP \
++    -DCORSIKA_KOKKOS_CUDA_ARCHITECTURES=75 -DCORSIKA_BUILD_MOUNTAIN_APPLICATION=ON -DWITH_FLUKA=ON \
++    -DPYTHIA8="$c8_previous/modules/pythia8/pythia8/install" \
++    -DC8_TAUOLA_PREFIX="$c8_previous/modules/tauola/tauola/install" \
++    -DC8_INTERFACE_EXECUTION_SPACE="$c8_mode" -DC8_INTERFACE_TEST_THREADS=256 \
++    -DCMAKE_INSTALL_PREFIX="$c8_root/install-${c8_mode,,}" \
++    "-DCMAKE_EXE_LINKER_FLAGS=$LDFLAGS -Wl,--enable-new-dtags" \
++    > "$c8_root/configure-${c8_mode,,}.log" 2>&1
++  cmake --build "$c8_build" --parallel 256 --target c8_terrain_cascade c8_terrain_environment testMountainMaterials testMaterialOracle testFlukaMaterialOracle testTerrainEnvironment testInterfaceTransport testKokkosInterfaceQueue testKokkosInterfaceRadio testKokkosInterfaceRadioWaveforms > "$c8_root/build-${c8_mode,,}.log" 2>&1
++  touch "$c8_root/BUILD_${c8_mode}_PASSED"
++  taskset -c 0-255 ctest --test-dir "$c8_build" -R "${C8_MATERIAL_TEST_PATTERN:-^(testMountainMaterials|testTerrainEnvironment|InterfaceTransport_|testKokkosInterfaceQueue|testKokkosInterfaceRadio)}" --output-on-failure > "$c8_root/tests-${c8_mode,,}.log" 2>&1
++  touch "$c8_root/TESTS_${c8_mode}_PASSED"
++done
+--- /dev/null
++++ b/validation/terrain/material_models/compare_fluka_psr.py
+@@ -0,0 +1,25 @@
++#!/usr/bin/env python3
++"""PSR-only, separate processes for each FLUKA COMMON-block initialization."""
++import hashlib,json,os,pathlib,subprocess
++from concurrent.futures import ThreadPoolExecutor
++ROOT=pathlib.Path('/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913')
++folder=ROOT/'fluka-oracle'; folder.mkdir(exist_ok=False)
++binary=ROOT/'build-openmp/tests/modules/testFlukaMaterialOracle'
++env=dict(os.environ,FLUPRO='/home/yuhanglu/fluka',OMP_NUM_THREADS='1',
++    LD_LIBRARY_PATH='/home/yuhanglu/miniconda/envs/corsika_venv/lib:/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/toolchain-cuda126/targets/x86_64-linux/lib')
++def run(mode):
++    work=folder/mode; work.mkdir()
++    with (folder/(mode+'.log')).open('x') as log:
++        subprocess.run(['taskset','-c','0' if mode=='stock' else '128',str(binary),mode,str(folder/(mode+'.txt'))],
++            cwd=work,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
++with ThreadPoolExecutor(max_workers=2) as pool: list(pool.map(run,['stock','expanded']))
++a=(folder/'stock.txt').read_bytes();b=(folder/'expanded.txt').read_bytes()
++assert a==b and len(a.splitlines())>120
++lines=a.decode().splitlines()
++result=dict(exact_output_identity=True,cross_section_points=sum(l.startswith('XS ') for l in lines),
++            same_seed_events=sum(l.startswith('EVENT ') for l in lines),
++            binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
++assert result['cross_section_points']==120 and result['same_seed_events']==3
++(ROOT/'fluka-validation.json').write_text(json.dumps(result,indent=2))
++(ROOT/'FLUKA_TARGETS_PASSED').touch()
++print(json.dumps(result,indent=2))
+--- /dev/null
++++ b/validation/terrain/material_models/early_controls_psr.py
+@@ -0,0 +1,24 @@
++#!/usr/bin/env python3
++"""Finish independent warm-cache controls while the granite table is built.
++
++The main drivers must be paused while this helper owns these output directories.
++Their normal reuse gates verify the completed commands and binary hashes later.
++"""
++import importlib.util,json,pathlib
++ROOT=pathlib.Path('/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913')
++spec=importlib.util.spec_from_file_location('material_driver',ROOT/'source/validation/terrain/material_models/run_psr.py')
++d=importlib.util.module_from_spec(spec);spec.loader.exec_module(d)
++for backend in ['openmp','cuda']:
++    for label in ['silica','limestone']:
++        d.select_cache(label)
++        cmd=json.loads((ROOT/'runs'/(backend+'_'+label+'_off')/'command.json').read_text())
++        for k,v in {'--primary':'proton','--energy-GeV':100,'--seed':1703}.items(): d.h.setarg(cmd,k,v)
++        folder,s=d.h.run(backend+'_'+label+'_proton',cmd,backend,1800,reuse_complete=True)
++        d.h.checks(folder,s,False)
++d.select_cache('limestone')
++cmd=json.loads((ROOT/'runs/openmp_limestone_off/command.json').read_text())
++d.h.setarg(cmd,'--em-backend','proposal')
++folder,s=d.h.run('cpu_limestone',cmd,'openmp',1800,reuse_complete=True)
++assert s['complete'] and s['diagnostics']['material_mismatches']==0
++assert abs(s['energy_ledger']['unexplained_over_initial'])<1.e-8
++(ROOT/'EARLY_CONTROLS_PASSED').touch()
+--- /dev/null
++++ b/validation/terrain/material_models/run_psr.py
+@@ -0,0 +1,141 @@
++#!/usr/bin/env python3
++"""Remote-only material admission, native LPM oracles and resident radio runs."""
++import argparse, copy, importlib.util, json, os, pathlib, subprocess, time, types
++import yaml
++
++ROOT=pathlib.Path('/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913')
++OLD=ROOT.parent/'beta5_doublebang_radio_audit_20260912'
++spec=importlib.util.spec_from_file_location('owned_run',ROOT/'source/validation/terrain/doublebang_radio/run_psr.py')
++h=importlib.util.module_from_spec(spec); spec.loader.exec_module(h); h.ROOT=ROOT
++MODELS={'silica':'S0_SILICA_TRANSPORT_PROXY','limestone':'L0_LIMESTONE_CALCITE_PROXY','granite':'G0_GRANITE_REFERENCE'}
++
++def set_process_placement(backend):
++    # Both backends use exactly CPUs 0..255. Rotate the CUDA host team's
++    # placement so concurrent serial model initialization does not share CPU 0.
++    # Inject only the subprocess launcher of our imported validation helper;
++    # the shared helper and all physical application modules stay untouched.
++    def launch(*args,**kwargs):
++        env=dict(kwargs['env'])
++        if backend=='cuda':
++            env['OMP_PLACES']=','.join('{%d}'%((i+128)%256) for i in range(256))
++        kwargs['env']=env
++        command=args[0]; output=pathlib.Path(command[command.index('--output')+1])
++        (output.parent/'placement.json').write_text(json.dumps({k:env[k] for k in ['OMP_NUM_THREADS','OMP_PLACES','OMP_PROC_BIND']},indent=2))
++        return subprocess.Popen(*args,**kwargs)
++    h.subprocess=types.SimpleNamespace(Popen=launch,check_output=subprocess.check_output,
++        STDOUT=subprocess.STDOUT,TimeoutExpired=subprocess.TimeoutExpired)
++
++def select_cache(label):
++    private=ROOT/'table-cache'/label
++    if private.exists():
++        # CORSIKA_DATA also resolves QGSJet and geomagnetic datasets. Isolate
++        # only writable PROPOSAL tables; retain the complete physical data tree.
++        for source in (ROOT/'source/modules/data').iterdir():
++            destination=private/source.name
++            if source.name!='PROPOSAL' and not destination.exists():
++                destination.symlink_to(source,target_is_directory=source.is_dir())
++        os.environ['CORSIKA_DATA']=str(private)
++    else: os.environ.pop('CORSIKA_DATA',None)
++
++def wait_prewarm(label):
++    marker=ROOT/(label+'-prewarm.pid')
++    if not marker.exists(): return
++    pid=int(marker.read_text()); start=time.monotonic()
++    while True:
++        try: command=pathlib.Path('/proc/%d/cmdline'%pid).read_bytes()
++        except FileNotFoundError: break
++        if b'testMaterialOracle' not in command: break
++        if time.monotonic()-start>7200: raise RuntimeError('material prewarm timeout: '+label)
++        time.sleep(2.)
++    path=ROOT/(label+'-prewarm.csv')
++    expected={'limestone':360,'granite':1200}[label]
++    if not path.exists() or len(path.read_text().splitlines())!=expected+1:
++        raise RuntimeError('incomplete prewarm oracle: '+label)
++
++def wait_openmp(label):
++    start=time.monotonic()
++    status=ROOT/'runs'/('openmp_'+label+'_on')/'status.json'
++    while True:
++        if status.exists():
++            try: result=json.loads(status.read_text())
++            except json.JSONDecodeError: result={}
++            if result.get('complete') and result.get('returncode')==0: return
++            if result.get('returncode') is not None: raise RuntimeError('OpenMP reference failed: '+label)
++        if time.monotonic()-start>7200: raise RuntimeError('OpenMP reference timeout: '+label)
++        time.sleep(2.)
++
++def main():
++    p=argparse.ArgumentParser(); p.add_argument('--backend',choices=['openmp','cuda'],required=True)
++    a=p.parse_args(); backend=a.backend
++    set_process_placement(backend)
++    if not (ROOT/('TESTS_'+backend.upper()+'_PASSED')).exists():
++        raise RuntimeError('Current build/test gates must pass before physics runs')
++    if not (ROOT/'FLUKA_TARGETS_PASSED').exists():
++        raise RuntimeError('Expanded FLUKA target comparison must pass before physics runs')
++    results=[]
++    for label,model in MODELS.items():
++        wait_prewarm(label)
++        if backend=='cuda': wait_openmp(label) # no concurrent writes to cold scalar tables
++        select_cache(label)
++        if backend=='openmp':
++            command=['taskset','-c','0-255',str(ROOT/'build-openmp/tests/modules/testMaterialOracle'),
++                     model,str(ROOT/'auxiliary'),str(ROOT/(label+'_lpm.csv'))]
++            with (ROOT/(label+'_oracle.log')).open('w') as log:
++                subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
++        scene=yaml.safe_load((OLD/'scene_control_True.yaml').read_text())
++        g=scene['geometry']
++        for key in ['rock_density_g_cm3','rock_refractive_index','rock_hadronic_target_approximation','attenuation_length_m']:
++            g.pop(key,None)
++        g['material']={'preset':model}
++        scene['radio'].pop('rock_attenuation_length_m',None)
++        scene['provenance']['material_source']='documentation/materials.yaml; native resolved card in run output'
++        pair=[]
++        for enabled in [False,True]:
++            scene['radio']['enabled']=enabled
++            scene_path=ROOT/(label+('_on' if enabled else '_off')+'.yaml')
++            scene_path.write_text(yaml.safe_dump(scene,sort_keys=False))
++            cmd=json.loads((OLD/'runs/openmp_electron_on/command.json').read_text())
++            cmd[3]=str(ROOT/('build-'+backend)/'applications/c8_terrain_cascade')
++            for key,value in {'--scene':scene_path,'--energy-GeV':10,'--aux-cache':ROOT/'auxiliary',
++                              '--emthin':0,'--max-weight':1,'--track-row-limit':1000000,
++                              '--transport-step-limit':1000000}.items(): h.setarg(cmd,key,value)
++            i=cmd.index('--position-m'); cmd[i+1:i+4]=['0','0','-.2']
++            folder,s=h.run(backend+'_'+label+('_on' if enabled else '_off'),cmd,backend,1800,reuse_complete=True)
++            check=h.checks(folder,s,enabled)
++            resolved=s['resolved_material']; actual=next(x for x in s['proposal_materials'] if x['name']==model)
++            assert abs(actual['density_g_cm3']*1000-resolved['transport']['density_kg_m3'])<1.e-9
++            assert actual['I_eV']==resolved['transport']['ionisation']['I_eV'] and actual['photon_pair_LPM']
++            assert actual['components']==len(resolved['transport']['nuclei'])
++            if enabled:
++                for algorithm in ['CoREAS','ZHS']:
++                    optical=json.loads((folder/'output/radio'/algorithm/'config.json').read_text())['media'][1]
++                    assert optical['index']==resolved['radio']['refractive_index']
++                    assert optical['attenuation_length_m']==resolved['radio']['field_attenuation_length_m']
++                (ROOT/(label+'_resolved.yaml')).write_text(yaml.safe_dump(resolved,sort_keys=False))
++            hashes={f.name:h.digest(f) for f in (folder/'output/terrain').glob('*.csv')}
++            pair.append(dict(folder=str(folder),checks=check,hashes=hashes,proposal_material=actual,
++                             material_tables=s['material_tables'],radio=s.get('radio_result')))
++        identical=pair[0]['hashes']==pair[1]['hashes']
++        if not identical: raise RuntimeError('radio changed transport: '+label)
++        results.append(dict(material=model,radio_does_not_change_transport=identical,pair=pair))
++        (ROOT/('materials_'+backend+'.json')).write_text(json.dumps(results,indent=2))
++    # Exercise the newly material-aware hadron continuous process with actual
++    # FLUKA/QGSJet transport. This is a bounded integration check, not a spectrum.
++    for label in MODELS:
++        select_cache(label)
++        cmd=json.loads((ROOT/'runs'/(backend+'_'+label+'_off')/'command.json').read_text())
++        for k,v in {'--primary':'proton','--energy-GeV':100,'--seed':1703}.items(): h.setarg(cmd,k,v)
++        folder,s=h.run(backend+'_'+label+'_proton',cmd,backend,1800,reuse_complete=True)
++        h.checks(folder,s,False)
++    # A pure CPU run also exercises the material construction with original
++    # scalar EM transport; no resident scheduler participates in this control.
++    if backend=='openmp':
++        select_cache('limestone')
++        cmd=json.loads((ROOT/'runs/openmp_limestone_off/command.json').read_text())
++        h.setarg(cmd,'--em-backend','proposal')
++        folder,s=h.run('cpu_limestone',cmd,'openmp',1800,reuse_complete=True)
++        assert s['complete'] and s['diagnostics']['material_mismatches']==0
++        assert abs(s['energy_ledger']['unexplained_over_initial'])<1.e-8
++    (ROOT/('MATERIAL_RUNS_'+backend.upper()+'_PASSED')).touch()
++
++if __name__=='__main__': main()
+--- /dev/null
++++ b/validation/terrain/material_models/run_psr.sh
+@@ -0,0 +1,9 @@
++#!/usr/bin/env bash
++set -eo pipefail
++source /home/yuhanglu/miniconda/etc/profile.d/conda.sh
++conda activate corsika_venv
++c8_root=/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913
++c8_cuda=/home/yuhanglu/21CMA/corsika-21cma-kokkos-beta5/build/toolchain-cuda126
++export LD_LIBRARY_PATH="$c8_cuda/targets/x86_64-linux/lib:$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
++export OMP_NUM_THREADS=256 OMP_PROC_BIND=spread OMP_PLACES=threads OPENBLAS_NUM_THREADS=1
++python "$c8_root/source/validation/terrain/material_models/run_psr.py" --backend "${1:?openmp or cuda}"
+--- a/validation/terrain/test_workflow.py
++++ b/validation/terrain/test_workflow.py
+@@ -42,6 +42,8 @@
+     assert s['site']['origin_ellipsoidal_height_m']==pytest.approx(2660)
+     assert s['atmosphere']['model']=='us_standard_bk'
+     assert 'air_world_radius_m' not in s['geometry']
++    assert s['geometry']['material']=={'preset':'SiO2'}
++    assert 'rock_refractive_index' not in s['geometry']
+     assert s['radio']['observers'][0]['name']=='reference_centre'
+     assert flow.prepare_scene(config,offline=True)['reused']
+     assert scene_path.read_bytes()==before
+@@ -57,6 +59,16 @@
+     Path(result['scene']).write_text('tampered')
+     with pytest.raises(FileExistsError,match='differs'):
+         flow.prepare_scene(config)
++
++
++def test_preparation_selects_material_without_inherited_silica_density(tmp_path,monkeypatch):
++    config,cfg=fixture_request(tmp_path,monkeypatch)
++    cfg['medium']={'material':'Granite'}
++    config.write_text(yaml.safe_dump(dict(terrain=cfg)))
++    result=flow.prepare_scene(config,offline=True)
++    s=yaml.safe_load(Path(result['scene']).read_text())
++    assert s['geometry']['material']=={'preset':'Granite'}
++    assert 'rock_density_g_cm3' not in s['geometry']
+ 
+ 
+ def test_download_or_prepare_alone_never_runs_shower(tmp_path,monkeypatch):

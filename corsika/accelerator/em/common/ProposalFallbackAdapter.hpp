@@ -12,6 +12,7 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/accelerator/em/common/Philox.hpp>
 #include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
+#include <corsika/accelerator/em/common/ProposalFallback.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
 #include <corsika/modules/proposal/ProposalInteractionRecord.hpp>
 
@@ -73,15 +74,7 @@ namespace corsika::gpu::em {
    */
   inline bool proposalFallbackRequiresSelectedLoss(
       ProposalFallbackEvent const& event) noexcept {
-    switch (event.reason) {
-      case ProposalFallbackReason::InverseCdfUnavailable:
-      case ProposalFallbackReason::LossEnergyOutOfRange:
-      case ProposalFallbackReason::LossQuantileOutOfRange:
-      case ProposalFallbackReason::NativeSelectionReplay:
-        return true;
-      default:
-        return false;
-    }
+    return proposalFallbackRequiresSelectedLoss(event.reason);
   }
 
   /**
@@ -90,7 +83,8 @@ namespace corsika::gpu::em {
    */
   inline bool hasSpecifiedProposalInteractionIdentity(
       ProposalFallbackEvent const& event) noexcept {
-    if (event.medium_hash == 0 ||
+    if (event.interaction_vertex_reached != 1 ||
+        event.medium_hash == 0 ||
         event.interaction_hash == 0 ||
         !isKnownProposalInteractionType(event.process_id) ||
         !std::isfinite(event.particle.energy_GeV) ||

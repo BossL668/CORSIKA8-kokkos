@@ -1,0 +1,3808 @@
+{
+  "charged_moving_tracks_examined": 32318,
+  "positive_reconstructed_excess": 475,
+  "old_gate_rejected": 19,
+  "resolved_violations": 0,
+  "rows": [
+    {
+      "step": 10935,
+      "length_m": 0.0052338049140284735,
+      "excess_m": 1.474593017136705e-13,
+      "input_precision_budget_m": 2.059680474320268e-12,
+      "excess_over_budget": 0.07159329010114288,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 10958,
+      "length_m": 0.018166835875598992,
+      "excess_m": 2.8307217680989538e-14,
+      "input_precision_budget_m": 2.0597723690322796e-12,
+      "excess_over_budget": 0.013742886401708947,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 10965,
+      "length_m": 0.0065458581864012355,
+      "excess_m": 7.162759968482035e-14,
+      "input_precision_budget_m": 2.0596897970194844e-12,
+      "excess_over_budget": 0.03477591615420463,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 10966,
+      "length_m": 0.015890165544937836,
+      "excess_m": 1.0200520983438821e-13,
+      "input_precision_budget_m": 2.0597561923166274e-12,
+      "excess_over_budget": 0.04952295335481525,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 10967,
+      "length_m": 0.008224244455504083,
+      "excess_m": 7.84008274967718e-14,
+      "input_precision_budget_m": 2.0597017226711974e-12,
+      "excess_over_budget": 0.038064165618648366,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11095,
+      "length_m": 0.006202805502932091,
+      "excess_m": 1.511759467609508e-13,
+      "input_precision_budget_m": 2.059687359483562e-12,
+      "excess_over_budget": 0.07339752126208905,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11096,
+      "length_m": 0.006125823428938231,
+      "excess_m": 1.0242327819209862e-13,
+      "input_precision_budget_m": 2.0596868124930274e-12,
+      "excess_over_budget": 0.04972759818184511,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11214,
+      "length_m": 0.011307965427620057,
+      "excess_m": 1.226414803046083e-13,
+      "input_precision_budget_m": 2.0597236338265556e-12,
+      "excess_over_budget": 0.05954268732488392,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11245,
+      "length_m": 0.005918805217260881,
+      "excess_m": 4.985768742304941e-14,
+      "input_precision_budget_m": 2.0596853415401628e-12,
+      "excess_over_budget": 0.024206458344636042,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11263,
+      "length_m": 0.00275861707147215,
+      "excess_m": 1.5663902466767077e-13,
+      "input_precision_budget_m": 2.059662887052856e-12,
+      "excess_over_budget": 0.07605080698026434,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11289,
+      "length_m": 0.0006250932746238665,
+      "excess_m": 1.9398989793001364e-13,
+      "input_precision_budget_m": 2.059647727454502e-12,
+      "excess_over_budget": 0.09418595973679626,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11681,
+      "length_m": 0.011607361736328172,
+      "excess_m": 1.196959198423997e-16,
+      "input_precision_budget_m": 2.0597257611652788e-12,
+      "excess_over_budget": 5.8112551728576896e-05,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11718,
+      "length_m": 0.01255907805311354,
+      "excess_m": 1.890154699424329e-14,
+      "input_precision_budget_m": 2.059732523516433e-12,
+      "excess_over_budget": 0.009176699779432545,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11750,
+      "length_m": 0.0010718683490228526,
+      "excess_m": 1.1809281851016262e-13,
+      "input_precision_budget_m": 2.0596509019823385e-12,
+      "excess_over_budget": 0.05733632743126644,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11751,
+      "length_m": 0.01049841026826794,
+      "excess_m": 1.9310074372835828e-13,
+      "input_precision_budget_m": 2.0597178815911787e-12,
+      "excess_over_budget": 0.09375106438323659,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11776,
+      "length_m": 0.013011272503311227,
+      "excess_m": 2.383492708757373e-13,
+      "input_precision_budget_m": 2.0597357365512495e-12,
+      "excess_over_budget": 0.11571837427786785,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11795,
+      "length_m": 0.00018815833076545437,
+      "excess_m": 1.7790101531668656e-13,
+      "input_precision_budget_m": 2.0596446228449984e-12,
+      "excess_over_budget": 0.08637461693316341,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11839,
+      "length_m": 2.8330214961069e-05,
+      "excess_m": 2.0486875542367888e-13,
+      "input_precision_budget_m": 2.0596434871979315e-12,
+      "excess_over_budget": 0.09946806653533773,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 11881,
+      "length_m": 0.0026766212994199672,
+      "excess_m": 1.3341888357998322e-13,
+      "input_precision_budget_m": 2.0596623044378545e-12,
+      "excess_over_budget": 0.06477706723695045,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11888,
+      "length_m": 0.0012981492312783408,
+      "excess_m": 9.40100861740456e-14,
+      "input_precision_budget_m": 2.0596525098047098e-12,
+      "excess_over_budget": 0.04564366354349713,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11889,
+      "length_m": 0.0005130998215125743,
+      "excess_m": 6.393832945733591e-14,
+      "input_precision_budget_m": 2.059646931693157e-12,
+      "excess_over_budget": 0.031043344601190775,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11905,
+      "length_m": 0.002269270607717255,
+      "excess_m": 7.832840279164976e-14,
+      "input_precision_budget_m": 2.0596594100371055e-12,
+      "excess_over_budget": 0.03802978415263262,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11915,
+      "length_m": 0.01280581831607352,
+      "excess_m": 6.76975836499949e-14,
+      "input_precision_budget_m": 2.0597342767114474e-12,
+      "excess_over_budget": 0.03286714427944571,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11920,
+      "length_m": 0.0011796196057722533,
+      "excess_m": 5.494021036722696e-14,
+      "input_precision_budget_m": 2.0596516676010663e-12,
+      "excess_over_budget": 0.02667451551709098,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11989,
+      "length_m": 0.0004665131939971216,
+      "excess_m": 7.319817495188286e-14,
+      "input_precision_budget_m": 2.059646600675259e-12,
+      "excess_over_budget": 0.03553919149425183,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 11999,
+      "length_m": 0.0011818565200400275,
+      "excess_m": 4.269154474378922e-14,
+      "input_precision_budget_m": 2.059651683495298e-12,
+      "excess_over_budget": 0.02072755557936876,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12038,
+      "length_m": 0.023029575706691115,
+      "excess_m": 2.084617201081329e-13,
+      "input_precision_budget_m": 2.0598069208769075e-12,
+      "excess_over_budget": 0.10120449542881715,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12111,
+      "length_m": 0.006447070674014467,
+      "excess_m": 2.0838192282823798e-13,
+      "input_precision_budget_m": 2.059689095091991e-12,
+      "excess_over_budget": 0.10117154250356951,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12179,
+      "length_m": 0.004534649689671174,
+      "excess_m": 2.7504908073350265e-14,
+      "input_precision_budget_m": 2.05967550652361e-12,
+      "excess_over_budget": 0.01335400065992627,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12226,
+      "length_m": 0.0006570191400402471,
+      "excess_m": 1.5686670712389272e-14,
+      "input_precision_budget_m": 2.05964795430142e-12,
+      "excess_over_budget": 0.007616190271560166,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12274,
+      "length_m": 0.008323450574489789,
+      "excess_m": 1.9389351235687968e-13,
+      "input_precision_budget_m": 2.059702427573069e-12,
+      "excess_over_budget": 0.09413666253981304,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12275,
+      "length_m": 0.006992256317541775,
+      "excess_m": 1.814321262672003e-13,
+      "input_precision_budget_m": 2.0596929688689775e-12,
+      "excess_over_budget": 0.0880869765588551,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12411,
+      "length_m": 0.00389320048285219,
+      "excess_m": 1.640935651248121e-13,
+      "input_precision_budget_m": 2.059670948752867e-12,
+      "excess_over_budget": 0.07966979639353118,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12450,
+      "length_m": 0.010829985645819377,
+      "excess_m": 1.7922816009097176e-13,
+      "input_precision_budget_m": 2.0597202375759376e-12,
+      "excess_over_budget": 0.08701577856122025,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12510,
+      "length_m": 0.03211052810436743,
+      "excess_m": 1.2771034230141254e-13,
+      "input_precision_budget_m": 2.0598714449245072e-12,
+      "excess_over_budget": 0.06199918087902472,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12518,
+      "length_m": 0.0001299345687561406,
+      "excess_m": 1.438869097654394e-14,
+      "input_precision_budget_m": 2.0596442091402875e-12,
+      "excess_over_budget": 0.006986008026381361,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12531,
+      "length_m": 0.018756273785741715,
+      "excess_m": 7.483597075363946e-15,
+      "input_precision_budget_m": 2.059776557240532e-12,
+      "excess_over_budget": 0.0036332081987522314,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12532,
+      "length_m": 0.006477287208695121,
+      "excess_m": 8.012340790841677e-14,
+      "input_precision_budget_m": 2.0596893097933835e-12,
+      "excess_over_budget": 0.03890072523435794,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12533,
+      "length_m": 0.001877939530637749,
+      "excess_m": 1.100764444872393e-13,
+      "input_precision_budget_m": 2.0596566294625645e-12,
+      "excess_over_budget": 0.05344407553795122,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12537,
+      "length_m": 0.009134686786460192,
+      "excess_m": 1.1961438783902878e-13,
+      "input_precision_budget_m": 2.0597081917530433e-12,
+      "excess_over_budget": 0.05807346318180319,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12549,
+      "length_m": 0.0057980572635183145,
+      "excess_m": 1.1046979303541704e-13,
+      "input_precision_budget_m": 2.0596844835743488e-12,
+      "excess_over_budget": 0.053634327935368646,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12745,
+      "length_m": 3.2285157109088014e-05,
+      "excess_m": 1.080205464464544e-13,
+      "input_precision_budget_m": 2.059643515299486e-12,
+      "excess_over_budget": 0.05244623433329795,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 12869,
+      "length_m": 0.001967745699644604,
+      "excess_m": 3.8430196525052196e-14,
+      "input_precision_budget_m": 2.059657267573775e-12,
+      "excess_over_budget": 0.018658539520180466,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 12870,
+      "length_m": 0.008893925644997809,
+      "excess_m": 4.086314620010967e-14,
+      "input_precision_budget_m": 2.0597064810422425e-12,
+      "excess_over_budget": 0.01983930553999728,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13001,
+      "length_m": 0.0028593914646559185,
+      "excess_m": 8.06516312068517e-15,
+      "input_precision_budget_m": 2.059663603097987e-12,
+      "excess_over_budget": 0.003915767171179883,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13023,
+      "length_m": 0.0019541570590631374,
+      "excess_m": 4.463356767514526e-14,
+      "input_precision_budget_m": 2.0596571710206765e-12,
+      "excess_over_budget": 0.021670386850364425,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13093,
+      "length_m": 0.0017475296376766231,
+      "excess_m": 3.3180923286746378e-15,
+      "input_precision_budget_m": 2.0596557028445437e-12,
+      "excess_over_budget": 0.001610993684086178,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13137,
+      "length_m": 0.02526550812747734,
+      "excess_m": 4.5585063501718537e-14,
+      "input_precision_budget_m": 2.0598228081323006e-12,
+      "excess_over_budget": 0.022130575174595626,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13185,
+      "length_m": 0.014745510205851417,
+      "excess_m": 1.5183167223487004e-13,
+      "input_precision_budget_m": 2.059748059051266e-12,
+      "excess_over_budget": 0.07371371055196176,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13186,
+      "length_m": 0.0033308220411440094,
+      "excess_m": 1.0134731595612401e-13,
+      "input_precision_budget_m": 2.0596669528137022e-12,
+      "excess_over_budget": 0.04920568144168836,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13288,
+      "length_m": 0.0036523062397965517,
+      "excess_m": 1.296358853597468e-14,
+      "input_precision_budget_m": 2.0596692370963227e-12,
+      "excess_over_budget": 0.0062940147391095025,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13324,
+      "length_m": 0.011224970670946154,
+      "excess_m": 5.6822602179096293e-14,
+      "input_precision_budget_m": 2.0597230441133415e-12,
+      "excess_over_budget": 0.027587496455649445,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13329,
+      "length_m": 0.00018627059252444682,
+      "excess_m": 1.4801140456495443e-13,
+      "input_precision_budget_m": 2.0596446094318115e-12,
+      "excess_over_budget": 0.07186259410344871,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13331,
+      "length_m": 0.0005728344365218366,
+      "excess_m": 1.82556118659416e-13,
+      "input_precision_budget_m": 2.059647356133124e-12,
+      "excess_over_budget": 0.08863464811867368,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13334,
+      "length_m": 0.00045524517754641833,
+      "excess_m": 1.7671503366525898e-13,
+      "input_precision_budget_m": 2.0596465206111865e-12,
+      "excess_over_budget": 0.08579871929326006,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13335,
+      "length_m": 0.0002963123467072447,
+      "excess_m": 3.4705799432238615e-14,
+      "input_precision_budget_m": 2.0596453913255025e-12,
+      "excess_over_budget": 0.01685037607852651,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13336,
+      "length_m": 0.00687947499258164,
+      "excess_m": 1.6922140771979954e-13,
+      "input_precision_budget_m": 2.0596921675094657e-12,
+      "excess_over_budget": 0.08215859165227507,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13342,
+      "length_m": 0.0005553398106296477,
+      "excess_m": 2.1758235404373272e-13,
+      "input_precision_budget_m": 2.0596472318263307e-12,
+      "excess_over_budget": 0.10564059256438689,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13410,
+      "length_m": 0.0010590062745711682,
+      "excess_m": 1.9792934652373972e-13,
+      "input_precision_budget_m": 2.0596508105918026e-12,
+      "excess_over_budget": 0.09609849665092908,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13454,
+      "length_m": 0.0010652036992555385,
+      "excess_m": 9.070023378188186e-14,
+      "input_precision_budget_m": 2.059650854627154e-12,
+      "excess_over_budget": 0.044036703394712384,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13496,
+      "length_m": 0.014462918125900214,
+      "excess_m": 1.2167870877544118e-13,
+      "input_precision_budget_m": 2.05974605111377e-12,
+      "excess_over_budget": 0.05907461684883223,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13588,
+      "length_m": 0.014892424541910225,
+      "excess_m": 8.129261153122513e-14,
+      "input_precision_budget_m": 2.059749102940409e-12,
+      "excess_over_budget": 0.03946723968233573,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13590,
+      "length_m": 0.0191583576728692,
+      "excess_m": 8.926887007376649e-14,
+      "input_precision_budget_m": 2.0597794142183833e-12,
+      "excess_over_budget": 0.043339043713882835,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13591,
+      "length_m": 0.00029258549965694277,
+      "excess_m": 1.3977631985878647e-13,
+      "input_precision_budget_m": 2.0596453648446614e-12,
+      "excess_over_budget": 0.06786426549180635,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13595,
+      "length_m": 0.0011065096512364878,
+      "excess_m": 4.455138515047086e-14,
+      "input_precision_budget_m": 2.059651148123595e-12,
+      "excess_over_budget": 0.021630549033052768,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13597,
+      "length_m": 0.01985936725129375,
+      "excess_m": 1.8270107648987732e-14,
+      "input_precision_budget_m": 2.05978439519102e-12,
+      "excess_over_budget": 0.008869912643111077,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13618,
+      "length_m": 0.0053556004686014826,
+      "excess_m": 1.489095305395871e-13,
+      "input_precision_budget_m": 2.0596813397297335e-12,
+      "excess_over_budget": 0.0722973635130989,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13713,
+      "length_m": 0.0001846296343735296,
+      "excess_m": 1.405610924962858e-13,
+      "input_precision_budget_m": 2.0596445977721026e-12,
+      "excess_over_budget": 0.06824531409366905,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13738,
+      "length_m": 0.01727075572756434,
+      "excess_m": 1.0878797862545753e-13,
+      "input_precision_budget_m": 2.0597660019998807e-12,
+      "excess_over_budget": 0.052815697763645204,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13750,
+      "length_m": 0.006124819829798544,
+      "excess_m": 9.561275382541368e-14,
+      "input_precision_budget_m": 2.059686805362027e-12,
+      "excess_over_budget": 0.04642101584401227,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13780,
+      "length_m": 0.0021995449045490397,
+      "excess_m": 9.148367827171988e-14,
+      "input_precision_budget_m": 2.0596589146061867e-12,
+      "excess_over_budget": 0.04441690690772061,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13819,
+      "length_m": 0.0038409749890689947,
+      "excess_m": 6.881561293026195e-14,
+      "input_precision_budget_m": 2.059670577668415e-12,
+      "excess_over_budget": 0.03341098022003232,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13821,
+      "length_m": 0.01913770913724488,
+      "excess_m": 2.1875903866153124e-13,
+      "input_precision_budget_m": 2.0597792675017127e-12,
+      "excess_over_budget": 0.1062050881436738,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13822,
+      "length_m": 0.0033348319624833364,
+      "excess_m": 1.8007470514724844e-13,
+      "input_precision_budget_m": 2.0596669813059065e-12,
+      "excess_over_budget": 0.08742903915130702,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13829,
+      "length_m": 0.0009410308469508175,
+      "excess_m": 2.263163614846242e-13,
+      "input_precision_budget_m": 2.0596499723259715e-12,
+      "excess_over_budget": 0.10988098197532281,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13849,
+      "length_m": 0.0055332090412357,
+      "excess_m": 1.4737430026334764e-13,
+      "input_precision_budget_m": 2.0596826017145445e-12,
+      "excess_over_budget": 0.07155194695564678,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13861,
+      "length_m": 0.001699538959947576,
+      "excess_m": 1.3387121272634417e-13,
+      "input_precision_budget_m": 2.059655361850269e-12,
+      "excess_over_budget": 0.06499689958133696,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13953,
+      "length_m": 0.0023958137902632642,
+      "excess_m": 1.2698175844150228e-14,
+      "input_precision_budget_m": 2.059660309180497e-12,
+      "excess_over_budget": 0.00616517965974817,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 13965,
+      "length_m": 0.0021197176033025543,
+      "excess_m": 2.036912305491967e-14,
+      "input_precision_budget_m": 2.059658347399097e-12,
+      "excess_over_budget": 0.00988956400494357,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14055,
+      "length_m": 0.0057809644638297,
+      "excess_m": 3.0481693558126466e-14,
+      "input_precision_budget_m": 2.0596843621227027e-12,
+      "excess_over_budget": 0.014799206188424011,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14218,
+      "length_m": 0.0011094865109429898,
+      "excess_m": 8.61940727125976e-15,
+      "input_precision_budget_m": 2.0596511692754557e-12,
+      "excess_over_budget": 0.00418488693611739,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14294,
+      "length_m": 0.0009447915591150293,
+      "excess_m": 1.3659754750927622e-14,
+      "input_precision_budget_m": 2.0596499990474393e-12,
+      "excess_over_budget": 0.0066320757202656165,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14300,
+      "length_m": 0.0008656388167490258,
+      "excess_m": 1.1893068994905942e-13,
+      "input_precision_budget_m": 2.0596494366333777e-12,
+      "excess_over_budget": 0.05774317115997121,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14307,
+      "length_m": 0.0004638863241881885,
+      "excess_m": 1.4252179081006289e-13,
+      "input_precision_budget_m": 2.059646582010226e-12,
+      "excess_over_budget": 0.06919720696497399,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14345,
+      "length_m": 0.00026616668415407906,
+      "excess_m": 4.7941902184267526e-14,
+      "input_precision_budget_m": 2.059645177127687e-12,
+      "excess_over_budget": 0.02327677733847619,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14358,
+      "length_m": 0.002044474804299143,
+      "excess_m": 1.455432996344541e-14,
+      "input_precision_budget_m": 2.0596578127668543e-12,
+      "excess_over_budget": 0.007066382519091247,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14486,
+      "length_m": 0.00033051189851812635,
+      "excess_m": 9.283204630353148e-14,
+      "input_precision_budget_m": 2.0596456343279335e-12,
+      "excess_over_budget": 0.04507185350543214,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14487,
+      "length_m": 0.005809097604845356,
+      "excess_m": 9.276954204828769e-14,
+      "input_precision_budget_m": 2.0596845620206922e-12,
+      "excess_over_budget": 0.045040655136665386,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14488,
+      "length_m": 0.0021194246489918646,
+      "excess_m": 9.418681112816074e-15,
+      "input_precision_budget_m": 2.0596583453175313e-12,
+      "excess_over_budget": 0.0045729337267167115,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14522,
+      "length_m": 0.011230244810887205,
+      "excess_m": 6.539907504432563e-14,
+      "input_precision_budget_m": 2.0597230815883597e-12,
+      "excess_over_budget": 0.03175139203367717,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14539,
+      "length_m": 0.011180056729515388,
+      "excess_m": 2.206915206137694e-14,
+      "input_precision_budget_m": 2.0597227249805936e-12,
+      "excess_over_budget": 0.010714622795446835,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14540,
+      "length_m": 0.002802322979243125,
+      "excess_m": 1.9127191150380973e-13,
+      "input_precision_budget_m": 2.059663197602009e-12,
+      "excess_over_budget": 0.0928656256646721,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14631,
+      "length_m": 0.009759682301505045,
+      "excess_m": 8.982571630955505e-14,
+      "input_precision_budget_m": 2.0597126326132744e-12,
+      "excess_over_budget": 0.04361080030644278,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14702,
+      "length_m": 0.00019668547278701916,
+      "excess_m": 1.851304754028199e-13,
+      "input_precision_budget_m": 2.0596446834339866e-12,
+      "excess_over_budget": 0.08988466646303146,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14885,
+      "length_m": 0.00741613646652774,
+      "excess_m": 8.64334645522824e-14,
+      "input_precision_budget_m": 2.0596959807185846e-12,
+      "excess_over_budget": 0.04196418566691944,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14886,
+      "length_m": 0.04728638199985504,
+      "excess_m": 3.733124920302089e-14,
+      "input_precision_budget_m": 2.0599792758519515e-12,
+      "excess_over_budget": 0.01812214794616402,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14910,
+      "length_m": 0.00586350529622724,
+      "excess_m": 1.808102279010626e-14,
+      "input_precision_budget_m": 2.059684948610591e-12,
+      "excess_over_budget": 0.008778538097442156,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 14943,
+      "length_m": 0.00035533595581602564,
+      "excess_m": 5.328696468451244e-14,
+      "input_precision_budget_m": 2.0596458107134696e-12,
+      "excess_over_budget": 0.02587190691104973,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15102,
+      "length_m": 0.00040012847779180273,
+      "excess_m": 2.335702703297471e-13,
+      "input_precision_budget_m": 2.05964612898348e-12,
+      "excess_over_budget": 0.11340310699150229,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15109,
+      "length_m": 0.010935437249297283,
+      "excess_m": 4.868674907676507e-14,
+      "input_precision_budget_m": 2.0597209868546462e-12,
+      "excess_over_budget": 0.023637545758619236,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15236,
+      "length_m": 0.005737141755692111,
+      "excess_m": 4.1701885000744454e-14,
+      "input_precision_budget_m": 2.0596840507436332e-12,
+      "excess_over_budget": 0.020246738807191474,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15237,
+      "length_m": 0.006491025926586548,
+      "excess_m": 2.4216826460810026e-13,
+      "input_precision_budget_m": 2.059689407412845e-12,
+      "excess_over_budget": 0.11757513717191242,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15295,
+      "length_m": 0.00025165892551037324,
+      "excess_m": 2.370097390916315e-13,
+      "input_precision_budget_m": 2.059645074043861e-12,
+      "excess_over_budget": 0.11507309782568112,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15298,
+      "length_m": 0.00025293141379188446,
+      "excess_m": 3.8643567512597343e-14,
+      "input_precision_budget_m": 2.0596450830854352e-12,
+      "excess_over_budget": 0.018762245898554353,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15419,
+      "length_m": 0.01169709984169685,
+      "excess_m": 2.1779453240888813e-14,
+      "input_precision_budget_m": 2.0597263987928677e-12,
+      "excess_over_budget": 0.01057395450854685,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15420,
+      "length_m": 0.031551319484393374,
+      "excess_m": 1.8082757513582237e-14,
+      "input_precision_budget_m": 2.0598674715082807e-12,
+      "excess_over_budget": 0.008778602392483842,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15421,
+      "length_m": 0.007099492559125893,
+      "excess_m": 1.6995172630318578e-13,
+      "input_precision_budget_m": 2.0596937308283023e-12,
+      "excess_over_budget": 0.0825131055940244,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15603,
+      "length_m": 7.101276696344991e-06,
+      "excess_m": 5.012145432985735e-14,
+      "input_precision_budget_m": 2.0596433363572534e-12,
+      "excess_over_budget": 0.02433501638128456,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 15678,
+      "length_m": 0.00019343414306174022,
+      "excess_m": 1.9528291744091986e-13,
+      "input_precision_budget_m": 2.059644660331899e-12,
+      "excess_over_budget": 0.09481388765839405,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 15705,
+      "length_m": 4.071320995141214e-05,
+      "excess_m": 1.4406925224206071e-13,
+      "input_precision_budget_m": 2.0596435751844035e-12,
+      "excess_over_budget": 0.06994863284981817,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 15706,
+      "length_m": 0.004569700123888047,
+      "excess_m": 8.183211053225392e-14,
+      "input_precision_budget_m": 2.059675755571924e-12,
+      "excess_over_budget": 0.03973057910250104,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15807,
+      "length_m": 0.015875522309034655,
+      "excess_m": 1.058805820797204e-13,
+      "input_precision_budget_m": 2.0597560882701785e-12,
+      "excess_over_budget": 0.051404427292476594,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15878,
+      "length_m": 0.003739924242287088,
+      "excess_m": 1.6835578070528712e-13,
+      "input_precision_budget_m": 2.059669859659674e-12,
+      "excess_over_budget": 0.08173920685187144,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15879,
+      "length_m": 0.0027179401727104396,
+      "excess_m": 1.5111132831147067e-13,
+      "input_precision_budget_m": 2.059662598026107e-12,
+      "excess_over_budget": 0.07336703033607996,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15904,
+      "length_m": 0.0033170940741367614,
+      "excess_m": 2.0639436340563755e-13,
+      "input_precision_budget_m": 2.0596668552706293e-12,
+      "excess_over_budget": 0.10020764420104164,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15993,
+      "length_m": 0.0008256818244793274,
+      "excess_m": 3.4240188809264716e-14,
+      "input_precision_budget_m": 2.059649152721872e-12,
+      "excess_over_budget": 0.01662428222982324,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 15996,
+      "length_m": 0.0010392048759392167,
+      "excess_m": 1.2039219447756988e-13,
+      "input_precision_budget_m": 2.0596506698944034e-12,
+      "excess_over_budget": 0.05845272513311313,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16113,
+      "length_m": 0.00024653389230525286,
+      "excess_m": 1.682920838276536e-13,
+      "input_precision_budget_m": 2.0596450376283103e-12,
+      "excess_over_budget": 0.08170926579729614,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16156,
+      "length_m": 0.003413497814351902,
+      "excess_m": 7.03300265247897e-14,
+      "input_precision_budget_m": 2.059667540260403e-12,
+      "excess_over_budget": 0.03414630038588553,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16170,
+      "length_m": 0.0076450956491549244,
+      "excess_m": 7.85049109053304e-14,
+      "input_precision_budget_m": 2.059697607571425e-12,
+      "excess_over_budget": 0.03811477501199557,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16259,
+      "length_m": 8.665124603876343e-05,
+      "excess_m": 4.735255698835872e-14,
+      "input_precision_budget_m": 2.059643901593782e-12,
+      "excess_over_budget": 0.022990652389821672,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16286,
+      "length_m": 0.01452722432967544,
+      "excess_m": 1.3872583637386526e-13,
+      "input_precision_budget_m": 2.0597465080368295e-12,
+      "excess_over_budget": 0.06735092684103473,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16289,
+      "length_m": 0.0007061443386498671,
+      "excess_m": 7.262582462502776e-14,
+      "input_precision_budget_m": 2.05964830335695e-12,
+      "excess_over_budget": 0.03526127470726795,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16292,
+      "length_m": 0.00428483010247307,
+      "excess_m": 1.0996151905695584e-13,
+      "input_precision_budget_m": 2.0596737314486802e-12,
+      "excess_over_budget": 0.053387833897174546,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16309,
+      "length_m": 0.0008047987914122647,
+      "excess_m": 1.237037815932096e-13,
+      "input_precision_budget_m": 2.0596490043389976e-12,
+      "excess_over_budget": 0.06006061291637883,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16310,
+      "length_m": 0.007128941435688353,
+      "excess_m": 1.018412784659084e-13,
+      "input_precision_budget_m": 2.0596939400751554e-12,
+      "excess_over_budget": 0.049444859978658946,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16389,
+      "length_m": 0.0022670572916423486,
+      "excess_m": 1.2504624072318116e-13,
+      "input_precision_budget_m": 2.059659394310549e-12,
+      "excess_over_budget": 0.060712096897477155,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16404,
+      "length_m": 0.012277166889593719,
+      "excess_m": 3.1726357652139825e-14,
+      "input_precision_budget_m": 2.059730520417139e-12,
+      "excess_over_budget": 0.015403159460740798,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16405,
+      "length_m": 0.01810347602236208,
+      "excess_m": 3.1835645231126364e-14,
+      "input_precision_budget_m": 2.059771918833445e-12,
+      "excess_over_budget": 0.015455907977013556,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16434,
+      "length_m": 0.011741261548951979,
+      "excess_m": 3.917352553450826e-14,
+      "input_precision_budget_m": 2.0597267125806706e-12,
+      "excess_over_budget": 0.01901879763720062,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16539,
+      "length_m": 0.0004377978485356786,
+      "excess_m": 1.550097940630768e-13,
+      "input_precision_budget_m": 2.0596463966404576e-12,
+      "excess_over_budget": 0.07526039145161872,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16540,
+      "length_m": 0.00667695923253276,
+      "excess_m": 5.195583546724336e-14,
+      "input_precision_budget_m": 2.059690728548444e-12,
+      "excess_over_budget": 0.02522506643696889,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16579,
+      "length_m": 0.0038531475650083547,
+      "excess_m": 2.024422296464934e-13,
+      "input_precision_budget_m": 2.0596706641597684e-12,
+      "excess_over_budget": 0.09828864059151836,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16639,
+      "length_m": 0.001499769357582956,
+      "excess_m": 6.225380454194518e-14,
+      "input_precision_budget_m": 2.0596539424018714e-12,
+      "excess_over_budget": 0.030225371000600094,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16661,
+      "length_m": 0.01764408965331662,
+      "excess_m": 8.23195678290034e-14,
+      "input_precision_budget_m": 2.0597686546969705e-12,
+      "excess_over_budget": 0.039965443517788704,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16663,
+      "length_m": 0.002510700005638501,
+      "excess_m": 2.3852534530854896e-13,
+      "input_precision_budget_m": 2.059661125496154e-12,
+      "excess_over_budget": 0.11580805325492091,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16664,
+      "length_m": 0.00032746236433150235,
+      "excess_m": 6.138508755124117e-14,
+      "input_precision_budget_m": 2.0596456126596898e-12,
+      "excess_over_budget": 0.02980371340289582,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16665,
+      "length_m": 0.0025881444820858184,
+      "excess_m": 1.277354957918142e-13,
+      "input_precision_budget_m": 2.059661675772256e-12,
+      "excess_over_budget": 0.06201770771110777,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16666,
+      "length_m": 0.0007262405468639908,
+      "excess_m": 6.317244904269215e-14,
+      "input_precision_budget_m": 2.0596484461490977e-12,
+      "excess_over_budget": 0.030671471707127973,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16674,
+      "length_m": 0.002044343433964595,
+      "excess_m": 5.229323918332085e-15,
+      "input_precision_budget_m": 2.059657811833412e-12,
+      "excess_over_budget": 0.0025389284998157935,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16678,
+      "length_m": 0.00961981688181915,
+      "excess_m": 1.7040188704520176e-14,
+      "input_precision_budget_m": 2.059711638809695e-12,
+      "excess_over_budget": 0.00827309434167575,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16751,
+      "length_m": 0.000572266657883449,
+      "excess_m": 1.3844329328771554e-13,
+      "input_precision_budget_m": 2.059647352098814e-12,
+      "excess_over_budget": 0.06721698894067452,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 16790,
+      "length_m": 0.00015699299396798675,
+      "excess_m": 1.2329828998070003e-13,
+      "input_precision_budget_m": 2.0596444014019617e-12,
+      "excess_over_budget": 0.059863872567892384,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17029,
+      "length_m": 0.0006958719788288864,
+      "excess_m": 9.646580409472527e-14,
+      "input_precision_budget_m": 2.0596482303674435e-12,
+      "excess_over_budget": 0.046836058057115736,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17069,
+      "length_m": 0.011235792644328819,
+      "excess_m": 1.1198507399168278e-13,
+      "input_precision_budget_m": 2.059723121008087e-12,
+      "excess_over_budget": 0.05436899399219935,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17122,
+      "length_m": 0.0027999804315699257,
+      "excess_m": 1.4602902220772762e-14,
+      "input_precision_budget_m": 2.0596631809572073e-12,
+      "excess_over_budget": 0.007089946723224044,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17145,
+      "length_m": 0.004168844995654797,
+      "excess_m": 1.4998245700947876e-13,
+      "input_precision_budget_m": 2.0596729073249294e-12,
+      "excess_over_budget": 0.07281858030762448,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17333,
+      "length_m": 6.818140105515503e-05,
+      "excess_m": 6.91183221768199e-14,
+      "input_precision_budget_m": 2.0596437703576403e-12,
+      "excess_over_budget": 0.033558386732487275,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 17346,
+      "length_m": 0.011327890635942162,
+      "excess_m": 1.3519740882372844e-13,
+      "input_precision_budget_m": 2.059723775403676e-12,
+      "excess_over_budget": 0.06563861156442286,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17437,
+      "length_m": 0.00017655846255461687,
+      "excess_m": 6.391542568644215e-14,
+      "input_precision_budget_m": 2.0596445404229777e-12,
+      "excess_over_budget": 0.031032260388637836,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17643,
+      "length_m": 0.003178645068647524,
+      "excess_m": 1.9850570839863302e-13,
+      "input_precision_budget_m": 2.059665871531278e-12,
+      "excess_over_budget": 0.0963776266541,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17707,
+      "length_m": 0.004966967153411756,
+      "excess_m": 7.932543510946743e-14,
+      "input_precision_budget_m": 2.059678578323944e-12,
+      "excess_over_budget": 0.038513502030990784,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17713,
+      "length_m": 0.01061495285998796,
+      "excess_m": 1.2324342935077226e-13,
+      "input_precision_budget_m": 2.0597187096760988e-12,
+      "excess_over_budget": 0.059835077853981775,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17769,
+      "length_m": 0.010546419966561707,
+      "excess_m": 1.3869461135129768e-13,
+      "input_precision_budget_m": 2.0597182227206027e-12,
+      "excess_over_budget": 0.0673366918937588,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17787,
+      "length_m": 0.003177855666741675,
+      "excess_m": 1.4874343076676233e-13,
+      "input_precision_budget_m": 2.0596658659222403e-12,
+      "excess_over_budget": 0.07221726262874228,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17860,
+      "length_m": 6.348624722100622e-05,
+      "excess_m": 6.517360165003011e-14,
+      "input_precision_budget_m": 2.0596437369965657e-12,
+      "excess_over_budget": 0.031643143170511714,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 17921,
+      "length_m": 0.012338625859978133,
+      "excess_m": 3.1015121026989334e-14,
+      "input_precision_budget_m": 2.0597309571093887e-12,
+      "excess_over_budget": 0.015057850599340278,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17940,
+      "length_m": 0.005546868171310359,
+      "excess_m": 1.9749219620779357e-13,
+      "input_precision_budget_m": 2.059682698768501e-12,
+      "excess_over_budget": 0.09588476726336323,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17941,
+      "length_m": 0.017815729022989293,
+      "excess_m": 4.475239623324967e-14,
+      "input_precision_budget_m": 2.0597698742680435e-12,
+      "excess_over_budget": 0.021726891334961782,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17965,
+      "length_m": 0.004453959029305815,
+      "excess_m": 4.484867338616638e-14,
+      "input_precision_budget_m": 2.059674933181984e-12,
+      "excess_over_budget": 0.021774636698073436,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 17981,
+      "length_m": 4.9905967899624955e-05,
+      "excess_m": 1.0718865167203342e-13,
+      "input_precision_budget_m": 2.0596436405028772e-12,
+      "excess_over_budget": 0.052042328859308165,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 17991,
+      "length_m": 0.0001097971810726171,
+      "excess_m": 1.5692892677606624e-13,
+      "input_precision_budget_m": 2.0596440660555416e-12,
+      "excess_over_budget": 0.07619225543013528,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 17999,
+      "length_m": 8.023645021894413e-06,
+      "excess_m": 2.8158724335006387e-14,
+      "input_precision_budget_m": 2.059643342911075e-12,
+      "excess_over_budget": 0.013671650692302478,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 18078,
+      "length_m": 0.0009718205086410123,
+      "excess_m": 1.5353527910849651e-13,
+      "input_precision_budget_m": 2.059650191099676e-12,
+      "excess_over_budget": 0.07454434727409798,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18370,
+      "length_m": 0.004685199964848681,
+      "excess_m": 6.833075771872643e-15,
+      "input_precision_budget_m": 2.059676576247654e-12,
+      "excess_over_budget": 0.00331754793479335,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18652,
+      "length_m": 0.013095269763196988,
+      "excess_m": 1.0874287581508213e-13,
+      "input_precision_budget_m": 2.0597363333876782e-12,
+      "excess_over_budget": 0.052794561154451816,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18663,
+      "length_m": 0.0031814882286846456,
+      "excess_m": 9.233369277494852e-14,
+      "input_precision_budget_m": 2.0596658917331456e-12,
+      "excess_over_budget": 0.044829451779313856,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18744,
+      "length_m": 0.009083868264259304,
+      "excess_m": 1.409601602109234e-13,
+      "input_precision_budget_m": 2.0597078306657254e-12,
+      "excess_over_budget": 0.06843696863810202,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18779,
+      "length_m": 0.0001956805583818931,
+      "excess_m": 1.6449612939145597e-13,
+      "input_precision_budget_m": 2.0596446762936404e-12,
+      "excess_over_budget": 0.07986626590731614,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18830,
+      "length_m": 0.0016676897805279608,
+      "excess_m": 1.1848768494138184e-13,
+      "input_precision_budget_m": 2.059655135548238e-12,
+      "excess_over_budget": 0.05752792440655015,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18906,
+      "length_m": 0.009029689544219018,
+      "excess_m": 1.4120996039146405e-13,
+      "input_precision_budget_m": 2.0597074457027657e-12,
+      "excess_over_budget": 0.06855826087635647,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18909,
+      "length_m": 0.01725821414517631,
+      "excess_m": 6.744604874597826e-15,
+      "input_precision_budget_m": 2.0597659128865784e-12,
+      "excess_over_budget": 0.003274452127011784,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 18994,
+      "length_m": 0.014859162529343299,
+      "excess_m": 8.347489366400396e-15,
+      "input_precision_budget_m": 2.059748866599595e-12,
+      "excess_over_budget": 0.004052673363127577,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19019,
+      "length_m": 0.00461351758304493,
+      "excess_m": 2.2494853202381648e-13,
+      "input_precision_budget_m": 2.0596760669136965e-12,
+      "excess_over_budget": 0.109215490550846,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19220,
+      "length_m": 0.0028262848989566653,
+      "excess_m": 1.612807110085157e-13,
+      "input_precision_budget_m": 2.059663367861689e-12,
+      "excess_over_budget": 0.07830440329477475,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19251,
+      "length_m": 0.002018415605459945,
+      "excess_m": 8.08840841526326e-14,
+      "input_precision_budget_m": 2.0596576276051096e-12,
+      "excess_over_budget": 0.03927064530947383,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19252,
+      "length_m": 0.015731521072227996,
+      "excess_m": 1.870552324145791e-13,
+      "input_precision_budget_m": 2.0597550650798508e-12,
+      "excess_over_budget": 0.09081430874273758,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19281,
+      "length_m": 0.03782516594205734,
+      "excess_m": 1.0442341435989988e-13,
+      "input_precision_budget_m": 2.0599120498685383e-12,
+      "excess_over_budget": 0.05069314214971658,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19385,
+      "length_m": 0.0004505726299339436,
+      "excess_m": 1.660817208586074e-13,
+      "input_precision_budget_m": 2.059646487410739e-12,
+      "excess_over_budget": 0.08063603238407924,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19465,
+      "length_m": 0.000968796593815256,
+      "excess_m": 7.269011781385615e-14,
+      "input_precision_budget_m": 2.0596501696134694e-12,
+      "excess_over_budget": 0.03529245834378649,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19594,
+      "length_m": 0.0031384064309656168,
+      "excess_m": 1.7364712098788537e-13,
+      "input_precision_budget_m": 2.0596655856185613e-12,
+      "excess_over_budget": 0.08430840530635728,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19595,
+      "length_m": 0.0049421553974011954,
+      "excess_m": 1.406071439835621e-13,
+      "input_precision_budget_m": 2.0596784020258136e-12,
+      "excess_over_budget": 0.06826655260610918,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19744,
+      "length_m": 0.002069504131616037,
+      "excess_m": 8.753978444908661e-14,
+      "input_precision_budget_m": 2.059657990610921e-12,
+      "excess_over_budget": 0.042502097361864034,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19748,
+      "length_m": 0.012934341243273742,
+      "excess_m": 3.020327044023219e-14,
+      "input_precision_budget_m": 2.0597351899217703e-12,
+      "excess_over_budget": 0.014663666760667094,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19876,
+      "length_m": 0.004577877690054513,
+      "excess_m": 5.860763263587643e-14,
+      "input_precision_budget_m": 2.0596758136770267e-12,
+      "excess_over_budget": 0.028454785091274838,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19877,
+      "length_m": 0.003074921516998694,
+      "excess_m": 1.4510484827590098e-13,
+      "input_precision_budget_m": 2.059665134531117e-12,
+      "excess_over_budget": 0.07045069892341219,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19891,
+      "length_m": 0.0009208240647134807,
+      "excess_m": 3.418814710498541e-14,
+      "input_precision_budget_m": 2.0596498287481487e-12,
+      "excess_over_budget": 0.016599009515013,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19907,
+      "length_m": 0.0011044199572545468,
+      "excess_m": 8.639313223146594e-14,
+      "input_precision_budget_m": 2.059651133275426e-12,
+      "excess_over_budget": 0.04194551729451215,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 19978,
+      "length_m": 0.005164634740756405,
+      "excess_m": 1.6373361000354691e-13,
+      "input_precision_budget_m": 2.0596799828366263e-12,
+      "excess_over_budget": 0.07949468430433072,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20015,
+      "length_m": 0.007374249599169126,
+      "excess_m": 5.794843771500524e-14,
+      "input_precision_budget_m": 2.0596956830944915e-12,
+      "excess_over_budget": 0.028134465780859128,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20045,
+      "length_m": 0.0022060044017171735,
+      "excess_m": 4.512709650406066e-14,
+      "input_precision_budget_m": 2.0596589605036747e-12,
+      "excess_over_budget": 0.021909984793319938,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20068,
+      "length_m": 0.009912318596549667,
+      "excess_m": 8.482450852831391e-14,
+      "input_precision_budget_m": 2.0597137171593808e-12,
+      "excess_over_budget": 0.041182669135834175,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20088,
+      "length_m": 0.003062766538641142,
+      "excess_m": 8.786721350517723e-14,
+      "input_precision_budget_m": 2.0596650481648015e-12,
+      "excess_over_budget": 0.04266092371838251,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20206,
+      "length_m": 0.0055144397409921915,
+      "excess_m": 1.7559911857922827e-13,
+      "input_precision_budget_m": 2.059682468350645e-12,
+      "excess_over_budget": 0.08525543197920442,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20252,
+      "length_m": 0.0009286100504687265,
+      "excess_m": 1.8569824497549625e-13,
+      "input_precision_budget_m": 2.0596498840709045e-12,
+      "excess_over_budget": 0.0901601026522348,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20288,
+      "length_m": 0.00011070102732617066,
+      "excess_m": 7.892480885420688e-14,
+      "input_precision_budget_m": 2.0596440724777557e-12,
+      "excess_over_budget": 0.038319634886847316,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20325,
+      "length_m": 0.004500690222765366,
+      "excess_m": 1.599657906137253e-13,
+      "input_precision_budget_m": 2.0596752652270845e-12,
+      "excess_over_budget": 0.07766553947332501,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20436,
+      "length_m": 0.0027729921480750415,
+      "excess_m": 2.0245263798734925e-13,
+      "input_precision_budget_m": 2.0596629891939187e-12,
+      "excess_over_budget": 0.0982940602659381,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20437,
+      "length_m": 0.0021144426282482492,
+      "excess_m": 2.427572032281944e-14,
+      "input_precision_budget_m": 2.0596583099181447e-12,
+      "excess_over_budget": 0.01178628523280845,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20536,
+      "length_m": 0.012132218011602927,
+      "excess_m": 1.9348238289307318e-13,
+      "input_precision_budget_m": 2.0597294904934154e-12,
+      "excess_over_budget": 0.09393582205143054,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20548,
+      "length_m": 0.0005354586208842996,
+      "excess_m": 1.3269387758724216e-13,
+      "input_precision_budget_m": 2.0596470905619814e-12,
+      "excess_over_budget": 0.0644255407614691,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20551,
+      "length_m": 0.01000180996656185,
+      "excess_m": 1.887240363984688e-13,
+      "input_precision_budget_m": 2.0597143530338093e-12,
+      "excess_over_budget": 0.09162631513466517,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20580,
+      "length_m": 0.00032877545048845324,
+      "excess_m": 8.942103784867483e-14,
+      "input_precision_budget_m": 2.059645621989728e-12,
+      "excess_over_budget": 0.04341573953012816,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20807,
+      "length_m": 0.0034621002483200378,
+      "excess_m": 7.282499256411334e-14,
+      "input_precision_budget_m": 2.059667885601467e-12,
+      "excess_over_budget": 0.03535763851697231,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20822,
+      "length_m": 0.0035064659746881855,
+      "excess_m": 1.7609741789770261e-13,
+      "input_precision_budget_m": 2.0596682008389126e-12,
+      "excess_over_budget": 0.08549795439186628,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 20823,
+      "length_m": 0.009156192439680102,
+      "excess_m": 7.830021353516514e-14,
+      "input_precision_budget_m": 2.0597083445599003e-12,
+      "excess_over_budget": 0.038015194598774914,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21129,
+      "length_m": 0.0006507322440558854,
+      "excess_m": 2.3419417446990387e-14,
+      "input_precision_budget_m": 2.0596479096303372e-12,
+      "excess_over_budget": 0.011370592681150864,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21133,
+      "length_m": 0.0040395134957514735,
+      "excess_m": 1.5801422670325138e-13,
+      "input_precision_budget_m": 2.0596719883693517e-12,
+      "excess_over_budget": 0.07671815104324048,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21134,
+      "length_m": 0.04587405635952276,
+      "excess_m": 7.691763892481163e-14,
+      "input_precision_budget_m": 2.059969240674709e-12,
+      "excess_over_budget": 0.03733921721065045,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21141,
+      "length_m": 0.0006787188890433551,
+      "excess_m": 1.5722145807472998e-13,
+      "input_precision_budget_m": 2.05964810848741e-12,
+      "excess_over_budget": 0.07633413563552477,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21206,
+      "length_m": 0.0001239402282503951,
+      "excess_m": 6.796876971838783e-14,
+      "input_precision_budget_m": 2.0596441665479362e-12,
+      "excess_over_budget": 0.033000248694563,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21254,
+      "length_m": 0.0031893085595243007,
+      "excess_m": 1.7132822938137338e-13,
+      "input_precision_budget_m": 2.0596659472999382e-12,
+      "excess_over_budget": 0.08318253239364924,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21284,
+      "length_m": 0.0001206720027663491,
+      "excess_m": 1.4140094260414737e-13,
+      "input_precision_budget_m": 2.0596441433257974e-12,
+      "excess_over_budget": 0.06865309381834335,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 21394,
+      "length_m": 0.013663908233628359,
+      "excess_m": 2.0844957704380107e-13,
+      "input_precision_budget_m": 2.0597403738070223e-12,
+      "excess_over_budget": 0.10120186975726621,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21438,
+      "length_m": 0.0009411922388902996,
+      "excess_m": 1.6545402201084691e-13,
+      "input_precision_budget_m": 2.0596499734727306e-12,
+      "excess_over_budget": 0.08033113594145248,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21439,
+      "length_m": 0.0010190184418027784,
+      "excess_m": 3.665557440912792e-14,
+      "input_precision_budget_m": 2.0596505264611624e-12,
+      "excess_over_budget": 0.01779698737149771,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21480,
+      "length_m": 0.00980048389032756,
+      "excess_m": 2.0198773209578746e-13,
+      "input_precision_budget_m": 2.0597129225259993e-12,
+      "excess_over_budget": 0.09806596341012072,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21585,
+      "length_m": 0.0021124484808620787,
+      "excess_m": 8.830696590633735e-14,
+      "input_precision_budget_m": 2.0596582957488752e-12,
+      "excess_over_budget": 0.04287457103374987,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21839,
+      "length_m": 0.0003835618980124624,
+      "excess_m": 6.76969331286914e-14,
+      "input_precision_budget_m": 2.0596460112708513e-12,
+      "excess_over_budget": 0.03286823694860107,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21842,
+      "length_m": 0.015217007464076941,
+      "excess_m": 9.689297975068456e-14,
+      "input_precision_budget_m": 2.0597514092407836e-12,
+      "excess_over_budget": 0.047041103754554024,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21851,
+      "length_m": 0.006440891711204873,
+      "excess_m": 1.0287777574280454e-13,
+      "input_precision_budget_m": 2.05968905118782e-12,
+      "excess_over_budget": 0.04994820731968016,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21869,
+      "length_m": 0.005490027277251246,
+      "excess_m": 6.921633405321259e-14,
+      "input_precision_budget_m": 2.0596822948896577e-12,
+      "excess_over_budget": 0.033605344972352,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21903,
+      "length_m": 0.004326145966250776,
+      "excess_m": 1.1474675376543786e-13,
+      "input_precision_budget_m": 2.0596740250155494e-12,
+      "excess_over_budget": 0.05571112339709755,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21913,
+      "length_m": 0.0005621555619840721,
+      "excess_m": 6.632357423680402e-14,
+      "input_precision_budget_m": 2.0596472802551572e-12,
+      "excess_over_budget": 0.03220142345372242,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21992,
+      "length_m": 0.0077714805245249355,
+      "excess_m": 4.590425262129827e-14,
+      "input_precision_budget_m": 2.059698505589976e-12,
+      "excess_over_budget": 0.02228687960724113,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 21993,
+      "length_m": 0.00537137059249789,
+      "excess_m": 5.584074869169342e-15,
+      "input_precision_budget_m": 2.059681451783204e-12,
+      "excess_over_budget": 0.002711135192451646,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22073,
+      "length_m": 0.006429295319272879,
+      "excess_m": 1.0050467402766827e-13,
+      "input_precision_budget_m": 2.0596889687904992e-12,
+      "excess_over_budget": 0.04879604423316746,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22099,
+      "length_m": 0.0027498694887169877,
+      "excess_m": 4.308749537718093e-14,
+      "input_precision_budget_m": 2.059662824897543e-12,
+      "excess_over_budget": 0.02091968396784765,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22123,
+      "length_m": 0.006547345660473851,
+      "excess_m": 1.1268069810554948e-13,
+      "input_precision_budget_m": 2.059689807588623e-12,
+      "excess_over_budget": 0.05470760582025219,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22472,
+      "length_m": 0.0030836285659146187,
+      "excess_m": 7.706639146287664e-14,
+      "input_precision_budget_m": 2.0596651963984208e-12,
+      "excess_over_budget": 0.037416950870285494,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22495,
+      "length_m": 0.0010096989635185066,
+      "excess_m": 1.486252527299614e-13,
+      "input_precision_budget_m": 2.059650460242286e-12,
+      "excess_over_budget": 0.07216042508129168,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22546,
+      "length_m": 0.004221833436426557,
+      "excess_m": 4.0707021087271755e-14,
+      "input_precision_budget_m": 2.0596732838304464e-12,
+      "excess_over_budget": 0.019763824392365514,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22581,
+      "length_m": 0.0010965019325393228,
+      "excess_m": 9.903601376481941e-14,
+      "input_precision_budget_m": 2.0596510770144766e-12,
+      "excess_over_budget": 0.04808387928909539,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22677,
+      "length_m": 0.0005171500931582268,
+      "excess_m": 4.789354676737467e-15,
+      "input_precision_budget_m": 2.059646960472068e-12,
+      "excess_over_budget": 0.002325327965740184,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22718,
+      "length_m": 0.002200430228874122,
+      "excess_m": 1.6444658135217338e-13,
+      "input_precision_budget_m": 2.0596589208967943e-12,
+      "excess_over_budget": 0.07984165712280741,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22900,
+      "length_m": 0.00032429157967678687,
+      "excess_m": 1.6922834661370345e-13,
+      "input_precision_budget_m": 2.0596455901299096e-12,
+      "excess_over_budget": 0.0821638185834824,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 22928,
+      "length_m": 0.0005838017292322076,
+      "excess_m": 6.932518795133014e-14,
+      "input_precision_budget_m": 2.059647434060426e-12,
+      "excess_over_budget": 0.03365876450740951,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23022,
+      "length_m": 0.002697805547382562,
+      "excess_m": 1.0034074265918846e-13,
+      "input_precision_budget_m": 2.0596624549609894e-12,
+      "excess_over_budget": 0.048717081003978854,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23121,
+      "length_m": 0.001817380672809987,
+      "excess_m": 5.576355349701245e-14,
+      "input_precision_budget_m": 2.0596561991659995e-12,
+      "excess_over_budget": 0.027074204675320256,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23256,
+      "length_m": 0.007335843265099463,
+      "excess_m": 7.118871464539822e-14,
+      "input_precision_budget_m": 2.059695410201075e-12,
+      "excess_over_budget": 0.03456273888499296,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23568,
+      "length_m": 0.005881144243800389,
+      "excess_m": 1.9237042514497205e-13,
+      "input_precision_budget_m": 2.059685073942851e-12,
+      "excess_over_budget": 0.09339797990414025,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23600,
+      "length_m": 0.004887705507637194,
+      "excess_m": 2.877992982819322e-14,
+      "input_precision_budget_m": 2.0596780151360776e-12,
+      "excess_over_budget": 0.013973023752594554,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23601,
+      "length_m": 0.0060592352235099385,
+      "excess_m": 1.7000029856051313e-13,
+      "input_precision_budget_m": 2.0596863393553705e-12,
+      "excess_over_budget": 0.08253698406026176,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23626,
+      "length_m": 0.003055193822229218,
+      "excess_m": 1.3198600198882637e-13,
+      "input_precision_budget_m": 2.0596649943574147e-12,
+      "excess_over_budget": 0.06408129591482623,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23750,
+      "length_m": 0.0052364775871927335,
+      "excess_m": 1.3559552786146511e-13,
+      "input_precision_budget_m": 2.059680493310753e-12,
+      "excess_over_budget": 0.06583328254155933,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23752,
+      "length_m": 0.019711022809841577,
+      "excess_m": 1.280121841862325e-13,
+      "input_precision_budget_m": 2.0597833411403668e-12,
+      "excess_over_budget": 0.06214837338929082,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23810,
+      "length_m": 0.001124358178013211,
+      "excess_m": 6.400630893355075e-14,
+      "input_precision_budget_m": 2.0596512749450058e-12,
+      "excess_over_budget": 0.031076284472117622,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23893,
+      "length_m": 0.0015187412457722438,
+      "excess_m": 6.171213713657142e-14,
+      "input_precision_budget_m": 2.0596540772052445e-12,
+      "excess_over_budget": 0.029962379517782398,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 23933,
+      "length_m": 0.020276728438248987,
+      "excess_m": 5.890427035026846e-14,
+      "input_precision_budget_m": 2.0597873607206155e-12,
+      "excess_over_budget": 0.02859725788863023,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24079,
+      "length_m": 0.0005570593509936433,
+      "excess_m": 5.833083582124088e-14,
+      "input_precision_budget_m": 2.0596472440444e-12,
+      "excess_over_budget": 0.028320789392410846,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24147,
+      "length_m": 0.01310316676875892,
+      "excess_m": 8.311407118100078e-14,
+      "input_precision_budget_m": 2.0597363894992776e-12,
+      "excess_over_budget": 0.04035180016468313,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24298,
+      "length_m": 0.0018928837550001485,
+      "excess_m": 1.7199739896223143e-13,
+      "input_precision_budget_m": 2.059656735647665e-12,
+      "excess_over_budget": 0.08350779816139914,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24335,
+      "length_m": 0.019457387210197873,
+      "excess_m": 1.3015630240253984e-13,
+      "input_precision_budget_m": 2.0597815389510384e-12,
+      "excess_over_budget": 0.06318937224227335,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24356,
+      "length_m": 0.0006812576522106025,
+      "excess_m": 1.9536195577929405e-13,
+      "input_precision_budget_m": 2.059648126526407e-12,
+      "excess_over_budget": 0.0948521027758133,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24363,
+      "length_m": 0.0005906614763197215,
+      "excess_m": 1.7355344592018263e-13,
+      "input_precision_budget_m": 2.0596474828018603e-12,
+      "excess_over_budget": 0.08426366519968145,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24365,
+      "length_m": 0.0035938505914445778,
+      "excess_m": 8.617282235001689e-14,
+      "input_precision_budget_m": 2.0596688217439594e-12,
+      "excess_over_budget": 0.04183819332520302,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24406,
+      "length_m": 0.0038114297518276005,
+      "excess_m": 1.7296060417226755e-14,
+      "input_precision_budget_m": 2.059670367736878e-12,
+      "excess_over_budget": 0.008397489563454418,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24407,
+      "length_m": 0.00927719090351448,
+      "excess_m": 6.749462100330561e-14,
+      "input_precision_budget_m": 2.0597092043056955e-12,
+      "excess_over_budget": 0.03276900489749342,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24480,
+      "length_m": 0.002650946701978443,
+      "excess_m": 7.249366038020177e-14,
+      "input_precision_budget_m": 2.0596621220088674e-12,
+      "excess_over_budget": 0.03519687020776783,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24512,
+      "length_m": 0.024728195362169334,
+      "excess_m": 6.131553598187622e-14,
+      "input_precision_budget_m": 2.059818990295478e-12,
+      "excess_over_budget": 0.02976743892097072,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24522,
+      "length_m": 0.01773913070124931,
+      "excess_m": 7.507883204027621e-15,
+      "input_precision_budget_m": 2.059769330004233e-12,
+      "excess_over_budget": 0.0036450116499269322,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24622,
+      "length_m": 0.0007284632262896808,
+      "excess_m": 1.1904865114542584e-13,
+      "input_precision_budget_m": 2.0596484619421845e-12,
+      "excess_over_budget": 0.05780047097608427,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24627,
+      "length_m": 0.004111335693072263,
+      "excess_m": 1.7267437479873138e-13,
+      "input_precision_budget_m": 2.0596724986967572e-12,
+      "excess_over_budget": 0.08383584036199436,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24839,
+      "length_m": 0.003313930933198102,
+      "excess_m": 1.0633854907737827e-13,
+      "input_precision_budget_m": 2.0596668327951615e-12,
+      "excess_over_budget": 0.05162900493623372,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24856,
+      "length_m": 0.008347041225001394,
+      "excess_m": 5.844109918218265e-14,
+      "input_precision_budget_m": 2.059702595194723e-12,
+      "excess_over_budget": 0.02837356194944138,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24886,
+      "length_m": 0.01375067645487268,
+      "excess_m": 2.1527224447481785e-13,
+      "input_precision_budget_m": 2.0597409903323153e-12,
+      "excess_over_budget": 0.10451423042277086,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 24931,
+      "length_m": 0.0009234139122659042,
+      "excess_m": 2.889930048738387e-14,
+      "input_precision_budget_m": 2.0596498471501224e-12,
+      "excess_over_budget": 0.014031171622385714,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25080,
+      "length_m": 0.005925351323757495,
+      "excess_m": 2.226057879695098e-13,
+      "input_precision_budget_m": 2.0596853880530464e-12,
+      "excess_over_budget": 0.10807756818624217,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25098,
+      "length_m": 0.008148322330035688,
+      "excess_m": 1.7815783570629407e-13,
+      "input_precision_budget_m": 2.0597011832120497e-12,
+      "excess_over_budget": 0.086496933224295,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25102,
+      "length_m": 0.00859135776343286,
+      "excess_m": 2.6588106716296522e-14,
+      "input_precision_budget_m": 2.059704331168139e-12,
+      "excess_over_budget": 0.012908700687742577,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25105,
+      "length_m": 0.001567854836947693,
+      "excess_m": 7.51844333318763e-14,
+      "input_precision_budget_m": 2.059654426178299e-12,
+      "excess_over_budget": 0.036503421339171664,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25107,
+      "length_m": 0.0018630611049028079,
+      "excess_m": 1.631728606399374e-13,
+      "input_precision_budget_m": 2.059656523744991e-12,
+      "excess_over_budget": 0.0792233359100316,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25120,
+      "length_m": 0.005408069796390442,
+      "excess_m": 8.186160083134553e-15,
+      "input_precision_budget_m": 2.059681712546731e-12,
+      "excess_over_budget": 0.003974478208583318,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25417,
+      "length_m": 0.012304834859771659,
+      "excess_m": 6.828738963182701e-14,
+      "input_precision_budget_m": 2.059730717009891e-12,
+      "excess_over_budget": 0.03315355209682931,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25663,
+      "length_m": 0.0027269105147101546,
+      "excess_m": 1.9321350075429677e-14,
+      "input_precision_budget_m": 2.059662661764221e-12,
+      "excess_over_budget": 0.009380832324687489,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25707,
+      "length_m": 0.016883278350585867,
+      "excess_m": 1.2145492944704017e-13,
+      "input_precision_budget_m": 2.059763248807526e-12,
+      "excess_over_budget": 0.05896548038584288,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25708,
+      "length_m": 0.005508777356721371,
+      "excess_m": 1.736596977330862e-13,
+      "input_precision_budget_m": 2.0596824281169847e-12,
+      "excess_over_budget": 0.08431382205452441,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25855,
+      "length_m": 0.002988682506650148,
+      "excess_m": 2.0319423227332933e-13,
+      "input_precision_budget_m": 2.0596645217660933e-12,
+      "excess_over_budget": 0.09865404298904809,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 25859,
+      "length_m": 0.009255618446357144,
+      "excess_m": 8.883518920477229e-15,
+      "input_precision_budget_m": 2.059709051024168e-12,
+      "excess_over_budget": 0.0043129969818115794,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26027,
+      "length_m": 0.015304398551822978,
+      "excess_m": 1.2118257786131181e-13,
+      "input_precision_budget_m": 2.059752030191809e-12,
+      "excess_over_budget": 0.0588335761222806,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26103,
+      "length_m": 0.014340650158749161,
+      "excess_m": 4.6532222519601874e-14,
+      "input_precision_budget_m": 2.0597451823476115e-12,
+      "excess_over_budget": 0.02259125202398405,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26208,
+      "length_m": 0.0014250891332671055,
+      "excess_m": 8.449968155743726e-14,
+      "input_precision_budget_m": 2.0596534117669624e-12,
+      "excess_over_budget": 0.041026165409521774,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26270,
+      "length_m": 0.004331023076674503,
+      "excess_m": 1.0964059521390013e-13,
+      "input_precision_budget_m": 2.0596740596695032e-12,
+      "excess_over_budget": 0.05323201246292976,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26283,
+      "length_m": 0.00730108056666367,
+      "excess_m": 9.767013586792217e-14,
+      "input_precision_budget_m": 2.059695163197246e-12,
+      "excess_over_budget": 0.04741970443641267,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26316,
+      "length_m": 0.03348234155343796,
+      "excess_m": 2.8296809340133677e-14,
+      "input_precision_budget_m": 2.0598811922453185e-12,
+      "excess_over_budget": 0.013737107483024055,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26317,
+      "length_m": 0.002544954761320058,
+      "excess_m": 3.902433931557425e-14,
+      "input_precision_budget_m": 2.0596613688908327e-12,
+      "excess_over_budget": 0.018946968615811643,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26345,
+      "length_m": 0.0015364978708675768,
+      "excess_m": 1.9389069343123122e-13,
+      "input_precision_budget_m": 2.0596542033736537e-12,
+      "excess_over_budget": 0.09413749799050923,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 26952,
+      "length_m": 0.005792054184836837,
+      "excess_m": 1.7774670624248756e-13,
+      "input_precision_budget_m": 2.059684440919909e-12,
+      "excess_over_budget": 0.08629802833442837,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27157,
+      "length_m": 0.0039056618230797085,
+      "excess_m": 1.3512845356555836e-13,
+      "input_precision_budget_m": 2.0596710372960148e-12,
+      "excess_over_budget": 0.06560681347588312,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27242,
+      "length_m": 0.00252679456523147,
+      "excess_m": 1.3306196422480099e-14,
+      "input_precision_budget_m": 2.0596612398548786e-12,
+      "excess_over_budget": 0.006460381039853738,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27323,
+      "length_m": 0.005998442966905365,
+      "excess_m": 3.227626499402447e-14,
+      "input_precision_budget_m": 2.059685907400408e-12,
+      "excess_over_budget": 0.01567047911434289,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27324,
+      "length_m": 0.0027101189266339884,
+      "excess_m": 1.3778474888814785e-14,
+      "input_precision_budget_m": 2.0596625424528118e-12,
+      "excess_over_budget": 0.006689675907979697,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27349,
+      "length_m": 0.0007136921784669487,
+      "excess_m": 2.136865987975578e-13,
+      "input_precision_budget_m": 2.059648356987577e-12,
+      "excess_over_budget": 0.10374906865660014,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27942,
+      "length_m": 0.0011283533345419763,
+      "excess_m": 1.3934166320783703e-13,
+      "input_precision_budget_m": 2.0596513033323e-12,
+      "excess_over_budget": 0.06765303572619152,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 27943,
+      "length_m": 0.0034013542738636302,
+      "excess_m": 2.466074219831249e-13,
+      "input_precision_budget_m": 2.0596674539753577e-12,
+      "excess_over_budget": 0.11973166906490108,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28061,
+      "length_m": 0.011167883639185954,
+      "excess_m": 3.231616363397194e-14,
+      "input_precision_budget_m": 2.0597226384855844e-12,
+      "excess_over_budget": 0.01568957054224178,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28063,
+      "length_m": 0.000836483141585898,
+      "excess_m": 1.831510203914588e-14,
+      "input_precision_budget_m": 2.0596492294698465e-12,
+      "excess_over_budget": 0.008892340393252391,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28105,
+      "length_m": 0.0010994572294471875,
+      "excess_m": 1.411399209311215e-13,
+      "input_precision_budget_m": 2.059651098013124e-12,
+      "excess_over_budget": 0.06852613098756115,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28134,
+      "length_m": 0.0016350839590074172,
+      "excess_m": 1.185726863917047e-14,
+      "input_precision_budget_m": 2.0596549038699423e-12,
+      "excess_over_budget": 0.00575692006310937,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28139,
+      "length_m": 0.0014261448874081718,
+      "excess_m": 7.796367718082564e-14,
+      "input_precision_budget_m": 2.0596534192685467e-12,
+      "excess_over_budget": 0.03785281370713001,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28173,
+      "length_m": 0.0045201055227665895,
+      "excess_m": 9.67628754899863e-15,
+      "input_precision_budget_m": 2.0596754031810888e-12,
+      "excess_over_budget": 0.00469796723020238,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28239,
+      "length_m": 0.008832853742306274,
+      "excess_m": 1.2861586795587243e-13,
+      "input_precision_budget_m": 2.059706047100274e-12,
+      "excess_over_budget": 0.06244379781131504,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28254,
+      "length_m": 0.000540369453137713,
+      "excess_m": 1.8087528003141173e-14,
+      "input_precision_budget_m": 2.0596471254555434e-12,
+      "excess_over_budget": 0.008781857717078918,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28649,
+      "length_m": 0.01712224375242881,
+      "excess_m": 2.488807770983925e-13,
+      "input_precision_budget_m": 2.059764946758829e-12,
+      "excess_over_budget": 0.1208296983061209,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28655,
+      "length_m": 0.0007014917065406147,
+      "excess_m": 2.2462066928685687e-14,
+      "input_precision_budget_m": 2.0596482702980108e-12,
+      "excess_over_budget": 0.010905778065414852,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28802,
+      "length_m": 0.005125610262827891,
+      "excess_m": 9.211381657436846e-15,
+      "input_precision_budget_m": 2.059679705551034e-12,
+      "excess_over_budget": 0.004472239850017112,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28803,
+      "length_m": 0.0037258883212712255,
+      "excess_m": 1.9724629915507386e-13,
+      "input_precision_budget_m": 2.0596697599284567e-12,
+      "excess_over_budget": 0.09576598297094252,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28905,
+      "length_m": 0.00534505530344007,
+      "excess_m": 9.690945962370634e-14,
+      "input_precision_budget_m": 2.0596812648018287e-12,
+      "excess_over_budget": 0.047050706961220254,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28913,
+      "length_m": 0.016943727288961125,
+      "excess_m": 9.32622035154651e-14,
+      "input_precision_budget_m": 2.0597636783230662e-12,
+      "excess_over_budget": 0.04527810859903768,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 28955,
+      "length_m": 0.027252623554208377,
+      "excess_m": 6.206840597045016e-14,
+      "input_precision_budget_m": 2.0598369274366165e-12,
+      "excess_over_budget": 0.030132679506669383,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29007,
+      "length_m": 0.005884587224090267,
+      "excess_m": 1.508472166622532e-13,
+      "input_precision_budget_m": 2.0596850984066975e-12,
+      "excess_over_budget": 0.07323799972090078,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29027,
+      "length_m": 0.0014078793951646487,
+      "excess_m": 7.979814725667111e-14,
+      "input_precision_budget_m": 2.0596532894844183e-12,
+      "excess_over_budget": 0.03874348545169296,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29121,
+      "length_m": 0.0012220543789058778,
+      "excess_m": 8.250301483658795e-14,
+      "input_precision_budget_m": 2.059651969118264e-12,
+      "excess_over_budget": 0.0400567746753387,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29134,
+      "length_m": 0.0020168247698493283,
+      "excess_m": 1.5094262645343193e-13,
+      "input_precision_budget_m": 2.0596576163015427e-12,
+      "excess_over_budget": 0.07328530007063722,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29161,
+      "length_m": 0.00991909374233979,
+      "excess_m": 1.7225804116449694e-14,
+      "input_precision_budget_m": 2.0597137652996874e-12,
+      "excess_over_budget": 0.008363202890933414,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29241,
+      "length_m": 0.0004184634979210751,
+      "excess_m": 1.1591801737237395e-14,
+      "input_precision_budget_m": 2.0596462592616342e-12,
+      "excess_over_budget": 0.005628054664781591,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29345,
+      "length_m": 0.00013158029469386,
+      "excess_m": 1.3263169859265012e-13,
+      "input_precision_budget_m": 2.0596442208338733e-12,
+      "excess_over_budget": 0.06439544133450023,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 29346,
+      "length_m": 0.007153954972871284,
+      "excess_m": 1.0691881408009252e-13,
+      "input_precision_budget_m": 2.059694117807027e-12,
+      "excess_over_budget": 0.05191004487303671,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29364,
+      "length_m": 0.04606307046693919,
+      "excess_m": 4.3402781368939714e-14,
+      "input_precision_budget_m": 2.0599705837007187e-12,
+      "excess_over_budget": 0.02106961221308656,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29370,
+      "length_m": 0.0005444369088618587,
+      "excess_m": 1.9064426686615787e-13,
+      "input_precision_budget_m": 2.059647154356554e-12,
+      "excess_over_budget": 0.09256161496541201,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29780,
+      "length_m": 0.0056768453564100966,
+      "excess_m": 3.4633754197876954e-15,
+      "input_precision_budget_m": 2.059683622311948e-12,
+      "excess_over_budget": 0.0016815084522059437,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29803,
+      "length_m": 0.0010860318367772379,
+      "excess_m": 5.4257596679430087e-14,
+      "input_precision_budget_m": 2.059651002619972e-12,
+      "excess_over_budget": 0.026343102113130765,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 29983,
+      "length_m": 0.006064219118464641,
+      "excess_m": 1.523434156602832e-14,
+      "input_precision_budget_m": 2.059686374768075e-12,
+      "excess_over_budget": 0.0073964375123585216,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30044,
+      "length_m": 0.027863222003405436,
+      "excess_m": 3.70536934468646e-14,
+      "input_precision_budget_m": 2.0598412659995416e-12,
+      "excess_over_budget": 0.01798861594749352,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30256,
+      "length_m": 0.00470016795954787,
+      "excess_m": 2.0679898765640914e-13,
+      "input_precision_budget_m": 2.0596766826016526e-12,
+      "excess_over_budget": 0.10040361645265306,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30316,
+      "length_m": 0.00542292845380412,
+      "excess_m": 8.525818939730812e-14,
+      "input_precision_budget_m": 2.0596818181238416e-12,
+      "excess_over_budget": 0.04139386416246057,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30319,
+      "length_m": 0.034106876523795106,
+      "excess_m": 7.851358452271029e-14,
+      "input_precision_budget_m": 2.0598856298331823e-12,
+      "excess_over_budget": 0.03811550669882028,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30380,
+      "length_m": 0.0011097461372527536,
+      "excess_m": 4.2574017228291794e-14,
+      "input_precision_budget_m": 2.0596511711202114e-12,
+      "excess_over_budget": 0.020670498881194755,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30400,
+      "length_m": 0.00608023064489232,
+      "excess_m": 2.4705931744861687e-14,
+      "input_precision_budget_m": 2.059686488536813e-12,
+      "excess_over_budget": 0.01199499626878293,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30543,
+      "length_m": 0.00012281793881459738,
+      "excess_m": 8.19740868067409e-14,
+      "input_precision_budget_m": 2.05964415857359e-12,
+      "excess_over_budget": 0.0398001210381468,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30549,
+      "length_m": 0.0009401436813167878,
+      "excess_m": 5.700409762277037e-14,
+      "input_precision_budget_m": 2.0596499660222813e-12,
+      "excess_over_budget": 0.027676594840462178,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30666,
+      "length_m": 0.0013940866698676606,
+      "excess_m": 3.95818360726663e-14,
+      "input_precision_budget_m": 2.059653191481211e-12,
+      "excess_over_budget": 0.01921771890354065,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 30904,
+      "length_m": 0.00018676621040388905,
+      "excess_m": 7.377570234411157e-14,
+      "input_precision_budget_m": 2.059644612953389e-12,
+      "excess_over_budget": 0.03581962726973673,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 31193,
+      "length_m": 0.0012241790635319407,
+      "excess_m": 2.7403860430874616e-14,
+      "input_precision_budget_m": 2.0596519842150565e-12,
+      "excess_over_budget": 0.013305092627732622,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 31422,
+      "length_m": 0.006594810313963939,
+      "excess_m": 8.211140101188619e-14,
+      "input_precision_budget_m": 2.0596901448452707e-12,
+      "excess_over_budget": 0.03986589983808201,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 31643,
+      "length_m": 0.008147136671320275,
+      "excess_m": 3.755849797837385e-14,
+      "input_precision_budget_m": 2.0597011747874385e-12,
+      "excess_over_budget": 0.0182349257446289,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 31743,
+      "length_m": 1.1479690889474918e-05,
+      "excess_m": 1.4757642942961682e-13,
+      "input_precision_budget_m": 2.0596433674677574e-12,
+      "excess_over_budget": 0.07165144789656264,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 31753,
+      "length_m": 0.019800602547168443,
+      "excess_m": 1.9758500391375833e-13,
+      "input_precision_budget_m": 2.059783977642683e-12,
+      "excess_over_budget": 0.09592510965149084,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 31805,
+      "length_m": 0.0064210238721031905,
+      "excess_m": 1.4039550771949294e-13,
+      "input_precision_budget_m": 2.059688910018332e-12,
+      "excess_over_budget": 0.06816345276056439,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32213,
+      "length_m": 0.043893038216364054,
+      "excess_m": 9.815759316467165e-14,
+      "input_precision_budget_m": 2.0599551646941984e-12,
+      "excess_over_budget": 0.047650354166442845,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32271,
+      "length_m": 0.006054837455508718,
+      "excess_m": 4.15188716740289e-14,
+      "input_precision_budget_m": 2.0596863081073502e-12,
+      "excess_over_budget": 0.02015786166592556,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32383,
+      "length_m": 0.009059368187580966,
+      "excess_m": 1.3498230311270731e-13,
+      "input_precision_budget_m": 2.0597076565822103e-12,
+      "excess_over_budget": 0.06553469016893937,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32384,
+      "length_m": 0.01728444582453714,
+      "excess_m": 4.879430193227563e-14,
+      "input_precision_budget_m": 2.0597660992738703e-12,
+      "excess_over_budget": 0.023689244108579654,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32439,
+      "length_m": 0.004789181282189257,
+      "excess_m": 5.1241996756878905e-14,
+      "input_precision_budget_m": 2.0596773150793507e-12,
+      "excess_over_budget": 0.024878652778143922,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32558,
+      "length_m": 0.009265830942102732,
+      "excess_m": 4.59094567917262e-14,
+      "input_precision_budget_m": 2.0597091235883147e-12,
+      "excess_over_budget": 0.022289291369329476,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32760,
+      "length_m": 0.0003341165786176314,
+      "excess_m": 2.8991023991176146e-14,
+      "input_precision_budget_m": 2.059645659940726e-12,
+      "excess_over_budget": 0.01407573378034864,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32894,
+      "length_m": 0.009704127329233727,
+      "excess_m": 2.917978358940587e-14,
+      "input_precision_budget_m": 2.0597122378714546e-12,
+      "excess_over_budget": 0.014166922472413336,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 32991,
+      "length_m": 0.00580714032965882,
+      "excess_m": 4.7454228047083546e-14,
+      "input_precision_budget_m": 2.0596845481134157e-12,
+      "excess_over_budget": 0.023039561126265488,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33098,
+      "length_m": 0.0077423559353327715,
+      "excess_m": 1.303306421118755e-13,
+      "input_precision_budget_m": 2.0596982986473226e-12,
+      "excess_over_budget": 0.06327656929049671,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33242,
+      "length_m": 0.013917897335916538,
+      "excess_m": 1.2589408682206482e-13,
+      "input_precision_budget_m": 2.0597421785081383e-12,
+      "excess_over_budget": 0.06112128407898571,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33306,
+      "length_m": 0.002494872123920981,
+      "excess_m": 1.2327422069247085e-13,
+      "input_precision_budget_m": 2.0596610130322906e-12,
+      "excess_over_budget": 0.059851703708749183,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33308,
+      "length_m": 0.0017432931858842547,
+      "excess_m": 1.3660383588187663e-13,
+      "input_precision_budget_m": 2.059655672742743e-12,
+      "excess_over_budget": 0.06632362762848024,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33406,
+      "length_m": 0.007399647916854836,
+      "excess_m": 2.0779385156988184e-13,
+      "input_precision_budget_m": 2.0596958635603925e-12,
+      "excess_over_budget": 0.10088569640116146,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33407,
+      "length_m": 4.1116695759860326e-05,
+      "excess_m": 2.3813935578261697e-13,
+      "input_precision_budget_m": 2.059643578051342e-12,
+      "excess_over_budget": 0.11562163391780825,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 33409,
+      "length_m": 0.0016300291802482,
+      "excess_m": 3.1653932947017793e-14,
+      "input_precision_budget_m": 2.0596548679535787e-12,
+      "excess_over_budget": 0.015368561713676012,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33436,
+      "length_m": 0.0038415620605534192,
+      "excess_m": 6.259923135409906e-14,
+      "input_precision_budget_m": 2.059670581839809e-12,
+      "excess_over_budget": 0.030392836556505095,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33562,
+      "length_m": 0.008095621656676807,
+      "excess_m": 4.3472170307978786e-15,
+      "input_precision_budget_m": 2.059700808751244e-12,
+      "excess_over_budget": 0.0021106060707105855,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33613,
+      "length_m": 0.0076224714108500706,
+      "excess_m": 2.2115122233490325e-13,
+      "input_precision_budget_m": 2.0596974468165424e-12,
+      "excess_over_budget": 0.10737073188914878,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33614,
+      "length_m": 0.0011158934126977158,
+      "excess_m": 1.3922543673494658e-13,
+      "input_precision_budget_m": 2.0596512147992304e-12,
+      "excess_over_budget": 0.0675966084619419,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33636,
+      "length_m": 0.0006779993481678732,
+      "excess_m": 1.2434215983236907e-13,
+      "input_precision_budget_m": 2.0596481033747645e-12,
+      "excess_over_budget": 0.060370584484132295,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33638,
+      "length_m": 0.004210482656975553,
+      "excess_m": 1.0409815370815423e-13,
+      "input_precision_budget_m": 2.059673203178307e-12,
+      "excess_over_budget": 0.05054110212606499,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33639,
+      "length_m": 0.0027830184965915664,
+      "excess_m": 9.286928864815636e-14,
+      "input_precision_budget_m": 2.05966306043541e-12,
+      "excess_over_budget": 0.0450895539334108,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33650,
+      "length_m": 3.183567491692394e-05,
+      "excess_m": 4.4976975160752886e-14,
+      "input_precision_budget_m": 2.0596435121057235e-12,
+      "excess_over_budget": 0.021837262077829017,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 33651,
+      "length_m": 0.01505853069291587,
+      "excess_m": 3.960026750959855e-14,
+      "input_precision_budget_m": 2.0597502831955986e-12,
+      "excess_over_budget": 0.019225761410339867,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 33930,
+      "length_m": 0.020131253088840464,
+      "excess_m": 6.587091982979132e-14,
+      "input_precision_budget_m": 2.0597863270560882e-12,
+      "excess_over_budget": 0.03197949173880386,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34199,
+      "length_m": 0.016348781972081155,
+      "excess_m": 8.395367734337356e-14,
+      "input_precision_budget_m": 2.0597594509823357e-12,
+      "excess_over_budget": 0.040758971783493726,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34200,
+      "length_m": 0.0010559543458364257,
+      "excess_m": 1.5334196586114235e-13,
+      "input_precision_budget_m": 2.0596507889065448e-12,
+      "excess_over_budget": 0.07445046834495211,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34294,
+      "length_m": 0.005622904510558846,
+      "excess_m": 1.6495919213932453e-13,
+      "input_precision_budget_m": 2.059683239039186e-12,
+      "excess_over_budget": 0.08008959291054664,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34329,
+      "length_m": 0.01637148668300677,
+      "excess_m": 8.737802148495177e-14,
+      "input_precision_budget_m": 2.0597596123090096e-12,
+      "excess_over_budget": 0.04242146557432506,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34336,
+      "length_m": 0.004282647973824764,
+      "excess_m": 1.6023814219945365e-13,
+      "input_precision_budget_m": 2.0596737159437237e-12,
+      "excess_over_budget": 0.07779782834488132,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34344,
+      "length_m": 0.0013571608323000436,
+      "excess_m": 6.07261636809131e-14,
+      "input_precision_budget_m": 2.059652929107354e-12,
+      "excess_over_budget": 0.029483687675103395,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34447,
+      "length_m": 0.00016395920092784184,
+      "excess_m": 1.0482256338970042e-14,
+      "input_precision_budget_m": 2.0596444508998397e-12,
+      "excess_over_budget": 0.005089352356126535,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34495,
+      "length_m": 0.02410204149591659,
+      "excess_m": 1.4786782909226304e-13,
+      "input_precision_budget_m": 2.0598145412046666e-12,
+      "excess_over_budget": 0.07178696243487226,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34552,
+      "length_m": 0.01080173415008616,
+      "excess_m": 7.892471398651679e-14,
+      "input_precision_budget_m": 2.0597200368369873e-12,
+      "excess_over_budget": 0.038318175565120814,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34558,
+      "length_m": 0.004183427006008521,
+      "excess_m": 1.3704488932564374e-13,
+      "input_precision_budget_m": 2.0596730109363447e-12,
+      "excess_over_budget": 0.06653720692457973,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34564,
+      "length_m": 0.0024362161632678534,
+      "excess_m": 1.8308531773980619e-13,
+      "input_precision_budget_m": 2.059660596256623e-12,
+      "excess_over_budget": 0.08889101343811634,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34624,
+      "length_m": 0.0009377327793123889,
+      "excess_m": 3.515167757567328e-14,
+      "input_precision_budget_m": 2.059649948891792e-12,
+      "excess_over_budget": 0.017066821279308586,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34634,
+      "length_m": 0.004097400402300795,
+      "excess_m": 1.1191221560569176e-13,
+      "input_precision_budget_m": 2.0596723996805613e-12,
+      "excess_over_budget": 0.05433495910468502,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34764,
+      "length_m": 0.009847002805286524,
+      "excess_m": 1.1339366945417595e-13,
+      "input_precision_budget_m": 2.0597132530627705e-12,
+      "excess_over_budget": 0.055053133869756306,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34789,
+      "length_m": 0.005174192261731294,
+      "excess_m": 1.6584043166512075e-13,
+      "input_precision_budget_m": 2.0596800507468972e-12,
+      "excess_over_budget": 0.08051756951521787,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 34818,
+      "length_m": 0.0012628002645288577,
+      "excess_m": 4.0434669501543397e-14,
+      "input_precision_budget_m": 2.0596522586351946e-12,
+      "excess_over_budget": 0.019631794314801942,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 35390,
+      "length_m": 0.0025437420204363122,
+      "excess_m": 5.464422317413842e-14,
+      "input_precision_budget_m": 2.0596613602737905e-12,
+      "excess_over_budget": 0.02653068326090002,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 35609,
+      "length_m": 0.001730021681542442,
+      "excess_m": 6.636813494609317e-14,
+      "input_precision_budget_m": 2.059655578443033e-12,
+      "excess_over_budget": 0.03222292874630194,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 35987,
+      "length_m": 0.0005909672397384463,
+      "excess_m": 3.179043400053372e-14,
+      "input_precision_budget_m": 2.0596474849744405e-12,
+      "excess_over_budget": 0.015434890791968815,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36078,
+      "length_m": 0.009665134774802128,
+      "excess_m": 1.7450797751283886e-13,
+      "input_precision_budget_m": 2.059711960812691e-12,
+      "excess_over_budget": 0.08472445702746904,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36079,
+      "length_m": 0.0025433351393456954,
+      "excess_m": 1.580801461953385e-13,
+      "input_precision_budget_m": 2.059661357382726e-12,
+      "excess_over_budget": 0.07675055204036829,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36102,
+      "length_m": 0.0014531473735759208,
+      "excess_m": 2.198165694605736e-13,
+      "input_precision_budget_m": 2.05965361113275e-12,
+      "excess_over_budget": 0.10672501835863596,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36103,
+      "length_m": 0.03941735425657974,
+      "excess_m": 7.91033905045424e-16,
+      "input_precision_budget_m": 2.059923363046947e-12,
+      "excess_over_budget": 0.0003840113274288816,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36130,
+      "length_m": 0.0004719000194868078,
+      "excess_m": 2.940746604562783e-14,
+      "input_precision_budget_m": 2.0596466389509565e-12,
+      "excess_over_budget": 0.014277918109586986,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36148,
+      "length_m": 0.00010496779123060205,
+      "excess_m": 1.80022392392426e-13,
+      "input_precision_budget_m": 2.0596440317406627e-12,
+      "excess_over_budget": 0.08740461439848131,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 36643,
+      "length_m": 0.0017914599049406283,
+      "excess_m": 2.390232109461543e-15,
+      "input_precision_budget_m": 2.0596560149878667e-12,
+      "excess_over_budget": 0.0011605006331485035,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36644,
+      "length_m": 0.0063342603395750464,
+      "excess_m": 1.472424612791734e-13,
+      "input_precision_budget_m": 2.0596882935263544e-12,
+      "excess_over_budget": 0.07148774003423707,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36673,
+      "length_m": 0.018291885759019157,
+      "excess_m": 5.291947435814848e-14,
+      "input_precision_budget_m": 2.059773257565142e-12,
+      "excess_over_budget": 0.025691893107061985,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36698,
+      "length_m": 4.110673262496368e-05,
+      "excess_m": 2.0723499956007418e-13,
+      "input_precision_budget_m": 2.0596435779805498e-12,
+      "excess_over_budget": 0.10061692312961501,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 36807,
+      "length_m": 0.005430837140350322,
+      "excess_m": 2.0275881668085916e-13,
+      "input_precision_budget_m": 2.059681874318439e-12,
+      "excess_over_budget": 0.09844181240268149,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36862,
+      "length_m": 0.01209856253551723,
+      "excess_m": 4.5510470392251534e-14,
+      "input_precision_budget_m": 2.0597292513568752e-12,
+      "excess_over_budget": 0.02209536537982887,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36913,
+      "length_m": 0.006629930099978145,
+      "excess_m": 1.2161972817725797e-13,
+      "input_precision_budget_m": 2.059690394386359e-12,
+      "excess_over_budget": 0.059047577494525334,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 36985,
+      "length_m": 0.00236867477334554,
+      "excess_m": 1.485894740582694e-13,
+      "input_precision_budget_m": 2.0596601163461832e-12,
+      "excess_over_budget": 0.07214271562526814,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37102,
+      "length_m": 0.0005068802740841854,
+      "excess_m": 3.803858270035043e-14,
+      "input_precision_budget_m": 2.0596468875006146e-12,
+      "excess_over_budget": 0.01846849716385624,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37204,
+      "length_m": 0.0003949357560273061,
+      "excess_m": 2.2376577587385205e-14,
+      "input_precision_budget_m": 2.059646092086973e-12,
+      "excess_over_budget": 0.010864282787880193,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37206,
+      "length_m": 0.004525261653213165,
+      "excess_m": 4.340972026284362e-14,
+      "input_precision_budget_m": 2.059675439817599e-12,
+      "excess_over_budget": 0.02107600033658114,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37315,
+      "length_m": 0.0012586018163341576,
+      "excess_m": 1.2255647885428544e-13,
+      "input_precision_budget_m": 2.059652228803426e-12,
+      "excess_over_budget": 0.059503481772496016,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37358,
+      "length_m": 0.0012786764560995573,
+      "excess_m": 6.353424730765056e-16,
+      "input_precision_budget_m": 2.0596523714423206e-12,
+      "excess_over_budget": 0.000308470731219362,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37478,
+      "length_m": 0.0021047856379274622,
+      "excess_m": 8.714556853917088e-14,
+      "input_precision_budget_m": 2.0596582413011012e-12,
+      "excess_over_budget": 0.04231069348870247,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37655,
+      "length_m": 0.004136255614721328,
+      "excess_m": 1.1220191442617988e-13,
+      "input_precision_budget_m": 2.0596726757634503e-12,
+      "excess_over_budget": 0.054475604665964926,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37670,
+      "length_m": 0.00446385877059194,
+      "excess_m": 1.1534436600291187e-13,
+      "input_precision_budget_m": 2.0596750035238766e-12,
+      "excess_over_budget": 0.05600124573322024,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37728,
+      "length_m": 0.000715360505447455,
+      "excess_m": 3.4585073520332354e-14,
+      "input_precision_budget_m": 2.0596483688417537e-12,
+      "excess_over_budget": 0.01679173690205252,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37752,
+      "length_m": 0.0026570619021511308,
+      "excess_m": 7.348809061280548e-14,
+      "input_precision_budget_m": 2.0596621654599783e-12,
+      "excess_over_budget": 0.035679681767807586,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37769,
+      "length_m": 0.014366613867541915,
+      "excess_m": 1.339726940496888e-13,
+      "input_precision_budget_m": 2.059745366830858e-12,
+      "excess_over_budget": 0.06504332827111554,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37974,
+      "length_m": 0.012690024548816644,
+      "excess_m": 7.892124453956484e-14,
+      "input_precision_budget_m": 2.0597334539472454e-12,
+      "excess_over_budget": 0.03831624154490535,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37980,
+      "length_m": 0.014415573313430073,
+      "excess_m": 2.5974014605800733e-14,
+      "input_precision_budget_m": 2.059745714708645e-12,
+      "excess_over_budget": 0.012610301563110575,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 37982,
+      "length_m": 0.015865206725394255,
+      "excess_m": 1.8721135752741702e-14,
+      "input_precision_budget_m": 2.0597560149735485e-12,
+      "excess_over_budget": 0.009089006472925446,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38252,
+      "length_m": 0.010294906042891516,
+      "excess_m": 1.7124843210147844e-13,
+      "input_precision_budget_m": 2.0597164356066886e-12,
+      "excess_over_budget": 0.08314175152514977,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38373,
+      "length_m": 0.00870951241411914,
+      "excess_m": 2.489328188026718e-15,
+      "input_precision_budget_m": 2.0597051707074265e-12,
+      "excess_over_budget": 0.0012085847156327394,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38382,
+      "length_m": 0.004447577112349714,
+      "excess_m": 7.434157456298607e-14,
+      "input_precision_budget_m": 2.059674887835737e-12,
+      "excess_over_budget": 0.036093839373408404,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38549,
+      "length_m": 0.02361845504482657,
+      "excess_m": 7.682049441015693e-14,
+      "input_precision_budget_m": 2.0598111051162677e-12,
+      "excess_over_budget": 0.037294921956361006,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38639,
+      "length_m": 0.0038106118092490807,
+      "excess_m": 2.6375603090489363e-14,
+      "input_precision_budget_m": 2.0596703619250465e-12,
+      "excess_over_budget": 0.012805739975710346,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38642,
+      "length_m": 8.657308443504324e-07,
+      "excess_m": 8.307484582636726e-14,
+      "input_precision_budget_m": 2.0596432920510352e-12,
+      "excess_over_budget": 0.04033457936477904,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 38752,
+      "length_m": 8.792640237335315e-05,
+      "excess_m": 7.052310937918221e-14,
+      "input_precision_budget_m": 2.0596439106543126e-12,
+      "excess_over_budget": 0.03424043788072972,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38847,
+      "length_m": 0.0009478216935816965,
+      "excess_m": 1.9125098640188076e-13,
+      "input_precision_budget_m": 2.059650020577839e-12,
+      "excess_over_budget": 0.09285606024863627,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 38850,
+      "length_m": 0.00935368043586085,
+      "excess_m": 7.442831073678491e-14,
+      "input_precision_budget_m": 2.059709747796511e-12,
+      "excess_over_budget": 0.036135339368281734,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39051,
+      "length_m": 0.0036063803638082845,
+      "excess_m": 3.548376870110559e-15,
+      "input_precision_budget_m": 2.059668910773347e-12,
+      "excess_over_budget": 0.0017227899355815614,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39052,
+      "length_m": 0.0016869774195977059,
+      "excess_m": 1.9734431103146655e-14,
+      "input_precision_budget_m": 2.0596552725951568e-12,
+      "excess_over_budget": 0.009581424311982731,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39337,
+      "length_m": 0.001071119687875881,
+      "excess_m": 2.2827876741682296e-14,
+      "input_precision_budget_m": 2.0596508966627815e-12,
+      "excess_over_budget": 0.01108337183678551,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39447,
+      "length_m": 0.0007904611337622481,
+      "excess_m": 6.51734525722314e-14,
+      "input_precision_budget_m": 2.0596489024638126e-12,
+      "excess_over_budget": 0.03164299143134007,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39628,
+      "length_m": 0.0008403363175290824,
+      "excess_m": 8.831173639589629e-14,
+      "input_precision_budget_m": 2.059649256848308e-12,
+      "excess_over_budget": 0.042877075357496366,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39665,
+      "length_m": 0.0007159972254112478,
+      "excess_m": 7.640643760048471e-14,
+      "input_precision_budget_m": 2.059648373365921e-12,
+      "excess_over_budget": 0.03709683584272187,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39722,
+      "length_m": 0.009475982883978573,
+      "excess_m": 4.109733386936654e-14,
+      "input_precision_budget_m": 2.0597106168076717e-12,
+      "excess_over_budget": 0.019952965010717357,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 39849,
+      "length_m": 0.002435947508137754,
+      "excess_m": 1.882218339521735e-14,
+      "input_precision_budget_m": 2.0596605943477138e-12,
+      "excess_over_budget": 0.009138487888184442,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40297,
+      "length_m": 0.003398071109993487,
+      "excess_m": 1.780949519802899e-13,
+      "input_precision_budget_m": 2.0596674306470756e-12,
+      "excess_over_budget": 0.08646781967336284,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40298,
+      "length_m": 0.020082480838471653,
+      "excess_m": 5.342254416618175e-14,
+      "input_precision_budget_m": 2.059785980508406e-12,
+      "excess_over_budget": 0.025935968431533722,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40320,
+      "length_m": 0.021723348674533568,
+      "excess_m": 5.3877041716887675e-14,
+      "input_precision_budget_m": 2.0597976395756187e-12,
+      "excess_over_budget": 0.02615647318053437,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40402,
+      "length_m": 0.004651777577213111,
+      "excess_m": 5.001121045067336e-14,
+      "input_precision_budget_m": 2.0596763387673064e-12,
+      "excess_over_budget": 0.024281101602888013,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40406,
+      "length_m": 0.003543615250130928,
+      "excess_m": 2.8297676701871666e-14,
+      "input_precision_budget_m": 2.059668464800391e-12,
+      "excess_over_budget": 0.013738947401233374,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40408,
+      "length_m": 0.0038011609059238256,
+      "excess_m": 2.0886504331629752e-13,
+      "input_precision_budget_m": 2.059670294772339e-12,
+      "excess_over_budget": 0.10140702803085479,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40410,
+      "length_m": 0.0020336237538958277,
+      "excess_m": 4.253455226921332e-14,
+      "input_precision_budget_m": 2.059657735665504e-12,
+      "excess_over_budget": 0.020651272069468287,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40695,
+      "length_m": 0.0009347497311925454,
+      "excess_m": 9.498120605994087e-14,
+      "input_precision_budget_m": 2.05964992769596e-12,
+      "excess_over_budget": 0.04611521831100306,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 40966,
+      "length_m": 0.020381180858960887,
+      "excess_m": 3.814205895569245e-13,
+      "input_precision_budget_m": 2.059788102899702e-12,
+      "excess_over_budget": 0.1851746735598546,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 41083,
+      "length_m": 0.0015438268024595958,
+      "excess_m": 5.448462861434855e-14,
+      "input_precision_budget_m": 2.0596542554488455e-12,
+      "excess_over_budget": 0.026453288686782584,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 41111,
+      "length_m": 0.006738130762657204,
+      "excess_m": 3.923250613269147e-14,
+      "input_precision_budget_m": 2.059691163198308e-12,
+      "excess_over_budget": 0.019047761544876883,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 41223,
+      "length_m": 0.00019019580021253164,
+      "excess_m": 6.689492167664957e-14,
+      "input_precision_budget_m": 2.05964463732209e-12,
+      "excess_over_budget": 0.032478865754057964,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 41240,
+      "length_m": 0.007817036379528375,
+      "excess_m": 8.091617653693817e-14,
+      "input_precision_budget_m": 2.0596988292837942e-12,
+      "excess_over_budget": 0.03928544085499851,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 41742,
+      "length_m": 5.179929445507856e-06,
+      "excess_m": 2.0285275432877555e-13,
+      "input_precision_budget_m": 2.05964332270526e-12,
+      "excess_over_budget": 0.09848926369558808,
+      "old_gate_rejected": true
+    },
+    {
+      "step": 41955,
+      "length_m": 0.0015528820026039405,
+      "excess_m": 8.742897898705859e-14,
+      "input_precision_budget_m": 2.059654319789912e-12,
+      "excess_over_budget": 0.042448375024395586,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42139,
+      "length_m": 0.015438126936490243,
+      "excess_m": 1.2363200740939106e-13,
+      "input_precision_budget_m": 2.0597529803891323e-12,
+      "excess_over_budget": 0.060022735049537,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42204,
+      "length_m": 0.00038708295114601456,
+      "excess_m": 8.817057327303868e-15,
+      "input_precision_budget_m": 2.0596460362894387e-12,
+      "excess_over_budget": 0.004280860483769465,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42261,
+      "length_m": 0.0005157451919857565,
+      "excess_m": 3.6856477071689486e-14,
+      "input_precision_budget_m": 2.0596469504896447e-12,
+      "excess_over_budget": 0.017894560552199255,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42321,
+      "length_m": 0.004864734578440701,
+      "excess_m": 2.2272721861282818e-13,
+      "input_precision_budget_m": 2.0596778519178085e-12,
+      "excess_over_budget": 0.10813691976414772,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42322,
+      "length_m": 0.0019308685320621533,
+      "excess_m": 2.145592731261914e-14,
+      "input_precision_budget_m": 2.0596570055457395e-12,
+      "excess_over_budget": 0.01041723318729666,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42336,
+      "length_m": 0.012940619058830804,
+      "excess_m": 8.775272175576276e-14,
+      "input_precision_budget_m": 2.0597352345283326e-12,
+      "excess_over_budget": 0.04260388436568044,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42596,
+      "length_m": 0.012265277990208824,
+      "excess_m": 1.4264457670609687e-13,
+      "input_precision_budget_m": 2.0597304359414277e-12,
+      "excess_over_budget": 0.06925400247382334,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 42689,
+      "length_m": 0.0017075446932430431,
+      "excess_m": 5.749003703647837e-14,
+      "input_precision_budget_m": 2.0596554187344254e-12,
+      "excess_over_budget": 0.02791245395397433,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 43166,
+      "length_m": 0.00875195570425125,
+      "excess_m": 1.570098218106608e-14,
+      "input_precision_budget_m": 2.0597054722851417e-12,
+      "excess_over_budget": 0.007622925895150735,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 43228,
+      "length_m": 0.004329222940771595,
+      "excess_m": 1.0876889666722178e-13,
+      "input_precision_budget_m": 2.0596740468787682e-12,
+      "excess_over_budget": 0.052808791192980396,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 43316,
+      "length_m": 0.003155922968317341,
+      "excess_m": 1.3346181798601364e-13,
+      "input_precision_budget_m": 2.059665710081045e-12,
+      "excess_over_budget": 0.06479780545589707,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 43321,
+      "length_m": 0.00846911955871552,
+      "excess_m": 4.02247679609502e-14,
+      "input_precision_budget_m": 2.059703462613455e-12,
+      "excess_over_budget": 0.019529397649266946,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 43345,
+      "length_m": 0.003376453869599168,
+      "excess_m": 1.9061488498728352e-13,
+      "input_precision_budget_m": 2.0596672770473442e-12,
+      "excess_over_budget": 0.09254644529797129,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44172,
+      "length_m": 0.0026613320908698184,
+      "excess_m": 7.219095113364382e-14,
+      "input_precision_budget_m": 2.059662195801494e-12,
+      "excess_over_budget": 0.03504989860997645,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44184,
+      "length_m": 0.00022866325559897391,
+      "excess_m": 6.499629393724726e-15,
+      "input_precision_budget_m": 2.0596449106498e-12,
+      "excess_over_budget": 0.003155703859493989,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44290,
+      "length_m": 0.006293583017440822,
+      "excess_m": 1.3844828061770897e-14,
+      "input_precision_budget_m": 2.0596880044965976e-12,
+      "excess_over_budget": 0.006721808366871891,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44435,
+      "length_m": 0.0019762877358857588,
+      "excess_m": 7.866146969903731e-14,
+      "input_precision_budget_m": 2.0596573282685927e-12,
+      "excess_over_budget": 0.038191532455140204,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44526,
+      "length_m": 0.0012821259812063114,
+      "excess_m": 5.7378147372277866e-15,
+      "input_precision_budget_m": 2.059652395952671e-12,
+      "excess_over_budget": 0.002785817038109394,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44547,
+      "length_m": 0.0002980063031000974,
+      "excess_m": 1.7738848584469835e-14,
+      "input_precision_budget_m": 2.0596454033617866e-12,
+      "excess_over_budget": 0.008612574065184326,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44593,
+      "length_m": 0.00021390282419461783,
+      "excess_m": 4.310958599644532e-14,
+      "input_precision_budget_m": 2.0596448057706267e-12,
+      "excess_over_budget": 0.020930592437910987,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44631,
+      "length_m": 0.021920944554872774,
+      "excess_m": 1.201885813095771e-13,
+      "input_precision_budget_m": 2.0597990435787924e-12,
+      "excess_over_budget": 0.05834966361609518,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44632,
+      "length_m": 0.0010339310130130874,
+      "excess_m": 8.464713305289528e-14,
+      "input_precision_budget_m": 2.0596506324213534e-12,
+      "excess_over_budget": 0.04109781130860187,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44635,
+      "length_m": 0.009293883532979075,
+      "excess_m": 2.043851199395874e-14,
+      "input_precision_budget_m": 2.0597093229139615e-12,
+      "excess_over_budget": 0.009923007953881317,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44696,
+      "length_m": 0.001167433804905874,
+      "excess_m": 1.9908076923091933e-13,
+      "input_precision_budget_m": 2.059651581015743e-12,
+      "excess_over_budget": 0.09665749831956537,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44756,
+      "length_m": 0.005434826292652909,
+      "excess_m": 1.3300645307356973e-13,
+      "input_precision_budget_m": 2.059681902663071e-12,
+      "excess_over_budget": 0.0645762109681105,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44833,
+      "length_m": 0.027903168617355215,
+      "excess_m": 8.805456364058273e-14,
+      "input_precision_budget_m": 2.059841549837305e-12,
+      "excess_over_budget": 0.04274822189480431,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44848,
+      "length_m": 0.0006941065225463489,
+      "excess_m": 8.774448181925187e-16,
+      "input_precision_budget_m": 2.0596482178231223e-12,
+      "excess_over_budget": 0.00042601683656440383,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44890,
+      "length_m": 0.010923193832838761,
+      "excess_m": 2.3614790678472275e-14,
+      "input_precision_budget_m": 2.05972089985994e-12,
+      "excess_over_budget": 0.01146504396788811,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44919,
+      "length_m": 0.015329507685754935,
+      "excess_m": 8.624004288471099e-14,
+      "input_precision_budget_m": 2.0597522086029365e-12,
+      "excess_over_budget": 0.04186913480394073,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44921,
+      "length_m": 0.005704871471077701,
+      "excess_m": 1.662038562333379e-14,
+      "input_precision_budget_m": 2.0596838214494704e-12,
+      "excess_over_budget": 0.008069386888535859,
+      "old_gate_rejected": false
+    },
+    {
+      "step": 44955,
+      "length_m": 0.011946179851169688,
+      "excess_m": 1.7035851895830234e-13,
+      "input_precision_budget_m": 2.0597281686127806e-12,
+      "excess_over_budget": 0.08270922423371924,
+      "old_gate_rejected": false
+    }
+  ]
+}

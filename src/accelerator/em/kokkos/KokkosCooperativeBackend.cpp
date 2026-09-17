@@ -22,7 +22,10 @@ class CooperativeBackend final : public KokkosBackendInstance {
  public:
   explicit CooperativeBackend(KokkosRuntimeConfig config)
       : owner_(ownerConfig(config)), slice_observer_(config.cooperative_slice_observer),
-        adaptive_(config.cooperative_policy=="adaptive") {
+        adaptive_(config.cooperative_policy=="adaptive"),
+        cpu_primary_(config.execution_backend=="openmp-cuda") {
+    if(cpu_primary_ && adaptive_)
+      throw std::invalid_argument("openmp-cuda uses the CPU-primary queue policy, not experimental adaptive");
     config.cooperative_owner = false;
     config.runtime_lease = owner_.shareCooperativeLifetime();
     config.execution_backend = "cuda";
@@ -30,7 +33,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
     config.execution_backend = "openmp";
     cpu_ = makeOpenMPBackendInstance(config);
     info_ = gpu_->runtimeInfo();
-    info_.backend = "cuda-openmp";
+    info_.backend = cpu_primary_?"openmp-cuda":"cuda-openmp";
     info_.openmp = true;
   }
   ~CooperativeBackend() override { subshowers_.reset(); driver_.waitIdle(); }
@@ -46,7 +49,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
       throw std::invalid_argument("Cooperative profile requires endpoint integer accumulation");
     // Construct the small CPU workspace first, before any CUDA work is in flight.
     auto host = config;
-    if (!adaptive_) {
+    if (!adaptive_ && !cpu_primary_) {
     host.min_batch_size = 256;
     host.resident_batch_limit = CooperativeHostPolicy::capacity(
         static_cast<std::size_t>(info_.host_threads));
@@ -58,11 +61,16 @@ class CooperativeBackend final : public KokkosBackendInstance {
     // including any explicit user safety cap. No per-thread duplication.
     cpu_->initialize(environment, table, auxiliary, host);
     cpu_->prepareCooperativeWorkspace();
+    if (adaptive_) host_profile_shards_ = cpu_->enableCooperativeHostProfileShards();
     gpu_->initialize(environment, table, auxiliary, config);
     // Allocation/preparation is serialized before either driver starts.
     // Otherwise a cold CUDA arena can delay its first kernels until after
     // the entire first OpenMP batch has already finished.
     gpu_->prepareCooperativeWorkspace();
+    // The auxiliary driver shares the authorized OpenMP CPU partition. Sleep
+    // at existing CUDA result boundaries instead of contending with its worker
+    // barriers. GPU-primary/adaptive and all single endpoints retain fences.
+    if (cpu_primary_) gpu_->setCooperativeBlockingWait(true);
     resetEvent();
   }
   void beginShower(AcceleratedEmShowerConfig const& config) override {
@@ -97,6 +105,11 @@ class CooperativeBackend final : public KokkosBackendInstance {
   }
 
   bool independentSubshowersEnabled() const noexcept override {return true;}
+  // Preserve the primary EM front: completing every selected fallback here
+  // forces tiny scalar-product batches back into the resident driver. Reuse
+  // the existing bounded coordinator queue (4096 or final empty-front flush).
+  // Original GPU-primary and every single-endpoint policy remain unchanged.
+  bool batchIndependentSpecifiedFallbacks() const noexcept override {return adaptive_ || cpu_primary_;}
   bool independentSubshowersReady() const noexcept override {
     return subshowers_ && subshowers_->ready();
   }
@@ -110,7 +123,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
             if(!restored) {affinity();restored=true;}
             if(cudaSetDevice(device)!=cudaSuccess)
               throw std::runtime_error("Independent CUDA driver could not select its device");
-          },slice_observer_,static_cast<std::size_t>(info_.host_threads),adaptive_);
+          },slice_observer_,static_cast<std::size_t>(info_.host_threads),adaptive_,64U<<20,cpu_primary_);
     }
     return subshowers_->advance(input,callbacks);
   }
@@ -119,6 +132,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
       std::vector<EmParticleState> const& input, std::uint64_t first,
       std::size_t waves, std::size_t minimum) override {
     CallScope scope(*this);
+    if(cpu_primary_) throw std::logic_error("CPU-primary execution requires the independent subshower API");
     if(subshowers_) throw std::logic_error("Cannot mix synchronous and independent subshower calls");
     auto split = partition(input, true);
     if (!waves || waves > std::numeric_limits<std::uint64_t>::max()/2/
@@ -143,6 +157,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
       std::vector<EmParticleState> const& input, std::uint64_t first,
       std::size_t waves, std::uint64_t limit, std::size_t minimum) override {
     CallScope scope(*this);
+    if(cpu_primary_) throw std::logic_error("CPU-primary execution requires the independent subshower API");
     if(subshowers_) throw std::logic_error("Cannot mix synchronous and independent subshower calls");
     auto split=partition(input,false);
     if (!waves || limit<first || split.total()>(limit-first)/3)
@@ -172,9 +187,16 @@ class CooperativeBackend final : public KokkosBackendInstance {
       if(subshowers_->inFlight()) throw std::logic_error("Cannot snapshot live endpoint statistics");
     }
     stats_=mergeCooperativeStatistics(gpu_->statistics(),cpu_->statistics());
-    stats_.accelerator_backend="cuda-openmp";
+    stats_.accelerator_backend=info_.backend;
     stats_.accelerator_openmp=true;
     stats_.cooperative=cooperative_;
+    if(cpu_primary_) {
+      requireIdle();
+      auto const wait = gpu_->cooperativeWaitStatistics();
+      stats_.cooperative.auxiliary_blocking_wait_enabled=wait.blocking_enabled;
+      stats_.cooperative.auxiliary_blocking_wait_calls=wait.blocking_calls;
+      stats_.cooperative.auxiliary_blocking_wait_ms=1000.*wait.blocking_host_seconds;
+    }
     stats_.cooperative.openmp_workspace_bytes=cpu_->statistics().physical_workspace_bytes;
     return stats_;
   }
@@ -220,6 +242,12 @@ class CooperativeBackend final : public KokkosBackendInstance {
   BremsFinalStateBatchResult generateLeptonFinalStatesForValidation(std::vector<EmInteractionRecord> const& p,std::uint64_t h) override {return gpu_->generateLeptonFinalStatesForValidation(p,h);}
   gpu::radio::GpuRadioWaveforms projectRadioForValidation(std::vector<LeptonTransportRecord> const&) override {throw std::logic_error("Use endpoint radio oracle, not cooperative accumulator");}
   void setCooperativeProgress(std::function<bool()>) override {throw std::logic_error("Nested cooperative coordinator is forbidden");}
+  void setCooperativeBlockingWait(bool) override {throw std::logic_error("Cooperative wait mode is selected by the coordinator");}
+  CooperativeCudaWaitStatistics cooperativeWaitStatistics() const override {
+    requireIdle();
+    if (subshowers_) subshowers_->requireIdle();
+    return gpu_->cooperativeWaitStatistics();
+  }
   void prepareCooperativeWorkspace() override {throw std::logic_error("Cooperative workspace is already prepared");}
   void setCooperativePendingInputLimit(std::size_t) override {throw std::logic_error("Nested cooperative coordinator is forbidden");}
   std::vector<EmParticleState> takeCooperativePending(bool,std::size_t) override {throw std::logic_error("Nested cooperative migration is forbidden");}
@@ -390,6 +418,8 @@ class CooperativeBackend final : public KokkosBackendInstance {
     subshowers_.reset();
     cooperative_={};cooperative_.enabled=true;
     cooperative_.adaptive_policy=adaptive_;
+    cooperative_.host_profile_shards=host_profile_shards_.first;
+    cooperative_.host_profile_shard_bytes=host_profile_shards_.second;
     cooperative_.independent_drivers=true;
     profile_.reset();radio_.reset();throughput_={};
     identity_="cooperative-shower-"+std::to_string(gpu_->statistics().shower_ordinal);
@@ -405,7 +435,8 @@ class CooperativeBackend final : public KokkosBackendInstance {
   std::optional<GpuProfileResult> profile_;
   std::optional<gpu::radio::GpuRadioWaveforms> radio_;
   std::string identity_;
-  bool active_{},failed_{},adaptive_{};
+  bool active_{},failed_{},adaptive_{},cpu_primary_{};
+  std::pair<std::size_t, std::size_t> host_profile_shards_{};
   std::array<std::array<double,2>,2> throughput_{};
   std::unique_ptr<IndependentSubshowerPump<KokkosBackendInstance>> subshowers_;
   IndependentEndpointDriver driver_; // destroyed/drained before endpoints

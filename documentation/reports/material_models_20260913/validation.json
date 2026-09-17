@@ -1,0 +1,922 @@
+{
+  "backends": {
+    "openmp": [
+      {
+        "material": "S0_SILICA_TRANSPORT_PROXY",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 6.1062412805361194e-09,
+        "proposal_material": {
+          "name": "S0_SILICA_TRANSPORT_PROXY",
+          "density_g_cm3": 2.65,
+          "I_eV": 139.2,
+          "Z_over_A": 0.5,
+          "radiation_length_g_cm2": 27.008056690284796,
+          "components": 2,
+          "composition_hash": 8812398555134298743,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "4ff544caabd07aa43b49addb81db68db5a4ca69c8626e60cd0ed99459ba9ac9e",
+            "auxiliary_hash": "0b4c255a4aa9d3da96c5583e0b04868d0212a923b54e62785812e90a64fe4e9f",
+            "device_bytes": 32074768
+          }
+        ]
+      },
+      {
+        "material": "L0_LIMESTONE_CALCITE_PROXY",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 1.1347694333630494e-08,
+        "proposal_material": {
+          "name": "L0_LIMESTONE_CALCITE_PROXY",
+          "density_g_cm3": 2.71,
+          "I_eV": 136.4,
+          "Z_over_A": 0.5,
+          "radiation_length_g_cm2": 24.00489856585938,
+          "components": 3,
+          "composition_hash": 7998952009459914467,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "41091f13d864540db3d58defdab29b319cb2b23d607e4f37e9415b82111f2b69",
+            "auxiliary_hash": "ce86313e93ac473313aa64b7e27e6a7a160beb08cb5d5c78517d9e50c18f4956",
+            "device_bytes": 46280944
+          }
+        ]
+      },
+      {
+        "material": "G0_GRANITE_REFERENCE",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 3.6721571598969155e-09,
+        "proposal_material": {
+          "name": "G0_GRANITE_REFERENCE",
+          "density_g_cm3": 2.729,
+          "I_eV": 132.0614501519769,
+          "Z_over_A": 0.4963184721760173,
+          "radiation_length_g_cm2": 25.30710460177232,
+          "components": 10,
+          "composition_hash": 1597458689026100836,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "96b9de2a44ba60123f67837bafac0b5c60f970c7e3a3c6a91ea71ae0af0f73e7",
+            "auxiliary_hash": "83a3447ce6cb6245349dd52db20727799b7253d3c3a26055860179906164a000",
+            "device_bytes": 145724176
+          }
+        ]
+      }
+    ],
+    "cuda": [
+      {
+        "material": "S0_SILICA_TRANSPORT_PROXY",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 6.106242720359322e-09,
+        "proposal_material": {
+          "name": "S0_SILICA_TRANSPORT_PROXY",
+          "density_g_cm3": 2.65,
+          "I_eV": 139.2,
+          "Z_over_A": 0.5,
+          "radiation_length_g_cm2": 27.008056690284796,
+          "components": 2,
+          "composition_hash": 8812398555134298743,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "4ff544caabd07aa43b49addb81db68db5a4ca69c8626e60cd0ed99459ba9ac9e",
+            "auxiliary_hash": "0b4c255a4aa9d3da96c5583e0b04868d0212a923b54e62785812e90a64fe4e9f",
+            "device_bytes": 32074768
+          }
+        ]
+      },
+      {
+        "material": "L0_LIMESTONE_CALCITE_PROXY",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 1.1347702168475298e-08,
+        "proposal_material": {
+          "name": "L0_LIMESTONE_CALCITE_PROXY",
+          "density_g_cm3": 2.71,
+          "I_eV": 136.4,
+          "Z_over_A": 0.5,
+          "radiation_length_g_cm2": 24.00489856585938,
+          "components": 3,
+          "composition_hash": 7998952009459914467,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "41091f13d864540db3d58defdab29b319cb2b23d607e4f37e9415b82111f2b69",
+            "auxiliary_hash": "ce86313e93ac473313aa64b7e27e6a7a160beb08cb5d5c78517d9e50c18f4956",
+            "device_bytes": 46280944
+          }
+        ]
+      },
+      {
+        "material": "G0_GRANITE_REFERENCE",
+        "radio_preserves_transport": true,
+        "coreas_zhs_relative_l2": 3.672152559076156e-09,
+        "proposal_material": {
+          "name": "G0_GRANITE_REFERENCE",
+          "density_g_cm3": 2.729,
+          "I_eV": 132.0614501519769,
+          "Z_over_A": 0.4963184721760173,
+          "radiation_length_g_cm2": 25.30710460177232,
+          "components": 10,
+          "composition_hash": 1597458689026100836,
+          "photon_pair_LPM": true
+        },
+        "tables": [
+          {
+            "hash": "759c04c62ed908e400a8783667b2666751b0d3ec2ee048b92467a6a3ff623dd4",
+            "auxiliary_hash": "87dc9f60aca5664207bcef9922fd25df4b8d8a562a6069aa215151c5dcf723fe",
+            "device_bytes": 46280944
+          },
+          {
+            "hash": "96b9de2a44ba60123f67837bafac0b5c60f970c7e3a3c6a91ea71ae0af0f73e7",
+            "auxiliary_hash": "83a3447ce6cb6245349dd52db20727799b7253d3c3a26055860179906164a000",
+            "device_bytes": 145724176
+          }
+        ]
+      }
+    ]
+  },
+  "lpm": {
+    "silica": {
+      "points": 240,
+      "maximum_relative_error": 3.8715631408621793e-16
+    },
+    "limestone": {
+      "points": 360,
+      "maximum_relative_error": 2.992464588868088e-16
+    },
+    "granite": {
+      "points": 1200,
+      "maximum_relative_error": 2.805122643723637e-16
+    }
+  },
+  "cross_backend_table_identity": true,
+  "materials": {
+    "silica": {
+      "id": "S0_SILICA_TRANSPORT_PROXY",
+      "description": "Silica transport proxy (SiO2)",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2650,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "Si",
+            "Z": 14,
+            "A": 28,
+            "number_fraction": 0.3333333333333333
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.6666666666666666
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2650,
+          "I_eV": 139.2,
+          "Cbar": 3.81679772036614,
+          "x0": 0.09808840344269923,
+          "x1": 2.9620884034426993,
+          "a": 0.08408,
+          "m": 3.5064,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.23606797749979,
+        "field_attenuation_length_m": 100,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    },
+    "limestone": {
+      "id": "L0_LIMESTONE_CALCITE_PROXY",
+      "description": "Dense calcite / limestone proxy (CaCO3)",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2710,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "C",
+            "Z": 6,
+            "A": 12,
+            "number_fraction": 0.2
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.6
+          },
+          {
+            "element": "Ca",
+            "Z": 20,
+            "A": 40,
+            "number_fraction": 0.2
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2710,
+          "I_eV": 136.4,
+          "Cbar": 3.8064707822895487,
+          "x0": 0.056294370233906744,
+          "x1": 3.0619943702339065,
+          "a": 0.08301,
+          "m": 3.412,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.449489742783178,
+        "field_attenuation_length_m": 14.476482730108396,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    },
+    "granite": {
+      "id": "G0_GRANITE_REFERENCE",
+      "description": "Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe); PNNL composition, Bragg-Sternheimer ionisation approximation",
+      "provenance": "documentation/materials.yaml (2026-09-13); synthetic radio constants, not site measurements",
+      "transport": {
+        "density_kg_m3": 2729,
+        "composition_basis": "nucleus_number_fraction",
+        "nuclei": [
+          {
+            "element": "H",
+            "Z": 1,
+            "A": 1,
+            "number_fraction": 0.027122
+          },
+          {
+            "element": "C",
+            "Z": 6,
+            "A": 12,
+            "number_fraction": 0.000502
+          },
+          {
+            "element": "O",
+            "Z": 8,
+            "A": 16,
+            "number_fraction": 0.607735
+          },
+          {
+            "element": "Na",
+            "Z": 11,
+            "A": 23,
+            "number_fraction": 0.025866
+          },
+          {
+            "element": "Mg",
+            "Z": 12,
+            "A": 24,
+            "number_fraction": 0.018081
+          },
+          {
+            "element": "Al",
+            "Z": 13,
+            "A": 27,
+            "number_fraction": 0.062783
+          },
+          {
+            "element": "Si",
+            "Z": 14,
+            "A": 28,
+            "number_fraction": 0.205927
+          },
+          {
+            "element": "K",
+            "Z": 19,
+            "A": 39,
+            "number_fraction": 0.013938
+          },
+          {
+            "element": "Ca",
+            "Z": 20,
+            "A": 40,
+            "number_fraction": 0.01896
+          },
+          {
+            "element": "Fe",
+            "Z": 26,
+            "A": 56,
+            "number_fraction": 0.019086
+          }
+        ],
+        "ionisation": {
+          "model": "explicit",
+          "reference_density_kg_m3": 2729,
+          "I_eV": 132.0614501519769,
+          "Cbar": 3.741275350138768,
+          "x0": 0.2,
+          "x1": 3,
+          "a": 0.1284730918796078,
+          "m": 3,
+          "delta0": 0
+        }
+      },
+      "radio": {
+        "model": "constant_real_index_and_grey_field_attenuation",
+        "refractive_index": 2.23606797749979,
+        "field_attenuation_length_m": 86.85889638065036,
+        "relative_permeability": 1
+      },
+      "magnetic_field_enu_T": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "fluka_target_comparison": {
+    "exact_output_identity": true,
+    "cross_section_points": 120,
+    "same_seed_events": 3,
+    "binary_sha256": "8c4f87b5e67e752b24acf1d4c3a3477d15cf69955233665ec632e5897f4ba1b3"
+  },
+  "cuda_residency": {
+    "silica": {
+      "checks": {
+        "cuda_execution": true,
+        "resident_queue": true,
+        "gpu_transport": true,
+        "gpu_coreas": true,
+        "gpu_zhs": true,
+        "resident_particle_allocation": true,
+        "one_final_copy_per_radio_grid": true
+      },
+      "kernels": {
+        "transport": 1034,
+        "CoREAS": 1,
+        "ZHS": 1
+      },
+      "grid_downloads": {
+        "interface_radio_moments": 1,
+        "interface_radio_coreas_regularized_moments": 1,
+        "interface_radio_zhs_moments": 1
+      },
+      "uploaded_particles": 1,
+      "device_enqueued_particles": 4817,
+      "control_downloads": 1034,
+      "record_downloads": 2
+    },
+    "limestone": {
+      "checks": {
+        "cuda_execution": true,
+        "resident_queue": true,
+        "gpu_transport": true,
+        "gpu_coreas": true,
+        "gpu_zhs": true,
+        "resident_particle_allocation": true,
+        "one_final_copy_per_radio_grid": true
+      },
+      "kernels": {
+        "transport": 606,
+        "CoREAS": 1,
+        "ZHS": 1
+      },
+      "grid_downloads": {
+        "interface_radio_moments": 1,
+        "interface_radio_coreas_regularized_moments": 1,
+        "interface_radio_zhs_moments": 1
+      },
+      "uploaded_particles": 1,
+      "device_enqueued_particles": 5203,
+      "control_downloads": 606,
+      "record_downloads": 2
+    },
+    "granite": {
+      "checks": {
+        "cuda_execution": true,
+        "resident_queue": true,
+        "gpu_transport": true,
+        "gpu_coreas": true,
+        "gpu_zhs": true,
+        "resident_particle_allocation": true,
+        "one_final_copy_per_radio_grid": true
+      },
+      "kernels": {
+        "transport": 1220,
+        "CoREAS": 1,
+        "ZHS": 1
+      },
+      "grid_downloads": {
+        "interface_radio_moments": 1,
+        "interface_radio_coreas_regularized_moments": 1,
+        "interface_radio_zhs_moments": 1
+      },
+      "uploaded_particles": 1,
+      "device_enqueued_particles": 5428,
+      "control_downloads": 1220,
+      "record_downloads": 2
+    }
+  },
+  "runs": [
+    {
+      "tag": "cpu_limestone",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 64.13004181202268,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 3.3046482217358176e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": null
+    },
+    {
+      "tag": "cuda_granite_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 77.1203393760079,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 1.2559397966072084e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 16,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "cuda_granite_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 85.3161644290085,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 1.2559397966072084e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 16,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "cuda_granite_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 77.13907311699586,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": -4.1973369224734826e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 30,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "cuda_limestone_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 66.98637677598163,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 2.3852447794681098e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 15,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "cuda_limestone_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 75.0513231199875,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 2.3852447794681098e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 15,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "cuda_limestone_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 66.99170514498837,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": -6.109002192999924e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 22,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "cuda_silica_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 64.94532402200275,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 9.883587004377859e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 13,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "cuda_silica_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 73.03870575499604,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 9.883587004377859e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 13,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "cuda_silica_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 64.9632546119974,
+      "binary_sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555",
+      "energy_ledger_relative_residual": 2.350897254643769e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 7,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_granite_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 80.1441351090034,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": -8.174884380540703e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 16,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_granite_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 78.14413937399513,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": -8.174884380540703e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 16,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "openmp_granite_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 76.1110761630116,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": -4.4179937486177324e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 30,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_limestone_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 66.12092705798568,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 2.4234086959395993e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 15,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_limestone_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 68.12805382700753,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 2.4234086959395993e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 15,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "openmp_limestone_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 66.12162851198809,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": -7.725764472610308e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 22,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_silica_off",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 64.11763193499064,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 3.905296225292787e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 13,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    },
+    {
+      "tag": "openmp_silica_on",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 66.14282604301115,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 3.905296225292787e-17,
+      "material_mismatches": 0,
+      "finite_window_survivors": 13,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true,
+        "radio_complete": true,
+        "both_algorithms": true,
+        "radio_errors": true,
+        "single_finalization": true,
+        "three_grids": true,
+        "paired_source_precision": true,
+        "source_inventory": true,
+        "csv_count": true,
+        "finite_transport": true,
+        "causal_transport": true,
+        "paired_equivalence": true,
+        "finite_radio": true
+      }
+    },
+    {
+      "tag": "openmp_silica_proton",
+      "complete": true,
+      "returncode": 0,
+      "wall_s": 64.09459155600052,
+      "binary_sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5",
+      "energy_ledger_relative_residual": 1.2927159342979166e-16,
+      "material_mismatches": 0,
+      "finite_window_survivors": 7,
+      "checks": {
+        "complete": true,
+        "pending_empty": true,
+        "medium_valid": true,
+        "all_tracks": true,
+        "all_deposits": true,
+        "energy_ledger": true,
+        "natural_tau": true,
+        "neutrino_vertex_conservation": true,
+        "tau_decay_conservation": true
+      }
+    }
+  ],
+  "warning": "Integration/oracle checks, not mineral sample validation or full shower convergence."
+}

@@ -1,0 +1,576 @@
+[
+  {
+    "case": "electron",
+    "radio_does_not_change_transport": true,
+    "pair": [
+      {
+        "folder": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_electron_off",
+        "checks": {
+          "checks": {
+            "complete": true,
+            "pending_empty": true,
+            "medium_valid": true,
+            "all_tracks": true,
+            "all_deposits": true,
+            "energy_ledger": true,
+            "natural_tau": true,
+            "neutrino_vertex_conservation": true,
+            "tau_decay_conservation": true
+          }
+        },
+        "hashes": {
+          "window_survivors.csv": "9148f4e0801ea34e8e2f71b8872b9b3b1c7366c14ad153228b100e31988aa602",
+          "deposits.csv": "1e39915e223160f868619918af250ae9af84a647ce360fd53dc3338bc489eaeb",
+          "tracks.csv": "dea2e9b4e374863cc773eda2469fcb4a258c34c33e40278104040384e9f964f0"
+        },
+        "tau": {
+          "tau_mass_GeV": 1.77693,
+          "tau_rest_lifetime_s": 2.903449e-13,
+          "tau_decay_count": 0,
+          "decays": [],
+          "native_decay_scheduling": true,
+          "force_decay_called": false,
+          "decay_model": "stock CORSIKA TAUOLA for transported tau; Pythia8 for other decays",
+          "tau_decay_backend": "tauola",
+          "upstream_tauola_helicity": "left",
+          "tauola_cpp_rng": "CORSIKA tauola stream",
+          "tauola_fortran_rng": "RANMAR seeded once from CORSIKA tauola stream",
+          "tauola_fortran_seed": 404038902,
+          "tauola_high_energy_boost": "E>=1000 GeV: conditioned generation frame + known-mass COMBoost",
+          "tauola_mass_convention": "scoped CORSIKA stable-particle masses v1; Fortran REAL*4 precision; original globals restored",
+          "tauola_effective_nutau_mass_GeV": 0,
+          "tauola_decay_energy_renormalized": false,
+          "spin_density_matrix_transferred_from_CC": false,
+          "prescribed_polarization_enabled": false,
+          "polarization_model": "original_CORSIKA_fixed_TAUOLA_helicity_NOT_event_CC_spin",
+          "energy_loss_depolarization_included": false,
+          "longitudinal_polarization_at_decay_supported": true,
+          "transverse_spin_transport_included": false
+        },
+        "neutrino": {
+          "schema_version": 4,
+          "module": "corsika.modules.neutrino.MountainNeutrinoInteraction",
+          "physics_scope": "selected_CC_NC_channels_free_stationary_nucleon_impulse_approximation",
+          "neutral_current_included": true,
+          "charged_current_included": true,
+          "regenerated_neutrinos_reenter_transport": true,
+          "regeneration_energy_domain_GeV": [
+            10000,
+            1000000000000
+          ],
+          "full_neutrino_physics_validated": false,
+          "nuclear_shadowing_included": false,
+          "complete_tau_regeneration_included": false,
+          "earth_propagation_included": false,
+          "forced_vertex_is_conditional": false,
+          "event_rate_weight_provided": false,
+          "geometry_probability_weight_provided": false,
+          "forced_target_selection": "composition_times_A_times_enabled_CTW_rates_isoscalar",
+          "pythia_final_state_Q2_min_GeV2": 25,
+          "low_Q2_final_states_validated": false,
+          "primary_energy_min_GeV": 10000,
+          "primary_energy_max_GeV": 1000000000000,
+          "secondary_below_fit_treatment": "zero_CC_NC_rate_transport_to_escape_not_energy_deposition_MODEL_LIMITATION",
+          "sampling_mode": "natural_exponential_grammage",
+          "force_interaction_called": false,
+          "final_state_generator": "CORSIKA8_Pythia8_selected_CC_or_NC_project_local_audited",
+          "target_kinematics_convention": "impulse_approximation_free_stationary_p_or_n_sampled_from_Z_over_A",
+          "residual_nucleus_treatment": "not_present_in_inclusive_neutrino_nucleon_final_state",
+          "cross_section_model": "CTW2011_CC_NC_central_isoscalar_per_nucleon",
+          "cross_section_reference": "Connolly_Thorne_Waters_PRD83_113009_2011_Eq7_TableIII",
+          "interaction_count": 0
+        }
+      },
+      {
+        "folder": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_electron_on",
+        "checks": {
+          "checks": {
+            "complete": true,
+            "pending_empty": true,
+            "medium_valid": true,
+            "all_tracks": true,
+            "all_deposits": true,
+            "energy_ledger": true,
+            "natural_tau": true,
+            "neutrino_vertex_conservation": true,
+            "tau_decay_conservation": true,
+            "radio_complete": true,
+            "both_algorithms": true,
+            "radio_errors": true,
+            "single_finalization": true,
+            "three_grids": true,
+            "paired_source_precision": true,
+            "source_inventory": true,
+            "csv_count": true,
+            "finite_transport": true,
+            "causal_transport": true,
+            "paired_equivalence": true,
+            "finite_radio": true
+          },
+          "charged_tracks": 358,
+          "coreas_zhs_relative_l2": 4.3076102651030543e-10,
+          "radio": {
+            "CoREAS": {
+              "algorithm": "CoREAS interface endpoints",
+              "device_tracks": 358,
+              "cpu_tracks": 0,
+              "roundoff_limited_tracks": 0,
+              "track_observer_pairs": 716,
+              "paths": 356,
+              "direct_paths": 355,
+              "transmitted_paths": 1,
+              "blocked_paths": 424,
+              "leaves": 782,
+              "downloads": 1,
+              "wavefronts": 1,
+              "out_of_window": 0,
+              "errors": 0,
+              "moment_arrays": 2,
+              "moment_bytes": 81788928,
+              "endpoint_contributions": 542,
+              "regularized_pairs": 85,
+              "boundary_endpoints": 0,
+              "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_electron_on/output/radio/CoREAS",
+              "complete": true
+            },
+            "ZHS": {
+              "algorithm": "ZHS continuous interval moments",
+              "device_tracks": 358,
+              "cpu_tracks": 0,
+              "roundoff_limited_tracks": 0,
+              "track_observer_pairs": 716,
+              "paths": 356,
+              "direct_paths": 355,
+              "transmitted_paths": 1,
+              "blocked_paths": 424,
+              "leaves": 782,
+              "downloads": 1,
+              "wavefronts": 1,
+              "out_of_window": 0,
+              "errors": 0,
+              "moment_arrays": 1,
+              "moment_bytes": 40894464,
+              "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_electron_on/output/radio/ZHS",
+              "complete": true
+            },
+            "algorithms": [
+              "CoREAS",
+              "ZHS"
+            ],
+            "execution_space": "Cuda",
+            "device_tracks": 358,
+            "cpu_tracks": 0,
+            "track_observer_pairs": 716,
+            "downloads": 1,
+            "moment_arrays": 3,
+            "wavefronts": 1,
+            "radio_kernel_launches": 2,
+            "device_bytes": 139020576,
+            "out_of_window": 0,
+            "errors": 0,
+            "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_electron_on/output/radio",
+            "complete": true
+          }
+        },
+        "hashes": {
+          "window_survivors.csv": "9148f4e0801ea34e8e2f71b8872b9b3b1c7366c14ad153228b100e31988aa602",
+          "deposits.csv": "1e39915e223160f868619918af250ae9af84a647ce360fd53dc3338bc489eaeb",
+          "tracks.csv": "dea2e9b4e374863cc773eda2469fcb4a258c34c33e40278104040384e9f964f0"
+        },
+        "tau": {
+          "tau_mass_GeV": 1.77693,
+          "tau_rest_lifetime_s": 2.903449e-13,
+          "tau_decay_count": 0,
+          "decays": [],
+          "native_decay_scheduling": true,
+          "force_decay_called": false,
+          "decay_model": "stock CORSIKA TAUOLA for transported tau; Pythia8 for other decays",
+          "tau_decay_backend": "tauola",
+          "upstream_tauola_helicity": "left",
+          "tauola_cpp_rng": "CORSIKA tauola stream",
+          "tauola_fortran_rng": "RANMAR seeded once from CORSIKA tauola stream",
+          "tauola_fortran_seed": 404038902,
+          "tauola_high_energy_boost": "E>=1000 GeV: conditioned generation frame + known-mass COMBoost",
+          "tauola_mass_convention": "scoped CORSIKA stable-particle masses v1; Fortran REAL*4 precision; original globals restored",
+          "tauola_effective_nutau_mass_GeV": 0,
+          "tauola_decay_energy_renormalized": false,
+          "spin_density_matrix_transferred_from_CC": false,
+          "prescribed_polarization_enabled": false,
+          "polarization_model": "original_CORSIKA_fixed_TAUOLA_helicity_NOT_event_CC_spin",
+          "energy_loss_depolarization_included": false,
+          "longitudinal_polarization_at_decay_supported": true,
+          "transverse_spin_transport_included": false
+        },
+        "neutrino": {
+          "schema_version": 4,
+          "module": "corsika.modules.neutrino.MountainNeutrinoInteraction",
+          "physics_scope": "selected_CC_NC_channels_free_stationary_nucleon_impulse_approximation",
+          "neutral_current_included": true,
+          "charged_current_included": true,
+          "regenerated_neutrinos_reenter_transport": true,
+          "regeneration_energy_domain_GeV": [
+            10000,
+            1000000000000
+          ],
+          "full_neutrino_physics_validated": false,
+          "nuclear_shadowing_included": false,
+          "complete_tau_regeneration_included": false,
+          "earth_propagation_included": false,
+          "forced_vertex_is_conditional": false,
+          "event_rate_weight_provided": false,
+          "geometry_probability_weight_provided": false,
+          "forced_target_selection": "composition_times_A_times_enabled_CTW_rates_isoscalar",
+          "pythia_final_state_Q2_min_GeV2": 25,
+          "low_Q2_final_states_validated": false,
+          "primary_energy_min_GeV": 10000,
+          "primary_energy_max_GeV": 1000000000000,
+          "secondary_below_fit_treatment": "zero_CC_NC_rate_transport_to_escape_not_energy_deposition_MODEL_LIMITATION",
+          "sampling_mode": "natural_exponential_grammage",
+          "force_interaction_called": false,
+          "final_state_generator": "CORSIKA8_Pythia8_selected_CC_or_NC_project_local_audited",
+          "target_kinematics_convention": "impulse_approximation_free_stationary_p_or_n_sampled_from_Z_over_A",
+          "residual_nucleus_treatment": "not_present_in_inclusive_neutrino_nucleon_final_state",
+          "cross_section_model": "CTW2011_CC_NC_central_isoscalar_per_nucleon",
+          "cross_section_reference": "Connolly_Thorne_Waters_PRD83_113009_2011_Eq7_TableIII",
+          "interaction_count": 0
+        }
+      }
+    ],
+    "pre_refinement_baseline_comparison": {
+      "unchanged": false,
+      "moment_relative_l2": {
+        "CoREAS/moments.bin": 0.7443497487824206,
+        "CoREAS/regularized_moments.bin": 0.6182584723087136,
+        "ZHS/moments.bin": 0.3141608132740741
+      },
+      "transport_csv_identical": false,
+      "transport_refinement_expected": true
+    }
+  },
+  {
+    "case": "tau",
+    "radio_does_not_change_transport": true,
+    "pair": [
+      {
+        "folder": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_tau_off",
+        "checks": {
+          "checks": {
+            "complete": true,
+            "pending_empty": true,
+            "medium_valid": true,
+            "all_tracks": true,
+            "all_deposits": true,
+            "energy_ledger": true,
+            "natural_tau": true,
+            "neutrino_vertex_conservation": true,
+            "tau_decay_conservation": true
+          }
+        },
+        "hashes": {
+          "window_survivors.csv": "2d5a3d07e1ebbc80dce9ce55f75866cb47db3a22b6cb297a452219cc23cf5728",
+          "deposits.csv": "aacb3f52a29e5c2a4bcf859bd9912f223f57610c72d3a06852318ef047fcc14a",
+          "tracks.csv": "c86bc37b4298820d1299fd901f15358acb4c095f147f3b727ed7361fef0b5cbc"
+        },
+        "tau": {
+          "tau_mass_GeV": 1.77693,
+          "tau_rest_lifetime_s": 2.903449e-13,
+          "tau_decay_count": 1,
+          "decays": [
+            {
+              "parent_pdg": 15,
+              "history_id": 1,
+              "parent_history_id": 0,
+              "generation": 0,
+              "time_ns": 0.15825339964245372,
+              "energy_GeV": 999.9947433675148,
+              "weight": 1,
+              "position_enu_m": [
+                1.794839007340085e-07,
+                -1.6429020789695517e-07,
+                0.03744310076375286
+              ],
+              "medium": "air",
+              "density_kg_m3": 0.9247422663261746,
+              "daughters": [
+                {
+                  "pdg": 16,
+                  "energy_GeV": 419.38163090696986,
+                  "history_id": 2,
+                  "parent_history_id": 1
+                },
+                {
+                  "pdg": 11,
+                  "energy_GeV": 310.89437055288795,
+                  "history_id": 3,
+                  "parent_history_id": 1
+                },
+                {
+                  "pdg": -12,
+                  "energy_GeV": 269.7187461130837,
+                  "history_id": 4,
+                  "parent_history_id": 1
+                }
+              ],
+              "relative_energy_residual": 4.205448742240661e-09,
+              "relative_momentum_residual": 4.205660887519391e-09
+            }
+          ],
+          "native_decay_scheduling": true,
+          "force_decay_called": false,
+          "decay_model": "stock CORSIKA TAUOLA for transported tau; Pythia8 for other decays",
+          "tau_decay_backend": "tauola",
+          "upstream_tauola_helicity": "left",
+          "tauola_cpp_rng": "CORSIKA tauola stream",
+          "tauola_fortran_rng": "RANMAR seeded once from CORSIKA tauola stream",
+          "tauola_fortran_seed": 582080605,
+          "tauola_high_energy_boost": "E>=1000 GeV: conditioned generation frame + known-mass COMBoost",
+          "tauola_mass_convention": "scoped CORSIKA stable-particle masses v1; Fortran REAL*4 precision; original globals restored",
+          "tauola_effective_nutau_mass_GeV": 0,
+          "tauola_decay_energy_renormalized": false,
+          "spin_density_matrix_transferred_from_CC": false,
+          "prescribed_polarization_enabled": false,
+          "polarization_model": "original_CORSIKA_fixed_TAUOLA_helicity_NOT_event_CC_spin",
+          "energy_loss_depolarization_included": false,
+          "longitudinal_polarization_at_decay_supported": true,
+          "transverse_spin_transport_included": false
+        },
+        "neutrino": {
+          "schema_version": 4,
+          "module": "corsika.modules.neutrino.MountainNeutrinoInteraction",
+          "physics_scope": "selected_CC_NC_channels_free_stationary_nucleon_impulse_approximation",
+          "neutral_current_included": true,
+          "charged_current_included": true,
+          "regenerated_neutrinos_reenter_transport": true,
+          "regeneration_energy_domain_GeV": [
+            10000,
+            1000000000000
+          ],
+          "full_neutrino_physics_validated": false,
+          "nuclear_shadowing_included": false,
+          "complete_tau_regeneration_included": false,
+          "earth_propagation_included": false,
+          "forced_vertex_is_conditional": false,
+          "event_rate_weight_provided": false,
+          "geometry_probability_weight_provided": false,
+          "forced_target_selection": "composition_times_A_times_enabled_CTW_rates_isoscalar",
+          "pythia_final_state_Q2_min_GeV2": 25,
+          "low_Q2_final_states_validated": false,
+          "primary_energy_min_GeV": 10000,
+          "primary_energy_max_GeV": 1000000000000,
+          "secondary_below_fit_treatment": "zero_CC_NC_rate_transport_to_escape_not_energy_deposition_MODEL_LIMITATION",
+          "sampling_mode": "natural_exponential_grammage",
+          "force_interaction_called": false,
+          "final_state_generator": "CORSIKA8_Pythia8_selected_CC_or_NC_project_local_audited",
+          "target_kinematics_convention": "impulse_approximation_free_stationary_p_or_n_sampled_from_Z_over_A",
+          "residual_nucleus_treatment": "not_present_in_inclusive_neutrino_nucleon_final_state",
+          "cross_section_model": "CTW2011_CC_NC_central_isoscalar_per_nucleon",
+          "cross_section_reference": "Connolly_Thorne_Waters_PRD83_113009_2011_Eq7_TableIII",
+          "interaction_count": 0
+        }
+      },
+      {
+        "folder": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_tau_on",
+        "checks": {
+          "checks": {
+            "complete": true,
+            "pending_empty": true,
+            "medium_valid": true,
+            "all_tracks": true,
+            "all_deposits": true,
+            "energy_ledger": true,
+            "natural_tau": true,
+            "neutrino_vertex_conservation": true,
+            "tau_decay_conservation": true,
+            "radio_complete": true,
+            "both_algorithms": true,
+            "radio_errors": true,
+            "single_finalization": true,
+            "three_grids": true,
+            "paired_source_precision": true,
+            "source_inventory": true,
+            "csv_count": true,
+            "finite_transport": true,
+            "causal_transport": true,
+            "paired_equivalence": true,
+            "finite_radio": true
+          },
+          "charged_tracks": 14,
+          "coreas_zhs_relative_l2": 3.8366382507813416e-10,
+          "radio": {
+            "CoREAS": {
+              "algorithm": "CoREAS interface endpoints",
+              "device_tracks": 12,
+              "cpu_tracks": 2,
+              "roundoff_limited_tracks": 1,
+              "track_observer_pairs": 28,
+              "paths": 213,
+              "direct_paths": 213,
+              "transmitted_paths": 0,
+              "blocked_paths": 105,
+              "leaves": 319,
+              "downloads": 1,
+              "wavefronts": 2,
+              "out_of_window": 0,
+              "errors": 0,
+              "moment_arrays": 2,
+              "moment_bytes": 81788928,
+              "endpoint_contributions": 344,
+              "regularized_pairs": 13,
+              "boundary_endpoints": 0,
+              "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_tau_on/output/radio/CoREAS",
+              "complete": true
+            },
+            "ZHS": {
+              "algorithm": "ZHS continuous interval moments",
+              "device_tracks": 12,
+              "cpu_tracks": 2,
+              "roundoff_limited_tracks": 1,
+              "track_observer_pairs": 28,
+              "paths": 213,
+              "direct_paths": 213,
+              "transmitted_paths": 0,
+              "blocked_paths": 105,
+              "leaves": 319,
+              "downloads": 1,
+              "wavefronts": 2,
+              "out_of_window": 0,
+              "errors": 0,
+              "moment_arrays": 1,
+              "moment_bytes": 40894464,
+              "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_tau_on/output/radio/ZHS",
+              "complete": true
+            },
+            "algorithms": [
+              "CoREAS",
+              "ZHS"
+            ],
+            "execution_space": "Cuda",
+            "device_tracks": 12,
+            "cpu_tracks": 2,
+            "track_observer_pairs": 28,
+            "downloads": 1,
+            "moment_arrays": 3,
+            "wavefronts": 2,
+            "radio_kernel_launches": 4,
+            "device_bytes": 139020576,
+            "out_of_window": 0,
+            "errors": 0,
+            "directory": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_doublebang_radio_audit_20260912/runs/magnetic_cuda_tau_on/output/radio",
+            "complete": true
+          }
+        },
+        "hashes": {
+          "window_survivors.csv": "2d5a3d07e1ebbc80dce9ce55f75866cb47db3a22b6cb297a452219cc23cf5728",
+          "deposits.csv": "aacb3f52a29e5c2a4bcf859bd9912f223f57610c72d3a06852318ef047fcc14a",
+          "tracks.csv": "c86bc37b4298820d1299fd901f15358acb4c095f147f3b727ed7361fef0b5cbc"
+        },
+        "tau": {
+          "tau_mass_GeV": 1.77693,
+          "tau_rest_lifetime_s": 2.903449e-13,
+          "tau_decay_count": 1,
+          "decays": [
+            {
+              "parent_pdg": 15,
+              "history_id": 1,
+              "parent_history_id": 0,
+              "generation": 0,
+              "time_ns": 0.15825339964245372,
+              "energy_GeV": 999.9947433675148,
+              "weight": 1,
+              "position_enu_m": [
+                1.794839007340085e-07,
+                -1.6429020789695517e-07,
+                0.03744310076375286
+              ],
+              "medium": "air",
+              "density_kg_m3": 0.9247422663261746,
+              "daughters": [
+                {
+                  "pdg": 16,
+                  "energy_GeV": 419.38163090696986,
+                  "history_id": 2,
+                  "parent_history_id": 1
+                },
+                {
+                  "pdg": 11,
+                  "energy_GeV": 310.89437055288795,
+                  "history_id": 3,
+                  "parent_history_id": 1
+                },
+                {
+                  "pdg": -12,
+                  "energy_GeV": 269.7187461130837,
+                  "history_id": 4,
+                  "parent_history_id": 1
+                }
+              ],
+              "relative_energy_residual": 4.205448742240661e-09,
+              "relative_momentum_residual": 4.205660887519391e-09
+            }
+          ],
+          "native_decay_scheduling": true,
+          "force_decay_called": false,
+          "decay_model": "stock CORSIKA TAUOLA for transported tau; Pythia8 for other decays",
+          "tau_decay_backend": "tauola",
+          "upstream_tauola_helicity": "left",
+          "tauola_cpp_rng": "CORSIKA tauola stream",
+          "tauola_fortran_rng": "RANMAR seeded once from CORSIKA tauola stream",
+          "tauola_fortran_seed": 582080605,
+          "tauola_high_energy_boost": "E>=1000 GeV: conditioned generation frame + known-mass COMBoost",
+          "tauola_mass_convention": "scoped CORSIKA stable-particle masses v1; Fortran REAL*4 precision; original globals restored",
+          "tauola_effective_nutau_mass_GeV": 0,
+          "tauola_decay_energy_renormalized": false,
+          "spin_density_matrix_transferred_from_CC": false,
+          "prescribed_polarization_enabled": false,
+          "polarization_model": "original_CORSIKA_fixed_TAUOLA_helicity_NOT_event_CC_spin",
+          "energy_loss_depolarization_included": false,
+          "longitudinal_polarization_at_decay_supported": true,
+          "transverse_spin_transport_included": false
+        },
+        "neutrino": {
+          "schema_version": 4,
+          "module": "corsika.modules.neutrino.MountainNeutrinoInteraction",
+          "physics_scope": "selected_CC_NC_channels_free_stationary_nucleon_impulse_approximation",
+          "neutral_current_included": true,
+          "charged_current_included": true,
+          "regenerated_neutrinos_reenter_transport": true,
+          "regeneration_energy_domain_GeV": [
+            10000,
+            1000000000000
+          ],
+          "full_neutrino_physics_validated": false,
+          "nuclear_shadowing_included": false,
+          "complete_tau_regeneration_included": false,
+          "earth_propagation_included": false,
+          "forced_vertex_is_conditional": false,
+          "event_rate_weight_provided": false,
+          "geometry_probability_weight_provided": false,
+          "forced_target_selection": "composition_times_A_times_enabled_CTW_rates_isoscalar",
+          "pythia_final_state_Q2_min_GeV2": 25,
+          "low_Q2_final_states_validated": false,
+          "primary_energy_min_GeV": 10000,
+          "primary_energy_max_GeV": 1000000000000,
+          "secondary_below_fit_treatment": "zero_CC_NC_rate_transport_to_escape_not_energy_deposition_MODEL_LIMITATION",
+          "sampling_mode": "natural_exponential_grammage",
+          "force_interaction_called": false,
+          "final_state_generator": "CORSIKA8_Pythia8_selected_CC_or_NC_project_local_audited",
+          "target_kinematics_convention": "impulse_approximation_free_stationary_p_or_n_sampled_from_Z_over_A",
+          "residual_nucleus_treatment": "not_present_in_inclusive_neutrino_nucleon_final_state",
+          "cross_section_model": "CTW2011_CC_NC_central_isoscalar_per_nucleon",
+          "cross_section_reference": "Connolly_Thorne_Waters_PRD83_113009_2011_Eq7_TableIII",
+          "interaction_count": 0
+        }
+      }
+    ],
+    "pre_refinement_baseline_comparison": {
+      "unchanged": true,
+      "moment_relative_l2": {
+        "CoREAS/moments.bin": 9.286389464955827e-12,
+        "CoREAS/regularized_moments.bin": 4.417028661415385e-12,
+        "ZHS/moments.bin": 3.884175369723366e-12
+      },
+      "transport_csv_identical": true,
+      "transport_refinement_expected": true
+    }
+  }
+]

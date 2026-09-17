@@ -10,6 +10,7 @@
 #include <corsika/media/UniformRefractiveIndex.hpp>
 #include <corsika/media/UniformMagneticField.hpp>
 #include <corsika/modules/transport/HomogeneousMaterial.hpp>
+#include <corsika/modules/transport/MaterialModel.hpp>
 
 namespace corsika::terrain {
   using Interface=IRefractiveIndexModel<IMediumPropertyModel<IMagneticFieldModel<IMediumModel>>>;
@@ -29,6 +30,9 @@ namespace corsika::terrain {
     Medium embedded_medium{Medium::SiliconDioxideFusedQuartz};
     std::vector<Code> embedded_nuclei{get_nucleus_code(28,14),Code::Oxygen};
     std::vector<double> embedded_number_fractions{1./3.,2./3.};
+    // Optional reusable material card. Legacy direct C++ geometry callers keep
+    // their explicit homogeneous material; YAML scenes always resolve a card.
+    std::shared_ptr<interfaces::MaterialModel const> material{};
   };
   inline Point earthCenter(Environment const& env,TerrainAtmosphereConfig const& cfg) {
     return Point(env.getCoordinateSystem(),0_m,0_m,
@@ -84,7 +88,8 @@ namespace corsika::terrain {
     auto rock=env.createNode<ClosedMesh>(std::move(mesh));
     interfaces::HomogeneousMaterial material{cfg.embedded_medium,NuclearComposition(cfg.embedded_nuclei,cfg.embedded_number_fractions),
         cfg.rock_density_g_cm3,cfg.rock_refractive_index,{0.,0.,0.}};
-    rock->setModelProperties(material.makeModel<Interface>(env.getCoordinateSystem()));
+    if(cfg.material) rock->setModelProperties(cfg.material->makeModel<Interface>(env.getCoordinateSystem()));
+    else rock->setModelProperties(material.makeModel<Interface>(env.getCoordinateSystem()));
     info.mesh=&static_cast<ClosedMesh const&>(rock->getVolume());
     parent->addChild(std::move(rock));
     return info;

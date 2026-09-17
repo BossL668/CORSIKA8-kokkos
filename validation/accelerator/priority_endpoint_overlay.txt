@@ -1,0 +1,13 @@
+applications/c8_air_shower.cpp
+applications/detail/air_shower_kokkos/KokkosRunSession.cpp
+applications/detail/air_shower_kokkos/KokkosShowerReport.hpp
+corsika/accelerator/em/detail/CpuPrimarySubshowerPolicy.hpp
+corsika/accelerator/em/detail/IndependentSubshowerPump.hpp
+src/accelerator/em/kokkos/KokkosBackendSelection.cpp
+src/accelerator/em/kokkos/KokkosRuntime.cpp
+src/accelerator/em/kokkos/KokkosEmBackend.cpp
+src/accelerator/em/kokkos/KokkosCooperativeBackend.cpp
+tests/accelerator/testIndependentSubshowerPump.cpp
+tests/accelerator/testKokkosCooperativeBackend.cpp
+validation/accelerator/build_adaptive_v5_local.sh
+validation/accelerator/build_adaptive_v5_psr.sh

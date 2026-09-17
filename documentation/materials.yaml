@@ -1,0 +1,214 @@
+# Research parameter specification; NOT native CORSIKA run-card syntax.
+schema: research_constant_rock_material_cards_v1
+date: '2026-09-13'
+not_native_corsika_configuration: true
+integration_status: Standalone physical parameter specification only; NOT compiled,
+  linked or validated against the user CORSIKA branch.
+common_assumptions:
+- homogeneous
+- isotropic
+- mu_r=1
+- constant real radio refractive index
+- constant one-way electric-field attenuation length
+- existing geometrical optics interface solver retained
+recommended_start: G0_GRANITE_REFERENCE
+material_cards:
+- id: G0_GRANITE_REFERENCE
+  label_zh: 花岗岩型参考模型：PNNL 输运配方 + GPR 范围内代表性常数
+  transport:
+    density_kg_m3: 2729.0
+    composition_basis: nucleus_number_fraction
+    nuclei:
+    - element: H
+      Z: 1
+      A: 1
+      number_fraction: 0.027122
+    - element: C
+      Z: 6
+      A: 12
+      number_fraction: 0.000502
+    - element: O
+      Z: 8
+      A: 16
+      number_fraction: 0.607735
+    - element: Na
+      Z: 11
+      A: 23
+      number_fraction: 0.025866
+    - element: Mg
+      Z: 12
+      A: 24
+      number_fraction: 0.018081
+    - element: Al
+      Z: 13
+      A: 27
+      number_fraction: 0.062783
+    - element: Si
+      Z: 14
+      A: 28
+      number_fraction: 0.205927
+    - element: K
+      Z: 19
+      A: 39
+      number_fraction: 0.013938
+    - element: Ca
+      Z: 20
+      A: 40
+      number_fraction: 0.01896
+    - element: Fe
+      Z: 26
+      A: 56
+      number_fraction: 0.019086
+  radio:
+    model: constant_real_index_and_grey_field_attenuation
+    refractive_index: 2.23606797749979
+    field_attenuation_length_m: 86.85889638065036
+    relative_permeability: 1.0
+    attenuation_definition: E(l)/E0=exp(-l/L_E), one-way in-medium geometric path
+      length; excludes spreading and explicit interface loss
+    material_dispersion_enabled: false
+    frequency_dependent_attenuation_enabled: false
+    intended_analysis_band_MHz:
+    - 50.0
+    - 200.0
+  provenance:
+    density_and_element_number_fractions: PNNL2006
+    isotope_mapping: 'Added modelling approximation: one representative isotope per
+      element. Original PNNL elemental atom fractions are preserved; natural isotope
+      abundances are NOT reproduced.'
+    index_choice: Selected epsilon_r=5 within EPA_GPR granite range 4-6; n=sqrt(5).
+    attenuation_choice: Selected 0.1 dB/m, the logarithmic midpoint of the EPA_GPR
+      0.01-1 dB/m granite range; L_E=20*log10(e)/0.1. Not a measured material constant.
+    combined_card_status: Synthetic reference assembled from different sources, not
+      a jointly measured sample and not a 21CMA site determination.
+- id: S0_SILICA_TRANSPORT_PROXY
+  label_zh: 最简硅酸盐代理：SiO2-like 输运 + 花岗岩型射电常数
+  transport:
+    density_kg_m3: 2650.0
+    composition_basis: nucleus_number_fraction
+    nuclei:
+    - element: O
+      Z: 8
+      A: 16
+      number_fraction: 0.6666666666666666
+    - element: Si
+      Z: 14
+      A: 28
+      number_fraction: 0.3333333333333333
+  radio:
+    model: constant_real_index_and_grey_field_attenuation
+    refractive_index: 2.23606797749979
+    field_attenuation_length_m: 100.0
+    relative_permeability: 1.0
+    attenuation_definition: E(l)/E0=exp(-l/L_E), one-way in-medium geometric path
+      length; excludes spreading and explicit interface loss
+    material_dispersion_enabled: false
+    frequency_dependent_attenuation_enabled: false
+    intended_analysis_band_MHz:
+    - 50.0
+    - 200.0
+  provenance:
+    density_and_stoichiometry: 'QUARTZ: SiO2 and measured crystalline density 2.65
+      g/cm3; transferred to a homogeneous transport proxy.'
+    index_and_attenuation: Engineering choices, using the same granite-like index
+      as G0 and a rounded 100 m attenuation length within the broad EPA_GPR granite
+      range.
+    combined_card_status: NOT a measured radio model of pure quartz; NOT a complete
+      granite mineral model; NOT PDG standard rock.
+    isotope_mapping: 'Added single-isotope approximation: O16 and Si28.'
+- id: L0_LIMESTONE_CALCITE_PROXY
+  label_zh: 石灰岩型代理：致密 CaCO3 输运 + 石灰岩 GPR 代表性常数
+  transport:
+    density_kg_m3: 2710.0
+    composition_basis: nucleus_number_fraction
+    nuclei:
+    - element: C
+      Z: 6
+      A: 12
+      number_fraction: 0.2
+    - element: O
+      Z: 8
+      A: 16
+      number_fraction: 0.6
+    - element: Ca
+      Z: 20
+      A: 40
+      number_fraction: 0.2
+  radio:
+    model: constant_real_index_and_grey_field_attenuation
+    refractive_index: 2.449489742783178
+    field_attenuation_length_m: 14.476482730108396
+    relative_permeability: 1.0
+    attenuation_definition: E(l)/E0=exp(-l/L_E), one-way in-medium geometric path
+      length; excludes spreading and explicit interface loss
+    material_dispersion_enabled: false
+    frequency_dependent_attenuation_enabled: false
+    intended_analysis_band_MHz:
+    - 50.0
+    - 200.0
+  provenance:
+    density_and_stoichiometry: 'CALCITE: CaCO3 and measured density 2.7102 g/cm3,
+      rounded to 2.71 g/cm3; assumes zero explicit porosity.'
+    index_choice: Selected epsilon_r=6 within EPA_GPR limestone range 4-8; n=sqrt(6).
+    attenuation_choice: Selected 0.6 dB/m within EPA_GPR limestone range 0.4-1 dB/m;
+      L_E=20*log10(e)/0.6. Not a measured sample constant.
+    combined_card_status: Synthetic dense-calcite/limestone proxy, not a reconstruction
+      of a particular porous limestone mountain.
+    isotope_mapping: 'Added single-isotope approximation: C12, O16, Ca40.'
+sensitivity_study:
+  base: G0_GRANITE_REFERENCE
+  vary_one_parameter_at_a_time: true
+  field_attenuation_length_m:
+  - 10.0
+  - 30.0
+  - 86.85889638065036
+  - 300.0
+  refractive_index:
+  - 2.0
+  - 2.23606797749979
+  - 2.449489742783178
+  note: Exploratory grid, not statistical confidence intervals. Each run remains frequency
+    independent. Low-loss end near 869 m can be added as an optimistic reference only.
+references:
+  C8_2026:
+    title: 'CORSIKA 8: A General Framework for Particle Cascade Simulations'
+    year: 2026
+    url: https://arxiv.org/html/2604.01850v1
+    section: 6.2 Radio emission
+  C8_RADIO:
+    title: Simulating radio emission from particle cascades with CORSIKA 8
+    year: 2024
+    url: https://arxiv.org/html/2409.15999v1
+    section: 3 Design of the radio module
+  PNNL2006:
+    title: Compendium of Material Composition Data for Radiation Transport Modeling
+    authors: R. G. Williams III, C. J. Gesh, R. T. Pagh
+    report: PNNL-15870 (2006 edition, not the 2011/2021 revision)
+    url: https://www.pnl.gov/main/publications/external/technical_reports/PNNL-15870.pdf
+    location: Granite, printed pp. 55-56; PDF pp. 64-65 (1-based)
+  EPA_GPR:
+    title: Ground-Penetrating Radar, Environmental Geophysics
+    organization: U.S. Environmental Protection Agency
+    url: https://archive.epa.gov/esd/archive-geophysics/web/html/ground-penetrating_radar.html
+    location: Table 1, Electromagnetic properties of earth materials
+    scope: Broad typical GPR ranges, not a specific sample measurement at 100 MHz;
+      not a guaranteed 50-200 MHz spectrum.
+  QUARTZ:
+    title: Quartz, Handbook of Mineralogy
+    url: https://handbookofmineralogy.org/pdfs/quartz.pdf
+    location: Physical Properties and Chemistry; optical refractive indices are NOT
+      used.
+  CALCITE:
+    title: Calcite, Handbook of Mineralogy
+    url: https://handbookofmineralogy.org/pdfs/calcite.pdf
+    location: Physical Properties and Chemistry; optical refractive indices are NOT
+      used.
+  BANO1996:
+    title: Constant dielectric losses of ground-penetrating radar waves
+    authors: Maksim Bano
+    year: 1996
+    journal: Geophysical Journal International 124, 279-288
+    url: https://academic.oup.com/gji/article-pdf/124/1/279/6093616/124-1-279.pdf
+    scope: 'Highly altered granite: fitted Q=12-18; data acquired using a 100 MHz
+      radar, modelling reference frequency about 40 MHz. Not a measured broadband
+      constant attenuation length.'

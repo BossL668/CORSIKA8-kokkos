@@ -1,0 +1,16 @@
+{
+  "remote_root": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913",
+  "local_tests_run": false,
+  "omp_threads": 256,
+  "gpu": "NVIDIA T400",
+  "binaries": {
+    "openmp": {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-openmp/applications/c8_terrain_cascade",
+      "sha256": "320b84f6a200f5954de8a1f13b2c450280fb7483a7e22c433819073c83621ab5"
+    },
+    "cuda": {
+      "path": "/data/yhlu/CorsikaData/corsika_validation_results/beta5_material_models_20260913/build-cuda/applications/c8_terrain_cascade",
+      "sha256": "656823e5191b6b00a13b08bee41b396ff49ca0cb34d945e097a0987631ac7555"
+    }
+  }
+}

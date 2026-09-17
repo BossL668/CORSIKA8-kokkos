@@ -40,3 +40,12 @@ corsika-cmake.sh
 /validation/gpu_em/.timer.out
 /validation/gpu_em/fort.*
 /validation/gpu_em/tables.dat
+
+# Generated report payloads stay local. Keep report text, small summaries, and
+# presentation figures in Git, but not raw waveforms, archives, or render caches.
+/documentation/reports/**/*.tar.gz
+/documentation/reports/**/*.npz
+/documentation/reports/**/*.pptx
+/documentation/reports/**/*.log
+/documentation/reports/**/data/
+/documentation/reports/**/history/

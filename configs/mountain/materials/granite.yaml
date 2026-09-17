@@ -1,0 +1,7 @@
+# Granite reference mixture (H, C, O, Na, Mg, Al, Si, K, Ca, Fe).
+# PNNL nucleus number fractions with representative isotopes:
+# H-1=0.027122, C-12=0.000502, O-16=0.607735, Na-23=0.025866,
+# Mg-24=0.018081, Al-27=0.062783, Si-28=0.205927, K-39=0.013938,
+# Ca-40=0.018960, Fe-56=0.019086. Not a pure SiO2 mineral.
+# Source ID: G0_GRANITE_REFERENCE; Bragg-Sternheimer ionisation approximation.
+preset: Granite

@@ -1,0 +1,982 @@
+{
+  "passed": false,
+  "cases": [
+    {
+      "case": "boundary",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0003801533721654746,
+      "zhs_relative_l2": 2.9325614151928253e-08,
+      "oracle_convergence": 1.4133283106761118e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "boundary_grazing",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.8541578669772122e-06,
+      "zhs_relative_l2": 3.085665758858854e-09,
+      "oracle_convergence": 2.8314869598290473e-10,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4096,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "boundary_reverse",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006868732210888246,
+      "zhs_relative_l2": 9.150195643819076e-09,
+      "oracle_convergence": 7.775305584777596e-14,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "cherenkov",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "finite_track_limit": true,
+        "shared_zhs_limit": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 4.205872498688286e-06,
+      "zhs_relative_l2": 7.409875462889446e-15,
+      "oracle_convergence": 8.087807880547736e-16,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 0,
+        "regularized_pairs": 1,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "curved",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 3.7773647116189945e-07,
+      "zhs_relative_l2": 1.358371191596971e-12,
+      "oracle_convergence": 2.0353785986261603e-15,
+      "statistics": {
+        "device_tracks": 32,
+        "endpoint_contributions": 64,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "curved_reverse",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 6.026302713164638e-07,
+      "zhs_relative_l2": 7.193061127549051e-11,
+      "oracle_convergence": 2.3074972561096337e-15,
+      "statistics": {
+        "device_tracks": 32,
+        "endpoint_contributions": 64,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "matched_boundary",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0005032869983810839,
+      "zhs_relative_l2": 5.4838461185835135e-09,
+      "oracle_convergence": 2.4853197164940666e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "matched_boundary_reverse",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0005032869983810839,
+      "zhs_relative_l2": 5.4838461185835135e-09,
+      "oracle_convergence": 2.4853197164940666e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "matched_unsplit",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0020235388565235848,
+      "zhs_relative_l2": 5.492211870818596e-09,
+      "oracle_convergence": 1.1340753185324808e-15,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "matched_unsplit_reverse",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0020235388565235848,
+      "zhs_relative_l2": 5.492211870818596e-09,
+      "oracle_convergence": 1.1340753185324808e-15,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "mesh_boundary",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006722258178800932,
+      "zhs_relative_l2": 3.779619251023709e-11,
+      "oracle_convergence": 1.959264485759782e-14,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 6,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 4395424
+      }
+    },
+    {
+      "case": "negative",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.3603880263229894e-05,
+      "zhs_relative_l2": 1.884984387494303e-11,
+      "oracle_convergence": 6.819710253823265e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "plane",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.00015070196313753117,
+      "zhs_relative_l2": 7.553742205250557e-15,
+      "oracle_convergence": 9.60470696181103e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "plane_reverse",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006028215076619845,
+      "zhs_relative_l2": 1.039237338160536e-10,
+      "oracle_convergence": 3.412934837061464e-13,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "radial",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.000846359221777519,
+      "zhs_relative_l2": 1.3389884116701105e-07,
+      "oracle_convergence": 3.46426221980223e-15,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395408
+      }
+    },
+    {
+      "case": "shadow",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0008171089994846893,
+      "zhs_relative_l2": 3.6454084769927907e-09,
+      "oracle_convergence": 4.0260289419855523e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 128,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395424
+      }
+    },
+    {
+      "case": "uniform",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.000921033870349463,
+      "zhs_relative_l2": 7.340909684386569e-08,
+      "oracle_convergence": 2.8130633057156954e-15,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "vacuum_forward",
+      "backend": "CUDA",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "finite_track_limit": true,
+        "shared_zhs_limit": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.0000118960639922e-06,
+      "zhs_relative_l2": 5.882229952128697e-15,
+      "oracle_convergence": 6.73490641858215e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 0,
+        "regularized_pairs": 1,
+        "boundary_endpoints": 0,
+        "device_bytes": 4395376
+      }
+    },
+    {
+      "case": "boundary",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0003801533721654741,
+      "zhs_relative_l2": 2.9325617618534134e-08,
+      "oracle_convergence": 1.4133283106761118e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "boundary_grazing",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.8541578671960813e-06,
+      "zhs_relative_l2": 3.085665487772393e-09,
+      "oracle_convergence": 2.8314869598290473e-10,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4096,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "boundary_reverse",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006868732210887783,
+      "zhs_relative_l2": 9.150194602351757e-09,
+      "oracle_convergence": 7.775305584777596e-14,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "cherenkov",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "finite_track_limit": true,
+        "shared_zhs_limit": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 4.205872498713822e-06,
+      "zhs_relative_l2": 0.0,
+      "oracle_convergence": 8.087807880547736e-16,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 0,
+        "regularized_pairs": 1,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "curved",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 3.7773647190057443e-07,
+      "zhs_relative_l2": 1.3590321423772903e-12,
+      "oracle_convergence": 2.0353785986261603e-15,
+      "statistics": {
+        "device_tracks": 32,
+        "endpoint_contributions": 64,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "curved_reverse",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 6.026302717360612e-07,
+      "zhs_relative_l2": 7.193066565960514e-11,
+      "oracle_convergence": 2.3074972561096337e-15,
+      "statistics": {
+        "device_tracks": 32,
+        "endpoint_contributions": 64,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "matched_boundary",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0005032869983808217,
+      "zhs_relative_l2": 5.483848048609138e-09,
+      "oracle_convergence": 2.4853197164940666e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "matched_boundary_reverse",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0005032869983808217,
+      "zhs_relative_l2": 5.483848048609138e-09,
+      "oracle_convergence": 2.4853197164940666e-13,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "matched_unsplit",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0020235388565237288,
+      "zhs_relative_l2": 5.492214837844324e-09,
+      "oracle_convergence": 1.1340753185324808e-15,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "matched_unsplit_reverse",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0020235388565237288,
+      "zhs_relative_l2": 5.492214837844324e-09,
+      "oracle_convergence": 1.1340753185324808e-15,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "mesh_boundary",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "boundary_ownership": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006722258178800999,
+      "zhs_relative_l2": 3.7796507253942814e-11,
+      "oracle_convergence": 1.959264485759782e-14,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 6,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 1,
+        "device_bytes": 2560416
+      }
+    },
+    {
+      "case": "negative",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.3603880263268811e-05,
+      "zhs_relative_l2": 1.8846122696075163e-11,
+      "oracle_convergence": 6.819710253823265e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "plane",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.00015070196313756606,
+      "zhs_relative_l2": 4.977903674921316e-16,
+      "oracle_convergence": 9.60470696181103e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "plane_reverse",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0006028215076620126,
+      "zhs_relative_l2": 1.0392696479444598e-10,
+      "oracle_convergence": 3.412934837061464e-13,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 2,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "radial",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0008463592217819401,
+      "zhs_relative_l2": 1.338988564212406e-07,
+      "oracle_convergence": 3.46426221980223e-15,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560400
+      }
+    },
+    {
+      "case": "shadow",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0008171089994842793,
+      "zhs_relative_l2": 3.6454059703611683e-09,
+      "oracle_convergence": 4.0260289419855523e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 128,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560416
+      }
+    },
+    {
+      "case": "uniform",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "ordinary_endpoints": true,
+        "coreas_zhs_equivalence": false,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 0.0009210338703490069,
+      "zhs_relative_l2": 7.340909789183113e-08,
+      "oracle_convergence": 2.8130633057156954e-15,
+      "statistics": {
+        "device_tracks": 2,
+        "endpoint_contributions": 4,
+        "regularized_pairs": 0,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    },
+    {
+      "case": "vacuum_forward",
+      "backend": "OPENMP",
+      "checks": {
+        "finite": true,
+        "absolute_current_oracle": true,
+        "oracle_convergence": true,
+        "renderer_spectrum": true,
+        "renderer_waveform": true,
+        "finite_track_limit": true,
+        "shared_zhs_limit": true,
+        "coreas_zhs_equivalence": true,
+        "zero_frequency_cancellation": true
+      },
+      "absolute_complex_l2": 1.0000118960639922e-06,
+      "zhs_relative_l2": 0.0,
+      "oracle_convergence": 6.73490641858215e-14,
+      "statistics": {
+        "device_tracks": 1,
+        "endpoint_contributions": 0,
+        "regularized_pairs": 1,
+        "boundary_endpoints": 0,
+        "device_bytes": 2560368
+      }
+    }
+  ],
+  "backend_pairs": [
+    {
+      "case": "boundary",
+      "relative_l2": 1.5909886880129461e-16
+    },
+    {
+      "case": "boundary_grazing",
+      "relative_l2": 5.969416560765919e-16
+    },
+    {
+      "case": "boundary_reverse",
+      "relative_l2": 3.0444118747058397e-16
+    },
+    {
+      "case": "cherenkov",
+      "relative_l2": 1.2691158907847062e-16
+    },
+    {
+      "case": "curved",
+      "relative_l2": 8.504684564446926e-16
+    },
+    {
+      "case": "curved_reverse",
+      "relative_l2": 6.88272412176362e-16
+    },
+    {
+      "case": "matched_boundary",
+      "relative_l2": 6.640005389698961e-16
+    },
+    {
+      "case": "matched_boundary_reverse",
+      "relative_l2": 6.640005389698961e-16
+    },
+    {
+      "case": "matched_unsplit",
+      "relative_l2": 1.0517961650136048e-15
+    },
+    {
+      "case": "matched_unsplit_reverse",
+      "relative_l2": 1.0517961650136048e-15
+    },
+    {
+      "case": "mesh_boundary",
+      "relative_l2": 2.4655152848852683e-16
+    },
+    {
+      "case": "negative",
+      "relative_l2": 2.630249179838978e-16
+    },
+    {
+      "case": "plane",
+      "relative_l2": 4.040611020944021e-16
+    },
+    {
+      "case": "plane_reverse",
+      "relative_l2": 1.791671588954948e-16
+    },
+    {
+      "case": "radial",
+      "relative_l2": 8.572903236104489e-14
+    },
+    {
+      "case": "shadow",
+      "relative_l2": 2.1123692752880626e-15
+    },
+    {
+      "case": "uniform",
+      "relative_l2": 3.2767957767581977e-15
+    },
+    {
+      "case": "vacuum_forward",
+      "relative_l2": 0.0
+    }
+  ],
+  "matched_medium_cancellation": [
+    {
+      "backend": "OPENMP",
+      "direction": "forward",
+      "relative_l2": 0.0015218341619847376
+    },
+    {
+      "backend": "OPENMP",
+      "direction": "_reverse",
+      "relative_l2": 0.0015218341619847376
+    },
+    {
+      "backend": "CUDA",
+      "direction": "forward",
+      "relative_l2": 0.001521834161984331
+    },
+    {
+      "backend": "CUDA",
+      "direction": "_reverse",
+      "relative_l2": 0.001521834161984331
+    }
+  ],
+  "scope": "Common independent current oracle for paired CoREAS and ZHS, with absolute complex-spectrum equivalence and zero-frequency cancellation; direct/one-transmission real-ray GO only."
+}

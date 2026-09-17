@@ -303,6 +303,24 @@ namespace corsika::accelerator::em::detail {
       result.fallback_flag = 1;
       return result;
     }
+    if (interaction.deferred_photon_fallback_reason >= 0) {
+      auto const reason = static_cast<gpu::em::ProposalFallbackReason>(
+          interaction.deferred_photon_fallback_reason);
+      if (interaction.interaction_vertex_reached != 1 ||
+          !gpu::em::proposalFallbackRequiresSelectedLoss(reason)) {
+        result.fallback = invalidPhotonFinalState(interaction);
+      } else {
+        result.fallback = gpu::em::makeProcessFallbackEvent(interaction, reason);
+        if (interaction.deferred_photon_table_status != 0) {
+          result.fallback.diagnostic_status = interaction.deferred_photon_table_status;
+          result.fallback.diagnostic_value0 = interaction.particle.energy_GeV * 1000.;
+          result.fallback.diagnostic_value1 = interaction.loss_quantile;
+          result.fallback.diagnostic_value2 = interaction.energy_fraction;
+        }
+      }
+      result.fallback_flag = 1;
+      return result;
+    }
     auto const capability = gpu::em::gpuProcessCapability(
         interaction.particle.pid, interaction.process_id);
     if (capability != gpu::em::GpuProcessCapability::PhotonPair &&
