@@ -33,6 +33,8 @@ namespace corsika {
     double weighted_kinetic_energy_GeV{};
     double weighted_rest_mass_energy_GeV{};
     double weighted_invisible_kinetic_energy_GeV{};
+    std::uint64_t stopped_positron_annihilations{};
+    double weighted_medium_rest_mass_input_GeV{};
     std::map<std::int32_t, ParticleCutSpeciesStatistics> by_pdg{};
   };
   /**
@@ -134,7 +136,9 @@ namespace corsika {
 
     bool isBelowEnergyCut(Code const, HEPEnergyType const) const;
 
-    void recordCut(Code, HEPEnergyType, double);
+    void recordCut(Code, HEPEnergyType, double, bool rest_mass_converted = false);
+    template <typename TParticle>
+    bool annihilateStoppedPositron(TParticle, HEPEnergyType, Point const&, TimeType);
 
   private:
     HEPEnergyType cut_electrons_;

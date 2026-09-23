@@ -41,6 +41,10 @@ namespace corsika::applications::air_shower {
     Code beam_code{};
     std::string high_energy_hadronic_model;
     double maximum_magnetic_deflection_rad{};
+    // Appended to preserve existing aggregate initialization and air defaults.
+    AtmosphereId atmosphere_id{AtmosphereId::USStdBK};
+    // Comparison-only opt-out. Standard air callers retain both algorithms.
+    bool radio_zhs_enabled{true};
   };
 
   struct PreparedKokkosAirShower {
@@ -127,7 +131,7 @@ namespace corsika::applications::air_shower {
         event.em_cut / 1_MeV, event.muon_cut / 1_MeV,
         prepared.proposal_stochastic_cut / 1_MeV};
     prepared.environment_snapshot = makeCorsika7AtmosphereSnapshot(
-        AtmosphereId::USStdBK, {0., 0., 0.}, 17, observation_height_m,
+        event.atmosphere_id, {0., 0., 0.}, 17, observation_height_m,
         magnetic_field_T, event.maximum_magnetic_deflection_rad);
     setObservationPlane(
         prepared.environment_snapshot,
@@ -165,7 +169,7 @@ namespace corsika::applications::air_shower {
     if (prepared.gpu_radio_enabled && !cuda_session.hasBackend()) {
       config.radio = gpu::radio::makeGpuRadioConfig(
           environment, injection_position, surface, propagation_step,
-          detector_coreas, detector_zhs);
+          detector_coreas, detector_zhs, true, event.radio_zhs_enabled);
       config.radio.deterministic = config.deterministic;
       config.radio.fixed_point_field_limit_V_per_m =
           gpu_cli.gpu_radio_field_limit;
@@ -176,11 +180,17 @@ namespace corsika::applications::air_shower {
     if ((detector_coreas.size() == 0 || prepared.gpu_radio_enabled) &&
         !gpu_cli.gpu_full_step_records) {
       auto& projection = config.profile_projection;
+      projection.crossing_mode = longitudinal_writer.getCrossingMode();
       auto const primary_energy_GeV = event.primary_total_energy / 1_GeV;
       auto const em_cut_GeV = event.em_cut / 1_GeV;
       projection.fixed_point_weight_limit =
           2. * primary_energy_GeV / em_cut_GeV;
-      projection.fixed_point_energy_limit_GeV = 2. * primary_energy_GeV;
+      // Gross atomic-target rest-mass entries can exceed the primary energy
+      // (they cancel against cut electron rest masses). A stopped 0.7 MeV e+
+      // followed by six Compton vertices is a concrete example. Keep ample
+      // low-energy integer range; this changes neither deposits nor allocation
+      // size, and leaves all >=0.5 GeV production scales unchanged.
+      projection.fixed_point_energy_limit_GeV = std::max(2. * primary_energy_GeV, 1.);
       if (!cuda_session.hasBackend()) {
         projection.enabled = true;
         auto const axis_start =

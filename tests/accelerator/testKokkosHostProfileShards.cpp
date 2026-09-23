@@ -14,6 +14,17 @@ using Ex = Kokkos::OpenMP;
 using Counter = em::detail::DeviceProfileCounters;
 using Record = em::LeptonTransportRecord;
 
+struct CrossingSegment { double start, end, weight; int pid; };
+struct CrossingAccumulator {
+  Kokkos::View<CrossingSegment*, Kokkos::HostSpace> input;
+  em::detail::DeviceProfileAccumulator accumulator;
+  void operator()(std::size_t i) const {
+    auto const s = input(i);
+    detail::accumulateParticleProfile<kd::KokkosProfileAtomicOperations>(
+        accumulator, s.pid, s.start, s.end, s.weight);
+  }
+};
+
 void require(bool value, char const* message) {
   if (!value) throw std::runtime_error(message);
 }
@@ -33,6 +44,20 @@ void sameCounters(Counter const& a, Counter const& b) {
   CHECK(weighted_observed_total_energy); CHECK(weighted_escaped_total_energy);
   CHECK(weighted_unwritten_photoelectric_binding_energy);
   CHECK(weighted_observation_cut_overlap_energy); CHECK(weighted_mass_convention_correction);
+#undef CHECK
+}
+
+void sameOutput(em::GpuProfileResult const& a, em::GpuProfileResult const& b) {
+#define CHECK(f) require(a.f == b.f, "decoded profile changed: " #f)
+  CHECK(photons); CHECK(electrons); CHECK(positrons); CHECK(muons_minus);
+  CHECK(muons_plus); CHECK(muon_parent_productions); CHECK(energy_loss_GeV);
+  CHECK(muon_energy_loss_GeV); CHECK(weighted_deposited_energy_GeV);
+  CHECK(steps); CHECK(deposited_steps); CHECK(particle_cuts);
+  CHECK(fixed_point_overflows); CHECK(invalid_records);
+  CHECK(weighted_medium_rest_mass_input_GeV); CHECK(weighted_cut_rest_mass_energy_GeV);
+  CHECK(weighted_observed_total_energy_GeV); CHECK(weighted_escaped_total_energy_GeV);
+  CHECK(weighted_unwritten_photoelectric_binding_energy_GeV);
+  CHECK(weighted_observation_cut_overlap_energy_GeV); CHECK(weighted_mass_convention_correction_GeV);
 #undef CHECK
 }
 
@@ -75,17 +100,22 @@ Record record(std::size_t i) {
   return s;
 }
 
-void exercise(int threads, std::size_t limited_shards = 0) {
+void exercise(int threads, std::size_t limited_shards = 0,
+              corsika::ProfileCrossingMode mode = corsika::ProfileCrossingMode::Both) {
   Ex ex;
   require(ex.concurrency() == threads, "OpenMP thread count mismatch");
   auto c = config();
-  Ledger reference(c, ex), sharded(c, ex);
+  c.crossing_mode = mode;
+  Ledger reference(c, ex), sharded(c, ex), standalone(c, ex), plain(c, ex);
   auto const budget = limited_shards
       ? limited_shards * detail::HostProfileShards::bytesPerShard(c.output_bin_count)
       : detail::HostProfileShards::MaximumBytes;
   sharded.profile.enableCooperativeHostShards(threads, budget);
+  standalone.profile.enableHostShards(threads, budget);
   auto const bytes = sharded.profile.deviceBytes();
   auto const* allocation = sharded.profile.hostShards().entries();
+  auto const standalone_bytes = standalone.profile.deviceBytes();
+  auto const* standalone_allocation = standalone.profile.hostShards().entries();
   require(sharded.profile.hostShards().count() >= static_cast<unsigned>(threads) ||
           threads == 1 || limited_shards != 0, "not enough shards with generous budget");
   require(sharded.profile.hostShards().bytes() <= detail::HostProfileShards::MaximumBytes,
@@ -96,7 +126,7 @@ void exercise(int threads, std::size_t limited_shards = 0) {
   projection.axis_grammage_g_per_cm2 = grammage; projection.axis_support_count = 2;
   for (unsigned event = 0; event < 32; ++event) {
     if (event) {
-      for (auto* l : {&reference, &sharded}) {
+      for (auto* l : {&reference, &sharded, &standalone, &plain}) {
         l->profile.reset(c.fixed_point_weight_limit * (event + 1),
                          c.fixed_point_energy_limit_GeV * (event + 1), ex);
         Kokkos::deep_copy(ex, l->statistics, std::uint64_t{0});
@@ -115,7 +145,7 @@ void exercise(int threads, std::size_t limited_shards = 0) {
         steps(packed++) = transports(i);
       }
     }
-    for (auto* l : {&reference, &sharded}) {
+    for (auto* l : {&reference, &sharded, &standalone, &plain}) {
       // A canonical contribution models final-state/photon writers which do
       // not use the new shards and must not be omitted or counted twice.
       l->profile.deviceView().counters->thinning_hillas_vertices = 7;
@@ -130,6 +160,12 @@ void exercise(int threads, std::size_t limited_shards = 0) {
     auto b = sharded.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex);
     require(a.histograms == b.histograms, "sharded profile histogram differs");
     sameCounters(a.counters, b.counters);
+    auto const original_output = plain.profile.download(ex);
+    sameOutput(original_output, detail::decodeFixedProfile(a));
+    sameOutput(original_output, standalone.profile.download(ex));
+    rejects<std::logic_error>([&] { standalone.profile.download(ex); });
+    rejects<std::logic_error>([&] { standalone.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex); });
+    rejects<std::logic_error>([&] { sharded.profile.download(ex); });
     for (std::size_t i = 0; i < reference.statistics.extent(0); ++i)
       require(reference.statistics(i) == sharded.statistics(i), "reduction statistics differ");
     require(b.counters.steps == 3 * packed && b.counters.thinning_hillas_vertices == 7,
@@ -137,6 +173,9 @@ void exercise(int threads, std::size_t limited_shards = 0) {
     rejects<std::logic_error>([&] { sharded.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex); });
     require(sharded.profile.deviceBytes() == bytes &&
             sharded.profile.hostShards().entries() == allocation, "per-event allocation growth");
+    require(standalone.profile.deviceBytes() == standalone_bytes &&
+            standalone.profile.hostShards().entries() == standalone_allocation,
+            "standalone per-event allocation growth");
   }
   std::cout << "exact_32_showers=true threads=" << threads
             << " shards=" << sharded.profile.hostShards().count()
@@ -175,7 +214,11 @@ void gates() {
     if (failure == 3) shards[0].accumulator.counters->invalid_records = 1;
     if (failure == 4) shards[0].accumulator.counters->fixed_point_overflows = 1;
     if (failure == 5) { shards[0].accumulator.counters->weighted_mass_convention_correction = std::numeric_limits<long long>::max(); shards[1].accumulator.counters->weighted_mass_convention_correction = 1; }
-    rejects<std::runtime_error>([&] { value.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex); });
+    rejects<std::runtime_error>([&] {
+      if (failure % 2) value.profile.download(ex);
+      else value.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex);
+    });
+    rejects<std::logic_error>([&] { value.profile.download(ex); });
     rejects<std::logic_error>([&] { value.profile.downloadFixed("shower", detail::CooperativeEndpoint::OpenMP, ex); });
     value.profile.reset(c.fixed_point_weight_limit, c.fixed_point_energy_limit_GeV, ex);
     auto empty = value.profile.downloadFixed("next", detail::CooperativeEndpoint::OpenMP, ex);
@@ -203,6 +246,62 @@ void gates() {
   }
 }
 
+// Real OpenMP atomic accumulation compared to a brute-force plane oracle.
+// The oracle deliberately has no floor/ceil or shared bin-helper calls.
+void bidirectionalCrossings() {
+  constexpr std::size_t bins = 32, samples = 1000000;
+  Kokkos::View<CrossingSegment*, Kokkos::HostSpace> input("crossing-input", samples);
+  Kokkos::View<long long*, Kokkos::HostSpace> counts("crossing-counts", 5 * bins);
+  Kokkos::View<Counter*, Kokkos::HostSpace> counters("crossing-counters", 1);
+  std::vector<long long> expected(5 * bins);
+  int const pids[]{22, 11, -11, 13, -13};
+  for (std::size_t i = 0; i < samples; ++i) {
+    double a = static_cast<double>((i * 7919) % 201) * .25 - 8.;
+    double b = static_cast<double>((i * 1543 + 3) % 201) * .25 - 8.;
+    auto const weight = .5 + .25 * (i % 5);
+    input(i) = {a * 5., b * 5., weight, pids[i % 5]};
+    for (std::size_t j = 0; j < bins; ++j)
+      if (std::min(a, b) < j && j <= std::max(a, b))
+        expected[(i % 5) * bins + j] += static_cast<long long>(weight * 4.);
+  }
+  em::detail::DeviceProfileAccumulator v{};
+  v.bins = bins; v.bin_width_g_per_cm2 = 5.; v.weight_scale = 4.;
+  v.photons = counts.data(); v.electrons = counts.data() + bins;
+  v.positrons = counts.data() + 2 * bins;
+  v.muons_minus = counts.data() + 3 * bins;
+  v.muons_plus = counts.data() + 4 * bins; v.counters = counters.data();
+  Kokkos::parallel_for("bidirectional-profile-million", Kokkos::RangePolicy<Ex>(0, samples),
+      CrossingAccumulator{input, v});
+  Ex{}.fence();
+  for (std::size_t i = 0; i < expected.size(); ++i)
+    require(counts(i) == expected[i], "bidirectional plane oracle differs");
+  require(counters(0).invalid_records == 0 && counters(0).fixed_point_overflows == 0,
+          "invalid crossing accumulation");
+  auto range = corsika::detail::longitudinalCrossingBins;
+  for (double bad : {std::numeric_limits<double>::infinity(),
+                    -std::numeric_limits<double>::infinity(),
+                    std::numeric_limits<double>::quiet_NaN()}) {
+    require(range(bad, 5., bins).end == 0 && range(5., bad, bins).end == 0,
+            "non-finite crossing was accepted");
+  }
+  require(range(1., 2., 0).end == 0, "empty profile accepted crossings");
+  for (double edge : {0., 1., 5., 31., 32.}) {
+    double const points[]{std::nextafter(edge, -INFINITY), edge,
+                          std::nextafter(edge, INFINITY)};
+    for (double a : points) for (double b : points) {
+      auto const r = range(a, b, bins);
+      for (std::size_t j = 0; j < bins; ++j)
+        require((r.begin <= j && j < r.end) ==
+                    (std::min(a, b) < j && j <= std::max(a, b)),
+                "nextafter boundary ownership differs");
+    }
+  }
+  auto const backwards = range(601. / 5., 589. / 5., 200);
+  require(backwards.begin == 118 && backwards.end == 121,
+          "regression: missed backwards photon at X=590,595,600");
+  std::cout << "bidirectional_crossings_million=PASS\n";
+}
+
 int main(int argc, char** argv) try {
   int threads = argc == 2 ? std::stoi(argv[1]) : 4;
   require(threads >= 1 && threads <= 256, "expected 1..256 OpenMP threads");
@@ -210,7 +309,10 @@ int main(int argc, char** argv) try {
   require(!Kokkos::Cuda::impl_is_initialized(), "test must not initialize CUDA");
 #endif
   Kokkos::OpenMP::impl_initialize(Kokkos::InitializationSettings().set_num_threads(threads));
-  try { exercise(threads); exercise(threads, 2); exercise(threads, 3); gates(); }
+  try { exercise(threads); exercise(threads, 2); exercise(threads, 3); gates();
+        exercise(threads, 0, corsika::ProfileCrossingMode::Forward);
+        exercise(threads, 0, corsika::ProfileCrossingMode::OriginalC8);
+        bidirectionalCrossings(); }
   catch (...) { Kokkos::OpenMP::impl_finalize(); throw; }
   Kokkos::OpenMP::impl_finalize();
 #ifdef KOKKOS_ENABLE_CUDA

@@ -73,7 +73,8 @@ namespace corsika::accelerator::em::detail {
     projected.history_id = record.start.history_id;
     projected.pid = record.start.pid;
     projected.process_id =
-        record.limit == LeptonTransportLimit::InteractionCandidate
+        (record.limit == LeptonTransportLimit::InteractionCandidate ||
+         record.interaction.status == EmInteractionStatus::AtRestAnnihilation)
             ? record.interaction.process_id
             : 0;
     projected.transport_limit = static_cast<std::int32_t>(record.limit);

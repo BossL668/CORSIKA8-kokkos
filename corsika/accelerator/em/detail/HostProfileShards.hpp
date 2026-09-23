@@ -104,6 +104,7 @@ class HostProfileShards {
     sealed_ = true;
     validateFixedProfile(canonical);
     if (canonical.config.output_bin_count != bins_ ||
+        canonical.config.crossing_mode != base_.crossing_mode ||
         canonical.config.output_bin_width_g_per_cm2 != base_.bin_width_g_per_cm2 ||
         canonical.config.energy_loss_threshold_g_per_cm2 !=
             base_.energy_loss_threshold_g_per_cm2 ||

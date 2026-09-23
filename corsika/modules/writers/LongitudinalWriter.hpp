@@ -11,6 +11,7 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/media/ShowerAxis.hpp>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 #include <corsika/modules/writers/WriterOff.hpp>
 #include <corsika/modules/writers/LongitudinalProfileWriterParquet.hpp>
 
@@ -94,10 +95,12 @@ namespace corsika {
      * Construct a new writer.
      */
     LongitudinalWriter(ShowerAxis const& axis,
-                       GrammageType dX = 10_g / square(1_cm)); // profile binning
+                       GrammageType dX = 10_g / square(1_cm),
+                       ProfileCrossingMode mode = ProfileCrossingMode::Both);
 
     LongitudinalWriter(ShowerAxis const& axis, size_t nbins,
-                       GrammageType dX = 10_g / square(1_cm));
+                       GrammageType dX = 10_g / square(1_cm),
+                       ProfileCrossingMode mode = ProfileCrossingMode::Both);
 
     void startOfLibrary(boost::filesystem::path const& directory) final override;
 
@@ -115,6 +118,10 @@ namespace corsika {
     /**
      * Add a track whose endpoints have already been projected onto the
      * configured ShowerAxis.
+     * The immutable constructor policy chooses direction and endpoint ownership.
+     * The low-level default remains Both for existing callers (e.g. terrain);
+     * the air application explicitly defaults to OriginalC8. Counts are never
+     * signed flux or unique particle identities. Transport is unaffected.
      */
     void writeProjected(GrammageType const Xstart, GrammageType const Xend,
                         Code const pid, double const weight);
@@ -132,6 +139,7 @@ namespace corsika {
     void addBin(size_t bin, Code pid, double weight);
 
     size_t getNBins() const noexcept { return nBins_; }
+    ProfileCrossingMode getCrossingMode() const noexcept { return crossingMode_; }
 
     /**
      * Return a summary.
@@ -152,6 +160,7 @@ namespace corsika {
     ShowerAxis const& showerAxis_; ///< conversion between geometry and grammage
     GrammageType const dX_;        ///< binning of profile.
     size_t const nBins_;           ///< number of profile bins.
+    ProfileCrossingMode const crossingMode_; ///< immutable observer convention
     std::vector<number_profile::ProfileData> profile_; // longitudinal profile
   };
 

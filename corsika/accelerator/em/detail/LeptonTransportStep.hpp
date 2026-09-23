@@ -15,8 +15,22 @@
 #include <corsika/accelerator/em/common/ExternalTransportBoundary.hpp>
 #include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
 #include <corsika/accelerator/em/common/UniformMagneticField.hpp>
+#include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
 
 namespace corsika::accelerator::em::detail {
+
+  C8_ACCELERATOR_INLINE_FUNCTION inline void prepareStoppedAnnihilation(
+      gpu::em::LeptonTransportRecord& record) {
+    using namespace gpu::em;
+    if (record.end.pid != static_cast<std::int32_t>(EmPid::Positron) ||
+        exceedsParticleCutTime(record.end.time_s)) return;
+    record.interaction.status = EmInteractionStatus::AtRestAnnihilation;
+    record.interaction.process_id = AnnihilationProcessId;
+    record.interaction.interaction_vertex_reached = 1;
+    record.interaction.particle = record.end;
+    record.interaction.particle.energy_GeV = transportMassGeV(record.end.pid);
+    record.interaction.particle_mass_GeV = transportMassGeV(record.end.pid);
+  }
 
   C8_ACCELERATOR_INLINE_FUNCTION inline bool leptonTransportRadiusClose(
       double const left, double const right) {
@@ -111,6 +125,8 @@ namespace corsika::accelerator::em::detail {
             layer.density_g_per_cm3;
         record.cut_deposited_energy_GeV =
             (initial_energy_MeV - mass_MeV) / 1000.;
+        if (initial_energy_MeV - mass_MeV < transport_cut_MeV)
+          prepareStoppedAnnihilation(record);
         // State 2 is a successful zero-length cut that must bypass the
         // split Moliere kernel. That kernel normalizes it to state 0 before
         // fallback counting.
@@ -184,7 +200,7 @@ namespace corsika::accelerator::em::detail {
                 environment.magnetic_field_T,
                 environment.earth_center_m, inner_radius_m,
                 magnetic_limit.distance_m,
-                environment.maximum_magnetic_deflection_rad);
+                environment.maximum_magnetic_deflection_rad, -1);
         auto const outer =
             intersectUniformMagneticSphere(
                 start, mass_MeV / 1000., charge_number,
@@ -192,7 +208,7 @@ namespace corsika::accelerator::em::detail {
                 environment.earth_center_m,
                 current_layer.outer_radius_m,
                 magnetic_limit.distance_m,
-                environment.maximum_magnetic_deflection_rad);
+                environment.maximum_magnetic_deflection_rad, +1);
         auto const observation =
             intersectUniformMagneticPlane(
                 start, mass_MeV / 1000., charge_number,
@@ -527,6 +543,7 @@ namespace corsika::accelerator::em::detail {
             (final_energy_MeV - mass_MeV) / 1000.;
         record.observation_surface_reached_before_cut =
             observation_reached ? 1U : 0U;
+        prepareStoppedAnnihilation(record);
         return 0;
       }
 

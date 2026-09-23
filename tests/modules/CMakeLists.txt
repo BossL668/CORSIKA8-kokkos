@@ -34,6 +34,7 @@ if (NOT "$CACHE{C8_FLUKA_ENABLED}" STREQUAL "")
 endif()
 
 CORSIKA_ADD_TEST (testModules SOURCES ${test_modules_sources})
+CORSIKA_ADD_TEST (testStoppedPositron SOURCES testStoppedPositron.cpp)
 
 # Independent finite-mountain neutrino vertex/rate oracle. Keeping this separate
 # avoids running the complete hadronic module suite for a geometry integration.

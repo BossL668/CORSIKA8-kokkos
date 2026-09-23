@@ -670,6 +670,20 @@ namespace corsika::accelerator::em::detail {
     }
     impl_->statistics_.cross_species_queue_capacity_per_pid =
         impl_->maximum_pending_particles_;
+    if (runtime.openmp && !runtime.gpu && !runtime.cooperative_runtime &&
+        impl_->profile_accumulator_.enabled()) {
+      // Bounded, host-only copies of the integer profile ledger, not particle
+      // queues or physics tables. The resident allocation gate accounts for
+      // these bytes during subsequent workspace growth. Cooperative endpoints
+      // retain their existing explicit opt-in; GPU paths are unchanged.
+      auto const retained = impl_->retainedDeviceBytes();
+      auto const available = impl_->memory_budget_bytes_ == 0
+          ? HostProfileShards::MaximumBytes
+          : impl_->memory_budget_bytes_ -
+                std::min(retained, impl_->memory_budget_bytes_);
+      impl_->profile_accumulator_.enableHostShards(
+          static_cast<std::size_t>(runtime.host_threads), available);
+    }
     impl_->refreshDeviceMemoryStatistics();
     // Complete asynchronous initialization before stopping the lifecycle
     // timer, otherwise the first shower would inherit part of the setup cost.
@@ -1511,7 +1525,8 @@ namespace corsika::accelerator::em::detail {
       std::vector<EmInteractionRecord> candidates;
       candidates.reserve(transported.records.size());
       for (auto const& record : transported.records) {
-        if (record.limit == LeptonTransportLimit::InteractionCandidate)
+        if (record.limit == LeptonTransportLimit::InteractionCandidate ||
+            record.interaction.status == EmInteractionStatus::AtRestAnnihilation)
           candidates.push_back(record.interaction);
       }
       auto vertices = selectLeptonVerticesForValidation(candidates);
@@ -1680,7 +1695,8 @@ namespace corsika::accelerator::em::detail {
         result.fixed_point_overflows;
     impl_->statistics_.profile.invalid_records = result.invalid_records;
     impl_->statistics_.profile.device_to_host_bytes +=
-        impl_->profile_accumulator_.deviceBytes();
+        impl_->profile_accumulator_.deviceBytes() -
+        impl_->profile_accumulator_.hostShards().bytes();
     return result;
   }
 

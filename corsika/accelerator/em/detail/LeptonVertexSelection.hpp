@@ -72,6 +72,12 @@ namespace corsika::accelerator::em::detail {
     LeptonVertexSelectionOutcome output{};
       auto record = candidate;
       auto const& particle = record.particle;
+      if (record.status == EmInteractionStatus::AtRestAnnihilation &&
+          particle.pid == static_cast<std::int32_t>(EmPid::Positron)) {
+        output.record = record;
+        output.interaction_flag = 1;
+        return output;
+      }
       if (!isChargedLeptonPid(particle.pid)) {
         output.fallback = vertexFallback(
             record, ProposalFallbackReason::UnsupportedParticle);

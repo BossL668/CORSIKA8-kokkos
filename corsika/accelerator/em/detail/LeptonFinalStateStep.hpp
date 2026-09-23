@@ -20,6 +20,7 @@
 #include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
 #include <corsika/accelerator/em/common/ProposalFallback.hpp>
 #include <corsika/accelerator/em/common/TransportMass.hpp>
+#include <corsika/framework/utility/PositronAtRest.hpp>
 
 namespace corsika::accelerator::em::detail {
 
@@ -422,6 +423,32 @@ namespace corsika::accelerator::em::detail {
       std::uint64_t random_seed, std::uint64_t shower_id) {
     using namespace gpu::em;
     LeptonFinalStateClassification result{};
+    if (interaction.status == EmInteractionStatus::AtRestAnnihilation) {
+      auto const& parent = interaction.particle;
+      if (parent.pid != static_cast<std::int32_t>(EmPid::Positron) ||
+          parent.energy_GeV != transportMassGeV(parent.pid) ||
+          !(parent.weight > 0.) || !leptonFinite(parent.weight) ||
+          parent.generation == 0xffffffffU || parent.step_id == 0xffffffffffffffffULL) {
+        result.fallback = invalidLeptonFinalState(interaction);
+        result.fallback_flag = 1;
+        return result;
+      }
+      auto& sample = result.parameters;
+      sample.process_id = AnnihilationProcessId;
+      sample.energy_split_fraction = 0.5;
+      sample.final_state_uniform = uniformOpen01({random_seed, shower_id,
+          parent.history_id, parent.step_id, static_cast<std::uint32_t>(AnnihilationProcessId),
+          AtRestAnnihilationPolarDrawId});
+      sample.azimuth_uniform = uniformOpen01({random_seed, shower_id,
+          parent.history_id, parent.step_id, static_cast<std::uint32_t>(AnnihilationProcessId),
+          AtRestAnnihilationAzimuthDrawId});
+      sample.thinning_first_weight = parent.weight;
+      sample.thinning_second_weight = parent.weight;
+      result.child_count = 2;
+      result.record_flag = 1;
+      result.annihilation_flag = 1;
+      return result;
+    }
     if (interaction.status == EmInteractionStatus::NoDiscreteInteraction) {
       result.continuation_flag = 1;
       return result;
@@ -820,6 +847,7 @@ namespace corsika::accelerator::em::detail {
                                      : electron_mass_GeV;
     std::uint32_t secondary_count = 0;
     if (sample.process_id == AnnihilationProcessId) {
+      auto const at_rest = interaction.status == EmInteractionStatus::AtRestAnnihilation;
       auto const rho = sample.energy_split_fraction;
       auto const total = parent.energy_GeV + lepton_mass_GeV;
       auto const first_energy = total * (1. - rho);
@@ -828,10 +856,10 @@ namespace corsika::accelerator::em::detail {
           (parent.energy_GeV + lepton_mass_GeV) *
           (parent.energy_GeV - lepton_mass_GeV));
       auto const first_cosine =
-          (total * (1. - rho) - lepton_mass_GeV) /
+          at_rest ? 0. : (total * (1. - rho) - lepton_mass_GeV) /
           ((1. - rho) * momentum);
       auto const second_cosine =
-          (total * rho - lepton_mass_GeV) / (rho * momentum);
+          at_rest ? 0. : (total * rho - lepton_mass_GeV) / (rho * momentum);
       if (!leptonFinite(first_energy) || !leptonFinite(second_energy) ||
           !(first_energy > 0.) || !(second_energy > 0.) ||
           !leptonFinite(first_cosine) || !leptonFinite(second_cosine)) {
@@ -841,11 +869,17 @@ namespace corsika::accelerator::em::detail {
       auto const azimuth = sample.azimuth_uniform * LeptonTwoPi;
       double first_direction[3]{};
       double second_direction[3]{};
-      deflectLeptonChild(parent.direction, first_cosine, azimuth,
+      if (at_rest) {
+        corsika::positronAtRestDirection(sample.final_state_uniform, sample.azimuth_uniform,
+                                        first_direction);
+        for (int axis = 0; axis < 3; ++axis) second_direction[axis] = -first_direction[axis];
+      } else {
+        deflectLeptonChild(parent.direction, first_cosine, azimuth,
                          first_direction);
-      deflectLeptonChild(parent.direction, second_cosine,
+        deflectLeptonChild(parent.direction, second_cosine,
                          leptonFmod(azimuth + LeptonPi, LeptonTwoPi),
                          second_direction);
+      }
       auto first = parent;
       first.pid = static_cast<std::int32_t>(EmPid::Photon);
       first.energy_GeV = first_energy;
@@ -881,8 +915,8 @@ namespace corsika::accelerator::em::detail {
                          0.,
                          1.,
                          0.,
-                         AnnihilationRhoDrawId,
-                         AnnihilationAzimuthDrawId,
+                         at_rest ? AtRestAnnihilationPolarDrawId : AnnihilationRhoDrawId,
+                         at_rest ? AtRestAnnihilationAzimuthDrawId : AnnihilationAzimuthDrawId,
                          0,
                          0};
       populateLeptonThinningRecord(output.record(), sample);

@@ -18,6 +18,8 @@ namespace corsika::accelerator::em {
   inline constexpr std::uint64_t BremsLpmDrawId = 2;
   inline constexpr std::uint64_t AnnihilationRhoDrawId = 1;
   inline constexpr std::uint64_t AnnihilationAzimuthDrawId = 2;
+  inline constexpr std::uint64_t AtRestAnnihilationPolarDrawId = 3;
+  inline constexpr std::uint64_t AtRestAnnihilationAzimuthDrawId = 4;
   inline constexpr std::uint64_t IonizationAzimuthDrawId = 1;
   inline constexpr std::uint64_t EpairRhoDrawId = 1;
   inline constexpr std::uint64_t EpairSignDrawId = 2;

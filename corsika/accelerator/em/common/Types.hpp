@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 #include <corsika/accelerator/em/common/EmThinning.hpp>
 #include <corsika/accelerator/radio/common/Types.hpp>
 #include <corsika/framework/geometry/ConvexPolyhedronData.hpp>
@@ -248,6 +249,10 @@ namespace corsika::gpu::em {
      * remaining kinetic energy without querying an out-of-domain rate.
      */
     ParticleCut = 4,
+    // A stopped positron: kinetic energy has been deposited by transport;
+    // two rest-energy photons must still be materialized, without rate/CDF
+    // queries and without thinning the already weighted parent again.
+    AtRestAnnihilation = 5,
   };
 
   /**
@@ -399,6 +404,7 @@ namespace corsika::gpu::em {
       std::vector<double> axis_grammage_g_per_cm2{};
       std::size_t output_bin_count{};
       double output_bin_width_g_per_cm2{};
+      ProfileCrossingMode crossing_mode{ProfileCrossingMode::Both};
       double energy_loss_threshold_g_per_cm2{1.e-4};
       /**
        * Expected positive ranges for checked deterministic fixed-point sums.

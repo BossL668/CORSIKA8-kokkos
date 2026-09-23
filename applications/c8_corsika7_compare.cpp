@@ -1,3 +1,5 @@
+// Independent C7 comparison assembly; shares beta5 transport and radio modules.
+// Do not use this application's defaults as production air-shower defaults.
 /*
  * (c) Copyright 2018 CORSIKA Project, corsika-project@lists.kit.edu
  *
@@ -155,9 +157,24 @@ long registerRandomStreams(long seed) {
   return seed;
 }
 
+// All layers share the same physical sea-level reference density. Extrapolating
+// each individual layer to sea level would introduce artificial index jumps.
+template <typename T>
+class ComparisonRefractiveIndex : public T {
+  double refractivity_;
+public:
+  template <typename... Args>
+  ComparisonRefractiveIndex(double n0, Point const&, Args&&... args)
+      : T(std::forward<Args>(args)...), refractivity_(n0 - 1.) {}
+  double getRefractiveIndex(Point const& point) const override {
+    auto const rho0 = (1222.6562 / 994186.38) * 1_g / (1_cm * 1_cm * 1_cm);
+    return 1. + refractivity_ * (this->getMassDensity(point) / rho0);
+  }
+};
+
 template <typename T>
 using MyExtraEnv =
-    GladstoneDaleRefractiveIndex<MediumPropertyModel<UniformMagneticField<T>>>;
+    ComparisonRefractiveIndex<MediumPropertyModel<UniformMagneticField<T>>>;
 
 std::vector<std::tuple<double, double, double>> read_antenna_positions(
     std::string const& filename) {
@@ -356,7 +373,6 @@ namespace {
           "therefore requires --em-backend proposal");
       return false;
     }
-    
     if (options.kokkos_cooperative_policy != "legacy" &&
         (options.em_backend != "kokkos" || options.kokkos_execution != "cuda-openmp")) {
       CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
@@ -408,7 +424,6 @@ namespace {
       }
 #endif
     }
-    
     if (options.radio_backend == "kokkos") {
       if (options.em_backend != "kokkos") {
         CORSIKA_LOG_CRITICAL(
@@ -421,7 +436,6 @@ namespace {
       return false;
 #endif
     }
-    
     return true;
   }
 
@@ -430,7 +444,17 @@ namespace {
 int main(int argc, char** argv) {
 
   // the main command line description
-  CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
+  CLI::App app{"CORSIKA 7 comparison: QGSJET-III + FLUKA, Linsley atmosphere, fixed NWU field."};
+  bool comparison_preflight = false;
+  std::string comparison_radio{"coreas"};
+  app.add_option("--comparison-radio", comparison_radio,
+                 "Radio algorithms: coreas (C7 timing comparison) or both (legacy diagnostics)")
+      ->check(CLI::IsMember({"coreas", "both"}))->default_val("coreas");
+  app.add_flag("--comparison-preflight", comparison_preflight,
+               "Print assembled comparison conditions without running a shower");
+#ifndef WITH_FLUKA
+#error "The C7 comparison requires FLUKA; do not silently substitute UrQMD."
+#endif
 
   CORSIKA_LOG_INFO(
       "Please cite the following references when using CORSIKA 8:\n"
@@ -485,14 +509,6 @@ int main(int argc, char** argv) {
 
   //////// Config options ////////
 
-  std::string profile_crossings{"original-c8"};
-  app.add_option("--profile-crossings", profile_crossings,
-                 "Longitudinal counts only: both, forward (half-open), or "
-                 "original-c8 (forward, closed endpoints); transport/radio unchanged")
-      ->check(CLI::IsMember({"both", "forward", "original-c8"}))
-      ->default_val("original-c8")
-      ->group("Config");
-
   app.add_option("--emcut",
                  "Min. kin. energy of photons, electrons and "
                  "positrons in tracking (GeV)")
@@ -516,16 +532,18 @@ int main(int argc, char** argv) {
       ->default_val(0.2)
       ->check(CLI::Range(1.e-8, 1.))
       ->group("Config");
-  std::string geomagnetic_model{"IGRF14"};
-  double geomagnetic_year{2027.};
-  app.add_option("--geomagnetic-model", geomagnetic_model,
-                 "IGRF coefficient model used for the 21CMA magnetic field")
-      ->check(CLI::IsMember({"IGRF13", "IGRF14"}))
+  app.add_option("--profile-crossings",
+                 "Longitudinal counts only: both, forward, original-c8; no transport change")
+      ->default_val("original-c8")
+      ->check(CLI::IsMember({"both", "forward", "original-c8"}))
       ->group("Config");
-  app.add_option("--geomagnetic-year", geomagnetic_year,
-                 "Decimal year used to evaluate the selected IGRF model")
-      ->check(CLI::Range(1900., 2030.))
-      ->group("Config");
+  std::string geomagnetic_model{"C7-fixed-NWU"};
+  double geomagnetic_year{0.}; // not an IGRF evaluation
+  double comparison_bnorth_uT{}, comparison_bdown_uT{};
+  app.add_option("--c7-bnorth-ut", comparison_bnorth_uT,
+                 "C7 MAGNET north component in microtesla")->required();
+  app.add_option("--c7-bdown-ut", comparison_bdown_uT,
+                 "C7 MAGNET downward component in microtesla")->required();
   bool track_neutrinos = false;
   app.add_flag("--track-neutrinos", track_neutrinos, "switch on tracking of neutrinos")
       ->group("Config");
@@ -542,7 +560,7 @@ int main(int argc, char** argv) {
       ->group("Misc.");
   app.add_option("--observation-level",
                  "Height above earth radius of the observation level (in m)")
-      ->default_val(2680.444195)
+      ->default_val(1100.)
       ->check(CLI::Range(-1.e3, 1.e5))
       ->group("Config");
   app.add_option("--injection-height",
@@ -590,14 +608,14 @@ int main(int argc, char** argv) {
       ->check(CLI::IsMember({"warn", "info", "debug", "trace"}))
       ->group("Misc.");
   app.add_option("-M,--hadronModel", "High-energy hadronic interaction model")
-      ->default_val("SIBYLL-2.3d")
+      ->default_val("QGSJet-III")
       ->check(CLI::IsMember(
-          {"SIBYLL-2.3d", "QGSJet-II.04", "QGSJet-III", "EPOS-LHC", "Pythia8"}))
+          {"QGSJet-III"}))
       ->group("Misc.");
   app.add_option("-T,--hadronModelTransitionEnergy",
                  "Transition between high-/low-energy hadronic interaction "
                  "model in GeV")
-      ->default_val(std::pow(10, 1.9)) // 79.4 GeV
+      ->default_val(80.) // explicit comparison assumption, to verify against C7
       ->check(CLI::NonNegativeNumber)
       ->group("Misc.");
 
@@ -678,38 +696,34 @@ int main(int argc, char** argv) {
   Point const center{rootCS, 0_m, 0_m, 0_m};
   Point const surface_{rootCS, 0_m, 0_m, constants::EarthRadius::Mean};
 
-  // Keep the reference CPU and CUDA backends on the same 21CMA field.
-  double constexpr cma21_latitude_deg = 42.5527;
-  double constexpr cma21_longitude_deg = 86.4153816422;
-  double constexpr cma21_altitude_m = 2680.444195;
-  auto const geomagnetic_data =
-      std::string{"GeoMag/"} + geomagnetic_model + ".COF";
-  auto geomagnetic_path = corsika_data(geomagnetic_data);
-#ifdef CORSIKA8_BUNDLED_IGRF14_FILE
-  if (geomagnetic_model == "IGRF14" &&
-      !boost::filesystem::exists(geomagnetic_path)) {
-    geomagnetic_path = CORSIKA8_BUNDLED_IGRF14_FILE;
-    CORSIKA_LOG_INFO(
-        "Using the bundled IGRF14 coefficient file: {}",
-        geomagnetic_path.string());
-  }
-#endif
-  if (!boost::filesystem::exists(geomagnetic_path)) {
-    CORSIKA_LOG_CRITICAL(
-        "Geomagnetic coefficient file does not exist: {}",
-        geomagnetic_path.string());
-    return EXIT_FAILURE;
-  }
-  GeomagneticModel igrf(center, geomagnetic_path);
-  MagneticFieldVector const cma21_field = igrf.getField(
-      geomagnetic_year, cma21_altitude_m * 1_m, cma21_latitude_deg,
-      cma21_longitude_deg);
+  // C7 MAGNET is north/down; root coordinates are north/west/up.
+  // No latitude lookup or magnetic-declination rotation is applied.
+  double constexpr cma21_latitude_deg = 0.;
+  double constexpr cma21_longitude_deg = 0.;
+  double const cma21_altitude_m = app["--observation-level"]->as<double>();
+  MagneticFieldVector const cma21_field{
+      rootCS, comparison_bnorth_uT * 1e-6 * 1_T, 0_T,
+      -comparison_bdown_uT * 1e-6 * 1_T};
 
-  // build an atmosphere with Keilhauer's parametrization of the
+  // Comparison atmosphere: Linsley's parametrization of the
   // US standard atmosphere into `env`
   create_5layer_atmosphere<EnvironmentInterface, MyExtraEnv>(
-      env, AtmosphereId::USStdBK, center, 1.000327, surface_, Medium::AirDry1Atm,
+      env, AtmosphereId::LinsleyUSStd, center, 1.000312, surface_, Medium::AirDry1Atm,
       cma21_field);
+
+  if (comparison_preflight) {
+    // No transport, no output library, and no GPU initialization in this path.
+    std::cout << "comparison_status: conditions_only_not_equivalence_accepted\n"
+              << "high_energy_model: QGSJet-III\nlow_energy_model: FLUKA\n"
+              << "atmosphere: LinsleyUSStd\nsea_level_refractive_index: 1.000312\n"
+              << "profile_bin_g_cm2: 5\n"
+              << "radio_algorithms: " << comparison_radio << '\n'
+              << "magnetic_north_uT: " << comparison_bnorth_uT << '\n'
+              << "magnetic_down_uT: " << comparison_bdown_uT << '\n'
+              << "observation_altitude_m: " << app["--observation-level"]->as<double>() << '\n'
+              << "hadronic_transition_total_energy_GeV: " << app["-T"]->as<double>() << '\n';
+    return EXIT_SUCCESS;
+  }
 
   /* === END: SETUP ENVIRONMENT AND ROOT COORDINATE SYSTEM === */
 
@@ -786,7 +800,7 @@ int main(int argc, char** argv) {
   // we make the axis much longer than the inj-core distance since the
   // profile will go beyond the core, depending on zenith angle
   ShowerAxis const showerAxis{injectionPos, (showerCore - injectionPos) * 1.2, env};
-  auto const dX = 10_g / square(1_cm); // Binning of the writers along the shower axis
+  auto const dX = 5_g / square(1_cm); // Binning of the writers along the shower axis
   /* === END: CONSTRUCT GEOMETRY === */
 
   std::stringstream args;
@@ -945,11 +959,11 @@ int main(int argc, char** argv) {
   auto emContinuous =
       make_select(EMHadronSwitch(), emContinuousBethe, emContinuousProposal);
 
-  auto const profile_mode = profile_crossings == "original-c8"
-      ? ProfileCrossingMode::OriginalC8
-      : profile_crossings == "forward" ? ProfileCrossingMode::Forward
-                                       : ProfileCrossingMode::Both;
-  LongitudinalWriter profile{showerAxis, dX, profile_mode};
+  auto const profile_mode = app["--profile-crossings"]->as<std::string>();
+  LongitudinalWriter profile{showerAxis, dX,
+      profile_mode == "original-c8" ? ProfileCrossingMode::OriginalC8
+      : profile_mode == "forward" ? ProfileCrossingMode::Forward
+                                   : ProfileCrossingMode::Both};
   output.add("profile", profile);
   LongitudinalProfile<SubWriter<decltype(profile)>> longprof{profile};
 
@@ -1028,10 +1042,12 @@ int main(int argc, char** argv) {
           trigger_time, duration_, sampleRate_, trigger_time);
       detectorCoREAS.addObserver(coreas_observer);
 
-      TimeDomainObserver zhs_observer(
-          "ZHS_Antenna_" + std::to_string(index), point, rootCS,
-          trigger_time, duration_, sampleRate_, trigger_time);
-      detectorZHS.addObserver(zhs_observer);
+      if (comparison_radio == "both") {
+        TimeDomainObserver zhs_observer(
+            "ZHS_Antenna_" + std::to_string(index), point, rootCS,
+            trigger_time, duration_, sampleRate_, trigger_time);
+        detectorZHS.addObserver(zhs_observer);
+      }
     }
   } else if (ring_number != 0) {
     // setup CoREAS observers - use the for loop for star shape pattern
@@ -1050,7 +1066,7 @@ int main(int argc, char** argv) {
     }
 
     // setup ZHS observers - use the for loop for star shape pattern
-    for (auto phi_ = 0; phi_ <= 315; phi_ += 45) {
+    for (auto phi_ = 0; comparison_radio == "both" && phi_ <= 315; phi_ += 45) {
       auto phiRad_ = phi_ / 180. * M_PI;
       auto const point_{Point(rootCS, showerCoreX_ + radius_ * cos(phiRad_),
                               showerCoreY_ + radius_ * sin(phiRad_),
@@ -1082,7 +1098,10 @@ int main(int argc, char** argv) {
       zhs(detectorZHS, TP);
 
   // register ZHS with the output manager
-  output.add("ZHS", zhs);
+  // Retain an empty, no-op process in the registry/sequence when disabled.
+  // RadioProcess returns before projection with no observers and never limits
+  // a particle step. Do not create a misleading empty ZHS output library.
+  if (comparison_radio == "both") output.add("ZHS", zhs);
 
   // make and register the first interaction writer
   InteractionWriter<setup::Tracking, ParticleWriterParquet> inter_writer(
@@ -1093,6 +1112,7 @@ int main(int argc, char** argv) {
   timing_configuration["em_backend"] = gpu_cli.em_backend;
   timing_configuration["gpu_physics_source"] = gpu_cli.gpu_physics_source;
   timing_configuration["radio_backend"] = gpu_cli.radio_backend;
+  timing_configuration["radio_algorithms"] = comparison_radio;
   timing_configuration["clock"] = "steady_clock";
   timing_configuration["scope"] =
       "OutputManager startOfShower through endOfShower";
@@ -1277,6 +1297,8 @@ int main(int argc, char** argv) {
             beamCode,
             app["--hadronModel"]->as<std::string>(),
             app["--max-deflection-angle"]->as<double>()};
+        cuda_event.atmosphere_id = AtmosphereId::LinsleyUSStd;
+        cuda_event.radio_zhs_enabled = comparison_radio == "both";
         corsika::applications::air_shower::runKokkosAirShower(
             accelerated_session, gpu_cli, cuda_event, env, rootCS, injectionPos,
             surface_, step, detectorCoREAS, detectorZHS, showerAxis, dX,

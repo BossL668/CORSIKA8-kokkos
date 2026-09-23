@@ -6,12 +6,14 @@
  */
 
 #pragma once
+#include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
 
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 #include <corsika/accelerator/em/detail/ProfileProjectionStep.hpp>
 #include <corsika/accelerator/em/common/MoliereScattering.hpp>
 #include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
@@ -93,19 +95,11 @@ namespace corsika::accelerator::em::detail {
       std::int32_t pid, double start_grammage, double end_grammage,
       double weight) {
     using namespace gpu::em;
-    if (start_grammage == end_grammage || accumulator.bins == 0) return;
-    auto const first_value =
-        profileCeil(start_grammage / accumulator.bin_width_g_per_cm2);
-    auto const last_value =
-        profileFloor(end_grammage / accumulator.bin_width_g_per_cm2);
-    if (!(first_value >= 0.) || !(last_value >= first_value) ||
-        first_value >= static_cast<double>(accumulator.bins))
-      return;
-    auto const first = static_cast<std::size_t>(first_value);
-    auto const candidate_last = static_cast<std::size_t>(last_value);
-    auto const last = candidate_last < accumulator.bins
-                          ? candidate_last
-                          : accumulator.bins - 1;
+    auto const crossings = corsika::detail::longitudinalProfileBins(
+        start_grammage / accumulator.bin_width_g_per_cm2,
+        end_grammage / accumulator.bin_width_g_per_cm2, accumulator.bins,
+        accumulator.crossing_mode);
+    if (crossings.begin == crossings.end) return;
     long long* profile = nullptr;
     if (pid == static_cast<std::int32_t>(EmPid::Photon))
       profile = accumulator.photons;
@@ -121,7 +115,7 @@ namespace corsika::accelerator::em::detail {
       AtomicOperations::add(&accumulator.counters->invalid_records, 1ULL);
       return;
     }
-    for (auto bin = first; bin <= last; ++bin)
+    for (auto bin = crossings.begin; bin < crossings.end; ++bin)
       addProfileFixedPoint<AtomicOperations>(
           profile + bin, weight, accumulator.weight_scale,
           accumulator.counters);
@@ -388,6 +382,7 @@ namespace corsika::accelerator::em::detail {
     else
       AtomicOperations::add(&accumulator.counters->lepton_limits[limit], 1ULL);
     if (record.limit == LeptonTransportLimit::ParticleCut) {
+      if (record.interaction.status != EmInteractionStatus::AtRestAnnihilation)
       addProfileFixedPoint<AtomicOperations>(
           &accumulator.counters->weighted_cut_rest_mass_energy,
           transportMassGeV(record.start.pid) * record.start.weight,
@@ -460,7 +455,9 @@ namespace corsika::accelerator::em::detail {
     }
     addProfileFixedPoint<AtomicOperations>(
         &accumulator.counters->weighted_medium_rest_mass_input,
-        ElectronMassGeV * transport->start.weight, accumulator.energy_scale,
+        (record.process_id == AnnihilationProcessId &&
+         record.final_state_draw_id == AtRestAnnihilationPolarDrawId
+             ? TransportElectronMassGeV : ElectronMassGeV) * transport->start.weight, accumulator.energy_scale,
         accumulator.counters);
   }
 

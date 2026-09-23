@@ -8,6 +8,9 @@
 #pragma once
 
 #include <corsika/framework/core/Logging.hpp>
+#include <corsika/framework/random/RNGManager.hpp>
+#include <corsika/framework/utility/PositronAtRest.hpp>
+#include <random>
 
 namespace corsika {
 
@@ -116,11 +119,11 @@ namespace corsika {
   template <typename TOutput>
   inline void ParticleCut<TOutput>::recordCut(
       Code const pid, HEPEnergyType const kinetic_energy,
-      double const weight) {
+      double const weight, bool const rest_mass_converted) {
     auto const weighted_kinetic_GeV =
         weight * kinetic_energy / 1_GeV;
     auto const weighted_rest_GeV =
-        weight * get_mass(pid) / 1_GeV;
+        rest_mass_converted ? 0. : weight * get_mass(pid) / 1_GeV;
     ++statistics_.particles;
     statistics_.weighted_kinetic_energy_GeV +=
         weighted_kinetic_GeV;
@@ -141,6 +144,44 @@ namespace corsika {
   }
 
   template <typename TOutput>
+  template <typename TParticle>
+  inline bool ParticleCut<TOutput>::annihilateStoppedPositron(
+      TParticle parent, HEPEnergyType kinetic, Point const& position, TimeType time) {
+    // Time/geometry termination is not stopping physics. In particular, a
+    // late positron must not start another cascade after the time limit.
+    if (parent.getPID() != Code::Positron || time > 10_ms ||
+        !isBelowEnergyCut(Code::Positron, kinetic)) return false;
+    auto const mass = get_mass(Code::Electron);
+    auto const weight = parent.getWeight();
+    ++statistics_.stopped_positron_annihilations;
+    statistics_.weighted_medium_rest_mass_input_GeV += weight * mass / 1_GeV;
+    if (isBelowEnergyCut(Code::Photon, mass)) {
+      for (int i = 0; i < 2; ++i) {
+        recordCut(Code::Photon, mass, weight);
+        this->write(position, Code::Photon, weight * mass);
+      }
+      return true;
+    }
+    auto& rng = RNGManager<>::getInstance().getRandomStream("cascade");
+    std::uniform_real_distribution<double> uniform(0., 1.);
+    // Separate statements make random consumption order explicit in C++17.
+    auto const u = uniform(rng);
+    auto const phi = uniform(rng);
+    double d[3];
+    positronAtRestDirection(u, phi, d);
+    // Copy all endpoint data before append: underlying SoA storage may grow.
+    auto const endpoint = position;
+    for (double sign : {1., -1.}) {
+      auto photon = parent.addSecondary(std::make_tuple(Code::Photon, mass,
+          DirectionVector(endpoint.getCoordinateSystem(), {sign*d[0], sign*d[1], sign*d[2]})));
+      photon.setPosition(endpoint);
+      photon.setTime(time);
+      photon.setWeight(weight); // no second thinning of a stopped parent
+    }
+    return true;
+  }
+
+  template <typename TOutput>
   template <typename TStackView>
   inline void ParticleCut<TOutput>::doSecondaries(TStackView& vS) {
     HEPEnergyType energy_event = 0_GeV; // per event counting for printout
@@ -149,7 +190,9 @@ namespace corsika {
       Code pid = particle.getPID();
       HEPEnergyType Ekin = particle.getKineticEnergy();
       if (checkCutParticle(pid, Ekin, particle.getTime())) {
-        recordCut(pid, Ekin, particle.getWeight());
+        auto const annihilated = annihilateStoppedPositron(
+            particle, Ekin, particle.getPosition(), particle.getTime());
+        recordCut(pid, Ekin, particle.getWeight(), annihilated);
         this->write(particle.getPosition(), pid, particle.getWeight() * Ekin);
         particle.erase();
       }
@@ -164,9 +207,11 @@ namespace corsika {
                                                           bool const) {
     if (checkCutParticle(step.getParticlePre().getPID(), step.getEkinPost(),
                          step.getTimePost())) {
+      auto const annihilated = annihilateStoppedPositron(
+          step.getParticlePre(), step.getEkinPost(), step.getPositionPost(), step.getTimePost());
       recordCut(
           step.getParticlePre().getPID(), step.getEkinPost(),
-          step.getParticlePre().getWeight());
+          step.getParticlePre().getWeight(), annihilated);
       this->write(
           step.getPositionPost(), step.getParticlePre().getPID(),
           step.getParticlePre().getWeight() *
@@ -209,6 +254,7 @@ namespace corsika {
     node["cut_hadrons"] = cut_hadrons_ / 1_GeV;
     node["cut_tau"] = cut_tau_ / 1_GeV;
     node["cut_invisibles"] = doCutInv_;
+    node["stopped_positron_annihilation"] = "two_photon_at_rest_v1";
     for (auto const& cut : cuts_) {
       node[fmt::format("cut_{}", cut.first)] = cut.second / 1_GeV;
     }

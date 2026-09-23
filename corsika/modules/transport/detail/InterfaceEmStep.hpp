@@ -223,12 +223,16 @@ template<class Storage> struct InterfaceStepKernel {
       recordMidpoint(out,step.magnetic_bending_applied!=0);
       out.grammage_g_cm2=step.traversed_grammage_g_per_cm2;
       out.deposited_GeV=step.continuous_deposited_energy_GeV+step.cut_deposited_energy_GeV;
-      if(step.limit==em::LeptonTransportLimit::ParticleCut)out.outcome=EmOutcome::Cut;
+      auto const at_rest = step.interaction.status == em::EmInteractionStatus::AtRestAnnihilation;
+      if(step.limit==em::LeptonTransportLimit::ParticleCut && !at_rest)out.outcome=EmOutcome::Cut;
       else if(step.limit==em::LeptonTransportLimit::EscapedEnvironment)out.outcome=EmOutcome::Escape;
       else if(domain_limiter&&step.limit==em::LeptonTransportLimit::MaterialBoundary)out.outcome=EmOutcome::DomainEscape;
       else if(std::isfinite(transport_window_s)&&step.end.time_s>=transport_window_s-1.e-15)
         out.outcome=EmOutcome::WindowEscape;
-      else if(step.limit==em::LeptonTransportLimit::InteractionCandidate) {
+      else if(step.limit==em::LeptonTransportLimit::InteractionCandidate || at_rest) {
+        // The endpoint cut already deposited the remaining kinetic energy.
+        // Present the stopped parent to the generic reaction/energy ledger.
+        if(at_rest) out.end.energy_GeV = step.interaction.particle.energy_GeV;
         auto vertex=physics::selectLeptonVertex(bank.physics,step.interaction,bank.random_seed,bank.shower_id);
         C8_TERRAIN_AUDIT_STAGE(vertex,vertex,16);
         if(vertex.fallback_flag) {out.outcome=EmOutcome::Fallback;out.fallback=vertex.fallback;return;}

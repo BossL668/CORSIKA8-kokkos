@@ -22,6 +22,7 @@ inline bool sameProfileConfig(gpu::em::GpuEmConfig::ProfileProjection const& a,
   SAME(axis_grammage_g_per_cm2); SAME(output_bin_count); SAME(output_bin_width_g_per_cm2);
   SAME(energy_loss_threshold_g_per_cm2); SAME(fixed_point_weight_limit);
   SAME(fixed_point_energy_limit_GeV);
+  SAME(crossing_mode);
   for(int d=0;d<3;++d){SAME(axis_start_position_m[d]);SAME(axis_direction[d]);}
 #undef SAME
   return true;

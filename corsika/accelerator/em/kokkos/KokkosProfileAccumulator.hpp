@@ -138,6 +138,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       view_.counters = counters_.data();
       view_.bins = bins_;
       view_.bin_width_g_per_cm2 = config.output_bin_width_g_per_cm2;
+      view_.crossing_mode = config.crossing_mode;
       view_.energy_loss_threshold_g_per_cm2 =
           config.energy_loss_threshold_g_per_cm2;
       enabled_ = true;
@@ -168,7 +169,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     }
 
     bool enabled() const noexcept { return enabled_; }
-    void enableCooperativeHostShards(std::size_t workers, std::size_t budget) {
+    void enableHostShards(std::size_t workers, std::size_t budget) {
 #ifdef KOKKOS_ENABLE_OPENMP
       if constexpr (std::is_same_v<ExecutionSpace, Kokkos::OpenMP>) {
         if (!enabled_ || downloaded_ || fixed_snapshot_sealed_)
@@ -178,6 +179,10 @@ namespace corsika::accelerator::em::kokkos_detail {
       }
 #endif
       throw std::logic_error("profile shards require the OpenMP execution space");
+    }
+    // Keep the cooperative endpoint's existing interface and opt-in unchanged.
+    void enableCooperativeHostShards(std::size_t workers, std::size_t budget) {
+      enableHostShards(workers, budget);
     }
     detail::HostProfileShards const& hostShards() const noexcept { return host_shards_; }
     void requireOpenForAccumulation() const {
@@ -280,8 +285,15 @@ namespace corsika::accelerator::em::kokkos_detail {
         ExecutionSpace const& execution = {}) {
       if (!enabled_)
         throw std::logic_error("Kokkos resident profile is not enabled");
-      if (host_shards_.enabled())
-        throw std::logic_error("host profile shards require the checked fixed snapshot path");
+      if (host_shards_.enabled()) {
+        // Standalone OpenMP uses the same checked integer merge as cooperative
+        // transport. Decode only AFTER the canonical and sharded ledgers have
+        // been combined; never add separately rounded floating-point profiles.
+        // downloadFixed seals the event even if finalization fails.
+        return detail::decodeFixedProfile(downloadFixed(
+            "standalone-openmp-profile", detail::CooperativeEndpoint::OpenMP,
+            execution));
+      }
       if (downloaded_)
         throw std::logic_error(
             "Kokkos resident profile was downloaded more than once");

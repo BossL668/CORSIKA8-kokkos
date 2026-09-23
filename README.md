@@ -12,6 +12,20 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 beta project, an existing build tree or manually prepared `.c8emrt` tables.
 
+Air application update (2026-09-23): `c8_air_shower` now defaults to
+`--profile-crossings original-c8` (forward crossings, closed endpoints).
+`forward` selects forward half-open counts; `both` selects positive weighted
+crossings in either direction. CPU writers and Kokkos CUDA/OpenMP share the
+policy; transport, radio tracks, cuts and deposited energy are unchanged.
+Rebuild and reinstall; do not mix profile cohorts using different conventions.
+See [counting semantics and runnable examples](documentation/profile_crossings_CN.md).
+
+Physics update (2026-09-20): the scalar and shared Kokkos paths now include
+two-photon annihilation of positrons stopped at the energy cut, preserving
+particle weights and accounting for the target electron rest energy. Rebuild
+before using this change; keep earlier C8 samples in a separate physics cohort.
+See the [implementation and validation note](documentation/stopped_positron_annihilation_20260920_CN.md).
+
 This guide starts with **Ubuntu 24.04 x86-64, Bash and an empty Conda environment**.
 After the common setup, choose an independent backend or the new single-binary
 experiment. OpenMP is the simplest CPU-only starting point; NVIDIA users can

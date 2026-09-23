@@ -10,6 +10,7 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/framework/utility/FindXmax.hpp>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 
 #include <corsika/media/ShowerAxis.hpp>
 
@@ -21,17 +22,20 @@ namespace corsika {
 
   template <typename TOutput>
   inline LongitudinalWriter<TOutput>::LongitudinalWriter(ShowerAxis const& axis,
-                                                         GrammageType dX)
+                                                         GrammageType dX,
+                                                         ProfileCrossingMode mode)
       : LongitudinalWriter<TOutput>{
-            axis, static_cast<unsigned int>(axis.getMaximumX() / dX) + 1, dX} {}
+            axis, static_cast<unsigned int>(axis.getMaximumX() / dX) + 1, dX, mode} {}
 
   template <typename TOutput>
   inline LongitudinalWriter<TOutput>::LongitudinalWriter(ShowerAxis const& axis,
-                                                         size_t nbins, GrammageType dX)
+                                                         size_t nbins, GrammageType dX,
+                                                         ProfileCrossingMode mode)
       : TOutput(number_profile::ProfileIndexNames)
       , showerAxis_(axis)
       , dX_(dX)
       , nBins_(nbins)
+      , crossingMode_(mode)
       , profile_{nbins} {}
 
   template <typename TOutput>
@@ -77,20 +81,16 @@ namespace corsika {
       GrammageType const grammageStart, GrammageType const grammageEnd,
       Code const pid, double const weight) {
 
-    // Avoid over counting in first bin when backscattered particle goes beyond the
-    // injection point.
-    if (grammageStart == grammageEnd) { return; }
-
-    // Note: particle may go also "upward", thus, grammageEnd<grammageStart
-    size_t const binStart = std::ceil(grammageStart / dX_);
-    size_t const binEnd = std::floor(grammageEnd / dX_);
+    auto const crossings = detail::longitudinalProfileBins(
+        grammageStart / dX_, grammageEnd / dX_, profile_.size(), crossingMode_);
 
     CORSIKA_LOGGER_TRACE(TOutput::getLogger(),
-                         "grammageStart={} End={} binStart={}, end={}",
+                         "grammageStart={} End={} binStart={}, end(exclusive)={}",
                          grammageStart / 1_g * square(1_cm),
-                         grammageEnd / 1_g * square(1_cm), binStart, binEnd);
+                         grammageEnd / 1_g * square(1_cm), crossings.begin,
+                         crossings.end);
 
-    for (size_t bin = binStart; bin <= std::min(binEnd, profile_.size() - 1); ++bin) {
+    for (size_t bin = crossings.begin; bin < crossings.end; ++bin) {
       addBin(bin, pid, weight);
     }
   }
@@ -155,6 +155,19 @@ namespace corsika {
     node["units"]["grammage"] = "g/cm^2";
     node["bin-size"] = dX_ / (1_g / square(1_cm));
     node["nbins"] = nBins_;
+    node["counting"] = "bidirectional-plane-crossings-v1";
+    node["crossing-interval"] = "(min(Xstart,Xend),max(Xstart,Xend)]";
+    node["profile-crossings"] = "both";
+    if (crossingMode_ == ProfileCrossingMode::Forward) {
+      node["profile-crossings"] = "forward";
+      node["counting"] = "forward-plane-crossings-v1";
+      node["crossing-interval"] = "(Xstart,Xend], Xend>Xstart";
+    } else if (crossingMode_ == ProfileCrossingMode::OriginalC8) {
+      node["profile-crossings"] = "original-c8";
+      node["counting"] = "original-c8-forward-closed-v1";
+      node["crossing-interval"] = "[Xstart,Xend], Xend>Xstart";
+    }
+    node["affects-transport"] = false;
 
     return node;
   }

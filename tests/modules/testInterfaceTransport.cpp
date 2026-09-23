@@ -117,7 +117,7 @@ int main(int argc,char** argv) {
     if(swapped){std::swap(banks[0],banks[1]);binding.outside_material=1;binding.inside_material=0;}
     api::EmConfig cfg;cfg.threads=2;cfg.batch_size=64;cfg.maximum_device_bytes=256*1024*1024;
     if(auto threads=std::getenv("C8_INTERFACE_TEST_THREADS"))cfg.threads=std::stoi(threads);
-    cfg.seed=81819;cfg.interface=binding;cfg.maximum_step_m=.01;
+    cfg.seed=81819;cfg.interface=binding;cfg.maximum_step_m=.01;cfg.energy_ledger=true;
     cfg.resident_capacity=4096;
     cfg.resident_record_capacity=96; // Deliberately forces bounded output checkpoints.
     std::size_t wideFront=0;
@@ -143,6 +143,37 @@ int main(int argc,char** argv) {
     api::InterfaceEmSession session(flat,banks,cfg);
     if(session.executionSpace()=="OpenMP")
       require(session.executionConcurrency()==cfg.threads,"OpenMP thread configuration was not applied");
+    // A cut-endpoint positron annihilates in either material, without changing
+    // the logical region or re-thinning the already weighted parent. Exercise
+    // the real two-sided session (not only the isolated final-state kernel).
+    for(bool in:{false,true}) {
+      em::EmParticleState p;p.pid=-11;p.history_id=10001+(in?1:0);
+      p.medium_id=in?93:17;p.position_m[2]=in?0.:-2.;p.direction[0]=1.;
+      p.weight=3.;p.energy_GeV=em::TransportElectronMassGeV+.0002;
+      auto r=session.advance({p},20001).front();
+      require(!r.error&&r.outcome==api::EmOutcome::Children&&r.child_count==2,
+              "stopped positron missing from interface session");
+      require(!r.crossed_material&&r.end.medium_id==p.medium_id&&r.distance_m==0.,
+              "stopped positron moved or changed material");
+      require(std::abs(r.deposited_GeV-.0002)<1.e-17&&
+              r.end.energy_GeV==em::TransportElectronMassGeV,"stopping kinetic deposit");
+      double total=0.;
+      for(auto const& c:{r.children[0],r.children[1]}) {
+        require(c.pid==22&&c.energy_GeV==em::TransportElectronMassGeV&&
+                c.weight==p.weight&&c.medium_id==p.medium_id&&c.parent_history_id==p.history_id,
+                "stopping photon energy/weight/region/lineage");
+        total+=c.weight*c.energy_GeV;
+      }
+      for(int k=0;k<3;++k)require(r.children[0].direction[k]==-r.children[1].direction[k],
+                                "stopping photons not back-to-back");
+      require(std::abs(p.weight*(p.energy_GeV+em::TransportElectronMassGeV-r.deposited_GeV)-total)<1.e-16&&
+              std::abs(r.unthinned_secondary_total_GeV-total)<1.e-16&&r.weighted_thinning_delta_GeV==0.,
+              "stopping source/kinetic deposit/photon energy ledger");
+      p.time_s=em::ParticleCutMaximumTimeS+1.e-9;
+      auto late=session.advance({p},20005).front();
+      require(!late.error&&late.outcome==api::EmOutcome::Cut&&late.child_count==0,
+              "time-limited positron spuriously annihilated");
+    }
     std::vector<em::EmParticleState> input;
     for(int pid:{22,11,-11})for(bool insideSide:{false,true}) {
       em::EmParticleState p;p.pid=pid;p.energy_GeV=1.;p.history_id=input.size()+1;

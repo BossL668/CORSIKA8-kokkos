@@ -334,7 +334,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   };
 
 #ifdef KOKKOS_ENABLE_OPENMP
-  /** Only the cooperative OpenMP endpoint opts in. Inherit the canonical
+  /** Standalone OpenMP and opted-in cooperative endpoints. Inherit the canonical
    * reducer's init/join/final so Moliere iterations are still counted once per
    * wavefront; only the per-record integer ledger is sharded. No GPU functor
    * or physics formula is modified by this host-only specialization. */
@@ -1334,7 +1334,8 @@ namespace corsika::accelerator::em::kokkos_detail {
             classifyResidentLeptonTransportLimit(transport, source_counts);
             interaction_flags_raw(source) =
                 transport.limit ==
-                LeptonTransportLimit::InteractionCandidate;
+                LeptonTransportLimit::InteractionCandidate ||
+                transport.interaction.status == EmInteractionStatus::AtRestAnnihilation;
           };
       static_assert(sizeof(moliere_air_kernel) < 512);
       Kokkos::parallel_for(
@@ -1365,7 +1366,8 @@ namespace corsika::accelerator::em::kokkos_detail {
             classifyResidentLeptonTransportLimit(transport, source_counts);
             interaction_flags_raw(source) =
                 transport.limit ==
-                LeptonTransportLimit::InteractionCandidate;
+                LeptonTransportLimit::InteractionCandidate ||
+                transport.interaction.status == EmInteractionStatus::AtRestAnnihilation;
           };
       static_assert(sizeof(moliere_general_kernel) < 512);
       Kokkos::parallel_for(

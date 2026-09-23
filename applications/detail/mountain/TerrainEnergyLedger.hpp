@@ -45,7 +45,8 @@ struct EnergyLedger {
     YAML::Node n;n["enabled"]=enabled;if(!enabled)return n;
     auto put=[&](char const* key,long double value){n[key]=static_cast<double>(value);};
     long double cpuCutTotal=cut.weighted_kinetic_energy_GeV+cut.weighted_rest_mass_energy_GeV;
-    long double reactions=cpuReaction+deviceReaction,thinning=cpuThinning+deviceThinning;
+    long double reactions=cpuReaction+deviceReaction+cut.weighted_medium_rest_mass_input_GeV,
+        thinning=cpuThinning+deviceThinning;
     // A tracked particle disappears at a cut with its TOTAL energy; the writer
     // deposits only its kinetic energy. Separately, a generator may introduce
     // target rest energy or leave untracked target states. Do not conflate
@@ -58,6 +59,8 @@ struct EnergyLedger {
     put("world_escape_GeV",worldEscaped);put("cpu_continuous_removed_GeV",cpuContinuous);
     put("device_continuous_removed_GeV",deviceContinuous);put("cpu_cut_total_GeV",cpuCutTotal);
     put("cpu_cut_rest_GeV",cut.weighted_rest_mass_energy_GeV);put("device_cut_total_GeV",deviceCutTotal);
+    put("cpu_stopped_annihilation_medium_input_GeV",cut.weighted_medium_rest_mass_input_GeV);
+    n["cpu_stopped_positron_annihilations"]=cut.stopped_positron_annihilations;
     put("device_cut_rest_GeV",deviceCutRest);put("device_deposit_GeV",deviceDeposit);
     put("cpu_unthinned_generator_balance_GeV",cpuReaction);put("device_unthinned_generator_balance_GeV",deviceReaction);
     put("cpu_thinning_jump_GeV",cpuThinning);put("device_thinning_jump_GeV",deviceThinning);

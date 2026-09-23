@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -1454,8 +1455,8 @@ namespace corsika::gpu::em {
           record.continuous_deposited_energy_GeV +
           record.cut_deposited_energy_GeV;
       auto const process_id =
-          record.limit ==
-                  LeptonTransportLimit::InteractionCandidate
+          (record.limit == LeptonTransportLimit::InteractionCandidate ||
+           record.interaction.status == EmInteractionStatus::AtRestAnnihilation)
               ? record.interaction.process_id
               : 0;
       auto step = makeStepRecord(
@@ -1495,6 +1496,7 @@ namespace corsika::gpu::em {
       if (!backend_.gpuProfileEnabled() &&
           record.limit ==
               LeptonTransportLimit::ParticleCut) {
+        if (record.interaction.status != EmInteractionStatus::AtRestAnnihilation)
         statistics_.cut_rest_mass_energy_GeV +=
             leptonRestMassGeV(record.start.pid) *
             record.start.weight;
@@ -1543,7 +1545,9 @@ namespace corsika::gpu::em {
               "atomic-electron lepton final state has no matching transport step");
         }
         statistics_.medium_rest_mass_input_GeV +=
-            ElectronMassGeV * weight->second;
+            (record.process_id == AnnihilationProcessId && record.final_state_draw_id ==
+             corsika::accelerator::em::AtRestAnnihilationPolarDrawId
+                 ? TransportElectronMassGeV : ElectronMassGeV) * weight->second;
       }
     }
 
@@ -1565,7 +1569,9 @@ namespace corsika::gpu::em {
           throw std::runtime_error(
               "atomic-electron lepton final state has no matching projected step");
         statistics_.medium_rest_mass_input_GeV +=
-            ElectronMassGeV * transport->weight;
+            (record.process_id == AnnihilationProcessId && record.final_state_draw_id ==
+             corsika::accelerator::em::AtRestAnnihilationPolarDrawId
+                 ? TransportElectronMassGeV : ElectronMassGeV) * transport->weight;
       }
     }
 
@@ -1587,8 +1593,8 @@ namespace corsika::gpu::em {
       std::unordered_map<std::uint64_t, std::size_t> next_process;
       for (std::size_t index = 0; index < transports.size(); ++index) {
         auto const& transport = transports[index];
-        if (transport.limit !=
-            LeptonTransportLimit::InteractionCandidate) {
+        if (transport.limit != LeptonTransportLimit::InteractionCandidate &&
+            transport.interaction.status != EmInteractionStatus::AtRestAnnihilation) {
           continue;
         }
         auto const history = transport.start.history_id;
@@ -1610,6 +1616,7 @@ namespace corsika::gpu::em {
           static_cast<std::int32_t>(
               LeptonTransportLimit::ParticleCut)) {
         ++statistics_.particles_cut;
+        if (record.process_id != AnnihilationProcessId)
         statistics_.cut_rest_mass_energy_GeV +=
             leptonRestMassGeV(record.pid) * record.weight;
         if (record.observation_surface_reached_before_cut != 0U)

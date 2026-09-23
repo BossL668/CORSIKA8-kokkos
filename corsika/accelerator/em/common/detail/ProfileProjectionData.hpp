@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstddef>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 
 namespace corsika::gpu::em::detail {
 
@@ -63,6 +64,7 @@ namespace corsika::gpu::em::detail {
     DeviceProfileCounters* counters{};
     std::size_t bins{};
     double bin_width_g_per_cm2{};
+    ProfileCrossingMode crossing_mode{ProfileCrossingMode::Both};
     double energy_loss_threshold_g_per_cm2{};
     double weight_scale{};
     double inverse_weight_scale{};

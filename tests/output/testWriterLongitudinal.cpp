@@ -23,6 +23,7 @@
 #include <corsika/framework/core/Logging.hpp>
 
 #include <string>
+#include <corsika/framework/utility/LongitudinalCrossings.hpp>
 
 using namespace corsika;
 using Catch::Approx;
@@ -124,4 +125,94 @@ TEST_CASE("LongitudinalWriter") {
         static_cast<int>(showerAxis.getMaximumX() / (10_g / 1_cm / 1_cm)) + 1);
 
   auto const summary = test.getSummary(); // nothing to check yet
+}
+
+namespace {
+  struct CaptureLongitudinal : WriterOff {
+    using WriterOff::WriterOff;
+    std::vector<number_profile::ProfileData> rows;
+    void write(unsigned int, GrammageType, number_profile::ProfileData const& row) {
+      rows.push_back(row);
+    }
+  };
+}
+
+TEST_CASE("LongitudinalWriter bidirectional weighted crossings") {
+  auto [env, csPtr, nodePtr] = setupEnvironment2(Code::Nitrogen);
+  (void)nodePtr;
+  ShowerAxis axis(Point{*csPtr, 0_m, 0_m, 0_m},
+                  Point{*csPtr, 0_m, 0_m, 1000_m} -
+                      Point{*csPtr, 0_m, 0_m, 0_m}, *env, false, 100);
+  using Writer = LongitudinalWriter<CaptureLongitudinal>;
+  Writer writer(axis, 8, 5_g / square(1_cm));
+  writer.startOfShower(0);
+  std::vector<std::pair<double, double>> segments{
+      {1., 17.}, {17., 1.}, {5., 10.}, {10., 5.}, {5., 5.},
+      {-10., 10.}, {10., -10.}, {30., 50.}, {50., 30.}, {-10., -5.}};
+  std::vector<double> expected(8);
+  for (auto [a, b] : segments) {
+    writer.writeProjected(a * 1_g / square(1_cm), b * 1_g / square(1_cm),
+                          Code::Photon, 2.5);
+    for (std::size_t bin = 0; bin < expected.size(); ++bin)
+      if (std::min(a, b) < 5. * bin && 5. * bin <= std::max(a, b))
+        expected[bin] += 2.5;
+  }
+  writer.endOfShower(0);
+  REQUIRE(writer.rows.size() == expected.size());
+  for (std::size_t bin = 0; bin < expected.size(); ++bin) {
+    CHECK(writer.rows[bin][static_cast<int>(number_profile::ProfileIndex::Photon)] ==
+          expected[bin]);
+    CHECK(writer.rows[bin][static_cast<int>(number_profile::ProfileIndex::Charged)] == 0.);
+  }
+  for (bool reverse : {false, true}) {
+    Writer split(axis, 8, 5_g / square(1_cm)), whole(axis, 8, 5_g / square(1_cm));
+    auto write = [reverse](Writer& w, double a, double b) {
+      if (reverse) std::swap(a, b);
+      w.writeProjected(a * 1_g / square(1_cm), b * 1_g / square(1_cm),
+                       Code::Electron, 1.25);
+    };
+    write(whole, 1., 21.);
+    write(split, 1., 10.); write(split, 10., 21.);
+    whole.endOfShower(0); split.endOfShower(0);
+    CHECK(whole.rows == split.rows);
+  }
+  CHECK(writer.getConfig()["counting"].as<std::string>() ==
+        "bidirectional-plane-crossings-v1");
+}
+
+TEST_CASE("LongitudinalWriter selectable observer conventions") {
+  auto [env, csPtr, nodePtr] = setupEnvironment2(Code::Nitrogen);
+  (void)nodePtr;
+  ShowerAxis axis(Point{*csPtr, 0_m, 0_m, 0_m},
+                  Point{*csPtr, 0_m, 0_m, 1000_m} -
+                      Point{*csPtr, 0_m, 0_m, 0_m}, *env, false, 100);
+  using Writer = LongitudinalWriter<CaptureLongitudinal>;
+  for (auto mode : {ProfileCrossingMode::Both, ProfileCrossingMode::Forward,
+                    ProfileCrossingMode::OriginalC8}) {
+    Writer writer(axis, 8, 5_g / square(1_cm), mode);
+    writer.startOfShower(0);
+    std::vector<double> expected(8);
+    for (auto [a,b] : std::vector<std::pair<double,double>>{
+             {0.,5.},{5.,10.},{10.,5.},{5.,5.},{-10.,10.},{30.,50.}}) {
+      for (auto pid : {Code::Photon, Code::Electron, Code::Positron,
+                       Code::MuPlus, Code::MuMinus, Code::Proton})
+        writer.writeProjected(a * 1_g / square(1_cm), b * 1_g / square(1_cm), pid, 2.5);
+      for (std::size_t j=0;j<8;++j) {
+        bool hit = mode == ProfileCrossingMode::Both
+            ? std::min(a,b)<5.*j && 5.*j<=std::max(a,b)
+            : b>a && 5.*j<=b && (mode == ProfileCrossingMode::OriginalC8 ? a<=5.*j : a<5.*j);
+        if(hit)expected[j]+=2.5;
+      }
+    }
+    writer.endOfShower(0);
+    REQUIRE(writer.rows.size()==8);
+    CHECK(writer.getCrossingMode()==mode);
+    for (std::size_t j=0;j<8;++j)
+      for(std::size_t k=0;k<number_profile::NColumns;++k)
+        CHECK(writer.rows[j][k] == expected[j] *
+            (k==static_cast<std::size_t>(number_profile::ProfileIndex::Charged) ? 5. : 1.));
+    CHECK_FALSE(writer.getConfig()["affects-transport"].as<bool>());
+    CHECK(writer.getConfig()["profile-crossings"].as<std::string>() ==
+          (mode==ProfileCrossingMode::Both ? "both" : mode==ProfileCrossingMode::Forward ? "forward" : "original-c8"));
+  }
 }

@@ -448,7 +448,8 @@ namespace corsika::gpu::em {
       double const sphere_center_m[3], double sphere_radius_m,
       double maximum_distance_m,
       double maximum_deflection =
-          DefaultMaximumMagneticDeflection) {
+          DefaultMaximumMagneticDeflection,
+      int crossing_direction = 0) {
     using namespace magnetic_detail;
     if (!validParticle(start, mass_GeV, charge_number) ||
         !validField(field_T) || !finite(sphere_radius_m) ||
@@ -492,10 +493,14 @@ namespace corsika::gpu::em {
       auto const root = squareRoot(discriminant);
       auto const lower = -projection - root;
       auto const upper = -projection + root;
+      // Layer ownership near a surface is directional. A rounded starting
+      // point may lie a few ulps on the other side, especially at grazing
+      // incidence. Ignore an entry into the already-owned layer; retain the
+      // subsequent exit. Zero keeps the general first-intersection contract.
       auto const distance =
-          lower > IntersectionGuardM
+          lower > IntersectionGuardM && crossing_direction <= 0
               ? lower
-              : (upper > IntersectionGuardM
+              : (upper > IntersectionGuardM && crossing_direction >= 0
                      ? upper
                      : infinity());
       if (!finite(distance) ||
@@ -605,7 +610,13 @@ namespace corsika::gpu::em {
           absolute(right_value) <=
               256. * 2.22044604925031308085e-16 *
                   (scale > 1. ? scale : 1.);
-      if (changes_sign || at_final_endpoint) {
+      auto const radial_derivative =
+          changes_sign ? right_value - left_value
+                       : (4. * A * right * right + 2. * C) * right + D;
+      auto const matches_crossing = crossing_direction == 0 ||
+          (crossing_direction < 0 && radial_derivative < 0.) ||
+          (crossing_direction > 0 && radial_derivative > 0.);
+      if ((changes_sign || at_final_endpoint) && matches_crossing) {
         if (changes_sign) {
           for (int iteration = 0; iteration < 96;
                ++iteration) {

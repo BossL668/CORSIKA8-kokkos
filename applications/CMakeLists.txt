@@ -55,6 +55,27 @@ if (WITH_FLUKA AND NOT TARGET fluka)
            "Set C8_FLUKALIB or FLUPRO to a directory containing libflukahp.a.")
 endif ()
 
+# Isolated C7 comparison application: never changes the standard air target.
+# Opt-in until atmosphere/radio/thinning correspondence has been validated.
+option(CORSIKA_BUILD_C7_COMPARISON "Build the QGSJET-III/FLUKA C7 comparison" OFF)
+if (CORSIKA_BUILD_C7_COMPARISON)
+  if (NOT WITH_FLUKA)
+    message(FATAL_ERROR "C7 comparison requires WITH_FLUKA=ON")
+  endif ()
+  add_executable(c8_corsika7_compare c8_corsika7_compare.cpp)
+  target_link_libraries(c8_corsika7_compare PRIVATE CORSIKA8)
+  target_compile_definitions(c8_corsika7_compare PRIVATE WITH_FLUKA)
+  if (CORSIKA_ENABLE_KOKKOS)
+    target_sources(c8_corsika7_compare PRIVATE detail/air_shower_kokkos/KokkosRunSession.cpp)
+    target_link_libraries(c8_corsika7_compare PRIVATE CORSIKA8KokkosEm)
+    target_compile_definitions(c8_corsika7_compare PRIVATE
+      CORSIKA8_WITH_KOKKOS_EM=1 CORSIKA8_KOKKOS_VERSION="${Kokkos_VERSION}")
+  endif ()
+  set_target_properties(c8_corsika7_compare PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/corsika")
+  install(TARGETS c8_corsika7_compare DESTINATION bin)
+endif ()
+
 # A Conda Fortran compiler can contribute an old-sysroot libm linker script
 # even when the final C++ driver and all C++ objects use the host glibc. Put
 # the matching host multiarch directory first instead of applying the Conda
@@ -70,6 +91,12 @@ if (NOT EXISTS "${_c8_host_multiarch_libdir}/libm.so")
                             "${_c8_host_libm}" DIRECTORY)
   endif ()
 endif ()
+if (TARGET c8_corsika7_compare AND
+    EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+  # Conan transitive link directories can contain a foreign-sysroot libm
+  # script even with host GCC. Prefer this host's libm for this isolated app.
+  target_link_options(c8_corsika7_compare PRIVATE "-L${_c8_host_multiarch_libdir}")
+endif ()
 if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/" OR
      CMAKE_CXX_COMPILER MATCHES "/(conda|mambaforge|miniconda)[^/]*/") AND
     EXISTS "${_c8_host_multiarch_libdir}/libm.so")
@@ -77,6 +104,9 @@ if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/" OR
     c8_air_shower PRIVATE
     "-L${_c8_host_multiarch_libdir}"
     )
+  if (TARGET c8_corsika7_compare)
+    target_link_options(c8_corsika7_compare PRIVATE "-L${_c8_host_multiarch_libdir}")
+  endif ()
 
 endif ()
 

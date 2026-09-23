@@ -7,6 +7,10 @@ GitHub 仓库默认首页目前仍是旧 `cuda-em-refactor` 分支，其中的�
 
 本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧 beta 项目、已有构建目录或手工生成的 `.c8emrt` 表。
 
+空气程序更新（2026-09-23）：`c8_air_shower` 默认采用原 C8 的正向闭端点纵向计数 `--profile-crossings original-c8`。可显式选择 `forward`（仅正向半开区间）或 `both`（双向半开区间）；CUDA、OpenMP、标量 writer 共用同一规则。**不是禁止向上输运，不影响射电轨迹、cut 或能量沉积。** 旧二进制需重新 build/install，旧双向计数样本勿混用。详见 [计数选项与最简运行](documentation/profile_crossings_CN.md)。
+
+物理更新（2026-09-20）：补全标量 CPU 与共享 Kokkos 路径中能量 cut 处的正电子停止双光子湮灭，正确保留粒子权重及介质电子静质量账项。需要重新构建；不要将此前缺少此过程的 C8 样本与新版本混合平均。实现范围与验证见 [停止湮灭说明](documentation/stopped_positron_annihilation_20260920_CN.md)。
+
 本文面向初学者，以 **Ubuntu 24.04 x86-64、Bash、空 Conda 环境**为例：完成公共环境准备后，选择独立后端或新增单二进制实验。无 GPU 从独立 OpenMP 开始；已有可用 NVIDIA 设备也可直接按第 7.2 节构建组合程序。HIP/SYCL 工具链单独说明，不能将配置支持等同于硬件验收通过。
 
 ### 阅读顺序
