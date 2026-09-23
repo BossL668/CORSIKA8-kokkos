@@ -50,7 +50,9 @@ def main():
         elif hidden:
             assert "requires a working NVIDIA device" in result.stdout, record
         elif backend == "hip":
-            assert "supports only cuda or openmp" in result.stdout, record
+            # Cooperative execution modes are also advertised by the current
+            # dual runtime; HIP must still be rejected, without falling back.
+            assert "This dual Kokkos binary supports cuda, openmp, cuda-openmp or openmp-cuda" in result.stdout, record
         else:
             assert "at most one host thread" in result.stdout, record
         record["pass"] = True
