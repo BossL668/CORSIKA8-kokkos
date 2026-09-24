@@ -1,0 +1,77 @@
+{
+  "native_vs_python": {
+    "profile/profile.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "production_profile/profile.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "energyloss/dEdX.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "CoREAS/observers.parquet": {
+      "rows": 32400,
+      "maximum_absolute_difference": 0.0
+    },
+    "ZHS/observers.parquet": {
+      "rows": 32400,
+      "maximum_absolute_difference": 0.0
+    },
+    "particles/particles.parquet": {
+      "rows": 2,
+      "maximum_absolute_difference": 0.0
+    },
+    "interactions/interactions.parquet": {
+      "rows": 29,
+      "maximum_absolute_difference": 0.0
+    }
+  },
+  "new_vs_previous_worker": {
+    "profile/profile.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "production_profile/profile.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "energyloss/dEdX.parquet": {
+      "rows": 3175,
+      "maximum_absolute_difference": 0.0
+    },
+    "CoREAS/observers.parquet": {
+      "rows": 32400,
+      "maximum_absolute_difference": 0.0
+    },
+    "ZHS/observers.parquet": {
+      "rows": 32400,
+      "maximum_absolute_difference": 0.0
+    },
+    "particles/particles.parquet": {
+      "rows": 2,
+      "maximum_absolute_difference": 0.0
+    },
+    "interactions/interactions.parquet": {
+      "rows": 29,
+      "maximum_absolute_difference": 0.0
+    }
+  },
+  "native_events": 2,
+  "devices": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "gpu_memory_fraction": 0.9,
+  "old_binary_sha256": "1f642f1a95b7a245d1e117e5d3384fe391b3a80b9a2c384013634d03c8c707e1",
+  "new_binary_sha256": "89c716e49506b9ce23cd21da52001ed5037c77cdbf1b31930351204e889ca235",
+  "native_times_s": [
+    22.55788532,
+    20.37570598
+  ],
+  "passed": true
+}

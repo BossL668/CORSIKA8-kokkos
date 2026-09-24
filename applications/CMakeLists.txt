@@ -198,7 +198,24 @@ if (TARGET fluka_batch_worker)
   install (TARGETS fluka_batch_worker DESTINATION bin)
 endif ()
 
-# Opt-in worker target. Production targets keep all existing definitions.
+# Native coordination in the existing CUDA air executable. No GPU context is
+# created by the coordinator; every worker execs the same binary independently.
+set(_c8_native_multigpu_default OFF)
+if(CORSIKA_ENABLE_KOKKOS AND CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+  set(_c8_native_multigpu_default ON)
+endif()
+option(CORSIKA_ENABLE_NATIVE_MULTIGPU "Enable native --devices in c8_air_shower"
+  ${_c8_native_multigpu_default})
+if(CORSIKA_ENABLE_NATIVE_MULTIGPU)
+  if(NOT CORSIKA_ENABLE_KOKKOS OR NOT CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    message(FATAL_ERROR "Native multi-GPU requires a CUDA or CUDA_OPENMP build")
+  endif()
+  add_subdirectory(detail/air_shower_multigpu)
+  target_link_libraries(c8_air_shower PRIVATE c8_multigpu_coordinator)
+  target_compile_definitions(c8_air_shower PRIVATE C8_NATIVE_MULTIGPU=1)
+endif()
+
+# Keep the old opt-in worker target for existing Python campaigns.
 option(CORSIKA_BUILD_MULTIGPU_APPLICATION "Build experimental static multi-GPU workers" OFF)
 if (CORSIKA_BUILD_MULTIGPU_APPLICATION)
   if (NOT CORSIKA_ENABLE_KOKKOS)

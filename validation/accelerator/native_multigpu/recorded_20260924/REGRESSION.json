@@ -1,0 +1,94 @@
+{
+  "native_vs_python": {
+    "profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "production_profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "energyloss/dEdX.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "CoREAS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "ZHS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "particles/particles.parquet": {
+      "rows": 0,
+      "maximum_absolute_difference": 0.0
+    },
+    "interactions/interactions.parquet": {
+      "rows": 2,
+      "maximum_absolute_difference": 0.0
+    }
+  },
+  "cuda_unchanged": {
+    "profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "production_profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "energyloss/dEdX.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "CoREAS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "ZHS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "particles/particles.parquet": {
+      "rows": 0,
+      "maximum_absolute_difference": 0.0
+    },
+    "interactions/interactions.parquet": {
+      "rows": 2,
+      "maximum_absolute_difference": 0.0
+    }
+  },
+  "openmp_unchanged": {
+    "profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "production_profile/profile.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "energyloss/dEdX.parquet": {
+      "rows": 883,
+      "maximum_absolute_difference": 0.0
+    },
+    "CoREAS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "ZHS/observers.parquet": {
+      "rows": 3200,
+      "maximum_absolute_difference": 0.0
+    },
+    "particles/particles.parquet": {
+      "rows": 0,
+      "maximum_absolute_difference": 0.0
+    },
+    "interactions/interactions.parquet": {
+      "rows": 2,
+      "maximum_absolute_difference": 0.0
+    }
+  },
+  "native_events": 2,
+  "coordinator": "C++"
+}

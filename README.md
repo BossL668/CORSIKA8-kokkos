@@ -65,7 +65,10 @@ their recorded revision; they do not replace this installation guide.
 The scientific build below uses SIBYLL-2.3d and separately licensed FLUKA.
 Not every CORSIKA process runs on the GPU. Production single-endpoint modes use
 OpenMP **or** a GPU. The combined build additionally offers explicit experimental
-air-shower cooperation (section 9); MPI and multi-GPU particle stacks are not provided.
+air-shower cooperation (section 9). CUDA and CUDA/OpenMP builds also provide native
+single-shower multi-GPU coordination through `c8_air_shower --devices 0,1,2,3`.
+See [native multi-GPU usage](documentation/native_multigpu_CN.md); Python is not
+used by that execution path.
 
 ## 2. Choose a build: portable installations or a single CUDA/OpenMP binary
 
@@ -712,9 +715,10 @@ YAML or `.c8emrt` file is needed for this application.
 | `--emcut` | Kinetic-energy cut, 0.0005 GeV |
 | `--geomagnetic-model`, `--geomagnetic-year` | IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/cooperative threads; single-GPU execution rejects values above 1 |
-| `--kokkos-device N` | One GPU index, not multi-GPU execution |
+| `--kokkos-device N` | Single-GPU device selection |
+| `--devices 0,1,2,3` | CUDA builds: selected GPUs cooperate on each shower; native C++ coordination |
 | `--gpu-min-batch` | 4096, not a shower count |
-| `--gpu-memory-fraction` | 0.70 budget ceiling, not a fill target |
+| `--gpu-memory-fraction` | Budget ceiling: 0.70 normally, 0.50 with `--devices`; explicit values override the default |
 | `--gpu-resident-batch-limit` | 0 for automatic capacity; explicit for replay/diagnosis |
 | `--radio-sampling-rate-ghz` | 1 GHz |
 | `--radio-window-duration-ns`, `--radio-pretrigger-ns` | 400 ns / 10 ns |
@@ -771,6 +775,34 @@ muon-charge profiles are affected, with possible downstream EM/radio changes.
 Rebuild to apply this correction; existing accelerator samples cannot be repaired
 by smoothing their profiles. Keep historical datasets labelled and rerun physics
 acceptance before treating new accelerator ensembles as validated.
+
+### 9.3 One shower on multiple NVIDIA GPUs
+
+CUDA and combined CUDA/OpenMP builds include this mode in the same
+`c8_air_shower` executable; no separate worker build or Python coordinator
+is required. Use the usual build command in section 8, then:
+
+```bash
+cd ../install/cuda-openmp/bin
+./c8_air_shower -p 2212 -E 1e5 -N 10 -s 20260924 \
+  --devices 0,1,2,3 --gpu-memory-fraction 0.90 \
+  --ring 1 --antenna-file /dev/null -f demo_multigpu
+```
+
+Each shower uses all selected GPUs. A CPU prefix creates independent roots;
+one process per GPU transports its assigned subshowers and handles its own
+CPU fallbacks. The C++ coordinator merges profiles and signed CoREAS/ZHS fields
+after all workers finish. `-N` showers run sequentially, with seeds incremented
+from `-s`. Each event records `TIMING.json`; merged output is in `merged/`.
+Omitting `--devices` preserves the ordinary single-device/OpenMP path.
+
+The GPU IDs are physical `nvidia-smi` indices (full UUIDs also work). The
+memory fraction is a per-GPU budget. Slow, high-energy jobs can raise the
+per-worker deadline with `--multigpu-timeout` (seconds; default 7200).
+Existing output directories are never reused or silently resumed.
+See [implementation, limits and regression checks](documentation/native_multigpu_CN.md).
+The four-L20 regression covers two 1 TeV proton showers; its first event matches
+the previous coordinator and worker outputs exactly. This is not a scaling benchmark.
 
 ## 10. HIP/SYCL on matching hardware
 

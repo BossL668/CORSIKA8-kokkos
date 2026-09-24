@@ -75,6 +75,9 @@ class Pkg(ConanFile):
         self.requires("yaml-cpp/0.8.0")
         self.requires("cli11/1.9.1")
         self.requires("arrow/16.1.0")
+        if self.options.with_kokkos and str(self.options.kokkos_backend) in ("cuda", "cuda_openmp"):
+            self.requires("nlohmann_json/3.11.3")
+            self.requires("openssl/3.5.2")
         # Version-locked, read-only export API for --gpu-physics-source
         # proposal-native. The patch does not change the scalar PROPOSAL path.
         self.requires("proposal/7.6.2@c8gpu/stable")

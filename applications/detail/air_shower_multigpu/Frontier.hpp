@@ -101,8 +101,9 @@ public:
   }
 };
 
-// This context is used only by the separately compiled experimental executable.
-// No common backend, normal air executable or mountain session uses it.
+// Activated only for an imported frontier, including workers launched by the
+// native --devices entry. Ordinary single-endpoint runs and mountain sessions
+// do not activate it; common backend state remains unchanged.
 inline thread_local FrontierInput* activeFrontierInput = nullptr;
 class ScopedFrontierInput {
 public:

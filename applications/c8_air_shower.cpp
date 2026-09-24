@@ -108,6 +108,12 @@
 #include <unistd.h>
 
 #include "detail/air_shower_kokkos/GpuCliOptions.hpp"
+#ifdef C8_NATIVE_MULTIGPU
+#include "detail/air_shower_multigpu/NativeCoordinator.hpp"
+#ifndef C8_EXPERIMENTAL_STATIC_MULTIGPU
+#define C8_EXPERIMENTAL_STATIC_MULTIGPU 1
+#endif
+#endif
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
 #include "detail/air_shower_multigpu/Frontier.hpp"
 #endif
@@ -431,9 +437,17 @@ namespace {
 } // namespace
 
 int main(int argc, char** argv) {
+#ifdef C8_NATIVE_MULTIGPU
+  // Dispatch before initializing Kokkos or any shower/Fortran model state.
+  if (c8::multigpu::requested(argc, argv)) return c8::multigpu::mainEntry(argc, argv);
+#endif
 
   // the main command line description
   CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
+#ifdef C8_NATIVE_MULTIGPU
+  app.add_option("--devices", "GPUs for one shower, e.g. 0,1,2,3 (native coordination)")
+      ->group("Multi-GPU");
+#endif
 
   CORSIKA_LOG_INFO(
       "Please cite the following references when using CORSIKA 8:\n"
