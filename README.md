@@ -576,33 +576,28 @@ and all configured build products before the global install, then installs to
 `../install/cuda-openmp`; independent installs are not overwritten. Like the
 independent helper, it can also compile tests and optional interface libraries.
 
-**Target architecture is explicit for this helper.** Unlike `build_kokkos.sh
-cuda`, it does not query the GPU to select an architecture: the default is
-`dependencies/kokkos/profiles/cuda-openmp-ada89` (RTX 40 / Ada 8.9).
-For another NVIDIA target, create a profile such as this A100 example, saved as
-`~/conan-profiles/cuda-openmp-ampere80`:
-
-```ini
-include(default)
-
-[options]
-&:with_kokkos=True
-&:kokkos_backend=cuda_openmp
-&:kokkos_architecture=AMPERE80
-```
-
-Check its compiler/ABI against the environment and use the **dual-specific**
-variable with an absolute path:
+**The combined script now detects the GPU architecture automatically.** It queries
+`nvidia-smi` and selects a bundled combined profile for capabilities 7.5
+(Turing/RTX 20), 8.0 (A100), 8.6 (RTX 30), 8.9 (Ada/RTX 40 and L20), or
+9.0 (H100). Normally the single build command above is sufficient; no
+manual Conan profile is needed. To inspect the target:
 
 ```bash
-conan profile show -pr:h "$HOME/conan-profiles/cuda-openmp-ampere80" -pr:b default
-C8_KOKKOS_DUAL_PROFILE="$HOME/conan-profiles/cuda-openmp-ampere80" \
+nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+```
+
+If mixed GPU architectures are visible or detection is unavailable, the
+script stops instead of guessing. Explicitly select the intended bundled
+combined profile, for example A100:
+
+```bash
+C8_KOKKOS_DUAL_PROFILE="$PWD/dependencies/kokkos/profiles/cuda-openmp-ampere80" \
   C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
 ```
 
-Use the Ada command **or** the matching custom-profile command, not both in
-the same existing build cache. A new machine needs a fresh build tree.
-`C8_KOKKOS_PROFILE` controls the independent helper, not this helper.
+The independent CUDA script also auto-detects, but its override variable is
+`C8_KOKKOS_PROFILE`. Rebuild with a fresh CMake cache when changing GPU
+architecture.
 
 After a successful build, these commands use the **same binary**, from the
 project container directory. No private antenna file is needed:

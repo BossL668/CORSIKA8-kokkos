@@ -1,0 +1,7 @@
+include(default)
+
+# Experimental CUDA/OpenMP executable for compute capability 8.6.
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda_openmp
+&:kokkos_architecture=AMPERE86

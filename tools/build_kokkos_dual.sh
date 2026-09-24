@@ -4,12 +4,34 @@ set -euo pipefail
 c8_source=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 c8_project=$(dirname -- "$c8_source")
 c8_jobs=${C8_BUILD_JOBS:-1}
-c8_profile=${C8_KOKKOS_DUAL_PROFILE:-"$c8_source/dependencies/kokkos/profiles/cuda-openmp-ada89"}
+c8_profile=${C8_KOKKOS_DUAL_PROFILE:-}
 c8_build="$c8_project/build/cuda-openmp"
 c8_install="$c8_project/install/cuda-openmp"
 [[ $c8_jobs =~ ^[1-9][0-9]*$ ]] || { echo 'Invalid C8_BUILD_JOBS' >&2; exit 2; }
 command -v conan >/dev/null
 command -v nvcc >/dev/null
+if [[ -z $c8_profile ]]; then
+  c8_smi=$(command -v nvidia-smi || true)
+  if [[ -z $c8_smi && -x /usr/lib/wsl/lib/nvidia-smi ]]; then
+    c8_smi=/usr/lib/wsl/lib/nvidia-smi
+  fi
+  [[ -n $c8_smi ]] || {
+    echo 'No nvidia-smi; set C8_KOKKOS_DUAL_PROFILE to a matching Conan profile' >&2
+    exit 2
+  }
+  c8_cap=$("$c8_smi" --query-gpu=compute_cap --format=csv,noheader | tr -d ' ' | sort -u)
+  case "$c8_cap" in
+    7.5) c8_arch=turing75 ;;
+    8.0) c8_arch=ampere80 ;;
+    8.6) c8_arch=ampere86 ;;
+    8.9) c8_arch=ada89 ;;
+    9.0) c8_arch=hopper90 ;;
+    *) echo "Unsupported or mixed CUDA capabilities ($c8_cap); set C8_KOKKOS_DUAL_PROFILE" >&2; exit 2 ;;
+  esac
+  c8_profile="$c8_source/dependencies/kokkos/profiles/cuda-openmp-$c8_arch"
+fi
+[[ -f $c8_profile ]] || { echo "Profile not found: $c8_profile" >&2; exit 2; }
+echo "Building CUDA/OpenMP using $c8_profile"
 conan export "$c8_source/dependencies/kokkos"
 conan install "$c8_source" -pr:h "$c8_profile" -pr:b default \
   --output-folder="$c8_build/deps" --build=missing \

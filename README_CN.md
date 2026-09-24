@@ -394,26 +394,20 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
 
 若没有该脚本，需要取得包含单二进制实验的源码版本；不要用 `build_kokkos.sh openmp,cuda` 替代，它生成的是**两个独立程序**。组合脚本建立自己的依赖图，设置 `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`，分别编译两套 EM/radio 实例再链接，完整构建所有已配置产物后再安装到 `../install/cuda-openmp`，不覆盖独立后端。与独立脚本一样，可能同时编译测试和可选界面库，不再仅编译空气目标就执行全局安装。
 
-**组合脚本目前不会自动探测 GPU 架构。** 它默认使用 `dependencies/kokkos/profiles/cuda-openmp-ada89`，针对 RTX 40 / Ada 8.9；这与独立版 `build_kokkos.sh cuda` 的自动架构选择不同。其他 NVIDIA 机器需要匹配的组合 profile，例如将下面 A100 配置保存为 `~/conan-profiles/cuda-openmp-ampere80`：
-
-```ini
-include(default)
-
-[options]
-&:with_kokkos=True
-&:kokkos_backend=cuda_openmp
-&:kokkos_architecture=AMPERE80
-```
-
-核对 default 中的编译器/ABI 与本机一致，再使用**组合版专用变量**及绝对路径：
+**组合脚本现在会自动检测 GPU 架构。** 它通过 `nvidia-smi` 查询计算能力，并选择随源码提供的对应组合 profile：7.5（Turing/RTX 20）、8.0（A100）、8.6（RTX 30）、8.9（Ada/RTX 40、L20）、9.0（H100）。因此正常情况下只需执行上面的构建命令，无须自行创建 Conan profile。可先检查目标 GPU：
 
 ```bash
-conan profile show -pr:h "$HOME/conan-profiles/cuda-openmp-ampere80" -pr:b default
-C8_KOKKOS_DUAL_PROFILE="$HOME/conan-profiles/cuda-openmp-ampere80" \
+nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+```
+
+如果同时可见不同架构的显卡或无法自动检测，脚本会停止而不是猜测。此时显式指定目标架构对应的内置组合 profile，例如 A100：
+
+```bash
+C8_KOKKOS_DUAL_PROFILE="$PWD/dependencies/kokkos/profiles/cuda-openmp-ampere80" \
   C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
 ```
 
-根据机器选择默认 Ada 命令或自定义架构命令，不在同一个已有缓存中交替执行两种架构构建；换机器重新构建。独立版使用的 `C8_KOKKOS_PROFILE` 不控制这个组合脚本。
+独立 CUDA 构建也会自动识别，但其手动覆盖变量是 `C8_KOKKOS_PROFILE`。不同架构不能复用旧的 CMake 构建缓存；换目标机器时重新构建。
 
 构建成功后回到项目根目录，以下两条 shower 命令调用的是**完全相同的可执行文件**。使用源码附带的演示天线，不依赖私人数据：
 

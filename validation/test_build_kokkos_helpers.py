@@ -28,7 +28,9 @@ class BuildHelpers(unittest.TestCase):
         self.profiles.mkdir(parents=True)
         for name in ("build_kokkos.sh", "build_kokkos_dual.sh"):
             shutil.copyfile(SOURCE / "tools" / name, self.source / "tools" / name)
-        for name in ("openmp", "cuda-openmp-ada89", "cuda-ada89"):
+        for name in ("openmp", "cuda-ada89", "cuda-openmp-turing75",
+                     "cuda-openmp-ampere80", "cuda-openmp-ampere86",
+                     "cuda-openmp-ada89", "cuda-openmp-hopper90"):
             (self.profiles / name).write_text("include(default)\n")
         self.bin = self.project / "mock-bin"
         self.bin.mkdir()
@@ -41,7 +43,7 @@ class BuildHelpers(unittest.TestCase):
             "args = sys.argv[1:]\n"
             "with open(os.environ['C8_TEST_COMMAND_LOG'], 'a') as out:\n"
             "    out.write(json.dumps([name, *args]) + '\\n')\n"
-            "if name == 'nvidia-smi': print('8.9')\n"
+            "if name == 'nvidia-smi': print(os.environ.get('C8_TEST_COMPUTE_CAP', '8.9'))\n"
             "if os.environ.get('C8_TEST_FAIL') == ' '.join([name, *args[:1]]):\n"
             "    sys.exit(42)\n"
         )
@@ -83,6 +85,29 @@ class BuildHelpers(unittest.TestCase):
         self.assertIn("-DCORSIKA_KOKKOS_BACKEND=CUDA_OPENMP", configure)
         install = next(c for c in calls if c[:2] == ["cmake", "--install"])
         self.assertEqual(install[-1], str(self.project / "build/cuda-openmp"))
+        conan = next(c for c in calls if c[:2] == ["conan", "install"])
+        self.assertEqual(Path(conan[conan.index("-pr:h") + 1]).name, "cuda-openmp-ada89")
+
+    def test_dual_auto_detects_supported_architectures(self):
+        for cap, name in (("7.5", "turing75"), ("8.0", "ampere80"),
+                          ("8.6", "ampere86"), ("8.9", "ada89"),
+                          ("9.0", "hopper90")):
+            with self.subTest(capability=cap):
+                self.log.unlink(missing_ok=True)
+                result, calls = self.run_helper("build_kokkos_dual.sh", C8_TEST_COMPUTE_CAP=cap)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                conan = next(c for c in calls if c[:2] == ["conan", "install"])
+                self.assertEqual(Path(conan[conan.index("-pr:h") + 1]).name,
+                                 "cuda-openmp-" + name)
+
+    def test_dual_rejects_mixed_or_unsupported_architectures(self):
+        for cap in ("8.0\n8.9", "10.0"):
+            with self.subTest(capability=cap):
+                self.log.unlink(missing_ok=True)
+                result, calls = self.run_helper("build_kokkos_dual.sh", C8_TEST_COMPUTE_CAP=cap)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("C8_KOKKOS_DUAL_PROFILE", result.stderr)
+                self.assertFalse(any(c[:2] == ["conan", "install"] for c in calls))
 
     def test_dual_forwards_mountain_and_profile_options(self):
         custom = str(self.profiles / "cuda-openmp-ada89")
@@ -98,6 +123,7 @@ class BuildHelpers(unittest.TestCase):
         conan = next(c for c in calls if c[:2] == ["conan", "install"])
         self.assertEqual(conan[conan.index("-pr:h") + 1], custom)
         self.assertIn("tools.build:jobs=2", conan)
+        self.assertFalse(any(c[0] == "nvidia-smi" for c in calls))
 
     def test_dual_build_failure_prevents_install(self):
         result, calls = self.run_helper("build_kokkos_dual.sh", C8_TEST_FAIL="cmake --build")
