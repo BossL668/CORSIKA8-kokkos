@@ -108,6 +108,9 @@
 #include <unistd.h>
 
 #include "detail/air_shower_kokkos/GpuCliOptions.hpp"
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+#include "detail/air_shower_multigpu/Frontier.hpp"
+#endif
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
 #include "detail/air_shower_kokkos/KokkosRunSession.hpp"
 #include "detail/air_shower_kokkos/KokkosAirShowerRunner.hpp"
@@ -625,8 +628,36 @@ int main(int argc, char** argv) {
                  "Path to antenna positions in NWU coordinates (m)")
       ->default_val("antennas.txt")
       ->group("Radio");
+  // These hooks exist only in the separate experimental worker executable.
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+  std::string frontier_out, frontier_in;
+  double frontier_max_energy = 0.;
+  unsigned frontier_worker_id = 0;
+  bool frontier_legacy_import = false;
+  app.add_flag("--frontier-legacy-import", frontier_legacy_import,
+               "Diagnostic control: import the entire frontier into the scalar stack");
+  app.add_option("--frontier-out", frontier_out, "Capture independent EM subshower roots");
+  app.add_option("--frontier-in", frontier_in, "Import roots of the SAME global primary");
+  app.add_option("--frontier-max-energy", frontier_max_energy, "Root scheduling cap in GeV (not a cut)");
+  app.add_option("--frontier-worker-id", frontier_worker_id, "Exclusive child history namespace [1,255]");
+#endif
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos") ||
+      (frontier_legacy_import && frontier_in.empty())) {
+    CORSIKA_LOG_CRITICAL("Buffered frontier input requires the Kokkos worker; legacy control requires --frontier-in");
+    return EXIT_FAILURE;
+  }
+  if ((!frontier_out.empty() || !frontier_in.empty()) &&
+      (nevent != 1 || (!frontier_out.empty() && !frontier_in.empty()) ||
+       !cli_energy_range.empty() ||
+       (!frontier_out.empty() && (gpu_cli.em_backend != "proposal" || frontier_max_energy <= 0.)) ||
+       (!frontier_in.empty() && (force_interaction || force_decay || frontier_worker_id == 0)))) {
+    CORSIKA_LOG_CRITICAL("Static handoff requires N=1, fixed energy, exclusive input/output; capture uses PROPOSAL and a positive cap; workers must not force the primary again");
+    return EXIT_FAILURE;
+  }
+#endif
   if ((gpu_cli.kokkos_execution == "cuda-openmp" || gpu_cli.kokkos_execution == "openmp-cuda") &&
       app.count("--hadronic-workers") == 0)
     gpu_cli.hadronic_workers = 1;
@@ -1218,7 +1249,22 @@ int main(int argc, char** argv) {
     // add the desired particle to the stack
     auto const primaryProperties =
         std::make_tuple(beamCode, eKin, propDir.normalized(), injectionPos, 0_ns);
-    stack.addParticle(primaryProperties);
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+    std::unique_ptr<applications::multigpu::FrontierInput> frontier_source;
+    if (!frontier_in.empty()) {
+      if (frontier_legacy_import) {
+        applications::multigpu::importFrontier(stack, rootCS, frontier_in, frontier_worker_id);
+      } else {
+        frontier_source = std::make_unique<applications::multigpu::FrontierInput>(frontier_in);
+        frontier_source->reserveNamespace(stack, frontier_worker_id);
+      }
+    } else
+#endif
+      stack.addParticle(primaryProperties);
+
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+    applications::multigpu::ScopedFrontierInput frontier_context(frontier_source.get());
+#endif
 
     primaryWriter.recordPrimary(primaryProperties);
 
@@ -1236,6 +1282,16 @@ int main(int argc, char** argv) {
     auto const output_shower_id =
         static_cast<unsigned int>(
             output.getEventId());
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+    if (!frontier_out.empty()) {
+      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy);
+      HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
+                    applications::multigpu::CaptureRouter> cascade(
+          env, tracking, sequence, output, stack, router);
+      configure_forced_primary(cascade);
+      cascade.run();
+    } else
+#endif
     if (gpu_cli.em_backend == "proposal") {
       Cascade EAS(env, tracking, sequence, output, stack);
       configure_forced_primary(EAS);

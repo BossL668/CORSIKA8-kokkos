@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/home/member/yuhanglu/workspace/corsika-beta5-fe-boundary-20260921/glibc/ld-linux-x86-64.so.2",
+    "--library-path",
+    "/home/member/yuhanglu/workspace/c7c8-rad0001-untagged-20260923/lib:/home/member/yuhanglu/workspace/corsika-beta5-fe-boundary-20260921/glibc:/home/member/yuhanglu/workspace/corsika-beta5-fe-boundary-20260921/lib:/usr/lib64:/lib64",
+    "/home/member/yuhanglu/workspace/corsika-beta5-multigpu-20260924/c8_air_shower_multigpu"
+  ],
+  "physics_args": ["-p", "22", "-E", "10", "-z", "27", "-a", "180", "--emthin", "0", "--ring", "1", "--disable-interaction-histograms", "--verbosity", "info", "--gpu-aux-cache-dir", "/data/yuhanglu/CorsikaData/beta5_multigpu_20260924/aux"],
+  "seed": 26092401,
+  "devices": [0, 1, 2, 3],
+  "gpu_memory_fraction": 0.5,
+  "frontier_max_energy_GeV": 0.3125,
+  "timeout_s": 900,
+  "output": "/data/yuhanglu/CorsikaData/beta5_multigpu_20260924/photon10GeV_four_gpu_example",
+  "env": {
+    "MALLOC_MMAP_THRESHOLD_": "65536",
+    "CORSIKA_DATA": "/home/member/yuhanglu/workspace/corsika-beta5-multigpu-20260924/runtime-data",
+    "FLUPRO": "/home/member/yuhanglu/workspace/corsika-beta5-fe-boundary-20260921/fluka",
+    "PYTHIA8DATA": "/home/member/yuhanglu/workspace/corsika-beta5-fe-boundary-20260921/data/Pythia/xmldoc"
+  }
+}

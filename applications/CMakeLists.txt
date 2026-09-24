@@ -198,6 +198,34 @@ if (TARGET fluka_batch_worker)
   install (TARGETS fluka_batch_worker DESTINATION bin)
 endif ()
 
+# Opt-in worker target. Production targets keep all existing definitions.
+option(CORSIKA_BUILD_MULTIGPU_APPLICATION "Build experimental static multi-GPU workers" OFF)
+if (CORSIKA_BUILD_MULTIGPU_APPLICATION)
+  if (NOT CORSIKA_ENABLE_KOKKOS)
+    message(FATAL_ERROR "Multi-GPU workers require CORSIKA_ENABLE_KOKKOS=ON")
+  endif ()
+  add_executable(c8_air_shower_multigpu c8_air_shower_multigpu.cpp
+    detail/air_shower_kokkos/KokkosRunSession.cpp)
+  target_link_libraries(c8_air_shower_multigpu PRIVATE CORSIKA8 CORSIKA8KokkosEm)
+  target_compile_definitions(c8_air_shower_multigpu PRIVATE
+    CORSIKA8_WITH_KOKKOS_EM=1 CORSIKA8_KOKKOS_VERSION="${Kokkos_VERSION}"
+    CORSIKA8_BUNDLED_IGRF14_FILE="${CMAKE_SOURCE_DIR}/resources/GeoMag/IGRF14.COF")
+  if (WITH_FLUKA)
+    target_compile_definitions(c8_air_shower_multigpu PRIVATE WITH_FLUKA)
+  endif ()
+  if (EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+    target_link_options(c8_air_shower_multigpu PRIVATE "-L${_c8_host_multiarch_libdir}")
+  endif ()
+  set_target_properties(c8_air_shower_multigpu PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/corsika")
+  # Not installed or recommended until lifecycle and statistical gates pass.
+  add_executable(test_multigpu_frontier ../validation/accelerator/test_multigpu_frontier.cpp)
+  target_link_libraries(test_multigpu_frontier PRIVATE CORSIKA8)
+  if (EXISTS "${_c8_host_multiarch_libdir}/libm.so")
+    target_link_options(test_multigpu_frontier PRIVATE "-L${_c8_host_multiarch_libdir}")
+  endif ()
+endif ()
+
 # Optional, independent mountain applications. Never alter the atmospheric
 # target, its model selection, or its command-line defaults.
 option(CORSIKA_BUILD_MOUNTAIN_APPLICATION "Build independent mountain examples and terrain diagnostics" OFF)

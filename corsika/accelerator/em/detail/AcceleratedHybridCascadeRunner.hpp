@@ -14,6 +14,9 @@
 
 #include <type_traits>
 #include <utility>
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+#include <applications/detail/air_shower_multigpu/Frontier.hpp>
+#endif
 
 namespace corsika::gpu::em::detail {
 
@@ -66,8 +69,15 @@ namespace corsika::gpu::em::detail {
     using Backend = std::remove_reference_t<decltype(backend)>;
     using FallbackHandler = decltype(fallback_handler);
     using OutputSink = decltype(output_sink);
-    using Router = PhysicalAcceleratedEmRouter<
-        Stack, Backend, FallbackHandler, OutputSink>;
+    using Router =
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+        applications::multigpu::BufferedFrontierRouter<
+#endif
+        PhysicalAcceleratedEmRouter<Stack, Backend, FallbackHandler, OutputSink>
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+        >
+#endif
+        ;
     Router router{backend, root_cs, environment_snapshot, fallback_handler,
                   output_sink};
     router.setRetainRecords(options.retain_records);
