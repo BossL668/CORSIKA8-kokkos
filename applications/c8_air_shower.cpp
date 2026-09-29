@@ -119,7 +119,7 @@
 #endif
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
 #include "detail/air_shower_kokkos/KokkosRunSession.hpp"
-#include "detail/air_shower_kokkos/KokkosAirShowerRunner.hpp"
+#include "detail/air_shower_kokkos/KokkosAirShowerApplication.hpp"
 #endif
 
 using namespace corsika;
@@ -1161,6 +1161,25 @@ int main(int argc, char** argv) {
         static_cast<std::uint64_t>(nevent));
   }
 
+#if defined(CORSIKA8_WITH_KOKKOS_EM)
+  namespace air = corsika::applications::air_shower;
+  // Bind run-lifetime roles once; event objects are supplied to cascade() below.
+  air::KokkosAirShowerApplication accelerated_application{
+      accelerated_session, gpu_cli,
+      air::makeKokkosAirShowerDefaults(app, static_cast<std::uint64_t>(seed),
+          eMax, beamCode, cut, prod_threshold, heHadronModelThreshold, multithin),
+      air::makeKokkosAirShowerGeometry(env, rootCS, injectionPos, surface_, step,
+          showerAxis, dX, accelerated_run_environment),
+      air::KokkosAirShowerOutputs{dEdX, profile, prod_profile, observationLevel,
+          inter_writer, detectorCoREAS, detectorZHS},
+      air::KokkosAirShowerModels{coreas, zhs, emCascade, emContinuousProposal,
+          neutrinoPrimaryPythia, hadronSequence, decaySequence, emContinuous,
+          longprof, prodprof, cut},
+      air::KokkosAirShowerMonitors{photoHadronicHighEnergy, photoHadronicLowEnergy,
+          heCounted, leIntCounted, hadronic_process_pool.get(),
+          photoHadronicQgsjetFallback}};
+#endif
+
   // trigger the output manager to open the library for writing
   output.startOfLibrary();
 
@@ -1175,19 +1194,9 @@ int main(int argc, char** argv) {
         photoHadronicLowEnergy.statistics();
     auto const photo_hadronic_before =
         photoHadronicHighEnergy.statistics();
-    auto const low_energy_hadronic_interactions_before =
-        leIntCounted.getCount();
-    auto const high_energy_hadronic_interactions_before =
-        heCounted.getCount();
-    auto const low_energy_hadronic_timings_before =
-        leIntCounted.getTimingSamples().size();
-    auto const high_energy_hadronic_timings_before =
-        heCounted.getTimingSamples().size();
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
-    auto const hadronic_pool_statistics_before =
-        hadronic_process_pool
-            ? hadronic_process_pool->statistics()
-            : HadronicProcessPoolStatistics{};
+    auto const diagnostics_before = accelerated_application.captureDiagnostics(
+        photo_hadronic_before, photo_hadronic_le_before);
 #endif
 
     // randomize the primary energy
@@ -1204,8 +1213,6 @@ int main(int argc, char** argv) {
     double const emthinfrac = app["--emthin"]->as<double>();
     double const configuredMaxWeight =
         app["--max-weight"]->as<double>();
-    bool const automaticMaxWeight =
-        configuredMaxWeight <= 0.;
     double const maxWeight = std::invoke([&]() {
       if (configuredMaxWeight > 0.)
         return configuredMaxWeight;
@@ -1329,47 +1336,12 @@ int main(int argc, char** argv) {
     } else {
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
       try {
-        corsika::applications::air_shower::KokkosEventConfig cuda_event{
-            static_cast<std::uint64_t>(seed),
-            static_cast<std::uint64_t>(i_shower),
-            output_shower_id,
-            eMax,
-            primaryTotalEnergy,
-            emcut,
-            mucut,
-            prod_threshold,
-            heHadronModelThreshold,
-            emthinfrac,
-            maxWeight,
-            automaticMaxWeight,
-            thinningCanActivateFromUnitWeight,
-            multithin,
-            beamCode,
-            app["--hadronModel"]->as<std::string>(),
-            app["--max-deflection-angle"]->as<double>()};
-        corsika::applications::air_shower::runKokkosAirShower(
-            accelerated_session, gpu_cli, cuda_event, env, rootCS, injectionPos,
-            surface_, step, detectorCoREAS, detectorZHS, showerAxis, dX,
-            observationHeight / 1_m, showerCoreX / 1_m,
-            showerCoreY / 1_m,
-            std::array<double, 3>{
-                cma21_field.getX(rootCS) / 1_T,
-                cma21_field.getY(rootCS) / 1_T,
-                cma21_field.getZ(rootCS) / 1_T},
-            dEdX, profile, prod_profile, observationLevel, inter_writer,
-            coreas, zhs, emCascade, emContinuousProposal, stackInspect,
-            neutrinoPrimaryPythia, hadronSequence, decaySequence,
-            emContinuous, longprof, prodprof, thinning, cut, sequence,
-            tracking, stack, output, hadronic_process_pool.get(),
-            configure_forced_primary, photoHadronicHighEnergy,
-            photoHadronicLowEnergy, photo_hadronic_before,
-            photo_hadronic_le_before, heCounted, leIntCounted,
-            high_energy_hadronic_interactions_before,
-            low_energy_hadronic_interactions_before,
-            high_energy_hadronic_timings_before,
-            low_energy_hadronic_timings_before,
-            hadronic_pool_statistics_before,
-            photoHadronicQgsjetFallback);
+        auto EAS = accelerated_application.cascade(
+            tracking, sequence, output, stack, stackInspect, thinning,
+            static_cast<std::uint64_t>(i_shower), primaryTotalEnergy, maxWeight,
+            diagnostics_before);
+        configure_forced_primary(EAS);
+        EAS.run();
       } catch (std::exception const& error) {
         if (accelerated_session.runOutput()) {
           accelerated_session.runOutput()->recordIncomplete(

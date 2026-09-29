@@ -8,6 +8,7 @@
 #pragma once
 
 #include "KokkosAirShowerSetup.hpp"
+#include "KokkosAirShowerContext.hpp"
 #include "KokkosShowerReport.hpp"
 #include "GpuCliOptions.hpp"
 
@@ -227,6 +228,20 @@ namespace corsika::applications::air_shower {
         run_options, begin_backend, fallback_factory, output_sink_factory,
         configure_cascade, record_report);
 
+  }
+
+  // Compact application-facing overload. The legacy overload above remains the
+  // computation and compatibility path for existing comparison applications.
+  template <typename RunSession, typename G, typename O, typename P, typename E,
+            typename D>
+  void runKokkosAirShower(
+      RunSession& session, GpuCliOptions const& options,
+      KokkosEventConfig const& event,
+      KokkosAirShowerContext<G, O, P, E, D> const& context) {
+    detail::withKokkosAirShowerArguments(context, [&](auto&&... arguments) {
+      runKokkosAirShower(session, options, event,
+                        std::forward<decltype(arguments)>(arguments)...);
+    });
   }
 
 } // namespace corsika::applications::air_shower

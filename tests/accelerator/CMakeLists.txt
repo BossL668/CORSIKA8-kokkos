@@ -1,3 +1,12 @@
+add_executable(testKokkosAirShowerBindings testKokkosAirShowerBindings.cpp)
+target_compile_features(testKokkosAirShowerBindings PRIVATE cxx_std_17)
+add_test(NAME testKokkosAirShowerBindings COMMAND testKokkosAirShowerBindings)
+
+# Application context bindings require neither a GPU nor the Kokkos runtime.
+add_executable(testKokkosAirShowerContext testKokkosAirShowerContext.cpp)
+target_compile_features(testKokkosAirShowerContext PRIVATE cxx_std_17)
+add_test(NAME testKokkosAirShowerContext COMMAND testKokkosAirShowerContext)
+
 # Host-only safeguards are independent of the selected accelerator package.
 add_executable(testGrazingLayerExit testGrazingLayerExit.cpp)
 target_include_directories(testGrazingLayerExit PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
