@@ -1,0 +1,447 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "68ceea0d28b1205cf6114db788eb104edb6ddbae",
+  "default_overhead_mask": 0,
+  "scope": "source packaging and small regression tests; not a new Fe500 or four-L20 campaign",
+  "remote_live_sync": "Downloaded current v16 application source and FIX_MANIFEST from g01; source and manifest identical to local saved versions",
+  "ctest": {
+    "OpenMP": {
+      "passed": 81,
+      "failed": 0,
+      "log_sha256": "67f3eb2affb8d4a05a6a63e64d9af9a40d5fa0bd5e12d4f835ba756a9de88550",
+      "elapsed_s": 224.4,
+      "binaries": {
+        "c8_egs4_shower": "3f92fcd4ee19d730e2951e1ff98c54f2f9c8f12331672e451c93412acebe11a5",
+        "egs4_test_schedule": "dd1f90909842fb47afd0eb6d88f215be121d6ea25e37968d19e4a2e48e4e98eb"
+      }
+    },
+    "CUDA": {
+      "passed": 81,
+      "failed": 0,
+      "log_sha256": "d0c0eebcf15d4fa5a90928f3a917eea20fd7ca4a0221430ec0f46eb089b79355",
+      "elapsed_s": 190.24,
+      "binaries": {
+        "c8_egs4_shower": "5e9f7762a881f7093e2c24ddfb8b133fead667703651db5e90e3f3fdc97a0899",
+        "egs4_test_schedule": "e88627c4d5278ad2f93b51205fc2e7eab883f61cb3b77ef195e781904c8825be"
+      }
+    }
+  },
+  "remote_source_sha256": "092bf702edfa7ac48078d79b4adfb87cfaedadfb7935bfd539c5a13fe5cb54a5",
+  "remote_fix_manifest_sha256": "3dc7d7fe2dabaca67aed387fab340c88d5267efa569eb3f8cd2bc20c5f652d87",
+  "external_reference_inputs": {
+    "EGSDAT6_.4": "148c56f0f6397faf0f4e23d9a20b2d754f73bae02d644d1c3506153e2e8c990d",
+    "corsika.F": "0d52382ad2d604f75ca28195ad0e0f581dde3cc0386ee7ef69bb9045a18bf2fd",
+    "scattering_oracle": "6e5edee37f9ac56fff3e6b23b398c54dd1e30b6923520bba4870c0f69edf76d1",
+    "C7StepTables.hpp": "470ce7ed1024db731b2fc41a595fc69979887628af3624eaca0151c8b559e6d5"
+  },
+  "small_output_regression": {
+    "binaries": {
+      "reference": "6f72414f514c78f5f46ef678bc7fa0238f06fe848f3efb620ee60d43fb5eb53c",
+      "candidate": "3f92fcd4ee19d730e2951e1ff98c54f2f9c8f12331672e451c93412acebe11a5"
+    },
+    "cases": {
+      "electron": {
+        "candidate": {
+          "profile/profile.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "charged": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "hadron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "photon": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "electron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "positron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muplus": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muminus": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "energyloss/dEdX.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "total": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "CoREAS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "ZHS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          }
+        },
+        "optimized": {
+          "profile/profile.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "charged": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "hadron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "photon": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "electron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "positron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muplus": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muminus": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "energyloss/dEdX.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "total": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "CoREAS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "ZHS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          }
+        }
+      },
+      "mixed": {
+        "candidate": {
+          "profile/profile.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "charged": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "hadron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "photon": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "electron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "positron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muplus": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muminus": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "energyloss/dEdX.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "total": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "CoREAS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "ZHS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          }
+        },
+        "optimized": {
+          "profile/profile.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "charged": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "hadron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "photon": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "electron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "positron": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muplus": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "muminus": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "energyloss/dEdX.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "X": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "total": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "CoREAS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          },
+          "ZHS/observers.parquet": {
+            "shower": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Time": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ex": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ey": {
+              "relative_l2": 0.0,
+              "identical": true
+            },
+            "Ez": {
+              "relative_l2": 0.0,
+              "identical": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "four_process_persistent_replay": {
+    "status": "passed",
+    "source_sha256": "1d022c7e93e5632e19223aecfbb518e8ea47ccde2bc7cf313b705b8f46265362",
+    "scope": "OpenMP test topology, not four GPUs"
+  },
+  "gpu_test_hardware": "NVIDIA GeForce RTX 4060 Laptop GPU (one device); not L20 scaling validation"
+}

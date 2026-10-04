@@ -1,0 +1,9 @@
+/build*/
+/output*/
+__pycache__/
+*.pyc
+EGSDAT*
+*.parquet
+*.so
+*.a
+*.o
