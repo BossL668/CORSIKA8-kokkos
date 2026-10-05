@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+namespace c7_egs4 { struct Tables; }
 namespace c7_egs4::application {
 // Host-facing B experimental API. C8 quantity/geometry/output headers remain
 // in the host translation unit; native kernels/tables live in the session TU.
@@ -111,6 +112,8 @@ class Session {
   struct Impl;std::unique_ptr<Impl> impl_;
 public:
   explicit Session(std::string const& table_path);
+  // Production builds supply the table bytes at build time, not per shower.
+  explicit Session(::c7_egs4::Tables tables);
   ~Session();
   Session(Session const&)=delete;Session& operator=(Session const&)=delete;
   // Query the selected CUDA device after runtime initialization. The estimate

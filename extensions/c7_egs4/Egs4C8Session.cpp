@@ -152,8 +152,10 @@ struct Session::Impl {
   std::unique_ptr<Stream> retained;
   bool retain_across_showers{};
   explicit Impl(std::string const& path):tables(readAirTables(path)),runtime(acquireRuntime()){}
+  explicit Impl(Tables value):tables(std::move(value)),runtime(acquireRuntime()){}
 };
 Session::Session(std::string const& path):impl_(std::make_unique<Impl>(path)){}
+Session::Session(Tables tables):impl_(std::make_unique<Impl>(std::move(tables))){}
 Session::~Session()=default;
 GpuMemoryBudget Session::gpuMemoryBudget(double fraction,::corsika::gpu::radio::GpuRadioConfig const& radio)const {
   if(impl_->stream||!Kokkos::is_initialized()||Kokkos::is_finalized())

@@ -162,6 +162,7 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
   physics.insert(physics.end(),{"-E",number(o.energy)});
   auto common=physics;
   common.insert(common.end(),{"-N","1","--hadronic-workers","1","--hadronic-backend","scalar"});
+  if(o.emBackend=="egs4")common.insert(common.end(),{"--egs4-stepfc",number(o.egs4Stepfc)});
   std::map<std::string,std::string> env{{"OMP_NUM_THREADS","1"},{"OMP_THREAD_LIMIT","1"},
     {"OPENBLAS_NUM_THREADS","1"},{"MKL_NUM_THREADS","1"},{"CUDA_VISIBLE_DEVICES",devices.front()}};
   auto launch=[&](std::string const& name,std::vector<std::string> const& options,
@@ -174,11 +175,13 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
   };
   try {
     save(root/"CONFIG.json",{{"command",{o.worker.string()}},{"physics_args",physics},{"seed",seed},
-      {"devices",devices},{"gpu_memory_fraction",o.memoryFraction},{"coordinator","C++"},{"output",root.string()}});
+      {"devices",devices},{"gpu_memory_fraction",o.memoryFraction},
+      {"em_backend",o.emBackend},{"egs4_stepfc",o.egs4Stepfc},
+      {"coordinator","C++"},{"output",root.string()}});
     auto frontier=root/"frontier.txt";
     auto cap=o.frontierEnergy>0?o.frontierEnergy:o.energy/(8*devices.size());
     std::cout<<"Seed "<<seed<<": computing shower prefix"<<std::endl;
-    auto prefix=launch("prefix",{"-s",std::to_string(seed),"--em-backend","proposal","--radio-backend","cpu",
+    auto prefix=launch("prefix",{"-s",std::to_string(seed),"--em-backend",o.emBackend=="egs4"?"egs4":"proposal","--radio-backend","cpu",
       "--frontier-out",frontier.string(),"--frontier-max-energy",number(cap)},env);
     p.wait({prefix},o.timeout); validateOutputs(root/"prefix/shower");
     std::vector<fs::path> shards;
@@ -189,11 +192,12 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
     for(unsigned i=0;i<devices.size();++i) {
       if(audit["counts"][i]==0) continue;
       auto workerEnv=env; workerEnv["CUDA_VISIBLE_DEVICES"]=devices[i];
-      workers.push_back(launch("worker_"+std::to_string(i),{
-        "-s",std::to_string(workerSeed(seed,i)),"--em-backend","kokkos","--radio-backend","kokkos",
+      std::vector<std::string> workerOptions{
+        "-s",std::to_string(workerSeed(seed,i)),"--em-backend",o.emBackend,"--radio-backend","kokkos",
         "--kokkos-execution","cuda","--kokkos-num-threads","1","--kokkos-device","0",
         "--gpu-memory-fraction",number(o.memoryFraction),"--gpu-resident-batch-limit","0",
-        "--frontier-in",shards[i].string(),"--frontier-worker-id",std::to_string(i+1)},workerEnv));
+        "--frontier-in",shards[i].string(),"--frontier-worker-id",std::to_string(i+1)};
+      workers.push_back(launch("worker_"+std::to_string(i),workerOptions,workerEnv));
       parts.push_back(root/("worker_"+std::to_string(i))/"shower");
     }
     p.wait(workers,o.timeout);
@@ -282,14 +286,22 @@ int mainEntry(int argc,char** argv) {
   app.add_option("--multigpu-timeout",o.timeout,"Timeout seconds per prefix/worker")->default_val(7200);
   app.add_option("--multigpu-frontier-energy",o.frontierEnergy,"Scheduling cap [GeV]; 0=automatic")->default_val(0);
   app.add_option("--multigpu-worker",worker,"Optional compatible worker binary; default: this binary");
-  app.add_option("--em-backend",emBackend,"Multi-GPU transport backend: kokkos");
+  app.add_option("--em-backend",emBackend,"Multi-GPU transport backend: kokkos or egs4");
+  app.add_option("--egs4-stepfc",o.egs4Stepfc,"C7-EGS4 step factor (default: 1)")->check(CLI::PositiveNumber);
   app.add_option("--radio-backend",radioBackend,"Multi-GPU radio backend: kokkos");
   app.add_option("--kokkos-execution",execution,"Multi-GPU execution space: cuda");
   try {
     app.parse(argc,argv); o.output=output;
-    require((emBackend.empty() || emBackend=="kokkos") &&
+    require((emBackend.empty() || emBackend=="kokkos" || emBackend=="egs4") &&
             (radioBackend.empty() || radioBackend=="kokkos") &&
-            (execution.empty() || execution=="cuda"), "Multi-GPU requires kokkos transport/radio and cuda execution");
+            (execution.empty() || execution=="cuda"), "Multi-GPU requires kokkos/egs4 transport, kokkos radio and cuda execution");
+    o.emBackend=emBackend.empty()?"kokkos":emBackend;
+#ifndef CORSIKA8_WITH_NATIVE_EGS4
+    require(o.emBackend!="egs4","EGS4 is not compiled; build with CORSIKA_ENABLE_EGS4=ON");
+#endif
+    require(!app.count("--egs4-stepfc") || o.emBackend=="egs4","--egs4-stepfc requires --em-backend egs4");
+    require(o.emBackend!="egs4" || !app.count("--multigpu-frontier-energy"),
+      "EGS4 exports unstarted roots; --multigpu-frontier-energy applies only to PROPOSAL");
     o.worker=worker.empty()?fs::canonical("/proc/self/exe"):fs::absolute(worker);
     std::istringstream ids(devices); std::string id;
     while(std::getline(ids,id,',')) { id=trim(id); require(!id.empty(),"Empty GPU ID"); o.devices.push_back(id); }

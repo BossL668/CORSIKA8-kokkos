@@ -15,7 +15,8 @@ target_link_libraries(test_egs4_tables PRIVATE c7_egs4_tables)
 # Frozen C++ coefficient fixture ONLY, not a runtime model or a Fortran library.
 get_filename_component(_repo "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 set(EGS4_C8_SOURCE "${_repo}" CACHE PATH "C8 source tree")
-set(EGS4_TABLE "" CACHE FILEPATH "User-supplied C7 EGSDAT6_.4 table (not distributed)")
+set(EGS4_TABLE "${_repo}/resources/c7_egs4/EGSDAT6_.4" CACHE FILEPATH
+  "EGSDAT6_.4 table (defaults to project resources)")
 set(EGS4_C7_SOURCE "" CACHE FILEPATH "User-supplied corsika.F, reference tests only")
 set(EGS4_C7_SCATTER_REFERENCE "" CACHE FILEPATH "Audited external C7 scattering oracle")
 set(EGS4_STEP_REFERENCE_FILE "" CACHE FILEPATH "Optional external frozen C7StepTables.hpp fixture")
@@ -28,7 +29,7 @@ else()
   message(STATUS "Frozen C7 coefficient comparison disabled: external fixture not supplied")
 endif()
 if(NOT EXISTS "${EGS4_TABLE}")
-  message(FATAL_ERROR "Set EGS4_TABLE to your EGSDAT6_.4 file; it is not bundled")
+  message(FATAL_ERROR "EGS4 table missing: ${EGS4_TABLE}; restore project resources or override EGS4_TABLE")
 endif()
 target_include_directories(test_egs4_tables PRIVATE
   "${EGS4_C8_SOURCE}")

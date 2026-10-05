@@ -23,6 +23,7 @@ namespace corsika::applications::air_shower {
    */
   struct GpuCliOptions {
     std::string em_backend{"proposal"};
+    double egs4_stepfc{1.};
     int gpu_device{0};
     std::size_t gpu_min_batch{4096};
     std::size_t gpu_resident_batch_limit{};

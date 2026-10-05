@@ -1,1 +1,4 @@
 *.inl gitlab-language=c++
+
+# Preserve the imported fixed-format table byte-for-byte, including trailing blanks.
+resources/c7_egs4/EGSDAT6_.4 -text -whitespace

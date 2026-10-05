@@ -34,6 +34,11 @@ corsika/modules/sophia/Generated.inc
 conan_cmake/
 corsika-cmake.sh
 
+# Track only the frozen project table; exclude other local tables and generated payloads.
+EGSDAT*
+!/resources/c7_egs4/EGSDAT6_.4
+EmbeddedEgs4Tables.cpp
+
 # Local validation products. Validation programs, configuration, and tests
 # remain tracked; generated shower libraries and smoke-test output do not.
 /validation/*_smoke_v*/

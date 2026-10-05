@@ -108,6 +108,7 @@
 #include <unistd.h>
 
 #include "detail/air_shower_kokkos/GpuCliOptions.hpp"
+#include "detail/air_shower_kokkos/Egs4CliOptions.hpp"
 #ifdef C8_NATIVE_MULTIGPU
 #include "detail/air_shower_multigpu/NativeCoordinator.hpp"
 #ifndef C8_EXPERIMENTAL_STATIC_MULTIGPU
@@ -198,9 +199,10 @@ namespace {
 
   void addGpuCliOptions(CLI::App& app, GpuCliOptions& options) {
     app.add_option("--em-backend", options.em_backend,
-                   "Electromagnetic transport backend: proposal or kokkos")
-        ->check(CLI::IsMember({"proposal", "kokkos"}))
+                   "Electromagnetic transport backend: proposal, kokkos (PROPOSAL), or egs4")
+        ->check(CLI::IsMember({"proposal", "kokkos", "egs4"}))
         ->group("GPU EM");
+    corsika::applications::air_shower::addEgs4CliOptions(app, options);
     app.add_option("--gpu-min-batch", options.gpu_min_batch,
                    "Minimum Kokkos execution batch; smaller fronts take one "
                    "scalar expansion step")
@@ -216,7 +218,7 @@ namespace {
            "Fraction of currently free device memory available to the Kokkos backend")
         ->check(CLI::Range(0.01, 1.0))->group("GPU EM");
     app.add_option("--gpu-physics-source", options.gpu_physics_source,
-                   "Physics source: proposal-native")
+                   "PROPOSAL backend physics source: proposal-native")
         ->check(CLI::IsMember({"proposal-native"}))
         ->group("GPU EM");
     app.add_option(
@@ -347,8 +349,8 @@ namespace {
 
   bool validateGpuCliOptions(GpuCliOptions& options,
                              std::filesystem::path const& executable) {
-    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos") {
-      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos");
+    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos" && options.em_backend != "egs4") {
+      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos or egs4");
       return false;
     }
     if (!options.cuda_replay_trace.empty()) {
@@ -371,6 +373,7 @@ namespace {
       CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
       return false;
     }
+    if (!corsika::applications::air_shower::validateEgs4Execution(options)) return false;
     if (options.em_backend == "kokkos") {
 #ifndef CORSIKA8_WITH_KOKKOS_EM
       CORSIKA_LOG_CRITICAL(
@@ -419,9 +422,9 @@ namespace {
     }
     
     if (options.radio_backend == "kokkos") {
-      if (options.em_backend != "kokkos") {
+      if (options.em_backend != "kokkos" && options.em_backend != "egs4") {
         CORSIKA_LOG_CRITICAL(
-            "--radio-backend kokkos requires --em-backend kokkos");
+            "--radio-backend kokkos requires --em-backend kokkos or egs4");
         return false;
       }
 #ifndef CORSIKA8_WITH_KOKKOS_EM
@@ -657,8 +660,9 @@ int main(int argc, char** argv) {
 #endif
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
+  if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos") ||
+  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos" && gpu_cli.em_backend != "egs4") ||
       (frontier_legacy_import && frontier_in.empty())) {
     CORSIKA_LOG_CRITICAL("Buffered frontier input requires the Kokkos worker; legacy control requires --frontier-in");
     return EXIT_FAILURE;
@@ -666,7 +670,7 @@ int main(int argc, char** argv) {
   if ((!frontier_out.empty() || !frontier_in.empty()) &&
       (nevent != 1 || (!frontier_out.empty() && !frontier_in.empty()) ||
        !cli_energy_range.empty() ||
-       (!frontier_out.empty() && (gpu_cli.em_backend != "proposal" || frontier_max_energy <= 0.)) ||
+       (!frontier_out.empty() && ((gpu_cli.em_backend != "proposal" && gpu_cli.em_backend != "egs4") || frontier_max_energy <= 0.)) ||
        (!frontier_in.empty() && (force_interaction || force_decay || frontier_worker_id == 0)))) {
     CORSIKA_LOG_CRITICAL("Static handoff requires N=1, fixed energy, exclusive input/output; capture uses PROPOSAL and a positive cap; workers must not force the primary again");
     return EXIT_FAILURE;
@@ -1136,7 +1140,8 @@ int main(int argc, char** argv) {
 
   YAML::Node timing_configuration;
   timing_configuration["em_backend"] = gpu_cli.em_backend;
-  timing_configuration["gpu_physics_source"] = gpu_cli.gpu_physics_source;
+  timing_configuration["gpu_physics_source"] = gpu_cli.em_backend == "egs4"
+      ? "c7-egs4-embedded" : gpu_cli.gpu_physics_source;
   timing_configuration["radio_backend"] = gpu_cli.radio_backend;
   timing_configuration["clock"] = "steady_clock";
   timing_configuration["scope"] =
@@ -1178,6 +1183,7 @@ int main(int argc, char** argv) {
       air::KokkosAirShowerMonitors{photoHadronicHighEnergy, photoHadronicLowEnergy,
           heCounted, leIntCounted, hadronic_process_pool.get(),
           photoHadronicQgsjetFallback}};
+  accelerated_application.registerBackendOutput(output);
 #endif
 
   // trigger the output manager to open the library for writing
@@ -1284,7 +1290,7 @@ int main(int argc, char** argv) {
       stack.addParticle(primaryProperties);
 
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    applications::multigpu::ScopedFrontierInput frontier_context(frontier_source.get());
+    applications::multigpu::ScopedFrontierInput frontier_context(frontier_source.get(), frontier_out);
 #endif
 
     primaryWriter.recordPrimary(primaryProperties);
@@ -1304,7 +1310,7 @@ int main(int argc, char** argv) {
         static_cast<unsigned int>(
             output.getEventId());
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    if (!frontier_out.empty()) {
+    if (!frontier_out.empty() && gpu_cli.em_backend != "egs4") {
       applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy);
       HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
                     applications::multigpu::CaptureRouter> cascade(

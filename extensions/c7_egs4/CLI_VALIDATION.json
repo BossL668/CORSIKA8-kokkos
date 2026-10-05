@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "71e0a2f5d3d5e9e9f63fa2d6436c3c5a17343499",
+  "scope": "Isolated unified EGS4 entry; small interface and transport regressions only",
+  "real_four_gpu_test": false,
+  "statistical_physics_acceptance": false,
+  "production_binaries_replaced": false,
+  "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "harness": "analysis_jobs/c7_egs4_cli_20261005/CMakeLists.txt",
+  "build_note": "Rebuilt application, native EGS4, Kokkos EM, and coordinator from isolated sources against installed dependencies; application -O1, libraries Release",
+  "cli_checks": {
+    "openmp": [
+      "egs4_default",
+      "egs4_explicit",
+      "default_vs_explicit_stepfc",
+      "egs4_short",
+      "proposal",
+      "kokkos",
+      "reject_stepfc_proposal",
+      "reject_fe_fixture",
+      "reject_table",
+      "reject_stepfc_zero"
+    ],
+    "cuda": [
+      "egs4_default",
+      "egs4_explicit",
+      "default_vs_explicit_stepfc",
+      "egs4_short",
+      "proposal",
+      "kokkos",
+      "reject_stepfc_proposal",
+      "reject_fe_fixture",
+      "reject_table",
+      "reject_stepfc_zero"
+    ]
+  },
+  "ctest": {
+    "openmp": {
+      "passed": 3,
+      "failed": 0
+    },
+    "cuda": {
+      "passed": 2,
+      "failed": 0
+    },
+    "note": "OpenMP registers embedded-table test twice (production option and harness); coordinator covers four mock workers, not four GPUs."
+  },
+  "binary_sha256": {
+    "openmp": "b1d4b850aed161f61ddb989b640ffa2075b806660257aea51ad81df3cd7f2f7b",
+    "cuda": "43b155971f187eb5a990b5ef21eb5a107ee9d5435a9e342a7698840fc58e3ad9"
+  },
+  "source_sha256": {
+    "applications/CMakeLists.txt": "8e327084f02daac440f411f7e8724340476be2e8f6ce2a3c2e91ab1542cae791",
+    "applications/c8_air_shower.cpp": "ccabd2a80c80235c9eacffe82d09d5f67d67e411aab0e71f7a1f8863db26a380",
+    "applications/detail/air_shower_kokkos/Egs4AirShowerRunner.hpp": "c1528b76f47636822d018b8f4d7b0c478e6441e42f7e2e1a08f25ff4a609747e",
+    "applications/detail/air_shower_kokkos/Egs4CliOptions.hpp": "9ee5d10fe3e3e122a6e92340ef488da412a7f26911885a391c66b38d855c5c27",
+    "applications/detail/air_shower_kokkos/GpuCliOptions.hpp": "919596e9caba10f9ea7a9e941d2e89dfd49dd063372e1c1142868c081c276ca1",
+    "applications/detail/air_shower_kokkos/KokkosAirShowerApplication.hpp": "da32bcba3aa3737dad315cd217cd7a3b58c67cfd16c12ae56d0cbf16ad2ef311",
+    "applications/detail/air_shower_multigpu/CMakeLists.txt": "a7b8fd4bd2db6a884f627b14abf34ccb471ae996b031cb65895382ed78d2506a",
+    "applications/detail/air_shower_multigpu/Frontier.hpp": "02e516d92d1c51e45c5bdc724b08c2367168b14cff275bcb3384d259f81c1166",
+    "applications/detail/air_shower_multigpu/NativeCoordinator.cpp": "e4e56f7eae4c8d6c71b12c5355b99112a650f30e4e97d27fad40bbc725676a3a",
+    "applications/detail/air_shower_multigpu/NativeCoordinator.hpp": "ebbb17e8953db534f6e0fe211e526145ce3b51227195be093220edc3eb4f9cdd",
+    "applications/detail/air_shower_multigpu/NativeIO.cpp": "89d152c7ccb2ea2ba4a695a042e3e0903d8ade2bd4fcfcec7a63fa5cc417490a",
+    "extensions/c7_egs4/CMakeLists.txt": "cb1012b326c623f58e776eb37414b578e70e64b7eab81c6c9b98b2c2ea2f3252",
+    "extensions/c7_egs4/Egs4C8Session.cpp": "8a06dbd7447ca3b1bc2d195fb4820ed1dbaef3a3a084244a8fcfb756fc3c6342",
+    "extensions/c7_egs4/Egs4C8Session.hpp": "f84dee674ab0f35b85882b27c34b3b52ea603a42fed17caaf9de420d34d5b03e",
+    "extensions/c7_egs4/Egs4Tables.cpp": "e106828678963c1f1fe8fb0e6312757192561b74d8e94971e18f984321b72177",
+    "extensions/c7_egs4/Egs4Tables.hpp": "935758f424d203209990c6b389f612d46d3294db88227c6fc1e793366e088482",
+    "extensions/c7_egs4/EmbeddedTables.cpp.in": "2838f6d9d8a61ac8c694d517f75140101cfc8cbfc9bbe5aa3a71b42ee5f47c2b",
+    "extensions/c7_egs4/EmbeddedTables.hpp": "11347d24874e8d5d23017f7973e1c9ae401dafad5e770769ad5158c6ae811a94",
+    "extensions/c7_egs4/production.cmake": "df2f5d2cfb490ce204c443a4429def9f22831680f257ed33a2d96f802a182c09",
+    "extensions/c7_egs4/test_embedded_tables.cpp": "011444e9db826fec71fa7b917da02c2ee6bc4f9af6892972455f523621cf6801",
+    "validation/accelerator/native_multigpu/test_native_multigpu.cpp": "4f97992728f7dd0a9f0df586c9e23392f69e2b95b6c5d60a5cc74c0fe503767e"
+  },
+  "evidence_sha256": {
+    "openmp_cli_results": "3950113565f8cfc05ad60f47689421f4da0683a2a36d906fce2a8dfd06f93aeb",
+    "github_ctest_openmp.log": "95b551398ea4811d430234cb9367d5e5d05588c5ca6aeb701b39d955cc13bc2d",
+    "cuda_cli_results": "09c03bed0c30e84488f16ed1262eadff532ec1a3a75837d5afae064cc553ad51",
+    "github_ctest_cuda.log": "d38f834da31226d9a1bdd10b9d54e31f8037e833bf17eb3ce20fc94b8314b189",
+    "CMakeLists.txt": "e1fcc3cd31522a55476dd49744c9ee14497610cef085a3a9e72b4436f1db8465",
+    "check_cli.py": "01c0651bdf56c3c4d660c89b481d5c738a78fd634025cbd9ce91c7bf7fdc31be",
+    "summarize_github.py": "d5a8b02ac174b56274c7afc64fc44d6b0dbf8c708117f6e031c1f78a977ed0c3"
+  },
+  "muon_smoke": {
+    "status": "completed",
+    "prefix_capture": false,
+    "scalar_em_steps": 0,
+    "native_steps": 359,
+    "execution_space": "OpenMP",
+    "radio_execution_space": "OpenMP",
+    "radio_tracks": 310,
+    "radio_kernel_ms": 0,
+    "radio_projection_batches": 128,
+    "radio_fixed_point_overflows": 0,
+    "profile_execution_space": "OpenMP",
+    "profile_fixed_point_overflows": 0,
+    "profile_invalid_records": 0,
+    "discarded_available_energy_GeV": 0
+  },
+  "proton100_smoke": {
+    "status": "completed",
+    "prefix_capture": false,
+    "scalar_em_steps": 0,
+    "native_steps": 46056,
+    "execution_space": "OpenMP",
+    "radio_execution_space": "OpenMP",
+    "radio_tracks": 38094,
+    "radio_kernel_ms": 0,
+    "radio_projection_batches": 295,
+    "radio_fixed_point_overflows": 0,
+    "profile_execution_space": "OpenMP",
+    "profile_fixed_point_overflows": 0,
+    "profile_invalid_records": 0,
+    "discarded_available_energy_GeV": 0
+  },
+  "coordinator": {
+    "coordinator": "C++",
+    "experimental": true,
+    "partition_sha256": "c6a8794b03c33074ebb5da0242d0832ac13d4addc7e7b493cbfcaa676a091898",
+    "physics_validated_against_beta2": false,
+    "process_complete": true,
+    "products": {
+      "CoREAS/observers.parquet": {
+        "maximum_absolute_field": 3.438933361167573e-11,
+        "nonzero_field_entries": 1155,
+        "rows": 3200,
+        "sha256": "c793d2fcab61cd1da6c87ecf632ecb0c492c62d5ae1f38e7f5473d57ea8ad8ac"
+      },
+      "ZHS/observers.parquet": {
+        "maximum_absolute_field": 2.2110264357236287e-11,
+        "nonzero_field_entries": 1671,
+        "rows": 3200,
+        "sha256": "26b7b9fa944c625f044fb478dc21c6b2d62976862ab233ff6dbb75afe8810f23"
+      },
+      "energyloss/dEdX.parquet": {
+        "rows": 37,
+        "sha256": "676aeb22ae239a812e440479c47a5ba1faba5bdb275e20b9afb5d416fab37394"
+      },
+      "interactions/interactions.parquet": {
+        "rows": 0,
+        "sha256": "57b8ed14f0e29afd98cef4e850347e205971dbe6356d5b9592829c0e51b5a35e"
+      },
+      "particles/particles.parquet": {
+        "rows": 0,
+        "sha256": "6062435255209be38abda2748a3d51971f5ac50abaa85839c1e32dd820bd56e4"
+      },
+      "production_profile/profile.parquet": {
+        "rows": 37,
+        "sha256": "7ad1713489c04dd4f3163b071b5f93e76ca219f2a495d270f572d8826c151b86"
+      },
+      "profile/profile.parquet": {
+        "rows": 37,
+        "sha256": "c76cea690c8263c785652e261d192130fb4522b93e923be394f86d86f17f6cba"
+      }
+    },
+    "wall_s": 11.659051071
+  },
+  "coordinator_prefix": {
+    "status": "completed",
+    "prefix_capture": true,
+    "scalar_em_steps": 0,
+    "native_steps": 0,
+    "execution_space": "",
+    "radio_execution_space": "CPU callbacks",
+    "radio_tracks": 0,
+    "radio_kernel_ms": 0,
+    "radio_projection_batches": 0,
+    "radio_fixed_point_overflows": 0,
+    "profile_execution_space": "CPU callbacks",
+    "profile_fixed_point_overflows": 0,
+    "profile_invalid_records": 0,
+    "discarded_available_energy_GeV": 0
+  },
+  "coordinator_worker": {
+    "status": "completed",
+    "prefix_capture": false,
+    "scalar_em_steps": 0,
+    "native_steps": 158,
+    "execution_space": "Cuda",
+    "radio_execution_space": "Cuda",
+    "radio_tracks": 128,
+    "radio_kernel_ms": 3.779488015919924,
+    "radio_projection_batches": 73,
+    "radio_fixed_point_overflows": 0,
+    "profile_execution_space": "Cuda",
+    "profile_fixed_point_overflows": 0,
+    "profile_invalid_records": 0,
+    "discarded_available_energy_GeV": 0
+  },
+  "table": {
+    "em_backend": "egs4",
+    "stepfc": 1,
+    "table_sha256": "148c56f0f6397faf0f4e23d9a20b2d754f73bae02d644d1c3506153e2e8c990d",
+    "table_storage": "embedded at build time",
+    "non_em": "shared C8 models; PROPOSAL muons",
+    "native_em_production_profile_complete": false,
+    "name": "native_egs4"
+  },
+  "project_table": {
+    "path": "resources/c7_egs4/EGSDAT6_.4",
+    "sha256": "148c56f0f6397faf0f4e23d9a20b2d754f73bae02d644d1c3506153e2e8c990d",
+    "main_openmp_cuda_default_paths_checked": true,
+    "standalone_default_path_tests_passed": 2,
+    "standalone_log_sha256": "6a3f24ee82f237ab2212b988fdd1a809d2b3f23d5f6ca0616a29888aa7b38e94"
+  }
+}

@@ -105,13 +105,16 @@ public:
 // native --devices entry. Ordinary single-endpoint runs and mountain sessions
 // do not activate it; common backend state remains unchanged.
 inline thread_local FrontierInput* activeFrontierInput = nullptr;
+inline thread_local std::string activeFrontierOutput;
+struct ForwardRouterArguments {};
 class ScopedFrontierInput {
 public:
-  explicit ScopedFrontierInput(FrontierInput* input) {
+  explicit ScopedFrontierInput(FrontierInput* input, std::string output = {}) {
     if (activeFrontierInput) throw std::logic_error("Nested frontier input");
     activeFrontierInput = input;
+    activeFrontierOutput = std::move(output);
   }
-  ~ScopedFrontierInput() { activeFrontierInput = nullptr; }
+  ~ScopedFrontierInput() { activeFrontierInput = nullptr; activeFrontierOutput.clear(); }
   ScopedFrontierInput(ScopedFrontierInput const&) = delete;
   ScopedFrontierInput& operator=(ScopedFrontierInput const&) = delete;
 };
@@ -122,6 +125,11 @@ class BufferedFrontierRouter : public BaseRouter {
   CoordinateSystemPtr cs_;
   std::size_t limit_;
 public:
+  template<class... Args>
+  BufferedFrontierRouter(ForwardRouterArguments, CoordinateSystemPtr const& cs,
+                        std::size_t limit, Args&&... args)
+      : BaseRouter(std::forward<Args>(args)...), source_(activeFrontierInput),
+        cs_(cs), limit_(std::min<std::size_t>(65536, std::max<std::size_t>(1,limit))) {}
   template<class Backend, class Env, class Fallback, class Output>
   BufferedFrontierRouter(Backend& backend, CoordinateSystemPtr const& cs,
                         Env const& env, Fallback& fallback, Output& output)

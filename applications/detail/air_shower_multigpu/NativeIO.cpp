@@ -193,6 +193,15 @@ void validateOutputs(fs::path const& folder) {
     require(stats["queue_overflows"].as<std::uint64_t>()==0 &&
       stats["radio"]["fixed_point_overflows"].as<std::uint64_t>()==0,"Queue/fixed-point overflow");
   }
+  auto native=folder/"native_egs4/summary.yaml";
+  if(fs::exists(native)) {
+    auto s=YAML::LoadFile(native.string())["shower_0"];
+    require(s["status"].as<std::string>()=="completed" &&
+      s["scalar_em_steps"].as<std::uint64_t>()==0 &&
+      s["radio_fixed_point_overflows"].as<std::uint64_t>()==0 &&
+      s["profile_fixed_point_overflows"].as<std::uint64_t>()==0 &&
+      s["profile_invalid_records"].as<std::uint64_t>()==0,"Incomplete/invalid native EGS4 output");
+  }
 }
 Json merge(std::vector<fs::path> const& parts,fs::path const& destination) {
   require(!parts.empty(),"Cannot merge no parts");

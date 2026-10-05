@@ -13,6 +13,8 @@ using Json = nlohmann::json;
 struct Options {
   fs::path worker, output;
   std::vector<std::string> devices, physics;
+  std::string emBackend = "kokkos";
+  double egs4Stepfc = 1.;
   std::uint64_t seed = 1;
   unsigned events = 1;
   double energy = 0, memoryFraction = .5, frontierEnergy = 0, timeout = 7200;

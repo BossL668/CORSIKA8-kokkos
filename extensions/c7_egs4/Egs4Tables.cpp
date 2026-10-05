@@ -26,6 +26,9 @@ std::vector<float> block(std::istream& in, std::size_t count) {
 }
 Tables readAirTables(std::string const& path) {
   std::ifstream in(path); require(bool(in), "Cannot open EGSDAT file");
+  return readAirTables(in);
+}
+Tables readAirTables(std::istream& in) {
   Tables t;
   auto header = line(in);
   require(header.find(" MEDIUM=AIR-NTP") == 0, "Only C7 AIR-NTP is supported in this prototype");

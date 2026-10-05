@@ -9,6 +9,9 @@
 #include "KokkosAirShowerRunner.hpp"
 #include "KokkosRunSession.hpp"
 #include <CLI/App.hpp>
+#ifdef CORSIKA8_WITH_NATIVE_EGS4
+#include "Egs4AirShowerRunner.hpp"
+#endif
 
 namespace corsika::applications::air_shower {
 
@@ -62,12 +65,25 @@ namespace corsika::applications::air_shower {
     Outputs outputs_;
     Models models_;
     Monitors monitors_;
+#ifdef CORSIKA8_WITH_NATIVE_EGS4
+    std::unique_ptr<Egs4RunSession> egs4_;
+#endif
   public:
     KokkosAirShowerApplication(KokkosRunSession& session, GpuCliOptions const& options,
         KokkosEventConfig defaults, Geometry geometry, Outputs outputs,
         Models models, Monitors monitors)
         : session_(session), options_(options), defaults_(std::move(defaults)),
-          geometry_(geometry), outputs_(outputs), models_(models), monitors_(monitors) {}
+          geometry_(geometry), outputs_(outputs), models_(models), monitors_(monitors) {
+#ifdef CORSIKA8_WITH_NATIVE_EGS4
+      if(options.em_backend=="egs4")egs4_=std::make_unique<Egs4RunSession>(options);
+#endif
+    }
+
+    template<class Output>void registerBackendOutput(Output& output) {
+#ifdef CORSIKA8_WITH_NATIVE_EGS4
+      if(egs4_)egs4_->registerOutput(output);
+#endif
+    }
 
     template <typename H, typename L>
     auto captureDiagnostics(H const& high, L const& low) const {
@@ -103,7 +119,11 @@ namespace corsika::applications::air_shower {
                     d.photo_high, d.photo_low, before.photo_high, before.photo_low,
                     d.high, d.low, before.high_interactions, before.low_interactions,
                     before.high_timings, before.low_timings, before.pool, d.fallback}};
-            runKokkosAirShower(session_, options_, event, context);
+#ifdef CORSIKA8_WITH_NATIVE_EGS4
+            if(egs4_)egs4_->run(options_,event,context);
+            else
+#endif
+              runKokkosAirShower(session_, options_, event, context);
           }};
     }
   };

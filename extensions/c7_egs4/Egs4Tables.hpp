@@ -6,6 +6,7 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
 #include <cstddef>
+#include <iosfwd>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@ struct Tables {
   std::string name;
 };
 Tables readAirTables(std::string const& path);
+Tables readAirTables(std::istream& input);
 
 enum class Status { success, invalid_input, outside_table };
 struct ElectronQuery {

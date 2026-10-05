@@ -28,6 +28,11 @@ set_target_properties(c8_air_shower PROPERTIES
   INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/corsika"
 )
 
+option(CORSIKA_ENABLE_EGS4 "Enable native C++ EGS4 in the standard air application" OFF)
+if(CORSIKA_ENABLE_EGS4)
+  include("${CMAKE_SOURCE_DIR}/extensions/c7_egs4/production.cmake")
+endif()
+
 
 
 target_compile_definitions (
