@@ -1,8 +1,8 @@
 #pragma once
 
-#include <EmbeddedTables.hpp>
-#include <Egs4C8HostHandler.hpp>
-#include <Egs4C8Router.hpp>
+#include <corsika/modules/EGS4.hpp>
+#include <corsika/modules/egs4/HostHandler.hpp>
+#include <corsika/modules/egs4/Router.hpp>
 #include <corsika/accelerator/em/common/EnvironmentSnapshotBuilder.hpp>
 #include <corsika/accelerator/em/common/CorsikaOutputSink.hpp>
 #include <corsika/accelerator/em/common/ProposalCpuFallbackHandler.hpp>

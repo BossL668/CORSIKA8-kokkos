@@ -1,3 +1,7 @@
+if (CORSIKA_ENABLE_EGS4 AND CORSIKA_EGS4_BUILD_TESTS)
+  add_subdirectory (egs4)
+endif ()
+
 set (test_modules_sources
   TestMain.cpp
   testStackInspector.cpp

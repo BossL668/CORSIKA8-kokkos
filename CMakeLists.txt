@@ -432,6 +432,12 @@ if (CORSIKA_ENABLE_KOKKOS)
   add_subdirectory (src/radio/interface)
   list (APPEND public_CORSIKA8_targets CORSIKA8KokkosEm)
 endif ()
+option(CORSIKA_ENABLE_EGS4 "Enable native C++ EGS4 in the standard air application" OFF)
+option(CORSIKA_EGS4_BUILD_TESTS "Build the EGS4 embedded-table regression test" OFF)
+if (CORSIKA_ENABLE_EGS4)
+  add_subdirectory (src/modules/egs4)
+  list (APPEND public_CORSIKA8_targets CORSIKA8NativeEgs4)
+endif ()
 add_subdirectory (documentation)
 
 #+++++++++++++++++++++++++++++
@@ -516,6 +522,15 @@ endif ()
 #
 # header only part, just copy entire directory tree
 #
+if (CORSIKA_ENABLE_EGS4)
+  install (
+    TARGETS CORSIKA8NativeEgs4
+    EXPORT CORSIKA8PublicTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif ()
 install (DIRECTORY corsika DESTINATION include)
 #
 # generate cmake config package version (for find_package)

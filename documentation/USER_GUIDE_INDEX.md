@@ -18,6 +18,7 @@ below are mainly Chinese. They are dated evidence, not interchangeable recipes.
 | Shared material-interface transport / 通用界面输运 | [Interface API](generic_material_interface_transport_CN.md) |
 | DEM radio / 山体界面射电 | [Published interface radio](interface_kokkos_radio_CN.md) |
 | Neutrino scope / 中微子模型边界 | [Original-module alignment](terrain_original_neutrino_alignment_CN.md) |
+| EGS4 electromagnetic backend / EGS4 电磁模块 | [Module layout and usage](egs4_CN.md) |
 | Combined air executable / 空气组合程序 | [CUDA/OpenMP experiment](cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md) |
 | Cooperative queues / 空气协同队列 | [Independent subshowers](cuda_em_refactor/beta5_independent_subshower_queues_CN.md) |
 | Output memory / 输出内存行为 | [Event-boundary release](cuda_em_refactor/beta5_event_memory_release_20260907_CN.md) |

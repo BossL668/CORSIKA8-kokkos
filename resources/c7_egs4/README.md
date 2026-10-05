@@ -13,9 +13,9 @@ authorship of the data or relicense it under the project's source license.
 The main application embeds this table at build time when
 `CORSIKA_ENABLE_EGS4=ON`. Neither a CORSIKA 7 installation nor a runtime
 table argument is required. `CORSIKA_EGS4_TABLE` remains an optional CMake
-override for dedicated table tests; the standalone test build uses
-`EGS4_TABLE` with the same project-relative default.
+override for dedicated table tests. Module layout and build instructions
+are in [the EGS4 guide](../../documentation/egs4_CN.md).
 
 An existing CMake cache retains a previously explicit table path. Use
 `cmake -S <source> -B <build> -U CORSIKA_EGS4_TABLE` once to adopt the new
-default (or `-U EGS4_TABLE` for the standalone test build).
+default.

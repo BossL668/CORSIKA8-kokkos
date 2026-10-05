@@ -1,0 +1,13 @@
+// Generated in the build tree from the user's licensed table; do not distribute
+// this generated source or its coefficients as repository source files.
+#include <corsika/modules/egs4/EmbeddedTables.hpp>
+#include <corsika/modules/egs4/Session.hpp>
+#include <corsika/modules/egs4/Tables.hpp>
+#include <sstream>
+namespace c7_egs4::application {
+std::unique_ptr<Session> makeEmbeddedSession() {
+  std::istringstream input(R"C8_EGSDAT(@C8_EGSDAT_CONTENT@)C8_EGSDAT");
+  return std::make_unique<Session>(readAirTables(input));
+}
+char const* embeddedTableSha256() { return "@C8_EGSDAT_SHA256@"; }
+}
