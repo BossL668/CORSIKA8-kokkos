@@ -72,6 +72,54 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls(), [])
 
+    def test_unified_device_parser(self):
+        for arguments, expected in [
+                (["--device", "0"], ["0"]),
+                (["--device=0,1,2,3"], ["0", "1", "2", "3"]),
+                (["--device", "0", "1", "-E", "100"], ["0", "1"]),
+                (["--devices", "0,1"], ["0", "1"]),
+                (["--device", "GPU-test-0"], ["GPU-test-0"])]:
+            self.assertEqual(launcher.selected_devices(arguments), expected)
+        for arguments in [
+                ["--device"], ["--device", "0,"], ["--device", "0,,1"],
+                ["--device", "0,00"], ["--device", "-1"],
+                ["--device", "0", "--devices", "1"],
+                ["--device", "0", "--kokkos-device", "0"]]:
+            with self.subTest(arguments=arguments), self.assertRaises(launcher.LaunchError):
+                launcher.selected_devices(arguments)
+
+    def test_public_device_selects_cuda_and_preserves_list(self):
+        self.add_backend("cuda")
+        self.add_backend("openmp")
+        smi = self.root / "bin/nvidia-smi"
+        smi.write_text("#!/bin/sh\nprintf '0, GPU-test-0\\n1, GPU-test-1\\n'\n")
+        smi.chmod(0o755)
+        self.environment["PATH"] = str(smi.parent) + os.pathsep + os.environ["PATH"]
+        for selector in (["--device", "0"], ["--device", "0", "1"],
+                         ["--devices", "0,1"]):
+            result = self.run_entry("--dry-run", *selector)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = json.loads(result.stdout)
+            self.assertEqual(data["selected"]["backend"], "cuda")
+            self.assertTrue(all(value in data["argv"] for value in selector))
+
+    def test_public_device_rejects_cpu_and_unknown_gpu(self):
+        self.add_backend("openmp")
+        self.add_backend("cuda")
+        for arguments in [
+                ["--backend", "openmp", "--device", "0"],
+                ["--em-backend", "proposal", "--device", "0"]]:
+            result = self.run_entry(*arguments)
+            self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(self.calls(), [])
+        with patch.object(launcher.shutil, "which", return_value="nvidia-smi"), \
+                patch.object(launcher.subprocess, "run", return_value=subprocess.CompletedProcess(
+                    [], 0, "0, GPU-test-0\n1, GPU-test-1\n", "")):
+            self.assertEqual(launcher.resolve_requested_gpus(["1"]), ["GPU-test-1"])
+            for selection in (["5"], ["0", "GPU-test-0"]):
+                with self.assertRaises(launcher.LaunchError):
+                    launcher.resolve_requested_gpus(selection)
+
     def test_openmp_does_not_probe_installed_gpus(self):
         self.add_backend("openmp")
         self.add_backend("cuda")

@@ -1,4 +1,4 @@
-"""Optional regression oracle. Python is used by this TEST only, never by the native run."""
+"""Optional two-GPU oracle. Python is used by this TEST only, never by the native run."""
 import argparse
 import importlib.util
 import json
@@ -53,7 +53,7 @@ def main():
             subprocess.run([str(executable)]+physics+extra+["-f",str(root/name)],
                            check=True, stdout=log, stderr=subprocess.STDOUT, env=env, timeout=600)
     print("Regression artifacts:", root, flush=True)
-    run("native", binary, ["--devices","0","--gpu-memory-fraction","0.20","-N","2","-s","26092441"])
+    run("native", binary, ["--device","0,1","--gpu-memory-fraction","0.20","-N","2","-s","26092441"])
     first = root/"native/seed_26092441"
     cfg = json.loads((first/"CONFIG.json").read_text())
     cfg["output"] = str(root/"python_reference")
@@ -63,7 +63,7 @@ def main():
     result = {"native_vs_python": compare(first/"merged", root/"python_reference/merged")}
     assert json.loads((first/"PARTITION.json").read_text()) == json.loads(
         (root/"python_reference/PARTITION.json").read_text())
-    for i in range(1):
+    for i in range(2):
         assert reference.digest(first/("roots_%d.txt" % i)) == reference.digest(
             root/"python_reference"/("roots_%d.txt" % i))
     for execution in ("cuda", "openmp"):

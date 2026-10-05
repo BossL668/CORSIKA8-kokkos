@@ -1,5 +1,6 @@
 // C++ process management; children exec the same air-shower binary.
 #include "NativeCoordinator.hpp"
+#include "../GpuDeviceSelection.hpp"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <cerrno>
@@ -117,10 +118,6 @@ struct Processes {
     Json out=Json::array(); for(auto const& c:children) out.push_back(c.record); return out;
   }
 };
-std::string trim(std::string s) {
-  auto first=s.find_first_not_of(" \t\r\n");
-  return first==std::string::npos?"":s.substr(first,s.find_last_not_of(" \t\r\n")-first+1);
-}
 fs::path executableOnPath(std::string const& name) {
   std::istringstream path(std::getenv("PATH")?std::getenv("PATH"):"");
   std::string folder;
@@ -136,20 +133,9 @@ std::vector<std::string> resolveDevices(std::vector<std::string> const& requeste
   auto i=p.launch({executableOnPath("nvidia-smi").string(),"--query-gpu=index,uuid","--format=csv,noheader,nounits"},
                   output/"device_query",{});
   p.wait({i},15);
-  std::ifstream in(output/"device_query/run.log"); std::string line;
-  std::map<std::string,std::string> aliases;
-  while(std::getline(in,line)) {
-    auto comma=line.find(','); if(comma==std::string::npos) continue;
-    auto index=trim(line.substr(0,comma)),uuid=trim(line.substr(comma+1));
-    if(uuid.rfind("GPU-",0)!=0) continue;
-    aliases[index]=aliases[uuid]=uuid;
-  }
-  std::vector<std::string> result; std::set<std::string> seen;
-  for(auto const& id:requested) {
-    auto it=aliases.find(id); require(it!=aliases.end(),"Unknown GPU: "+id);
-    require(seen.insert(it->second).second,"GPU IDs refer to the same device"); result.push_back(it->second);
-  }
-  return result;
+  std::ifstream in(output/"device_query/run.log");
+  std::ostringstream listing; listing << in.rdbuf();
+  return corsika::applications::gpu_cli::resolveGpuIds(requested, listing.str());
 }
 void feedCheck(fs::path const& folder,std::size_t expected) {
   auto feed=readJson(folder/"FRONTIER_FEED.json");
@@ -268,16 +254,16 @@ void run(Options const& options) {
   }
 }
 bool requested(int argc,char** argv) {
-  for(int i=1;i<argc;++i) {
-    std::string s(argv[i]); if(s=="--devices" || s.rfind("--devices=",0)==0) return true;
-  }
-  return false;
+  return corsika::applications::gpu_cli::parseDevices(argc, argv).multiple();
 }
 int mainEntry(int argc,char** argv) {
-  Options o; std::string output,worker,devices,emBackend,radioBackend,execution;
+  Options o; std::string output,worker,emBackend,radioBackend,execution;
   CLI::App app{"CORSIKA 8: each shower on independent CUDA GPUs; native C++ coordination."};
   app.allow_extras();
-  app.add_option("--devices",devices,"Comma-separated physical GPU indices or UUIDs")->required();
+  app.add_option("--device", "Physical GPU indices or UUIDs (comma or space separated)")
+      ->expected(1,255)->type_size(1)->delimiter(',');
+  app.add_option("--devices", "Compatibility alias for --device")
+      ->expected(1,255)->type_size(1)->delimiter(',')->group("");
   app.add_option("-f,--filename",output,"New output directory")->required();
   app.add_option("-E,--energy",o.energy,"Fixed primary energy [GeV]")->required();
   app.add_option("-s,--seed",o.seed,"First event seed; later seeds increment by one")->default_val(1);
@@ -291,7 +277,9 @@ int mainEntry(int argc,char** argv) {
   app.add_option("--radio-backend",radioBackend,"Multi-GPU radio backend: kokkos");
   app.add_option("--kokkos-execution",execution,"Multi-GPU execution space: cuda");
   try {
+    o.devices = corsika::applications::gpu_cli::parseDevices(argc, argv).ids;
     app.parse(argc,argv); o.output=output;
+    require(o.devices.size()>1, "Multi-GPU coordination requires at least two GPU IDs");
     require((emBackend.empty() || emBackend=="kokkos" || emBackend=="egs4") &&
             (radioBackend.empty() || radioBackend=="kokkos") &&
             (execution.empty() || execution=="cuda"), "Multi-GPU requires kokkos/egs4 transport, kokkos radio and cuda execution");
@@ -303,9 +291,6 @@ int mainEntry(int argc,char** argv) {
     require(o.emBackend!="egs4" || !app.count("--multigpu-frontier-energy"),
       "EGS4 exports unstarted roots; --multigpu-frontier-energy applies only to PROPOSAL");
     o.worker=worker.empty()?fs::canonical("/proc/self/exe"):fs::absolute(worker);
-    std::istringstream ids(devices); std::string id;
-    while(std::getline(ids,id,',')) { id=trim(id); require(!id.empty(),"Empty GPU ID"); o.devices.push_back(id); }
-    require(!devices.empty() && devices.back()!=',',"Empty GPU ID");
     o.physics=app.remaining();
     std::set<std::string> reserved{"--energy_range","--force-interaction","--force-decay","--em-backend",
       "--radio-backend","--kokkos-execution","--kokkos-device","--kokkos-num-threads","--hadronic-workers",

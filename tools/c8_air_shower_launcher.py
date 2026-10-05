@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import resource
+import shutil
 import signal
 import subprocess
 import sys
@@ -68,6 +69,68 @@ def integer_option(arguments, name, default=0):
     return number
 
 
+def selected_devices(arguments):
+    """Public NVIDIA selection; old worker ordinals remain an independent option."""
+    result = []
+    seen = False
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--":
+            break
+        key, equals, value = argument.partition("=")
+        if key in ("--device", "--devices"):
+            if seen:
+                raise LaunchError("specify --device once; do not combine it with --devices")
+            seen = True
+            values = [value] if equals else []
+            while index + 1 < len(arguments) and not arguments[index + 1].startswith("-"):
+                index += 1
+                values.append(arguments[index])
+            for token in values:
+                for item in token.split(","):
+                    item = item.strip()
+                    if item and all(c in "0123456789" for c in item):
+                        item = str(int(item))
+                        if int(item) > 2147483647:
+                            raise LaunchError("GPU index is too large")
+                    elif not (item.startswith("GPU-") and len(item) > 4 and
+                              all(c.isascii() and (c.isalnum() or c == "-") for c in item)):
+                        raise LaunchError("--device expects GPU indices or UUIDs, without empty entries")
+                    if item in result:
+                        raise LaunchError("duplicate GPU ID: " + item)
+                    result.append(item)
+            if not result or len(result) > 255:
+                raise LaunchError("--device requires 1..255 distinct GPU IDs")
+        index += 1
+    if seen and option_value(arguments, "--kokkos-device") is not None:
+        raise LaunchError("do not combine --device/--devices with --kokkos-device")
+    return result
+
+
+def resolve_requested_gpus(ids):
+    executable = shutil.which("nvidia-smi")
+    if executable is None and Path("/usr/lib/wsl/lib/nvidia-smi").is_file():
+        executable = "/usr/lib/wsl/lib/nvidia-smi"
+    if executable is None:
+        raise LaunchError("--device requires nvidia-smi to resolve physical GPU IDs")
+    result = subprocess.run([executable, "--query-gpu=index,uuid", "--format=csv,noheader,nounits"],
+                            capture_output=True, text=True, timeout=15)
+    if result.returncode:
+        raise LaunchError("NVIDIA GPU query failed")
+    aliases = {}
+    for line in result.stdout.splitlines():
+        index, comma, uuid = line.partition(",")
+        if comma and index.strip().isdigit() and uuid.strip().startswith("GPU-"):
+            aliases[index.strip()] = aliases[uuid.strip()] = uuid.strip()
+    if any(item not in aliases for item in ids):
+        raise LaunchError("unknown NVIDIA GPU in --device")
+    uuids = [aliases[item] for item in ids]
+    if len(set(uuids)) != len(uuids):
+        raise LaunchError("GPU IDs refer to the same device")
+    return uuids
+
+
 def application_arguments(arguments):
     # The launcher is the accelerated convenience entry point. Direct binaries
     # keep their scalar defaults. Explicit scalar reference requests are honored.
@@ -77,8 +140,8 @@ def application_arguments(arguments):
         em = "proposal" if radio == "cpu" else "kokkos"
     if radio is None:
         radio = "cpu" if em == "proposal" else "kokkos"
-    if (em, radio) not in (("proposal", "cpu"), ("kokkos", "kokkos")):
-        raise LaunchError("EM/radio must be kokkos/kokkos or proposal/cpu")
+    if (em, radio) not in (("proposal", "cpu"), ("kokkos", "kokkos"), ("egs4", "kokkos"), ("egs4", "cpu")):
+        raise LaunchError("EM/radio must be kokkos/kokkos, egs4/kokkos, egs4/cpu or proposal/cpu")
     source = option_value(arguments, "--gpu-physics-source")
     if source not in (None, "proposal-native"):
         raise LaunchError("beta5 supports only proposal-native")
@@ -142,12 +205,19 @@ def probe(record, arguments, timeout=PROBE_TIMEOUT):
     if not record["installed"]:
         return result
     command = [record["probe"], "--values", "1024", "--threads", "1"]
-    if record["backend"] != "openmp":
-        command += ["--device", str(integer_option(arguments, "--kokkos-device"))]
     try:
+        environment = child_environment(record["backend"], arguments, probe=True)
+        ids = selected_devices(arguments)
+        if ids:
+            if record["backend"] != "cuda":
+                raise LaunchError("--device requires the CUDA backend")
+            environment["CUDA_VISIBLE_DEVICES"] = resolve_requested_gpus(ids)[0]
+            command += ["--device", "0"]
+        elif record["backend"] != "openmp":
+            command += ["--device", str(integer_option(arguments, "--kokkos-device"))]
         completed = subprocess.run(
             command, capture_output=True, text=True, errors="replace", timeout=timeout,
-            env=child_environment(record["backend"], arguments, probe=True),
+            env=environment,
             preexec_fn=no_core_dump)
         if completed.returncode:
             message = (completed.stderr or completed.stdout).strip()[-1500:]
@@ -168,7 +238,12 @@ def probe(record, arguments, timeout=PROBE_TIMEOUT):
 
 
 def select_backend(requested, records, arguments, scalar=False):
-    device_requested = option_value(arguments, "--kokkos-device") is not None
+    ids = selected_devices(arguments)
+    device_requested = bool(ids) or option_value(arguments, "--kokkos-device") is not None
+    if ids:
+        if requested not in ("auto", "cuda") or scalar:
+            raise LaunchError("--device requires accelerated CUDA execution")
+        requested = "cuda"
     threads = integer_option(arguments, "--kokkos-num-threads")
     if requested == "openmp" and device_requested:
         raise LaunchError("--kokkos-device cannot be used with --backend openmp")

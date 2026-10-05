@@ -1,7 +1,8 @@
 # 原生多 GPU 入口
 
 CUDA 和 CUDA/OpenMP 构建直接在 **同一个 c8_air_shower 二进制**中提供
---devices。不需要填写 JSON，也不调用 Python 协调器。
+统一的 `--device` 参数：一个编号走单卡，多个编号走多卡。
+不需要填写 JSON，也不调用 Python 协调器。
 
 ## 构建
 
@@ -21,19 +22,24 @@ Conan 和构建时的代码生成工具仍按原项目要求安装。
 ~~~bash
 cd ../install/cuda-openmp/bin
 ./c8_air_shower -p 2212 -E 1e5 -N 10 -s 20260924 \
-  --devices 0,1,2,3 --gpu-memory-fraction 0.90 \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90 \
   --ring 1 --antenna-file /dev/null -f demo_multigpu
 ~~~
 
-- --devices：同一例 shower 使用的物理 GPU 编号（与 nvidia-smi 一致），也接受完整 GPU UUID。
+- `--device 0`：直接运行单卡；`--device 0,1,2,3` 或 `--device 0 1 2 3`：同一例 shower 使用四卡。
+  编号与 `nvidia-smi` 一致，也接受完整 GPU UUID；两种路径均按 UUID 选择实际设备。
 - -N：依次运行的 shower 数量；每例使用全部选中的卡。种子为 -s 加从 0 开始的事件序号。
 - --gpu-memory-fraction：每个 worker 的预算，默认 0.5，可显式设置到 0.9。
 - --multigpu-timeout：每个前缀/worker 的超时秒数，默认 7200；很慢的高能模拟可调大。
 - --multigpu-frontier-energy：可选的调度根粒子能量上限（GeV），默认自动选择；它不是物理 cut。
 
---devices 自动选择 Kokkos CUDA 输运和射电。显式给出的
+`--device` 自动选择 Kokkos CUDA 输运和射电。显式给出的
 --em-backend kokkos --radio-backend kokkos --kokkos-execution cuda 也接受。
-不传 --devices 时保持原有单卡或 OpenMP 入口；CPU-only 用户仍用原 OpenMP 构建。
+也可用 `--em-backend egs4` 选择 EGS4 电磁后端。
+不传 `--device` 时保持原有行为；CPU-only 用户仍用原 OpenMP 构建，不传 GPU 编号。
+旧的 `--devices` 保留为兼容别名，但只传一个编号时现在同样走直接单卡路径，
+不再创建单 worker 的协调目录。`--kokkos-device` 仅保留给旧脚本及内部 worker，
+其含义仍是可见设备内的 CUDA 序号；不要与 `--device`/`--devices` 混用。
 
 固定初级能量、物理 cut、磁场、大气、薄化和天线等参数继续传给原空气程序。
 不支持在此路径同时选择能谱抽样、强制初级反应或 --compress。
@@ -41,6 +47,7 @@ cd ../install/cuda-openmp/bin
 
 ## 计算与输出
 
+以下说明针对选择多个 GPU 的路径；单卡仍使用普通应用的输出结构。
 一个 CPU 前缀导出互不重叠的 EM/μ 根粒子，按未加权能量代理分配一次；
 每张卡在独立进程内推进自己的子簇、CPU 回退和随机流。子进程重新执行同一个
 c8_air_shower，协调进程不创建 Kokkos/CUDA 上下文。每个 worker 有独立工作目录，
@@ -78,5 +85,18 @@ ctest --test-dir ../build/native-multigpu-tests --output-on-failure
 四卡第一例与旧协调器、旧 worker 的七类输出逐项一致；完整条件和边界见
 [验证记录](../validation/accelerator/native_multigpu/VALIDATION_CN.md)。
 同目录的 compare_reference.py 仅用于可选测试（对照旧 Python 协调器），
-不是新入口的运行依赖。原生协调器不调用 Python。
+需要至少两张 GPU，不是新入口的运行依赖。原生协调器不调用 Python。
 本次功能回归不替代大样本统计验收或单卡/四卡缩放测试。
+
+### 统一 device 参数回归（2026-10-05）
+
+- C++ 参数测试覆盖单编号、逗号/空格列表、UUID、兼容别名、重复编号、
+  重复物理设备和参数冲突；旧启动器 26 项测试通过。
+- OpenMP/CUDA 均编译通过。0.1 GeV 光子、固定种子、每次两例的小样本中，
+  Kokkos 与 EGS4 的新旧入口及单卡别名共 70 项 Parquet 文件对照完全相同，
+  包含 profile、沉积、CoREAS/ZHS 等输出；CUDA 在本地 RTX 4060 实测。
+- C++ 四 worker fixture 验证三种列表写法、连续两例、合并结果和每个 worker
+  在独立 UUID 掩码内使用序号 0。
+- shower 前后对照使用提交 037d7a04 加本次 CLI 修改的隔离源码，复用对应的
+  未修改物理库，避免混入工作区其他正在进行的物理修改；当前工作区协调器另行编译测试。
+  本次未重新跑四 L20 实机性能测试，也未替换远端生产二进制。重编译后新参数才生效。

@@ -66,7 +66,7 @@ The scientific build below uses SIBYLL-2.3d and separately licensed FLUKA.
 Not every CORSIKA process runs on the GPU. Production single-endpoint modes use
 OpenMP **or** a GPU. The combined build additionally offers explicit experimental
 air-shower cooperation (section 9). CUDA and CUDA/OpenMP builds also provide native
-single-shower multi-GPU coordination through `c8_air_shower --devices 0,1,2,3`.
+single-shower multi-GPU coordination through `c8_air_shower --device 0,1,2,3`.
 See [native multi-GPU usage](documentation/native_multigpu_CN.md); Python is not
 used by that execution path.
 
@@ -715,10 +715,9 @@ YAML or `.c8emrt` file is needed for this application.
 | `--emcut` | Kinetic-energy cut, 0.0005 GeV |
 | `--geomagnetic-model`, `--geomagnetic-year` | IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/cooperative threads; single-GPU execution rejects values above 1 |
-| `--kokkos-device N` | Single-GPU device selection |
-| `--devices 0,1,2,3` | CUDA builds: selected GPUs cooperate on each shower; native C++ coordination |
+| `--device 0` / `--device 0,1,2,3` | NVIDIA physical index/UUID: one selects the direct single-GPU path; several cooperate on each shower; space-separated IDs also accepted |
 | `--gpu-min-batch` | 4096, not a shower count |
-| `--gpu-memory-fraction` | Budget ceiling: 0.70 normally, 0.50 with `--devices`; explicit values override the default |
+| `--gpu-memory-fraction` | Budget ceiling: 0.70 normally, 0.50 with multiple GPUs; explicit values override the default |
 | `--gpu-resident-batch-limit` | 0 for automatic capacity; explicit for replay/diagnosis |
 | `--radio-sampling-rate-ghz` | 1 GHz |
 | `--radio-window-duration-ns`, `--radio-pretrigger-ns` | 400 ns / 10 ns |
@@ -785,7 +784,7 @@ is required. Use the usual build command in section 8, then:
 ```bash
 cd ../install/cuda-openmp/bin
 ./c8_air_shower -p 2212 -E 1e5 -N 10 -s 20260924 \
-  --devices 0,1,2,3 --gpu-memory-fraction 0.90 \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90 \
   --ring 1 --antenna-file /dev/null -f demo_multigpu
 ```
 
@@ -794,7 +793,12 @@ one process per GPU transports its assigned subshowers and handles its own
 CPU fallbacks. The C++ coordinator merges profiles and signed CoREAS/ZHS fields
 after all workers finish. `-N` showers run sequentially, with seeds incremented
 from `-s`. Each event records `TIMING.json`; merged output is in `merged/`.
-Omitting `--devices` preserves the ordinary single-device/OpenMP path.
+Use `--device 0` for a direct single-GPU run, or `--device 0 1 2 3` for the
+same multi-GPU selection shown above. Omitting `--device` preserves existing
+backend selection. `--devices` remains a compatibility alias; a single ID
+now uses the ordinary output layout, not a one-worker coordinator directory.
+The legacy `--kokkos-device` visible-device ordinal remains supported for
+older scripts and internal workers; do not combine it with `--device`/`--devices`.
 
 The GPU IDs are physical `nvidia-smi` indices (full UUIDs also work). The
 memory fraction is a per-GPU budget. Slow, high-energy jobs can raise the

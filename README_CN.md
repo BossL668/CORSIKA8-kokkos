@@ -497,13 +497,20 @@ install/bin/c8_air_shower --backend openmp \
 | `--emcut` | 默认动能 cut `0.0005` GeV |
 | `--geomagnetic-model`、`--geomagnetic-year` | 默认 IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/协同线程数；单 GPU 模式不接受大于 1 |
-| `--kokkos-device N` | GPU 编号，不是多卡并行 |
+| `--device 0` / `--device 0,1,2,3` | NVIDIA 物理编号/UUID：一个编号走单卡，多个编号同 shower 多卡并行；也支持空格分隔 |
 | `--gpu-min-batch` | 默认 4096，不是 shower 数量 |
-| `--gpu-memory-fraction` | 默认 0.70，预算上限非填充目标 |
+| `--gpu-memory-fraction` | 单卡默认 0.70，多卡默认 0.50；预算上限非填充目标 |
 | `--gpu-resident-batch-limit` | 默认 0 自动容量；固定容量用于回放/诊断 |
 | `--radio-sampling-rate-ghz` | 默认 1 GHz |
 | `--radio-window-duration-ns`、`--radio-pretrigger-ns` | 默认 400 ns / 10 ns |
 | `--kokkos-tuning-cache`、`--kokkos-require-tuning` | 可选调优缓存；require 模式下不匹配即失败 |
+
+CUDA/组合构建中，`--device 0` 自动选择单卡 CUDA，`--device 0 1 2 3`
+或 `--device 0,1,2,3` 自动选择原生 C++ 多卡协调器。编号与 `nvidia-smi`
+一致；也接受完整 UUID。`--devices` 保留为兼容别名，但单编号现在直接运行，
+不再创建单 worker 协调目录。旧 `--kokkos-device` 可见设备序号保留给旧脚本和
+内部 worker，不能与新参数混用。CPU-only 构建不传 GPU 编号。
+详见[单卡/多卡入口](documentation/native_multigpu_CN.md)。
 
 `auto` 探测已装 GPU，不可用时提示并选 OpenMP；多个可用 GPU 后端要求明确选择，不保证自动找最快者。**启动器显式选择独立 OpenMP** 不探测 GPU，这项隔离保证不适用于组合版。显式后端失败不换后端重跑。`--list-backends` 只读清单，`--check-backends` 和 `--dry-run` 会运行探针。跨机器迁移的是源码，不是让 NVIDIA 二进制直接在 AMD 上运行。
 

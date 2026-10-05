@@ -34,7 +34,7 @@ c8_air_shower --em-backend egs4 \
   --antenna-file /path/to/antennas.txt -f /path/to/new-output
 ```
 
-多卡沿用 `--devices 0,1,2,3 --gpu-memory-fraction 0.9`。方向、高度、磁场、大气、天线、cuts、薄化、穿界方式和射电后端均使用主应用的公共参数；不额外提供参考事例预设或 μ 子后端选项。双端构建支持选 CUDA 或 OpenMP，EGS4 暂不支持协同 `cuda-openmp` 执行模式。
+单卡用 `--device 0`，多卡用 `--device 0,1,2,3 --gpu-memory-fraction 0.9`，也支持空格分隔编号。方向、高度、磁场、大气、天线、cuts、薄化、穿界方式和射电后端均使用主应用的公共参数；不额外提供参考事例预设或 μ 子后端选项。双端构建支持选 CUDA 或 OpenMP，EGS4 暂不支持协同 `cuda-openmp` 执行模式。
 
 默认表 `resources/c7_egs4/EGSDAT6_.4` 在构建时内嵌，运行时无需表路径或外部 C7 安装。输出 `native_egs4/config.yaml` 记录表 SHA256。`CORSIKA_EGS4_TABLE` 仅作为高级 CMake 覆盖选项保留；默认表 SHA256 为 `148c56f0f6397faf0f4e23d9a20b2d754f73bae02d644d1c3506153e2e8c990d`。
 

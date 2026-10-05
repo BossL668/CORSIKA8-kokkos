@@ -2,6 +2,11 @@ add_executable(testKokkosAirShowerBindings testKokkosAirShowerBindings.cpp)
 target_compile_features(testKokkosAirShowerBindings PRIVATE cxx_std_17)
 add_test(NAME testKokkosAirShowerBindings COMMAND testKokkosAirShowerBindings)
 
+add_executable(testGpuDeviceSelection testGpuDeviceSelection.cpp)
+target_compile_features(testGpuDeviceSelection PRIVATE cxx_std_17)
+target_link_libraries(testGpuDeviceSelection PRIVATE CLI11::CLI11)
+add_test(NAME testGpuDeviceSelection COMMAND testGpuDeviceSelection)
+
 # Application context bindings require neither a GPU nor the Kokkos runtime.
 add_executable(testKokkosAirShowerContext testKokkosAirShowerContext.cpp)
 target_compile_features(testKokkosAirShowerContext PRIVATE cxx_std_17)

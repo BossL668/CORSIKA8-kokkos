@@ -209,7 +209,7 @@ set(_c8_native_multigpu_default OFF)
 if(CORSIKA_ENABLE_KOKKOS AND CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
   set(_c8_native_multigpu_default ON)
 endif()
-option(CORSIKA_ENABLE_NATIVE_MULTIGPU "Enable native --devices in c8_air_shower"
+option(CORSIKA_ENABLE_NATIVE_MULTIGPU "Enable multi-value --device in c8_air_shower"
   ${_c8_native_multigpu_default})
 if(CORSIKA_ENABLE_NATIVE_MULTIGPU)
   if(NOT CORSIKA_ENABLE_KOKKOS OR NOT CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")

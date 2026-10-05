@@ -109,6 +109,7 @@
 
 #include "detail/air_shower_kokkos/GpuCliOptions.hpp"
 #include "detail/air_shower_kokkos/Egs4CliOptions.hpp"
+#include "detail/air_shower_kokkos/DeviceCliOptions.hpp"
 #ifdef C8_NATIVE_MULTIGPU
 #include "detail/air_shower_multigpu/NativeCoordinator.hpp"
 #ifndef C8_EXPERIMENTAL_STATIC_MULTIGPU
@@ -253,9 +254,7 @@ namespace {
     app.add_option("--kokkos-num-threads", options.kokkos_num_threads,
                    "OpenMP thread count for an OpenMP-only Kokkos build; zero uses the runtime default")
         ->check(CLI::NonNegativeNumber)->group("Kokkos");
-    app.add_option("--kokkos-device", options.kokkos_device,
-                   "Device index for a GPU-only Kokkos build")
-        ->check(CLI::NonNegativeNumber)->group("Kokkos");
+    corsika::applications::air_shower::addDeviceCliOptions(app, options);
     app.add_option("--kokkos-tuning-cache", options.kokkos_tuning_cache,
                    "Device-specific Kokkos tuning cache")
         ->group("Kokkos");
@@ -440,17 +439,20 @@ namespace {
 } // namespace
 
 int main(int argc, char** argv) {
+  corsika::applications::gpu_cli::DeviceSelection selected_devices;
+  try {
+    selected_devices = corsika::applications::gpu_cli::parseDevices(argc, argv);
+  } catch (std::exception const& error) {
+    std::cerr << "GPU selection: " << error.what() << '\n';
+    return EXIT_FAILURE;
+  }
 #ifdef C8_NATIVE_MULTIGPU
   // Dispatch before initializing Kokkos or any shower/Fortran model state.
-  if (c8::multigpu::requested(argc, argv)) return c8::multigpu::mainEntry(argc, argv);
+  if (selected_devices.multiple()) return c8::multigpu::mainEntry(argc, argv);
 #endif
 
   // the main command line description
   CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
-#ifdef C8_NATIVE_MULTIGPU
-  app.add_option("--devices", "GPUs for one shower, e.g. 0,1,2,3 (native coordination)")
-      ->group("Multi-GPU");
-#endif
 
   CORSIKA_LOG_INFO(
       "Please cite the following references when using CORSIKA 8:\n"
@@ -660,6 +662,7 @@ int main(int argc, char** argv) {
 #endif
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
+  if (!corsika::applications::air_shower::prepareDeviceCli(app, gpu_cli, selected_devices)) return EXIT_FAILURE;
   if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
   if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos" && gpu_cli.em_backend != "egs4") ||

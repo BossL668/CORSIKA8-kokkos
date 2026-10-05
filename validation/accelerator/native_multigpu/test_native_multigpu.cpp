@@ -1,5 +1,7 @@
 #include "NativeCoordinator.hpp"
 #include <arrow/api.h>
+#include <algorithm>
+#include <iterator>
 #include <arrow/io/api.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/arrow/writer.h>
@@ -157,6 +159,39 @@ int main(int argc,char** argv) {
       !fs::exists(o.output/"COMPLETE.json"),"Interrupted run must stay incomplete");
     check(waitpid(-1,nullptr,WNOHANG)==-1 && errno==ECHILD,"Leaked child after interruption");
 
+    // Canonical comma/space forms and the compatibility alias share one route.
+    if(argc>1) {
+      std::vector<std::vector<std::string>> selections{
+        {"--device","0,1,2,3"}, {"--device","0","1","2","3"},
+        {"--devices","0,1,2,3"}};
+      for(std::size_t test=0;test<selections.size();++test) {
+        auto output=root/("device CLI "+std::to_string(test));
+        std::vector<std::string> args{fs::absolute(argv[1]).string()};
+        args.insert(args.end(),selections[test].begin(),selections[test].end());
+        args.insert(args.end(),{"--multigpu-worker",o.worker.string(),
+          "-E","10","-N","2","-s","101","-p","22","--ring","1","-f",output.string()});
+        auto child=fork(); check(child>=0,"fork device CLI");
+        if(child==0) {
+          std::vector<char*> raw;
+          for(auto& arg:args) raw.push_back(arg.data());
+          raw.push_back(nullptr); execv(raw[0],raw.data()); _exit(127);
+        }
+        int status=0; waitpid(child,&status,0);
+        check(WIFEXITED(status) && WEXITSTATUS(status)==0,"Unified device CLI");
+        check(fs::exists(output/"seed_102/COMPLETE.json"),"Unified CLI event count");
+        check(first(output/"seed_101/merged/CoREAS/observers.parquet")==9,
+          "Unified CLI four worker merge");
+        for(unsigned i=0;i<4;++i) {
+          auto command=json(output/"seed_101"/("worker_"+std::to_string(i))/"COMMAND.json").get<std::vector<std::string>>();
+          check(std::find(command.begin(),command.end(),"--device")==command.end() &&
+                std::find(command.begin(),command.end(),"--devices")==command.end(),
+                "Public device selector leaked into masked worker");
+          auto option=std::find(command.begin(),command.end(),"--kokkos-device");
+          check(option!=command.end() && std::next(option)!=command.end() && *std::next(option)=="0",
+                "Worker must use ordinal zero inside UUID mask");
+        }
+      }
+    }
     // Exercise public CLI forwarding with a path containing spaces, without any Python.
     if(argc>1) {
       auto child=fork(); check(child>=0,"fork CLI");
