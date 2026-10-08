@@ -1,16 +1,35 @@
-# CORSIKA 8 Kokkos beta5
+# CORSIKA8-kokkos
 
 [中文安装与使用手册](README_CN.md)
 
-**Use the [`kokkos-beta5` branch](https://github.com/BossL668/corsika8-gpu-hybrid/tree/kokkos-beta5).**
+**Use the [`CORSIKA8-kokkos` branch](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)
+of the public [CORSIKA8-kokkos repository](https://github.com/BossL668/CORSIKA8-kokkos).**
 The repository's default GitHub page currently opens the older `cuda-em-refactor`
-branch. Its build instructions are not beta5 instructions.
+branch. Select `CORSIKA8-kokkos` explicitly; this is the branch formerly named
+`kokkos-beta5`.
 
 A standalone CORSIKA-based application for atmospheric particle showers and
 CoREAS/ZHS radio signals. The same Kokkos electromagnetic-transport and radio
 sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 beta project, an existing build tree or manually prepared `.c8emrt` tables.
+
+Latest published changes (2026-10-08):
+
+- The air application selects EM physics with `--em-backend proposal`,
+  `kokkos-proposal` or `kokkos-egs4`; execution hardware is selected separately.
+- Unified `--device`: one GPU ID selects a single-GPU shower; multiple IDs
+  select native C++ multi-GPU coordination for the same shower.
+- The optional C++/Kokkos EGS4 backend is a regular CORSIKA module, with its
+  AIR-NTP table bundled and embedded at build time. No external C7 installation
+  or runtime table-path argument is required.
+- Application bindings and run sessions encapsulate backend setup and reuse;
+  the main air-shower application remains the entry point for both EM backends.
+
+The cached-loss selector described below is a **local development candidate,
+not yet included in the published branch**. Tiny-batch CPU fallback and tail
+repartitioning experiments are also not production defaults. Module-level
+speedups must not be interpreted as whole-shower speedups.
 
 Air application update (2026-09-23): `c8_air_shower` now defaults to
 `--profile-crossings original-c8` (forward crossings, closed endpoints).
@@ -44,7 +63,8 @@ described separately and still needs target-hardware acceptance.
 4. [Run options](#9-minimal-commands-and-important-parameters),
    [HIP/SYCL](#10-hipsycl-on-matching-hardware),
    [tests and troubleshooting](#11-tests-updates-and-troubleshooting).
-5. Optional: [terrain setup and first run](documentation/terrain_getting_started.md),
+5. Optional: [EGS4 backend](#94-optional-ckokkos-egs4-backend),
+   [terrain setup and first run](documentation/terrain_getting_started.md),
    [documentation map and validation status](documentation/USER_GUIDE_INDEX.md).
 
 Commands without a shell prompt can be copied. Follow one backend route, not all
@@ -59,6 +79,9 @@ their recorded revision; they do not replace this installation guide.
 - CoREAS/ZHS radio accumulation in the same execution backend as accelerated EM.
 - Read-only export of PROPOSAL native splines, automatic auxiliary caches,
   double precision and version/medium/cut/energy-range/hash checks.
+- Optional C7-derived EGS4 algorithms rewritten in C++/Kokkos for electrons,
+  positrons and photons, retaining C8's existing hadronic and muon modules.
+  This is not a wrapper around the C7 Fortran executable.
 - Existing CPU hadronic models, decays and explicit unsupported-process
   fallbacks; a scalar PROPOSAL reference mode remains available.
 
@@ -120,6 +143,10 @@ for the detailed validation record and limitations.
 
 ### 2.2 Directory layout
 
+The examples retain the historical `beta5` local directory names so existing
+build/install paths remain valid. These directory names are not the GitHub
+repository or branch name; existing checkouts do not need to be relocated.
+
 ```text
 corsika-21cma-kokkos-beta5/
 ├── corsika8_kokkos_beta5/       source, recipes, examples, docs and tests
@@ -142,9 +169,10 @@ backends or machines. All variants use the same application source.
 
 ### 2.3 Algorithm: resident wavefront transport and online radio accumulation
 
-The following is the **accelerated** path. Scalar `proposal/cpu` keeps the
+The following is the **Kokkos PROPOSAL** path. Scalar `proposal/cpu` keeps the
 original serial Cascade/PROPOSAL route. The arrows describe data ownership and
-dependencies, not simultaneous CPU/GPU execution.
+dependencies, not simultaneous CPU/GPU execution. The optional EGS4 module uses
+the same application and common run settings; see section 9.4.
 
 ```mermaid
 flowchart TD
@@ -198,12 +226,16 @@ Where this logic lives:
 | Responsibility | Source |
 |---|---|
 | Models, CLI and output lifecycle | [c8_air_shower.cpp](applications/c8_air_shower.cpp) |
+| Encapsulated air-shower adapter and grouped bindings | [KokkosAirShowerApplication.hpp](applications/detail/air_shower_kokkos/KokkosAirShowerApplication.hpp), [KokkosAirShowerBindings.hpp](applications/detail/air_shower_kokkos/KokkosAirShowerBindings.hpp) |
+| Application session lifecycle | [KokkosRunSession.hpp](applications/detail/air_shower_kokkos/KokkosRunSession.hpp) |
 | Session, native export and reuse | [KokkosEmRunSession.hpp](corsika/accelerator/em/detail/KokkosEmRunSession.hpp) |
 | CPU / accelerated particle routing | [PhysicalAcceleratedEmRouter.hpp](corsika/accelerator/em/PhysicalAcceleratedEmRouter.hpp) |
 | Host-side instance selection | [KokkosEmBackend.cpp](src/accelerator/em/kokkos/KokkosEmBackend.cpp) |
 | Shared instantiated implementation | [KokkosBackendInstance.inl](src/accelerator/em/kokkos/KokkosBackendInstance.inl) |
 | Photon/lepton transport and native tables | [Kokkos EM templates](corsika/accelerator/em/kokkos) |
 | CoREAS/ZHS projection and accumulation | [KokkosRadioAccumulator.hpp](corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp) |
+| Optional EGS4 public API, implementation and compiled sources | [EGS4.hpp](corsika/modules/EGS4.hpp), [API](corsika/modules/egs4/), [implementation](corsika/detail/modules/egs4/), [sources](src/modules/egs4/) |
+| Native single-shower multi-GPU coordination | [air_shower_multigpu](applications/detail/air_shower_multigpu/) |
 
 The dual build compiles `KokkosCudaBackendInstance.cpp` and
 `KokkosOpenMPBackendInstance.cpp` against that same implementation, then links
@@ -283,26 +315,21 @@ a different name. In every new terminal, source the actual Conda installation's
 
 ## 4. Obtain complete source and configure Conan
 
-The **beta5 source** is maintained on the `kokkos-beta5` branch of the
-[private project repository](https://github.com/BossL668/corsika8-gpu-hybrid/tree/kokkos-beta5).
-Obtain repository access and configure GitHub authentication before cloning.
-The beta2 and beta4 branches remain separate; do not use the default branch
-as a substitute for beta5.
+The source is on the `CORSIKA8-kokkos` branch of the
+[public project repository](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos).
+Read-only HTTPS cloning does not require GitHub authentication. Older branches
+remain separate; do not use the default branch as a substitute for this branch.
+The public repository does not remove third-party model licensing requirements.
 
-For HTTPS, use a credential manager or, if GitHub CLI is installed,
-`gh auth login --hostname github --git-protocol https --web` followed by
-`gh auth setup-git`. If Git prompts for a password, GitHub requires an authorized
-personal access token, not your account password. Alternatively configure an
-authorized SSH key and replace only the clone URL with
-`git@github.com:BossL668/corsika8-gpu-hybrid.git`. Never put a token in a URL,
-script or README. Authentication alone does not grant access to this private
-repository. See [GitHub authentication](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github).
+For SSH, use `git@github.com:BossL668/CORSIKA8-kokkos.git` with a configured
+GitHub SSH key. Pushing changes requires authentication and write permission;
+never put a token in a URL, script or README.
 
 ```bash
 mkdir -p "$HOME/corsika-21cma-kokkos-beta5"
 cd "$HOME/corsika-21cma-kokkos-beta5"
-git clone --branch kokkos-beta5 --single-branch --recurse-submodules \
-  https://github.com/BossL668/corsika8-gpu-hybrid.git corsika8_kokkos_beta5
+git clone --branch CORSIKA8-kokkos --single-branch --recurse-submodules \
+  https://github.com/BossL668/CORSIKA8-kokkos.git corsika8_kokkos_beta5
 cd corsika8_kokkos_beta5
 test -f CMakeLists.txt
 test -f conanfile.py
@@ -614,6 +641,7 @@ Only the EM selector names changed. `--kokkos-execution`, `--device`,
 `--kokkos-num-threads`, `--radio-backend cpu|kokkos` and all physics defaults
 are unchanged. Update old EM names in scripts when using the rebuilt binary;
 do not mix a new launcher/coordinator with an old worker executable.
+For EGS4 build flags, embedded tables and examples, see section 9.4.
 
 After a successful build, these commands use the **same binary**, from the
 project container directory. No private antenna file is needed:
@@ -662,7 +690,7 @@ launcher's `--backend` to the application; the separate **probe** has its own
 
 ### 9.1 Optional cooperative air execution
 
-Only the combined executable accepts `cuda-openmp` (GPU-primary) and
+Only the combined executable with `kokkos-proposal` accepts `cuda-openmp` (GPU-primary) and
 `openmp-cuda` (CPU-primary). Both endpoints use shared EM/radio physics with
 independent subshower queues; the coordinator owns scalar fallback and final
 checked profile/radio merging. This is not hadronic parallelism and is not the
@@ -714,12 +742,27 @@ install/bin/c8_air_shower --backend openmp \
 Here the OpenMP installation supplies the executable, but `proposal/cpu` does
 not run accelerated EM. Direct `install/<backend>/bin/c8_air_shower` executables
 also retain scalar defaults; only the launcher adds Kokkos EM/radio defaults.
-The only accelerated physics source is `proposal-native`; no selector, medium
-YAML or `.c8emrt` file is needed for this application.
+For `kokkos-proposal`, the physics source is `proposal-native`; no additional
+physics-source selector, medium YAML or `.c8emrt` file is needed.
+For the optional `kokkos-egs4` path, see section 9.4.
+
+**Local development only — cached loss (not in the published branch as of
+2026-10-08):** after building the candidate code and its tests, append
+`--kokkos-loss-solver cached` to a `kokkos-proposal` OpenMP, CUDA or native
+multi-GPU `--device` air-shower command. A fresh public checkout does not yet
+provide this option.
+The default remains `original`. This only reuses query-local endpoint and spline
+evaluations; no midpoint approximation, new tolerance or transport step is introduced.
+Native scalar PROPOSAL, the multi-GPU scalar prefix and CPU fallbacks are unchanged.
+The choice is recorded in the run outputs. Do not mix old headers/static libraries
+with the rebuilt application. Local regression details are in the Chinese guide;
+full four-L20 production/performance acceptance remains a separate step.
 
 | Parameter | Meaning / default |
 |---|---|
 | `--backend openmp/cuda/hip/sycl` | Launcher only: installed executable to select; omitted means `auto` |
+| `--em-backend proposal\|kokkos-proposal\|kokkos-egs4` | EM physics path, separate from hardware selection; direct application's default is `proposal` |
+| `--egs4-stepfc` | EGS4-only step factor; default `1`; requires EGS4 enabled at build time |
 | `--kokkos-execution cuda\|openmp\|cuda-openmp\|openmp-cuda` | Combined air application: one instance or explicit GPU-/CPU-primary cooperation; implicit CUDA in accelerated mode |
 | `-p`, `-E` | PDG code and total energy in GeV; photon 22, electron 11, proton 2212 |
 | `-z`, `-a` | Zenith and azimuth in degrees; 0 / 0 |
@@ -729,6 +772,7 @@ YAML or `.c8emrt` file is needed for this application.
 | `--geomagnetic-model`, `--geomagnetic-year` | IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/cooperative threads; single-GPU execution rejects values above 1 |
 | `--device 0` / `--device 0,1,2,3` | NVIDIA physical index/UUID: one selects the direct single-GPU path; several cooperate on each shower; space-separated IDs also accepted |
+| `--kokkos-loss-solver original\|cached` | Local candidate only, not yet published: continuous-loss inversion; default `original`; `cached` preserves iterations and tolerances |
 | `--gpu-min-batch` | 4096, not a shower count |
 | `--gpu-memory-fraction` | Budget ceiling: 0.70 normally, 0.50 with multiple GPUs; explicit values override the default |
 | `--gpu-resident-batch-limit` | 0 for automatic capacity; explicit for replay/diagnosis |
@@ -821,6 +865,77 @@ See [implementation, limits and regression checks](documentation/native_multigpu
 The four-L20 regression covers two 1 TeV proton showers; its first event matches
 the previous coordinator and worker outputs exactly. This is not a scaling benchmark.
 
+### 9.4 Optional C++/Kokkos EGS4 backend
+
+EGS4 replaces electron/positron/photon transport only; C8's existing hadronic
+and muon modules remain in use. It is disabled at build time by default.
+After the common dependency/model setup, enable it in an OpenMP, CUDA or
+CUDA/OpenMP build. For example, from the source directory:
+
+```bash
+C8_BUILD_JOBS=1 bash tools/build_kokkos.sh openmp \
+  -DWITH_FLUKA=ON -DCORSIKA_ENABLE_EGS4=ON
+```
+
+For a CUDA build replace `openmp` with `cuda`. For the combined executable use
+`tools/build_kokkos_dual.sh` with the same CMake flags. FLUKA still requires
+the separately prepared licensed installation described in section 5.
+
+Then, from the project container directory, run a small CPU example:
+
+```bash
+cd ..
+mkdir -p "$HOME/CorsikaData"
+install/bin/c8_air_shower --backend openmp \
+  --em-backend kokkos-egs4 --radio-backend kokkos --kokkos-num-threads 4 \
+  --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  -f "$HOME/CorsikaData/egs4_photon_openmp"
+```
+
+With the CUDA build installed, the corresponding four-GPU command is:
+
+```bash
+install/bin/c8_air_shower --backend cuda \
+  --em-backend kokkos-egs4 --radio-backend kokkos \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90 \
+  --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  -f "$HOME/CorsikaData/egs4_photon_four_gpu"
+```
+
+Use `--device 0` for a single GPU. These small examples check the entry points,
+not GPU scaling. The memory fraction is a budget ceiling, not a guarantee of
+90% allocation or utilization. The combined binary can select `cuda` or
+`openmp` with `--kokkos-execution`; EGS4 does not support the cooperative
+`cuda-openmp`/`openmp-cuda` modes or HIP/SYCL builds.
+
+`--egs4-stepfc` defaults to **1**. Atmosphere, magnetic field, cuts, thinning,
+observation geometry, crossing policy and radio settings use the common
+application arguments; there is no separate Fe reference preset or muon-backend
+selector. Merely choosing EGS4 does not ensure the same settings as an earlier
+C7 comparison: freeze those common parameters explicitly.
+
+The frozen [AIR-NTP table](resources/c7_egs4/EGSDAT6_.4) is in the project and
+embedded during compilation. No C7 runtime directory or table-path CLI option
+is needed. `native_egs4/config.yaml` records its SHA256; see the
+[table provenance and licensing](resources/c7_egs4/README.md).
+`CORSIKA_EGS4_TABLE` is an advanced **build-time** override only. An existing
+CMake cache may retain an old external path; remove that cache entry with
+`cmake -S /path/to/source -B /path/to/build -U CORSIKA_EGS4_TABLE` to restore
+the project default in an otherwise compatible build.
+
+Optional module regression tests require `-DCORSIKA_EGS4_BUILD_TESTS=ON`:
+
+```bash
+cmake --build /path/to/build --target test_c8_egs4_embedded
+ctest --test-dir /path/to/build -R c8_egs4_embedded_tables --output-on-failure
+```
+
+Core code follows the module layout in section 2.3; standalone Fortran reference
+drivers, diagnostic Python scripts and historical test overlays are not part
+of the production module. See [module details and validation scope](documentation/egs4_CN.md).
+
 ## 10. HIP/SYCL on matching hardware
 
 OpenMP/CUDA have compiled/tested configurations. HIP/SYCL still require target
@@ -895,15 +1010,15 @@ Editing README does not update binaries. Do not move old CMake caches to a new
 machine. Reusing prebuilt Pythia/TAUOLA is an advanced same-version/ABI option,
 not a fresh-install prerequisite.
 
-For a clean, unmodified beta5 checkout, update from the remote that owns this
+For a clean, unmodified checkout, update from the remote that owns this
 branch (a fresh clone names it `origin`):
 
 ```bash
 cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
 git status --short
 git branch --show-current
-# Continue only on kokkos-beta5 after preserving any local changes:
-git pull --ff-only origin kokkos-beta5
+# Continue only on CORSIKA8-kokkos after preserving any local changes:
+git pull --ff-only origin CORSIKA8-kokkos
 git submodule update --init --recursive
 conan export third_party/conan/cubicinterpolation
 conan export third_party/conan/proposal

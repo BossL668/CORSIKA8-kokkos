@@ -1,11 +1,23 @@
-# CORSIKA 8 Kokkos beta5：安装与使用
+# CORSIKA8-kokkos：安装与使用
 
 [English](README.md)
 
-**请打开 [`kokkos-beta5` 分支](https://github.com/BossL668/corsika8-gpu-hybrid/tree/kokkos-beta5)。**
-GitHub 仓库默认首页目前仍是旧 `cuda-em-refactor` 分支，其中的构建说明不能代替 beta5 教程。
+**公开仓库：[CORSIKA8-kokkos](https://github.com/BossL668/CORSIKA8-kokkos)，请使用同名的
+[`CORSIKA8-kokkos` 分支](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)。**
+该分支原名为 `kokkos-beta5`。GitHub 仓库默认首页目前仍是旧 `cuda-em-refactor` 分支，
+其中的构建说明不能代替本分支教程。
 
 本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧 beta 项目、已有构建目录或手工生成的 `.c8emrt` 表。
+
+最近已发布更新（2026-10-08）：
+
+- 空气应用的电磁选择器为 `--em-backend proposal`、`kokkos-proposal`、`kokkos-egs4`；物理后端与执行硬件分别选择。
+- 统一 `--device`：一个 GPU 编号走单卡，多个编号由原生 C++ 协调器共同推进同一个 shower。
+- 可选 EGS4 C++/Kokkos 后端已按 CORSIKA 模块结构整理；AIR-NTP 表随项目提供并在构建时内嵌，运行时不依赖 C7 安装或表路径参数。
+- 主应用通过封装的 bindings 和 session 装配、复用后端；PROPOSAL 和 EGS4 共用 `c8_air_shower` 入口。
+
+下文的缓存求逆开关仍是**本地开发候选，尚未包含在已发布分支中**。
+极小批次 CPU 回退及长尾重分配也仍是实验，不属于生产默认行为；不能把模块微基准加速等同于整例 shower 加速。
 
 空气程序更新（2026-09-23）：`c8_air_shower` 默认采用原 C8 的正向闭端点纵向计数 `--profile-crossings original-c8`。可显式选择 `forward`（仅正向半开区间）或 `both`（双向半开区间）；CUDA、OpenMP、标量 writer 共用同一规则。**不是禁止向上输运，不影响射电轨迹、cut 或能量沉积。** 旧二进制需重新 build/install，旧双向计数样本勿混用。详见 [计数选项与最简运行](documentation/profile_crossings_CN.md)。
 
@@ -19,7 +31,7 @@ GitHub 仓库默认首页目前仍是旧 `cuda-em-refactor` 分支，其中的�
 2. [空环境](#2-从空环境开始)、[源码和 Conan](#3-获取源码配置-conan)、[物理模型](#4-准备物理模型)：所有构建共用。
 3. [OpenMP 构建](#5-构建-openmp不需要-gpu)与[首例运行](#6-首次完整运行与输出)，或[NVIDIA / 组合构建](#7-增加-nvidia-cuda-后端)。
 4. [运行参数](#8-最简命令参数与正式模拟)、[HIP/SYCL](#9-hip--sycl目标机器上的进阶构建)、[测试与排障](#10-验证维护与常见错误)。
-5. 可选：[山体从准备到首次运行](documentation/terrain_getting_started_CN.md)、[文档导航与验收状态](documentation/USER_GUIDE_INDEX.md)。
+5. 可选：[EGS4 电磁后端](#83-可选-ckokkos-egs4-电磁后端)、[山体从准备到首次运行](documentation/terrain_getting_started_CN.md)、[文档导航与验收状态](documentation/USER_GUIDE_INDEX.md)。
 
 代码块不带 shell 提示符，可以复制。只选择需要的一条后端构建路线，不要把所有路线混在一个缓存中执行。示例路径不依赖开发者本机或旧安装。带日期的研发记录仅描述对应历史版本，不作为当前安装步骤。
 
@@ -27,8 +39,9 @@ GitHub 仓库默认首页目前仍是旧 `cuda-em-refactor` 分支，其中的�
 
 - Kokkos 处理光子、电子、正电子及当前支持的 muon 输运，包含传播、能损、相互作用、cut、thinning、profile 和 CoREAS/ZHS 累积。
 - PROPOSAL 原生样条经只读接口导出到 Kokkos 数据结构，保留版本、介质、cut、能区和哈希检查；不要求用户先运行完整制表工具。
+- 可选基于 C7 EGS4 算法的 C++/Kokkos 重写，处理电子、正电子和光子；强子与 μ 子仍复用 C8 现有模块，不是包装调用 C7 Fortran 程序。
 - 强子模型、衰变及不支持的末态仍走 CPU，保留单核标量 PROPOSAL 对照。本文科研配置采用 SIBYLL-2.3d + 用户合法安装的 FLUKA。
-- 默认单端模式一次 shower 选择 OpenMP **或** GPU；组合构建另有显式空气双端协同实验（第 8 节）。不叠加多核强子调度，不做 MPI/多卡粒子栈分发。不是所有物理过程都已 GPU 化。
+- 默认单端模式一次 shower 选择 OpenMP **或** GPU；组合构建另有显式空气双端协同实验（第 8 节）。CUDA/组合构建支持原生 C++ 同 shower 多卡分发，每卡一个进程，不依赖 Python 协调器；这不等于强子模型内部已多线程化，也不是所有物理过程都已 GPU 化。
 
 ### 1.1 两种构建方式，共用同一套物理源码
 
@@ -61,6 +74,9 @@ flowchart TD
 
 ### 1.2 目录结构
 
+示例沿用历史 `beta5` 本地目录名，以保持已有 build/install 路径一致；这不是
+GitHub 仓库名或分支名，已有工作目录不需要随仓库改名而搬迁。
+
 ```text
 corsika-21cma-kokkos-beta5/
 ├── corsika8_kokkos_beta5/  源码、依赖配方、示例、文档、测试
@@ -80,7 +96,7 @@ corsika-21cma-kokkos-beta5/
 
 ### 1.3 算法逻辑：驻留波前输运与分批在线射电累积
 
-下图描述**加速路径**；`proposal/cpu` 标量模式仍走原来的串行 Cascade/PROPOSAL。箭头表示数据流和依赖，**不表示 CPU 多核与 GPU 同时演化一个 shower**。
+下图描述 **Kokkos PROPOSAL 路径**；`proposal/cpu` 标量模式仍走原来的串行 Cascade/PROPOSAL。箭头表示数据流和依赖，**不表示 CPU 多核与 GPU 同时演化一个 shower**。可选 EGS4 使用同一主应用和公共运行配置，见第 8.3 节。
 
 ```mermaid
 flowchart TD
@@ -117,12 +133,16 @@ flowchart TD
 | 职责 | 位置 |
 |---|---|
 | 参数、模型装配与输出生命周期 | [c8_air_shower.cpp](applications/c8_air_shower.cpp) |
+| 封装的空气应用适配层与分组 bindings | [KokkosAirShowerApplication.hpp](applications/detail/air_shower_kokkos/KokkosAirShowerApplication.hpp)、[KokkosAirShowerBindings.hpp](applications/detail/air_shower_kokkos/KokkosAirShowerBindings.hpp) |
+| 应用会话生命周期 | [KokkosRunSession.hpp](applications/detail/air_shower_kokkos/KokkosRunSession.hpp) |
 | session、原生表准备与跨 shower 复用 | [KokkosEmRunSession.hpp](corsika/accelerator/em/detail/KokkosEmRunSession.hpp) |
 | CPU 与加速粒子分流 | [PhysicalAcceleratedEmRouter.hpp](corsika/accelerator/em/PhysicalAcceleratedEmRouter.hpp) |
 | 主机侧选择/转发到实例 | [KokkosEmBackend.cpp](src/accelerator/em/kokkos/KokkosEmBackend.cpp) |
 | 被各执行空间实例化的共享实现 | [KokkosBackendInstance.inl](src/accelerator/em/kokkos/KokkosBackendInstance.inl) |
 | 光子、轻子、驻留队列与原生表模板 | [Kokkos EM 模块](corsika/accelerator/em/kokkos) |
 | CoREAS/ZHS 投影和累积 | [KokkosRadioAccumulator.hpp](corsika/accelerator/radio/kokkos/KokkosRadioAccumulator.hpp) |
+| 可选 EGS4 模块公共接口、实现与编译源文件 | [EGS4.hpp](corsika/modules/EGS4.hpp)、[API](corsika/modules/egs4/)、[实现](corsika/detail/modules/egs4/)、[编译源文件](src/modules/egs4/) |
+| 原生同 shower 多卡协调 | [air_shower_multigpu](applications/detail/air_shower_multigpu/) |
 
 组合版的 `KokkosCudaBackendInstance.cpp` 和 `KokkosOpenMPBackendInstance.cpp` 分别编译同一实现，再链接到同一程序。实例选择/虚函数转发只在主机批次边界发生，逐粒子 kernel 仍由模板静态实例化。
 
@@ -184,19 +204,19 @@ gfortran --version
 
 ## 3. 获取源码，配置 Conan
 
-**beta5 源码**位于[项目私有仓库的 `kokkos-beta5` 分支](https://github.com/BossL668/corsika8-gpu-hybrid/tree/kokkos-beta5)。先取得仓库访问权限并配置 GitHub 认证。beta2、beta4 保留在其他分支；不要把仓库默认分支当作 beta5。
+源码位于[公开仓库的 `CORSIKA8-kokkos` 分支](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)。
+HTTPS 只读克隆无需 GitHub 认证；旧版本仍保留在其他分支，不要把默认分支当作当前分支。
+仓库公开不改变 FLUKA 等第三方模型各自的许可要求。
 
-HTTPS 可以使用凭据管理器；若已装 GitHub CLI，可先执行
-`gh auth login --hostname github --git-protocol https --web`，再执行 `gh auth setup-git`。
-Git 的密码提示需要已授权的 personal access token，不是 GitHub 账户密码。也可配置已授权的 SSH key，只将下面 clone 地址换为
-`git@github.com:BossL668/corsika8-gpu-hybrid.git`。不要把 token 写入 URL、脚本或文档。成功登录不等于已取得该私有仓库权限。
-参见 [GitHub 认证说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github)。
+如使用 SSH，配置 GitHub SSH key 后将 clone 地址换为
+`git@github.com:BossL668/CORSIKA8-kokkos.git`。推送修改才需要认证及写权限；
+不要把 token 写入 URL、脚本或文档。
 
 ```bash
 mkdir -p "$HOME/corsika-21cma-kokkos-beta5"
 cd "$HOME/corsika-21cma-kokkos-beta5"
-git clone --branch kokkos-beta5 --single-branch --recurse-submodules \
-  https://github.com/BossL668/corsika8-gpu-hybrid.git corsika8_kokkos_beta5
+git clone --branch CORSIKA8-kokkos --single-branch --recurse-submodules \
+  https://github.com/BossL668/CORSIKA8-kokkos.git corsika8_kokkos_beta5
 cd corsika8_kokkos_beta5
 test -f CMakeLists.txt
 test -f conanfile.py
@@ -441,6 +461,7 @@ install/cuda-openmp/bin/c8_air_shower \
 此次仅改 EM 选择器名称；`--kokkos-execution`、`--device`、`--kokkos-num-threads`、
 `--radio-backend cpu|kokkos` 及物理默认值不变。重新构建后，旧脚本中的 EM 名称也需
 相应更新；不要混用新启动器/协调器与旧 worker 可执行文件。
+EGS4 的构建开关、内嵌表与运行示例见第 8.3 节。
 
 直接调用应用仍保留标量默认值，因此要显式保留 `--em-backend kokkos-proposal --radio-backend kokkos`。PROPOSAL 加速路径的物理源仍为 `proposal-native`，不需另给制表参数。组合版**在请求加速时**省略 `--kokkos-execution` 默认 CUDA；没有请求加速则仍是标量路径。不要把启动器的 `--backend` 传给应用；上面的独立**探针**有自己的 `--backend` 参数。
 
@@ -453,7 +474,7 @@ install/cuda-openmp/bin/c8_air_shower \
 
 ### 8.1 可选空气双端协同
 
-只有组合程序接受 `cuda-openmp`（GPU 优先）和 `openmp-cuda`（CPU 优先）。
+只有组合程序的 `kokkos-proposal` 路径接受 `cuda-openmp`（GPU 优先）和 `openmp-cuda`（CPU 优先）。
 两端通过独立子级联队列使用共享 EM/射电算法；协调器管理标量 fallback 与最终定点
 profile/射电合并。这不是强子并行，也不是山体调度器；须显式启用，不是默认或保证加速的选项。
 
@@ -496,11 +517,13 @@ install/bin/c8_air_shower --backend openmp \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 ```
 
-`proposal/cpu` 不是 OpenMP 加速。直接调用 `install/<backend>/bin/c8_air_shower` 的默认值也仍是标量；统一入口才补上 `--em-backend kokkos-proposal --radio-backend kokkos`。加速物理源只有 `proposal-native`，不用另填 YAML 或 `.c8emrt`。
+`proposal/cpu` 不是 OpenMP 加速。直接调用 `install/<backend>/bin/c8_air_shower` 的默认值也仍是标量；统一入口才补上 `--em-backend kokkos-proposal --radio-backend kokkos`。`kokkos-proposal` 使用 `proposal-native` 物理源，不用另填物理源选择器、YAML 或 `.c8emrt`；可选 `kokkos-egs4` 路径见第 8.3 节。
 
 | 参数 | 含义 / 默认 |
 |---|---|
 | `--backend openmp/cuda/hip/sycl` | 统一启动器参数：选择已安装程序；省略为 `auto` |
+| `--em-backend proposal\|kokkos-proposal\|kokkos-egs4` | 电磁物理路径，与硬件选择分开；直接调用应用默认 `proposal` |
+| `--egs4-stepfc` | EGS4 专用步长因子，默认 `1`；需在构建时启用 EGS4 |
 | `--kokkos-execution cuda\|openmp\|cuda-openmp\|openmp-cuda` | 组合空气应用：选择单实例或显式 GPU/CPU 优先协同；加速模式下省略默认 CUDA |
 | `-p`、`-E` | 初级 PDG、总能量 GeV；光子 22、电子 11、质子 2212 |
 | `-z`、`-a` | 天顶角/方位角，度；默认 0/0 |
@@ -510,6 +533,7 @@ install/bin/c8_air_shower --backend openmp \
 | `--geomagnetic-model`、`--geomagnetic-year` | 默认 IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/协同线程数；单 GPU 模式不接受大于 1 |
 | `--device 0` / `--device 0,1,2,3` | NVIDIA 物理编号/UUID：一个编号走单卡，多个编号同 shower 多卡并行；也支持空格分隔 |
+| `--kokkos-loss-solver original\|cached` | 仅本地候选、尚未发布：连续能损求逆，默认 `original`；`cached` 保留原迭代及容差 |
 | `--gpu-min-batch` | 默认 4096，不是 shower 数量 |
 | `--gpu-memory-fraction` | 单卡默认 0.70，多卡默认 0.50；预算上限非填充目标 |
 | `--gpu-resident-batch-limit` | 默认 0 自动容量；固定容量用于回放/诊断 |
@@ -524,6 +548,23 @@ CUDA/组合构建中，`--device 0` 自动选择单卡 CUDA，`--device 0 1 2 3`
 内部 worker，不能与新参数混用。CPU-only 构建不传 GPU 编号。
 详见[单卡/多卡入口](documentation/native_multigpu_CN.md)。
 
+**仅本地开发候选——缓存求逆（截至 2026-10-08 尚未发布）：** 下述选项与回归文件
+需要本地候选代码；从公开分支重新克隆尚不能使用。构建候选及测试后，在 `kokkos-proposal`
+OpenMP、CUDA 或多编号 `--device`
+多卡命令上增加 `--kokkos-loss-solver cached`；省略或改为 `original` 即回到
+原求逆。没有接入中点法，没有改变物理表、外层步长、cut、散射或随机数。
+这是单次查询内的复用，不增加磁盘缓存，也不跨粒子保存状态。
+`--em-backend proposal` 的原生 CPU 求逆以及多卡 CPU 前缀/标量回退保持原样。
+选项写入 Kokkos 配置和 summary、多卡 CONFIG.json；请用同条件生产样本做最终对照，
+不要把单次查询加速比直接当作整个 shower 加速比。构建后不要混用新旧头文件/静态库。
+
+2026-10-01 本地回归：独立 OpenMP、组合 OpenMP/CUDA 各 33,017 条查询的
+值、状态及迭代次数逐位一致；各两例 100 GeV 电子的七类物理输出文件逐字节一致，
+射电非空。四 worker 参数传递通过协调器 fixture；真实协调入口完成单 GPU 两例对照。
+这不是四 L20 实机或大样本性能验收。可复用测试位于
+`tests/accelerator/testProposalCachedLoss.cpp` 和 `validation/accelerator/cached_loss/`；
+本次结果位于本地 `validation/cached_loss_20261001/ACCEPTANCE.json`，不随当前公开分支提供。
+
 `auto` 探测已装 GPU，不可用时提示并选 OpenMP；多个可用 GPU 后端要求明确选择，不保证自动找最快者。**启动器显式选择独立 OpenMP** 不探测 GPU，这项隔离保证不适用于组合版。显式后端失败不换后端重跑。`--list-backends` 只读清单，`--check-backends` 和 `--dry-run` 会运行探针。跨机器迁移的是源码，不是让 NVIDIA 二进制直接在 AMD 上运行。
 
 正式实验固定 seed 清单、天线、模型、能量、角度、cut、窗口。高能/倾斜事件不能假设默认 400 ns 足够：先画脉冲，扩大窗口检查边缘能量及重叠区收敛，再冻结设置。低能自动最大权重可能小于 1，非零 `--emthin` 不一定实际薄化。
@@ -537,6 +578,68 @@ CUDA/组合构建中，`--device 0` 自动选择单卡 CUDA，`--device 0 1 2 3`
 另加入 [ZHS 窗口边界修复](documentation/cuda_em_refactor/beta5_zhs_window_edge_fix_20260907_CN.md)：标量 observer 与 Kokkos 射电公共代码均先完整累积首末矢势 bin，再求导，避免旧时间戳裁剪制造第一个/最后一个电场离群点。这不是平滑波形或删掉端点；真实脉冲、输出时间轴和点数保留，CoREAS 时间门禁及粒子输运不变。重新编译后生效；历史数据和正在运行的归档程序不自动改变。真实脉冲超出记录范围的问题仍需用加宽时间窗检查。
 
 2026-09-17 加入[光子 CPU 回退顶点修复](documentation/cuda_em_refactor/beta5_photon_fallback_vertex_fix_20260917_CN.md)：选中需要 CPU 完成的过程后，必须先传播至真实反应顶点，不能在步前位置直接生成末态。旧路径会使光核/μ 对源项在大气层界附近人为集中，影响强子、正负 μ 子以及后续 EM/射电。需重新编译；旧加速样本不能靠平滑 profile 修复，应保留版本标签并重新做物理统计验收。
+
+### 8.3 可选 C++/Kokkos EGS4 电磁后端
+
+EGS4 仅替换电子、正电子和光子的电磁输运；强子及 μ 子仍使用 C8 现有模块。
+默认不编译该模块。准备好公共依赖及物理模型后，在 OpenMP、CUDA 或 CUDA/OpenMP
+构建中增加 `-DCORSIKA_ENABLE_EGS4=ON`。例如在源码目录执行：
+
+```bash
+C8_BUILD_JOBS=1 bash tools/build_kokkos.sh openmp \
+  -DWITH_FLUKA=ON -DCORSIKA_ENABLE_EGS4=ON
+```
+
+独立 CUDA 将 `openmp` 换成 `cuda`；组合程序改用 `tools/build_kokkos_dual.sh`，
+保留相同 CMake 开关。FLUKA 仍需按第 4 节单独准备合法安装。
+
+构建后，从项目外层目录运行一个小型 CPU 示例：
+
+```bash
+cd ..
+mkdir -p "$HOME/CorsikaData"
+install/bin/c8_air_shower --backend openmp \
+  --em-backend kokkos-egs4 --radio-backend kokkos --kokkos-num-threads 4 \
+  --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  -f "$HOME/CorsikaData/egs4_photon_openmp"
+```
+
+完成 CUDA 构建后，对应四卡入口为：
+
+```bash
+install/bin/c8_air_shower --backend cuda \
+  --em-backend kokkos-egs4 --radio-backend kokkos \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90 \
+  --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
+  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  -f "$HOME/CorsikaData/egs4_photon_four_gpu"
+```
+
+单卡只需改成 `--device 0`。这些低能示例用于检查入口，不是 GPU 加速比测试；
+显存比例是预算上限，不保证分配或利用率达到 90%。组合程序通过
+`--kokkos-execution cuda|openmp` 选择执行空间；EGS4 暂不支持
+`cuda-openmp`/`openmp-cuda` 双端协同，也不支持 HIP/SYCL 构建。
+
+`--egs4-stepfc` 默认 **1**。大气、磁场、cuts、薄化、观测几何、穿界统计及射电
+沿用主应用公共参数，不另设 Fe 参考预设或 μ 子后端参数。仅选择 EGS4 并不自动
+复现某批 C7 对照条件，科学比较仍需显式冻结这些公共设置。
+
+冻结的 [AIR-NTP 表](resources/c7_egs4/EGSDAT6_.4) 已在项目内，构建时内嵌；
+不再需要 C7 运行目录或命令行表路径。输出 `native_egs4/config.yaml` 记录表 SHA256，
+来源及许可见[资源说明](resources/c7_egs4/README.md)。`CORSIKA_EGS4_TABLE` 仅保留
+为高级 **CMake 构建期**覆盖项。旧构建缓存若仍指向外部 C7，可在兼容的构建目录中执行
+`cmake -S /path/to/source -B /path/to/build -U CORSIKA_EGS4_TABLE`，恢复项目默认表。
+
+模块回归测试另加 `-DCORSIKA_EGS4_BUILD_TESTS=ON`：
+
+```bash
+cmake --build /path/to/build --target test_c8_egs4_embedded
+ctest --test-dir /path/to/build -R c8_egs4_embedded_tables --output-on-failure
+```
+
+核心代码位置见第 1.3 节；独立 Fortran 参考驱动、Python 诊断脚本及历史测试覆盖层
+已与生产模块分离。实现、测试范围及限制见 [EGS4 模块说明](documentation/egs4_CN.md)。
 
 ## 9. HIP / SYCL：目标机器上的进阶构建
 
@@ -596,8 +699,8 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
 git status --short
 git branch --show-current
-# 只在 kokkos-beta5 且本地修改已妥善保存后继续：
-git pull --ff-only origin kokkos-beta5
+# 只在 CORSIKA8-kokkos 且本地修改已妥善保存后继续：
+git pull --ff-only origin CORSIKA8-kokkos
 git submodule update --init --recursive
 conan export third_party/conan/cubicinterpolation
 conan export third_party/conan/proposal
