@@ -211,7 +211,7 @@ def main():
         if mode == "proposal":
             return cmd + ["--em-backend", "proposal", "--radio-backend", "cpu"]
         execution = "cuda-openmp" if mode in ("adaptive", "legacy") else mode
-        cmd += ["--em-backend", "kokkos", "--radio-backend", "kokkos",
+        cmd += ["--em-backend", "kokkos-proposal", "--radio-backend", "kokkos",
                 "--kokkos-execution", execution, "--kokkos-num-threads",
                 "1" if mode == "cuda" else str(args.threads),
                 "--gpu-memory-fraction", ".1" if small else ".7",

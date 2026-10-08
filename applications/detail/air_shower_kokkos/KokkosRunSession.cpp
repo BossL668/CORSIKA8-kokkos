@@ -21,7 +21,7 @@ namespace corsika::applications::air_shower {
   KokkosRunSession::KokkosRunSession(
       GpuCliOptions const& options,
       AcceleratedRunEnvironmentConfig const& environment) {
-    if (options.em_backend != "kokkos") return;
+    if (options.em_backend != "kokkos-proposal") return;
     if (options.gpu_physics_source != "proposal-native")
       throw std::invalid_argument(
           "Kokkos EM requires --gpu-physics-source proposal-native");

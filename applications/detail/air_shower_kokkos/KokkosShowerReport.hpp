@@ -100,7 +100,7 @@ namespace corsika::applications::air_shower {
       auto const gpu_deterministic = gpu_cli.gpu_deterministic;
       auto const gpu_radio_field_limit = gpu_cli.gpu_radio_field_limit;
       auto const accelerated_backend_name =
-          gpu_cli.em_backend == "kokkos" ? "kokkos" : "cuda";
+          gpu_cli.em_backend == "kokkos-proposal" ? "kokkos" : "cuda";
 
       for (auto const& record : router.stepRecords()) {
         validation::CudaReplayTrace::instance().recordGpuStep(
@@ -432,7 +432,7 @@ namespace corsika::applications::air_shower {
       shower_metadata["backend_lifecycle"]
                      ["static_host_to_device_bytes"] =
       backend_stats.static_host_to_device_bytes;
-      if (gpu_cli.em_backend == "kokkos") {
+      if (gpu_cli.em_backend == "kokkos-proposal") {
         auto accelerator = shower_metadata["accelerator"];
         accelerator["backend"] = backend_stats.accelerator_backend;
         accelerator["device_name"] =
@@ -611,7 +611,7 @@ namespace corsika::applications::air_shower {
           router_stats.particles_staged;
       shower_metadata["particles_staged"] =
           router_stats.particles_staged;
-      if (gpu_cli.em_backend == "kokkos") {
+      if (gpu_cli.em_backend == "kokkos-proposal") {
         shower_metadata["routing"]["attempts"] =
             router_stats.route_attempts;
         shower_metadata["routing"]["non_em_rejections"] =

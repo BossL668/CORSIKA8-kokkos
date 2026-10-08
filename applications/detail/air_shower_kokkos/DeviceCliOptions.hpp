@@ -24,13 +24,13 @@ inline bool prepareDeviceCli(CLI::App const& app, GpuCliOptions& options,
 #if !defined(CORSIKA8_KOKKOS_BACKEND_CUDA) && !defined(CORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
     throw std::invalid_argument("--device requires a CUDA or CUDA/OpenMP build; omit it on CPU-only systems");
 #endif
-    if (!app.count("--em-backend")) options.em_backend = "kokkos";
+    if (!app.count("--em-backend")) options.em_backend = "kokkos-proposal";
     if (!app.count("--radio-backend")) options.radio_backend = "kokkos";
     if (!app.count("--kokkos-execution")) options.kokkos_execution = "cuda";
-    if ((options.em_backend != "kokkos" && options.em_backend != "egs4") ||
+    if ((options.em_backend != "kokkos-proposal" && options.em_backend != "kokkos-egs4") ||
         (options.kokkos_execution != "cuda" && options.kokkos_execution != "cuda-openmp" &&
          options.kokkos_execution != "openmp-cuda"))
-      throw std::invalid_argument("--device requires accelerated CUDA execution (kokkos or egs4)");
+      throw std::invalid_argument("--device requires accelerated CUDA execution (kokkos-proposal or kokkos-egs4)");
     gpu_cli::selectSingleGpu(selection);
     options.kokkos_device = 0;
     return true;

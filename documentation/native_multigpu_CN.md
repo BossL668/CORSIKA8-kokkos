@@ -34,8 +34,8 @@ cd ../install/cuda-openmp/bin
 - --multigpu-frontier-energy：可选的调度根粒子能量上限（GeV），默认自动选择；它不是物理 cut。
 
 `--device` 自动选择 Kokkos CUDA 输运和射电。显式给出的
---em-backend kokkos --radio-backend kokkos --kokkos-execution cuda 也接受。
-也可用 `--em-backend egs4` 选择 EGS4 电磁后端。
+--em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda 也接受。
+也可用 `--em-backend kokkos-egs4` 选择 EGS4 电磁后端。
 不传 `--device` 时保持原有行为；CPU-only 用户仍用原 OpenMP 构建，不传 GPU 编号。
 旧的 `--devices` 保留为兼容别名，但只传一个编号时现在同样走直接单卡路径，
 不再创建单 worker 的协调目录。`--kokkos-device` 仅保留给旧脚本及内部 worker，

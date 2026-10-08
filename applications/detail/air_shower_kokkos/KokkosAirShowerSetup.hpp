@@ -139,7 +139,7 @@ namespace corsika::applications::air_shower {
         {0., 0., 1.});
 
     auto& config = prepared.gpu_config;
-    config.device = gpu_cli.em_backend == "kokkos"
+    config.device = gpu_cli.em_backend == "kokkos-proposal"
                         ? gpu_cli.kokkos_device
                         : gpu_cli.gpu_device;
     config.min_batch_size = gpu_cli.gpu_min_batch;
@@ -164,8 +164,8 @@ namespace corsika::applications::air_shower {
     config.resident_cross_species = gpu_cli.gpu_resident_cross_species;
 
     prepared.gpu_radio_enabled =
-        gpu_cli.radio_backend == gpu_cli.em_backend &&
-        gpu_cli.em_backend != "proposal" && detector_coreas.size() != 0;
+        gpu_cli.radio_backend == "kokkos" &&
+        gpu_cli.em_backend == "kokkos-proposal" && detector_coreas.size() != 0;
     if (prepared.gpu_radio_enabled && !cuda_session.hasBackend()) {
       config.radio = gpu::radio::makeGpuRadioConfig(
           environment, injection_position, surface, propagation_step,

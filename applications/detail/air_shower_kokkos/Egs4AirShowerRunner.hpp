@@ -48,7 +48,7 @@ class Report final:public BaseOutput {
   YAML::Node config_;mutable ShowerSummary summary_;
 public:
   explicit Report(GpuCliOptions const& o) {
-    config_["em_backend"]="egs4";config_["stepfc"]=o.egs4_stepfc;
+    config_["em_backend"]=o.em_backend;config_["stepfc"]=o.egs4_stepfc;
     config_["table_sha256"]=egs4::embeddedTableSha256();
     config_["table_storage"]="embedded at build time";
     config_["non_em"]="shared C8 models; PROPOSAL muons";

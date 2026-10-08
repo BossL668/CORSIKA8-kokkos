@@ -283,7 +283,7 @@ def main():
                        OMP_PROC_BIND="spread", OMP_PLACES="cores", OPENBLAS_NUM_THREADS="1", MKL_NUM_THREADS="1")
             command = [str(binary), "--pdg", "22", "-E", "1", "-N", str(count),
                        "-s", "26090711", "-z", "0", "-a", "0", "--emthin", "1e-6",
-                       "--em-backend", "kokkos", "--radio-backend", "kokkos",
+                       "--em-backend", "kokkos-proposal", "--radio-backend", "kokkos",
                        "--kokkos-num-threads", str(threads),
                        "--antenna-file", str(args.antennas.resolve()),
                        "--geomagnetic-model", "IGRF14", "--geomagnetic-year", "2027",

@@ -168,7 +168,7 @@ def prepare(args):
 def make_command(manifest, event, backend, output):
     command = [manifest['executables'][backend]['path'], *manifest['common_argv'],
                '-N', '1', '-f', str(output), '--seed', str(event['seed']),
-               '--em-backend', 'kokkos', '--radio-backend', 'kokkos',
+               '--em-backend', 'kokkos-proposal', '--radio-backend', 'kokkos',
                '--gpu-physics-source', 'proposal-native', '--gpu-min-batch', '4096',
                '--gpu-memory-fraction', '0.70', '--hadronic-workers', '1']
     command += (['--kokkos-num-threads', str(manifest['openmp_threads'])] if backend == 'openmp'

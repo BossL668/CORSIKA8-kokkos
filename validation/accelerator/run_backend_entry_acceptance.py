@@ -68,7 +68,7 @@ def main():
                        "--antenna-file", "/home/yuhanglu/21CMA/data/antennas_nwu_coordinates_test.txt",
                        "--geomagnetic-model", "IGRF14", "--geomagnetic-year", "2027",
                        "--verbosity", "info", "-f", str(destination),
-                       "--em-backend", "kokkos", "--radio-backend", "kokkos",
+                       "--em-backend", "kokkos-proposal", "--radio-backend", "kokkos",
                        "--kokkos-execution", backend, "--kokkos-num-threads", str(threads),
                        "--gpu-min-batch", "16", "--gpu-resident-batch-limit", "4096",
                        "--gpu-memory-fraction", ".15"]

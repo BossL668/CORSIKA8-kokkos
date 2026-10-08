@@ -62,8 +62,11 @@ static int worker(int argc,char** argv) {
     else if(a=="--egs4-stepfc") stepfc=argv[++i];
   }
   if(std::getenv("C8_TEST_EXPECT_EGS4"))
-    check(emBackend=="egs4" && std::stod(stepfc)==.0625,
+    check(emBackend=="kokkos-egs4" && std::stod(stepfc)==.0625,
       "Both prefix and workers must receive EGS4 and its step factor");
+  else
+    check(emBackend==(frontierIn.empty()?"proposal":"kokkos-proposal"),
+      "PROPOSAL prefix must stay scalar; workers must receive the renamed Kokkos backend");
   if(auto fail=std::getenv("C8_TEST_FAIL_WORKER")) {
     if(id==unsigned(std::stoul(fail))) return 42;
     if(id) std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -127,11 +130,11 @@ int main(int argc,char** argv) {
     check(first(root/"four/merged/CoREAS/observers.parquet")==9,"Four worker sum plus prefix");
     check(json(root/"four/TIMING.json")["parts"].size()==5,"Prefix and four worker times");
     rejects([&]{run(o);},"output reuse");
-    o.output=root/"egs4";o.emBackend="egs4";o.egs4Stepfc=.0625;
+    o.output=root/"egs4";o.emBackend="kokkos-egs4";o.egs4Stepfc=.0625;
     setenv("C8_TEST_EXPECT_EGS4","1",1);run(o);unsetenv("C8_TEST_EXPECT_EGS4");
     check(first(o.output/"merged/CoREAS/observers.parquet")==9,"EGS4 worker merge");
-    check(json(o.output/"CONFIG.json")["em_backend"]=="egs4","EGS4 provenance");
-    o.emBackend="kokkos";
+    check(json(o.output/"CONFIG.json")["em_backend"]=="kokkos-egs4","EGS4 provenance");
+    o.emBackend="kokkos-proposal";
     o.events=2; o.output=root/"two_events"; run(o);
     check(fs::exists(o.output/"seed_42/COMPLETE.json") && fs::exists(o.output/"seed_43/COMPLETE.json"),"Two sequential showers");
     o.events=1; o.devices={"0","GPU-test-0"}; o.output=root/"aliases";
@@ -168,6 +171,7 @@ int main(int argc,char** argv) {
         auto output=root/("device CLI "+std::to_string(test));
         std::vector<std::string> args{fs::absolute(argv[1]).string()};
         args.insert(args.end(),selections[test].begin(),selections[test].end());
+        if(test==1) args.insert(args.end(),{"--em-backend","kokkos-proposal"});
         args.insert(args.end(),{"--multigpu-worker",o.worker.string(),
           "-E","10","-N","2","-s","101","-p","22","--ring","1","-f",output.string()});
         auto child=fork(); check(child>=0,"fork device CLI");

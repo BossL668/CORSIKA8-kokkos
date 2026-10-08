@@ -93,7 +93,7 @@ def event_command(template, binary, out, seed, mode, threads, preserve_frozen=Fa
                ('--kokkos-execution', mode), ('--kokkos-num-threads', 1 if mode == 'cuda' else threads))
     if not preserve_frozen:
         updates += (
-        ('--em-backend', 'kokkos'), ('--radio-backend', 'kokkos'),
+        ('--em-backend', 'kokkos-proposal'), ('--radio-backend', 'kokkos'),
         ('--gpu-physics-source', 'proposal-native'), ('--gpu-min-batch', 4096),
         ('--gpu-memory-fraction', .7), ('--hadronic-workers', 1), ('--kokkos-device', 0))
     for key, value in updates:

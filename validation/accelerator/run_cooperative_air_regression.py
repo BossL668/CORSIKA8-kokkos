@@ -43,7 +43,7 @@ def main():
                 str(output / mode), "--report", str(output / (mode + "-comparison.json"))], cwd=source, env=env)
             results[mode]["comparison_code"] = result.returncode
     command = [str(binary), "-p", "22", "-E", "1", "-N", "32", "-s", "26091021",
-               "--emthin", "1e-6", "--em-backend", "kokkos", "--radio-backend", "kokkos",
+               "--emthin", "1e-6", "--em-backend", "kokkos-proposal", "--radio-backend", "kokkos",
                "--kokkos-execution", "cuda-openmp", "--kokkos-num-threads", "16",
                "--gpu-min-batch", "16", "--gpu-resident-batch-limit", "4096",
                "--gpu-memory-fraction", "0.1", "--geomagnetic-model", "IGRF14",

@@ -602,6 +602,19 @@ The independent CUDA script also auto-detects, but its override variable is
 `C8_KOKKOS_PROFILE`. Rebuild with a fresh CMake cache when changing GPU
 architecture.
 
+The air-shower application's `--em-backend` names are:
+
+| Value | Transport path |
+| --- | --- |
+| `proposal` | Original scalar CPU PROPOSAL (direct application's default) |
+| `kokkos-proposal` | Kokkos PROPOSAL; formerly `kokkos` |
+| `kokkos-egs4` | Kokkos EGS4; formerly `egs4`, requires EGS4 enabled at build time |
+
+Only the EM selector names changed. `--kokkos-execution`, `--device`,
+`--kokkos-num-threads`, `--radio-backend cpu|kokkos` and all physics defaults
+are unchanged. Update old EM names in scripts when using the rebuilt binary;
+do not mix a new launcher/coordinator with an old worker executable.
+
 After a successful build, these commands use the **same binary**, from the
 project container directory. No private antenna file is needed:
 
@@ -613,20 +626,20 @@ install/cuda-openmp/bin/kokkos_backend_probe --backend openmp --threads 4
 mkdir -p "$HOME/CorsikaData"
 
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos --kokkos-execution cuda \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos --kokkos-execution openmp \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution openmp \
   --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 The direct application retains scalar defaults, so keep both `--em-backend
-kokkos` and `--radio-backend kokkos`. Native PROPOSAL is already the only
-accelerated physics source. Omitting `--kokkos-execution` in the combined build
+kokkos-proposal` and `--radio-backend kokkos`. This PROPOSAL acceleration path
+uses `proposal-native` physics. Omitting `--kokkos-execution` in the combined build
 selects CUDA **only when accelerated mode is requested**. Do not pass the
 launcher's `--backend` to the application; the separate **probe** has its own
 `--backend` option, as shown above.
@@ -659,7 +672,7 @@ After sections 3–5 and 8.2, from the project container directory:
 
 ```bash
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   --kokkos-execution cuda-openmp --kokkos-num-threads 4 \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_cooperative" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt

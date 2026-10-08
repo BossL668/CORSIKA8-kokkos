@@ -137,7 +137,7 @@ def main():
         if family == "Fe100TeV":
             cmd = [str(frozen)] + list(fe["common_argv"])
             for flag, value in (("-N", 1), ("-s", seed), ("-f", root/label),
-                ("--em-backend", "kokkos"), ("--radio-backend", "kokkos"),
+                ("--em-backend", "kokkos-proposal"), ("--radio-backend", "kokkos"),
                 ("--gpu-physics-source", "proposal-native"), ("--gpu-min-batch", 4096),
                 ("--gpu-memory-fraction", .7), ("--hadronic-workers", 1),
                 ("--kokkos-device", 0)):

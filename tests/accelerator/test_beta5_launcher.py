@@ -198,7 +198,7 @@ class LauncherTests(unittest.TestCase):
         result = self.run_entry("--backend=openmp", "-f", path, "--seed", "42")
         self.assertEqual(result.returncode, 0, result.stderr)
         args = json.loads(result.stdout)["argv"]
-        self.assertEqual(args, ["--em-backend", "kokkos", "--radio-backend", "kokkos",
+        self.assertEqual(args, ["--em-backend", "kokkos-proposal", "--radio-backend", "kokkos",
                                 "-f", path, "--seed", "42"])
 
     def test_scalar_reference_preserved(self):
@@ -208,6 +208,33 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("cpu", json.loads(result.stdout)["argv"])
         self.assertTrue(all(call[0] == "openmp" for call in self.calls()))
+
+    def test_named_kokkos_physics_backends(self):
+        self.add_backend("openmp")
+        self.add_backend("cuda")
+        for em in ("kokkos-proposal", "kokkos-egs4"):
+            for execution in ("openmp", "cuda"):
+                with self.subTest(em=em, execution=execution):
+                    result = self.run_entry("--backend", execution, "--em-backend", em,
+                                            "--kokkos-execution", execution, "--dry-run")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    data = json.loads(result.stdout)
+                    self.assertEqual(data["selected"]["backend"], execution)
+                    args = data["argv"]
+                    self.assertEqual(args[args.index("--em-backend") + 1], em)
+                    self.assertEqual(args[args.index("--radio-backend") + 1], "kokkos")
+                    self.assertEqual(args[args.index("--kokkos-execution") + 1], execution)
+
+    def test_egs4_cpu_radio_still_allowed(self):
+        args, scalar = launcher.application_arguments(
+            ["--em-backend", "kokkos-egs4", "--radio-backend", "cpu"])
+        self.assertFalse(scalar)
+        self.assertEqual(args, ["--em-backend", "kokkos-egs4", "--radio-backend", "cpu"])
+
+    def test_old_em_names_are_not_canonical_options(self):
+        for em in ("kokkos", "egs4"):
+            with self.subTest(em=em), self.assertRaises(launcher.LaunchError):
+                launcher.application_arguments(["--em-backend", em])
 
     def test_mismatched_manifest(self):
         self.add_backend("openmp")
@@ -236,11 +263,11 @@ class LauncherTests(unittest.TestCase):
         self.add_backend("openmp")
         cases = [("--backend=cuda", "--kokkos-num-threads", "2"),
                  ("--backend=openmp", "--kokkos-device", "0"),
-                 ("--em-backend=kokkos", "--radio-backend=cpu"),
+                 ("--em-backend=kokkos-proposal", "--radio-backend=cpu"),
                  ("--gpu-physics-source=c8emrt",), ("--hadronic-workers=12",),
                  ("--backend=cuda", "--backend=openmp"),
                  ("--kokkos-num-threads=oops",), ("--kokkos-device=-1",),
-                 ("--em-backend=kokkos", "--em-backend=proposal")]
+                 ("--em-backend=kokkos-proposal", "--em-backend=proposal")]
         for case in cases:
             with self.subTest(case=case):
                 self.assertEqual(self.run_entry(*case).returncode, 2)

@@ -206,8 +206,8 @@ namespace {
 
   void addGpuCliOptions(CLI::App& app, GpuCliOptions& options) {
     app.add_option("--em-backend", options.em_backend,
-                   "Electromagnetic transport backend: proposal or kokkos")
-        ->check(CLI::IsMember({"proposal", "kokkos"}))
+                   "Electromagnetic transport backend: proposal (native CPU) or kokkos-proposal")
+        ->check(CLI::IsMember({"proposal", "kokkos-proposal"}))
         ->group("GPU EM");
     app.add_option("--gpu-min-batch", options.gpu_min_batch,
                    "Minimum Kokkos execution batch; smaller fronts take one "
@@ -355,8 +355,8 @@ namespace {
 
   bool validateGpuCliOptions(GpuCliOptions& options,
                              std::filesystem::path const& executable) {
-    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos") {
-      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos");
+    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos-proposal") {
+      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos-proposal");
       return false;
     }
     if (!options.cuda_replay_trace.empty()) {
@@ -374,25 +374,25 @@ namespace {
       return false;
     }
     if (options.kokkos_cooperative_policy != "legacy" &&
-        (options.em_backend != "kokkos" || options.kokkos_execution != "cuda-openmp")) {
+        (options.em_backend != "kokkos-proposal" || options.kokkos_execution != "cuda-openmp")) {
       CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
       return false;
     }
-    if (options.em_backend == "kokkos") {
+    if (options.em_backend == "kokkos-proposal") {
 #ifndef CORSIKA8_WITH_KOKKOS_EM
       CORSIKA_LOG_CRITICAL(
-          "--em-backend kokkos was requested, but this c8_air_shower binary "
+          "--em-backend kokkos-proposal was requested, but this c8_air_shower binary "
           "was built without CORSIKA_ENABLE_KOKKOS");
       return false;
 #else
       if (options.gpu_physics_source != "proposal-native") {
         CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos requires --gpu-physics-source proposal-native");
+            "--em-backend kokkos-proposal requires --gpu-physics-source proposal-native");
         return false;
       }
       if (options.radio_backend != "kokkos") {
         CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos requires --radio-backend kokkos; portable "
+            "--em-backend kokkos-proposal requires --radio-backend kokkos; portable "
             "EM and radio execution spaces cannot be mixed");
         return false;
       }
@@ -425,9 +425,9 @@ namespace {
 #endif
     }
     if (options.radio_backend == "kokkos") {
-      if (options.em_backend != "kokkos") {
+      if (options.em_backend != "kokkos-proposal") {
         CORSIKA_LOG_CRITICAL(
-            "--radio-backend kokkos requires --em-backend kokkos");
+            "--radio-backend kokkos requires --em-backend kokkos-proposal");
         return false;
       }
 #ifndef CORSIKA8_WITH_KOKKOS_EM

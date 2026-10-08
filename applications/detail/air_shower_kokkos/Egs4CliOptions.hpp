@@ -13,9 +13,9 @@ inline void addEgs4CliOptions(CLI::App& app,GpuCliOptions& o) {
     ->check(CLI::PositiveNumber)->group("EGS4 EM");
 }
 inline bool prepareEgs4Cli(CLI::App const& app,GpuCliOptions& o) {
-  if(o.em_backend!="egs4") {
+  if(o.em_backend!="kokkos-egs4") {
     if(app.count("--egs4-stepfc")) {
-      CORSIKA_LOG_CRITICAL("--egs4-stepfc requires --em-backend egs4");return false;
+      CORSIKA_LOG_CRITICAL("--egs4-stepfc requires --em-backend kokkos-egs4");return false;
     }
     return true;
   }
@@ -29,7 +29,7 @@ inline bool prepareEgs4Cli(CLI::App const& app,GpuCliOptions& o) {
   return true;
 }
 inline bool validateEgs4Execution(GpuCliOptions const& o) {
-  if(o.em_backend!="egs4")return true;
+  if(o.em_backend!="kokkos-egs4")return true;
 #ifndef CORSIKA8_WITH_NATIVE_EGS4
   CORSIKA_LOG_CRITICAL("EGS4 is not compiled; build with CORSIKA_ENABLE_EGS4=ON");return false;
 #else

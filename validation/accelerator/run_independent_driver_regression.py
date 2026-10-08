@@ -62,7 +62,7 @@ def main():
             if mode=='proposal':
                 cmd+=['--em-backend','proposal','--radio-backend','cpu']
             else:
-                cmd+=['--em-backend','kokkos','--radio-backend','kokkos',
+                cmd+=['--em-backend','kokkos-proposal','--radio-backend','kokkos',
                       '--kokkos-execution',mode,'--kokkos-num-threads',
                       '1' if mode=='cuda' else '20','--gpu-min-batch','16',
                       '--gpu-resident-batch-limit','1024','--gpu-memory-fraction','.1',
@@ -78,7 +78,7 @@ def main():
             records[mode+'-trace-exact']=same
             if not same: raise RuntimeError(mode+' decision trace differs')
     cmd=[str(a.after.resolve()),'-p','22','-E',a.lifecycle_energy_gev,'-N','32','-s','26091021',
-         '--emthin','1e-6','--em-backend','kokkos','--radio-backend','kokkos',
+         '--emthin','1e-6','--em-backend','kokkos-proposal','--radio-backend','kokkos',
          '--kokkos-execution','cuda-openmp','--kokkos-num-threads','20',
          '--gpu-min-batch','16','--gpu-resident-batch-limit','4096',
          '--gpu-memory-fraction','.1','--antenna-file',

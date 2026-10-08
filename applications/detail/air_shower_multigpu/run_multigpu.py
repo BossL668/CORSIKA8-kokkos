@@ -271,7 +271,7 @@ def run(config):
             if audit['counts'][i] == 0:
                 continue  # no work is not an error; don't create artificial particles
             worker_seed = int.from_bytes(hashlib.sha256(('%s:%d' % (cfg['seed'], i)).encode()).digest()[:4], 'little') or 1
-            options = ['-s', str(worker_seed), '--em-backend', 'kokkos', '--radio-backend', 'kokkos',
+            options = ['-s', str(worker_seed), '--em-backend', 'kokkos-proposal', '--radio-backend', 'kokkos',
                        '--kokkos-execution', 'cuda', '--kokkos-num-threads', '1', '--kokkos-device', '0',
                        '--gpu-memory-fraction', str(fraction), '--gpu-resident-batch-limit', '0',
                        '--frontier-in', str(shards[i]), '--frontier-worker-id', str(i+1)]

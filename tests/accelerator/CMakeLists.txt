@@ -7,6 +7,13 @@ target_compile_features(testGpuDeviceSelection PRIVATE cxx_std_17)
 target_link_libraries(testGpuDeviceSelection PRIVATE CLI11::CLI11)
 add_test(NAME testGpuDeviceSelection COMMAND testGpuDeviceSelection)
 
+# Host-only policy test with fake nvidia-smi, not a CUDA physics test.
+add_executable(testGpuDeviceSelectionCudaPolicy testGpuDeviceSelection.cpp)
+target_compile_features(testGpuDeviceSelectionCudaPolicy PRIVATE cxx_std_17)
+target_link_libraries(testGpuDeviceSelectionCudaPolicy PRIVATE CLI11::CLI11)
+target_compile_definitions(testGpuDeviceSelectionCudaPolicy PRIVATE CORSIKA8_KOKKOS_BACKEND_CUDA=1)
+add_test(NAME testGpuDeviceSelectionCudaPolicy COMMAND testGpuDeviceSelectionCudaPolicy)
+
 # Application context bindings require neither a GPU nor the Kokkos runtime.
 add_executable(testKokkosAirShowerContext testKokkosAirShowerContext.cpp)
 target_compile_features(testKokkosAirShowerContext PRIVATE cxx_std_17)

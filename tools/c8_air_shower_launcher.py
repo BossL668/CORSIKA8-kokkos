@@ -137,11 +137,13 @@ def application_arguments(arguments):
     em = option_value(arguments, "--em-backend")
     radio = option_value(arguments, "--radio-backend")
     if em is None:
-        em = "proposal" if radio == "cpu" else "kokkos"
+        em = "proposal" if radio == "cpu" else "kokkos-proposal"
     if radio is None:
         radio = "cpu" if em == "proposal" else "kokkos"
-    if (em, radio) not in (("proposal", "cpu"), ("kokkos", "kokkos"), ("egs4", "kokkos"), ("egs4", "cpu")):
-        raise LaunchError("EM/radio must be kokkos/kokkos, egs4/kokkos, egs4/cpu or proposal/cpu")
+    if (em, radio) not in (("proposal", "cpu"), ("kokkos-proposal", "kokkos"),
+                           ("kokkos-egs4", "kokkos"), ("kokkos-egs4", "cpu")):
+        raise LaunchError("EM/radio must be kokkos-proposal/kokkos, kokkos-egs4/kokkos, "
+                          "kokkos-egs4/cpu or proposal/cpu")
     source = option_value(arguments, "--gpu-physics-source")
     if source not in (None, "proposal-native"):
         raise LaunchError("beta5 supports only proposal-native")

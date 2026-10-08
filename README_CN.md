@@ -419,18 +419,30 @@ install/cuda-openmp/bin/kokkos_backend_probe --backend openmp --threads 4
 mkdir -p "$HOME/CorsikaData"
 
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos --kokkos-execution cuda \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos --kokkos-execution openmp \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution openmp \
   --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 ```
 
-直接调用应用仍保留标量默认值，因此要显式保留 `--em-backend kokkos --radio-backend kokkos`。原生 PROPOSAL 已是唯一加速物理源，不需另给制表参数。组合版**在请求加速时**省略 `--kokkos-execution` 默认 CUDA；没有请求加速则仍是标量路径。不要把启动器的 `--backend` 传给应用；上面的独立**探针**有自己的 `--backend` 参数。
+空气簇射应用的 `--em-backend` 统一使用以下名称：
+
+| 参数值 | 输运路径 |
+| --- | --- |
+| `proposal` | 原版标量 CPU PROPOSAL，直接调用应用的默认值 |
+| `kokkos-proposal` | Kokkos PROPOSAL，原名 `kokkos` |
+| `kokkos-egs4` | Kokkos EGS4，原名 `egs4`，需在构建时启用 EGS4 |
+
+此次仅改 EM 选择器名称；`--kokkos-execution`、`--device`、`--kokkos-num-threads`、
+`--radio-backend cpu|kokkos` 及物理默认值不变。重新构建后，旧脚本中的 EM 名称也需
+相应更新；不要混用新启动器/协调器与旧 worker 可执行文件。
+
+直接调用应用仍保留标量默认值，因此要显式保留 `--em-backend kokkos-proposal --radio-backend kokkos`。PROPOSAL 加速路径的物理源仍为 `proposal-native`，不需另给制表参数。组合版**在请求加速时**省略 `--kokkos-execution` 默认 CUDA；没有请求加速则仍是标量路径。不要把启动器的 `--backend` 传给应用；上面的独立**探针**有自己的 `--backend` 参数。
 
 - 组合程序即使选 OpenMP，也会加载/初始化 CUDA，要求可见且可用的 NVIDIA 设备。不能通过隐藏全部 GPU 把它变成 CPU-only 安装；无 GPU 机器用独立 `install/openmp`。
 - 每个进程的 EM 和射电共同选择一个执行空间；不在 `-N N` 的事件之间切换，也不混用 OpenMP EM 与 GPU 射电。选择 CUDA 时，已编译的 OpenMP host runtime 限为1线程，不要请求16线程。
@@ -449,7 +461,7 @@ profile/射电合并。这不是强子并行，也不是山体调度器；须显
 
 ```bash
 install/cuda-openmp/bin/c8_air_shower \
-  --em-backend kokkos --radio-backend kokkos \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   --kokkos-execution cuda-openmp --kokkos-num-threads 4 \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_cooperative" \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
@@ -484,7 +496,7 @@ install/bin/c8_air_shower --backend openmp \
   --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
 ```
 
-`proposal/cpu` 不是 OpenMP 加速。直接调用 `install/<backend>/bin/c8_air_shower` 的默认值也仍是标量；统一入口才补上 `--em-backend kokkos --radio-backend kokkos`。加速物理源只有 `proposal-native`，不用另填 YAML 或 `.c8emrt`。
+`proposal/cpu` 不是 OpenMP 加速。直接调用 `install/<backend>/bin/c8_air_shower` 的默认值也仍是标量；统一入口才补上 `--em-backend kokkos-proposal --radio-backend kokkos`。加速物理源只有 `proposal-native`，不用另填 YAML 或 `.c8emrt`。
 
 | 参数 | 含义 / 默认 |
 |---|---|

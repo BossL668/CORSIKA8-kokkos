@@ -26,10 +26,10 @@ EGS4 是可选的原生 C++/Kokkos 电磁后端，处理电子、正电子和光
 
 照常构建、安装 `c8_air_shower`；独立程序可链接模块库 `CORSIKA8NativeEgs4`，安装后为 `CORSIKA8::CORSIKA8NativeEgs4`。模块不再向应用泄露扩展目录的裸头文件路径。
 
-原命令只需选择 `--em-backend egs4`，可选算法参数 `--egs4-stepfc` 默认仍为 `1`。例如：
+原命令只需选择 `--em-backend kokkos-egs4`，可选算法参数 `--egs4-stepfc` 默认仍为 `1`。例如：
 
 ```bash
-c8_air_shower --em-backend egs4 \
+c8_air_shower --em-backend kokkos-egs4 \
   -A 56 -Z 26 -E 215400 -z 60 -N 10 -s 1931 \
   --antenna-file /path/to/antennas.txt -f /path/to/new-output
 ```

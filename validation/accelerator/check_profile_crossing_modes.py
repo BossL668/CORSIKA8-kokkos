@@ -49,7 +49,7 @@ def main():
             if backend == 'proposal':
                 cmd += ['--em-backend', 'proposal', '--radio-backend', 'cpu']
             else:
-                cmd += ['--em-backend', 'kokkos', '--radio-backend', 'kokkos',
+                cmd += ['--em-backend', 'kokkos-proposal', '--radio-backend', 'kokkos',
                         '--kokkos-execution', backend, '--gpu-min-batch', '32']
                 if backend == 'openmp':
                     cmd += ['--kokkos-num-threads', '4']

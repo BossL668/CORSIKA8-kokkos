@@ -75,7 +75,7 @@ namespace corsika::applications::air_shower {
         : session_(session), options_(options), defaults_(std::move(defaults)),
           geometry_(geometry), outputs_(outputs), models_(models), monitors_(monitors) {
 #ifdef CORSIKA8_WITH_NATIVE_EGS4
-      if(options.em_backend=="egs4")egs4_=std::make_unique<Egs4RunSession>(options);
+      if(options.em_backend=="kokkos-egs4")egs4_=std::make_unique<Egs4RunSession>(options);
 #endif
     }
 

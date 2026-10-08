@@ -200,8 +200,8 @@ namespace {
 
   void addGpuCliOptions(CLI::App& app, GpuCliOptions& options) {
     app.add_option("--em-backend", options.em_backend,
-                   "Electromagnetic transport backend: proposal, kokkos (PROPOSAL), or egs4")
-        ->check(CLI::IsMember({"proposal", "kokkos", "egs4"}))
+                   "Electromagnetic transport backend: proposal (native CPU), kokkos-proposal, or kokkos-egs4")
+        ->check(CLI::IsMember({"proposal", "kokkos-proposal", "kokkos-egs4"}))
         ->group("GPU EM");
     corsika::applications::air_shower::addEgs4CliOptions(app, options);
     app.add_option("--gpu-min-batch", options.gpu_min_batch,
@@ -348,8 +348,8 @@ namespace {
 
   bool validateGpuCliOptions(GpuCliOptions& options,
                              std::filesystem::path const& executable) {
-    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos" && options.em_backend != "egs4") {
-      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos or egs4");
+    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos-proposal" && options.em_backend != "kokkos-egs4") {
+      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos-proposal or kokkos-egs4");
       return false;
     }
     if (!options.cuda_replay_trace.empty()) {
@@ -368,26 +368,26 @@ namespace {
     }
     
     if (options.kokkos_cooperative_policy != "legacy" &&
-        (options.em_backend != "kokkos" || options.kokkos_execution != "cuda-openmp")) {
+        (options.em_backend != "kokkos-proposal" || options.kokkos_execution != "cuda-openmp")) {
       CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
       return false;
     }
     if (!corsika::applications::air_shower::validateEgs4Execution(options)) return false;
-    if (options.em_backend == "kokkos") {
+    if (options.em_backend == "kokkos-proposal") {
 #ifndef CORSIKA8_WITH_KOKKOS_EM
       CORSIKA_LOG_CRITICAL(
-          "--em-backend kokkos was requested, but this c8_air_shower binary "
+          "--em-backend kokkos-proposal was requested, but this c8_air_shower binary "
           "was built without CORSIKA_ENABLE_KOKKOS");
       return false;
 #else
       if (options.gpu_physics_source != "proposal-native") {
         CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos requires --gpu-physics-source proposal-native");
+            "--em-backend kokkos-proposal requires --gpu-physics-source proposal-native");
         return false;
       }
       if (options.radio_backend != "kokkos") {
         CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos requires --radio-backend kokkos; portable "
+            "--em-backend kokkos-proposal requires --radio-backend kokkos; portable "
             "EM and radio execution spaces cannot be mixed");
         return false;
       }
@@ -421,9 +421,9 @@ namespace {
     }
     
     if (options.radio_backend == "kokkos") {
-      if (options.em_backend != "kokkos" && options.em_backend != "egs4") {
+      if (options.em_backend != "kokkos-proposal" && options.em_backend != "kokkos-egs4") {
         CORSIKA_LOG_CRITICAL(
-            "--radio-backend kokkos requires --em-backend kokkos or egs4");
+            "--radio-backend kokkos requires --em-backend kokkos-proposal or kokkos-egs4");
         return false;
       }
 #ifndef CORSIKA8_WITH_KOKKOS_EM
@@ -665,7 +665,7 @@ int main(int argc, char** argv) {
   if (!corsika::applications::air_shower::prepareDeviceCli(app, gpu_cli, selected_devices)) return EXIT_FAILURE;
   if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos" && gpu_cli.em_backend != "egs4") ||
+  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos-proposal" && gpu_cli.em_backend != "kokkos-egs4") ||
       (frontier_legacy_import && frontier_in.empty())) {
     CORSIKA_LOG_CRITICAL("Buffered frontier input requires the Kokkos worker; legacy control requires --frontier-in");
     return EXIT_FAILURE;
@@ -673,7 +673,7 @@ int main(int argc, char** argv) {
   if ((!frontier_out.empty() || !frontier_in.empty()) &&
       (nevent != 1 || (!frontier_out.empty() && !frontier_in.empty()) ||
        !cli_energy_range.empty() ||
-       (!frontier_out.empty() && ((gpu_cli.em_backend != "proposal" && gpu_cli.em_backend != "egs4") || frontier_max_energy <= 0.)) ||
+       (!frontier_out.empty() && ((gpu_cli.em_backend != "proposal" && gpu_cli.em_backend != "kokkos-egs4") || frontier_max_energy <= 0.)) ||
        (!frontier_in.empty() && (force_interaction || force_decay || frontier_worker_id == 0)))) {
     CORSIKA_LOG_CRITICAL("Static handoff requires N=1, fixed energy, exclusive input/output; capture uses PROPOSAL and a positive cap; workers must not force the primary again");
     return EXIT_FAILURE;
@@ -1143,7 +1143,7 @@ int main(int argc, char** argv) {
 
   YAML::Node timing_configuration;
   timing_configuration["em_backend"] = gpu_cli.em_backend;
-  timing_configuration["gpu_physics_source"] = gpu_cli.em_backend == "egs4"
+  timing_configuration["gpu_physics_source"] = gpu_cli.em_backend == "kokkos-egs4"
       ? "c7-egs4-embedded" : gpu_cli.gpu_physics_source;
   timing_configuration["radio_backend"] = gpu_cli.radio_backend;
   timing_configuration["clock"] = "steady_clock";
@@ -1313,7 +1313,7 @@ int main(int argc, char** argv) {
         static_cast<unsigned int>(
             output.getEventId());
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    if (!frontier_out.empty() && gpu_cli.em_backend != "egs4") {
+    if (!frontier_out.empty() && gpu_cli.em_backend != "kokkos-egs4") {
       applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy);
       HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
                     applications::multigpu::CaptureRouter> cascade(

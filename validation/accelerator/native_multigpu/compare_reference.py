@@ -67,7 +67,7 @@ def main():
         assert reference.digest(first/("roots_%d.txt" % i)) == reference.digest(
             root/"python_reference"/("roots_%d.txt" % i))
     for execution in ("cuda", "openmp"):
-        extra = ["--em-backend","kokkos","--radio-backend","kokkos","--kokkos-execution",execution,
+        extra = ["--em-backend","kokkos-proposal","--radio-backend","kokkos","--kokkos-execution",execution,
                  "--kokkos-num-threads","1","--gpu-memory-fraction","0.20","-s","26092443"]
         run("old_"+execution, previous, extra)
         run("new_"+execution, binary, extra)

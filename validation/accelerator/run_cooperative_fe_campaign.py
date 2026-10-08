@@ -137,7 +137,7 @@ def environment(m, backend):
 def command(m, backend, seed, output):
     common = m.get('common_argv_by_backend', {}).get(backend, m['common_argv'])
     args = [m['executables'][backend]['path'], *common, '-N', '1',
-            '-s', str(seed), '-f', str(output), '--em-backend', 'kokkos',
+            '-s', str(seed), '-f', str(output), '--em-backend', 'kokkos-proposal',
             '--gpu-physics-source', 'proposal-native',
             '--radio-backend', 'kokkos', '--gpu-min-batch',
             str(m.get('gpu_min_batch', 4096)), '--gpu-memory-fraction',

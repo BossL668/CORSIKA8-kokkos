@@ -562,7 +562,7 @@ def main():
             ('bad-policy',['--kokkos-cooperative-policy','adaptive'],'Adaptive scheduling requires'),
             ('bad-workers',['--hadronic-workers','2'],'--hadronic-workers must be 1')):
             cmd = [str(binary),'-p','22','-E','1','-f',str(out/label),
-                '--em-backend','kokkos','--radio-backend','kokkos',
+                '--em-backend','kokkos-proposal','--radio-backend','kokkos',
                 '--kokkos-execution','openmp-cuda',*extra]
             r = subprocess.run(cmd,cwd=source,text=True,capture_output=True,timeout=60)
             save(out/(label+'.json'), dict(returncode=r.returncode, stdout=r.stdout, stderr=r.stderr))
@@ -577,7 +577,7 @@ def main():
             if mode == 'proposal':
                 cmd += ['--em-backend','proposal','--radio-backend','cpu']
             else:
-                cmd += ['--em-backend','kokkos','--radio-backend','kokkos',
+                cmd += ['--em-backend','kokkos-proposal','--radio-backend','kokkos',
                     '--kokkos-execution',mode,'--kokkos-num-threads',str(1 if mode=='cuda' else a.threads),
                     '--gpu-min-batch','16','--gpu-resident-batch-limit','4096',
                     '--gpu-memory-fraction','.1','--hadronic-workers','1']
@@ -619,7 +619,7 @@ def main():
             if '--kokkos-cooperative-policy' in cmd:
                 i=cmd.index('--kokkos-cooperative-policy');del cmd[i:i+2]
             for key,value in (('-N',1),('-s',seed),('-f',out/label),('--antenna-file',a.antennas),
-                ('--em-backend','kokkos'),('--radio-backend','kokkos'),
+                ('--em-backend','kokkos-proposal'),('--radio-backend','kokkos'),
                 ('--gpu-physics-source','proposal-native'),('--gpu-min-batch',4096),
                 ('--gpu-memory-fraction',.7),('--hadronic-workers',1),('--kokkos-device',0),
                 ('--kokkos-execution',mode),('--kokkos-num-threads',1 if mode=='cuda' else a.threads)):

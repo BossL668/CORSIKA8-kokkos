@@ -225,7 +225,7 @@ def main():
                     destination = root / label
                     command = [str(executable.resolve()), "--pdg", str(pdg), "-E", str(energy),
                                "-N", "2", "-s", "26090611", "-z", "0", "-a", "0",
-                               "--emthin", "1e-6", "--em-backend", "kokkos",
+                               "--emthin", "1e-6", "--em-backend", "kokkos-proposal",
                                "--radio-backend", "kokkos", "--gpu-min-batch", "16",
                                "--gpu-resident-batch-limit", "4096", "--gpu-memory-fraction", "0.15",
                                "--kokkos-num-threads", str(threads),
