@@ -56,6 +56,30 @@ foreach (selection_backend IN ITEMS CUDA_OPENMP CUDA OPENMP HIP SYCL)
 endforeach ()
 
 if (CORSIKA_ENABLE_KOKKOS)
+  add_executable(testPhotonPairSplitFallback EXCLUDE_FROM_ALL
+    testPhotonPairSplitFallback.cpp PhotonPairFallbackDriver.cpp)
+  target_link_libraries(testPhotonPairSplitFallback PRIVATE
+    CORSIKA8ProposalNative Kokkos::kokkos CORSIKA8 PROPOSAL::PROPOSAL)
+  add_dependencies(testPhotonPairSplitFallback GenParticlesHeaders GenMediaProperties)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(PhotonPairFallbackDriver.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testPhotonPairSplitFallback PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    target_link_libraries(testPhotonPairSplitFallback PRIVATE CUDA::cudart CUDA::cuda_driver)
+    target_link_options(testPhotonPairSplitFallback PRIVATE "LINKER:--no-as-needed")
+    set_target_properties(testPhotonPairSplitFallback PROPERTIES CUDA_STANDARD 17
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      target_compile_options(testPhotonPairSplitFallback PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+    endif()
+  elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties(PhotonPairFallbackDriver.cpp PROPERTIES LANGUAGE HIP)
+  endif()
+  add_test(NAME testPhotonPairSplitFallback COMMAND testPhotonPairSplitFallback)
+  set_tests_properties(testPhotonPairSplitFallback PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=4;OMP_PROC_BIND=false")
+
   add_executable(testProfileCrossingModes EXCLUDE_FROM_ALL testProfileCrossingModes.cpp)
   target_link_libraries(testProfileCrossingModes PRIVATE CORSIKA8KokkosEm)
   add_dependencies(testProfileCrossingModes GenParticlesHeaders)

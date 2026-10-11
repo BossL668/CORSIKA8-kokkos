@@ -324,6 +324,17 @@ CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryLossFraction(
       NativePhysicsView const& view, std::int32_t pdg_id,
       std::int32_t process_id, std::uint64_t component_hash,
       double energy_MeV, double quantile) {
+      if (process_id == PhotonPairFinalStateProcessId && pdg_id == 22) {
+        auto result = detail::fromProposalNative(queryProposalNativeLossFraction(
+            view.proposal_native, pdg_id, PhotonPairProcessId, component_hash,
+            energy_MeV, quantile, true));
+        if (result.status != TableLookupStatus::Success) return result;
+        double normalized = 0.;
+        if (!encodePhotonPairNormalizedSplit(energy_MeV / 1000., result.value, normalized))
+          return {TableLookupStatus::InverseCdfUnavailable, result.reserved, 0.};
+        result.value = normalized;
+        return result;
+      }
       return detail::fromProposalNative(queryProposalNativeLossFraction(
           view.proposal_native, pdg_id, process_id, component_hash,
           energy_MeV, quantile));

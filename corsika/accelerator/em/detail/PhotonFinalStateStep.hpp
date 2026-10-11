@@ -285,6 +285,9 @@ namespace corsika::accelerator::em::detail {
     return true;
   }
 
+  // Shorter caps are instantiated only by the forced-exhaustion regression.
+  // Production callers retain the fixed cap and existing random-number keys.
+  template <std::uint32_t MaximumRejectionAttempts = PhotonPairAnalyticMaximumAttempts>
   C8_ACCELERATOR_INLINE_FUNCTION inline PhotonFinalStateClassification
   classifyPhotonFinalState(
       gpu::em::tables::NativePhysicsView const& table,
@@ -292,6 +295,12 @@ namespace corsika::accelerator::em::detail {
       gpu::em::EmThinningConfig const& thinning,
       gpu::em::EmInteractionRecord const& interaction,
       std::uint64_t random_seed, std::uint64_t shower_id) {
+    static_assert(MaximumRejectionAttempts <= PhotonPairAnalyticMaximumAttempts);
+    static_assert(PhotonPairSplitDrawId < PhotonPairAnalyticCandidateDrawIdBase);
+    static_assert(PhotonPairAnalyticCandidateDrawIdBase + PhotonPairAnalyticMaximumAttempts
+                  <= PhotonPairAnalyticAcceptanceDrawIdBase);
+    static_assert(PhotonPairAnalyticAcceptanceDrawIdBase + PhotonPairAnalyticMaximumAttempts
+                  <= gpu::em::EmThinningFirstDrawId);
     PhotonFinalStateClassification result{};
     if (interaction.status ==
         gpu::em::EmInteractionStatus::NoDiscreteInteraction) {
@@ -400,89 +409,80 @@ namespace corsika::accelerator::em::detail {
 
     auto& sample = result.parameters;
     sample.process_id = gpu::em::PhotonPairProcessId;
-    gpu::em::RandomNumberKey const split_key{
-        random_seed, shower_id, parent.history_id, parent.step_id,
-        static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId),
-        PhotonPairSplitDrawId};
-    sample.split_uniform = gpu::em::uniformOpen01(split_key);
-    sample.split_draw_id = PhotonPairSplitDrawId;
-    gpu::em::tables::TableQuery const split_query{
-        gpu::em::tables::TableQueryKind::LossFraction, parent.pid,
-        gpu::em::PhotonPairFinalStateProcessId, interaction.component_hash,
-        parent.energy_GeV * 1000., sample.split_uniform};
-    auto const split = gpu::em::tables::executeTableQuery(table, split_query);
     bool split_ready = false;
-    if (split.status == gpu::em::tables::TableLookupStatus::Success) {
-      split_ready = gpu::em::decodePhotonPairNormalizedSplit(
-          parent.energy_GeV, split.value, sample.split_fraction);
-      if (!split_ready) {
+    for (std::uint32_t attempt = 0; attempt < MaximumRejectionAttempts; ++attempt) {
+      gpu::em::RandomNumberKey candidate_key{
+          random_seed, shower_id, parent.history_id, parent.step_id,
+          static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId),
+          PhotonPairAnalyticCandidateDrawIdBase + attempt};
+      auto acceptance_key = candidate_key;
+      acceptance_key.draw_id = PhotonPairAnalyticAcceptanceDrawIdBase + attempt;
+      sample.split_uniform = gpu::em::uniformOpen01(candidate_key);
+      sample.split_draw_id = candidate_key.draw_id;
+      auto const trial = gpu::em::photonPairFinalStateTrial(
+          lpm_snapshot, interaction.component_hash, parent.energy_GeV * 1000.,
+          sample.split_uniform, gpu::em::uniformOpen01(acceptance_key));
+      // Invalid weights/material/envelopes are not ordinary exhaustion.
+      if (trial.status != gpu::em::PhotonPairFinalStateStatus::Success) {
         result.fallback = invalidPhotonFinalState(interaction, sample);
         result.fallback_flag = 1;
         return result;
       }
-    } else if (
-        split.status ==
-            gpu::em::tables::TableLookupStatus::LossEnergyOutOfRange ||
-        (table.physics_source == 1u &&
-         split.status == gpu::em::tables::TableLookupStatus::ColumnNotFound)) {
-      for (std::uint32_t attempt = 0;
-           attempt < PhotonPairAnalyticMaximumAttempts; ++attempt) {
-        gpu::em::RandomNumberKey candidate_key{
-            random_seed, shower_id, parent.history_id, parent.step_id,
-            static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId),
-            PhotonPairAnalyticCandidateDrawIdBase + attempt};
-        auto acceptance_key = candidate_key;
-        acceptance_key.draw_id =
-            PhotonPairAnalyticAcceptanceDrawIdBase + attempt;
-        sample.split_uniform = gpu::em::uniformOpen01(candidate_key);
-        sample.split_draw_id = candidate_key.draw_id;
-        auto const trial = gpu::em::photonPairFinalStateTrial(
-            lpm_snapshot, interaction.component_hash,
-            parent.energy_GeV * 1000., sample.split_uniform,
-            gpu::em::uniformOpen01(acceptance_key));
-        if (trial.status != gpu::em::PhotonPairFinalStateStatus::Success) {
+      if (trial.accepted != 0) {
+        sample.split_fraction = trial.split_fraction;
+        split_ready = true;
+        break;
+      }
+    }
+    if (!split_ready) {
+      // Fresh draw, disjoint from rejected candidates, angles, LPM and thinning.
+      // Never recycle the final rejected candidate as the CDF quantile.
+      gpu::em::RandomNumberKey const split_key{
+          random_seed, shower_id, parent.history_id, parent.step_id,
+          static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId), PhotonPairSplitDrawId};
+      sample.split_uniform = gpu::em::uniformOpen01(split_key);
+      sample.split_draw_id = PhotonPairSplitDrawId;
+      gpu::em::tables::TableQuery const split_query{
+          gpu::em::tables::TableQueryKind::LossFraction, parent.pid,
+          gpu::em::PhotonPairFinalStateProcessId, interaction.component_hash,
+          parent.energy_GeV * 1000., sample.split_uniform};
+      auto const split = gpu::em::tables::executeTableQuery(table, split_query);
+      if (split.status == gpu::em::tables::TableLookupStatus::Success) {
+        split_ready = gpu::em::decodePhotonPairNormalizedSplit(
+            parent.energy_GeV, split.value, sample.split_fraction);
+        if (!split_ready) {
           result.fallback = invalidPhotonFinalState(interaction, sample);
           result.fallback_flag = 1;
           return result;
         }
-        if (trial.accepted != 0) {
-          sample.split_fraction = trial.split_fraction;
-          split_ready = true;
-          break;
-        }
-      }
-      if (!split_ready) {
-        result.fallback = invalidPhotonFinalState(interaction, sample);
+      } else {
+        auto event = gpu::em::makeTableFallbackEvent(
+            parent, split_query, split, PhotonPairSplitDrawId,
+            interaction.input_index);
+        event.energy_fraction = interaction.energy_fraction;
+        event.process_id = interaction.process_id;
+        auto const native_selection =
+            interaction.proposal_selection_random_process_id != 0u;
+        event.selection_uniform =
+            native_selection ? interaction.proposal_selection_uniform
+                             : interaction.process_uniform;
+        event.loss_quantile = interaction.loss_quantile;
+        event.outer_acceptance_uniform = interaction.process_uniform;
+        event.outer_acceptance_random_process_id =
+            interaction.process_random_process_id;
+        event.outer_acceptance_draw_id = interaction.process_draw_id;
+        event.random_process_id =
+            native_selection ? interaction.proposal_selection_random_process_id
+                             : 0u;
+        event.random_draw_id =
+            native_selection ? interaction.proposal_selection_draw_id
+                             : interaction.loss_draw_id;
+        event.final_state_uniform = sample.split_uniform;
+        event.final_state_draw_id = PhotonPairSplitDrawId;
+        result.fallback = event;
         result.fallback_flag = 1;
         return result;
       }
-    } else {
-      auto event = gpu::em::makeTableFallbackEvent(
-          parent, split_query, split, PhotonPairSplitDrawId,
-          interaction.input_index);
-      event.energy_fraction = interaction.energy_fraction;
-      event.process_id = interaction.process_id;
-      auto const native_selection =
-          interaction.proposal_selection_random_process_id != 0u;
-      event.selection_uniform =
-          native_selection ? interaction.proposal_selection_uniform
-                           : interaction.process_uniform;
-      event.loss_quantile = interaction.loss_quantile;
-      event.outer_acceptance_uniform = interaction.process_uniform;
-      event.outer_acceptance_random_process_id =
-          interaction.process_random_process_id;
-      event.outer_acceptance_draw_id = interaction.process_draw_id;
-      event.random_process_id =
-          native_selection ? interaction.proposal_selection_random_process_id
-                           : 0u;
-      event.random_draw_id =
-          native_selection ? interaction.proposal_selection_draw_id
-                           : interaction.loss_draw_id;
-      event.final_state_uniform = sample.split_uniform;
-      event.final_state_draw_id = PhotonPairSplitDrawId;
-      result.fallback = event;
-      result.fallback_flag = 1;
-      return result;
     }
     auto const electron_energy = parent.energy_GeV * sample.split_fraction;
     auto const positron_energy = parent.energy_GeV - electron_energy;

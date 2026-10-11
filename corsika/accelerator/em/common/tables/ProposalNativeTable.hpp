@@ -1368,7 +1368,7 @@ namespace corsika::gpu::em::tables {
   queryProposalNativeLossFraction(
       ProposalNativeDeviceView const& view, std::int32_t pdg_id,
       std::int32_t process_id, std::uint64_t component_hash,
-      double energy_MeV, double quantile) {
+      double energy_MeV, double quantile, bool photon_split = false) {
     if (!native_detail::validView(view))
       return {NativeQueryStatus::InvalidView, 0, 0, 0.};
     if (!native_detail::finite(energy_MeV) ||
@@ -1380,24 +1380,46 @@ namespace corsika::gpu::em::tables {
         view, pdg_id, process_id, component_hash);
     if (!column)
       return {NativeQueryStatus::ColumnNotFound, 0, 0, 0.};
+    // The public photon loss is v=1. Only the explicit secondary-split query
+    // inverts the same native cumulative table for x = E_e / E_gamma.
+    if (photon_split &&
+        (pdg_id != 22 ||
+         column->kinematic_model != NativeKinematicModel::PhotonPairFullLoss ||
+         column->loss_transform != NativeLossTransform::RelativeLog))
+      return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};
     // These public transport variables are degenerate at v=1.  Return before
     // considering the backing rate representation: a process may expose a
     // bicubic cumulative-rate table even though it has no loss variable to
     // invert (PhotoPairKochMotz and BKK photon-muon-pair in PROPOSAL 7.6.2).
     if (column->kinematic_model == NativeKinematicModel::OnlyStochastic ||
-        column->kinematic_model == NativeKinematicModel::PhotonPairFullLoss)
+        (column->kinematic_model == NativeKinematicModel::PhotonPairFullLoss &&
+         !photon_split))
       return {NativeQueryStatus::Success, 0, 0, 1.};
     if (column->rate_model != NativeRateModel::BicubicSpline) {
       return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};
     }
-    auto const limits =
-        native_detail::kinematicLimits(view, *column, energy_MeV);
+    auto const xmin = view.constants.electron_mass_MeV / energy_MeV;
+    if (photon_split &&
+        (xmin >= .5 || energy_MeV < column->spline.energy_axis.low ||
+         energy_MeV > column->spline.energy_axis.high))
+      return {NativeQueryStatus::EnergyOutOfRange, 0, 0, 0.};
+    auto const limits = photon_split
+        ? native_detail::NativeKinematicLimits{xmin, 1. - xmin, true}
+        : native_detail::kinematicLimits(view, *column, energy_MeV);
     if (!limits.valid)
       return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};
     if (limits.minimum == limits.maximum)
       return {NativeQueryStatus::Success, 0, 0, limits.minimum};
-    auto const total = queryProposalNativeCumulativeRate(
-        view, *column, energy_MeV, 1.);
+    // PROPOSAL's secondary CalculateRho normalizes the raw, unweighted CDF.
+    auto const total = [&]() {
+      if (!photon_split) return queryProposalNativeCumulativeRate(
+          view, *column, energy_MeV, 1.);
+      auto const raw = native_detail::evaluateBicubicProposal76(
+          view, column->spline, energy_MeV, 1.);
+      if (!native_detail::finite(raw))
+        return NativeQueryResult{NativeQueryStatus::InvalidView, 0, 0, 0.};
+      return NativeQueryResult{NativeQueryStatus::Success, 0, 0, raw < 0. ? 0. : raw};
+    }();
     if (total.status != NativeQueryStatus::Success) return total;
     // CrossSection::CalculateStochasticLoss receives q*CalculatedNdx(), then
     // multiplies that value by the component weight before calling
@@ -1406,7 +1428,8 @@ namespace corsika::gpu::em::tables {
     // GetUpperLimit does.  Solving the already divided public cumulative rate
     // is algebraically equivalent but can stop at a different 20-bit Newton
     // iterate.
-    auto const target = (quantile * total.value) * column->component_weight;
+    auto const target = photon_split ? quantile * total.value
+        : (quantile * total.value) * column->component_weight;
     if (quantile == 0.)
       return {NativeQueryStatus::Success, 0, 0, limits.minimum};
     if (quantile == 1.)
@@ -1612,7 +1635,10 @@ namespace corsika::gpu::em::tables {
       current = (lower + upper) / 2.;
     }
     auto const physical =
-        native_detail::physicalLoss(view, *column, energy_MeV, current);
+        photon_split
+            ? limits.minimum * native_detail::exponential(
+                  current * native_detail::logarithm(limits.maximum / limits.minimum))
+            : native_detail::physicalLoss(view, *column, energy_MeV, current);
     if (!native_detail::finite(physical))
       return {NativeQueryStatus::RootNotConverged, newton_iterations,
               bisection_iterations, 0.};
