@@ -74,3 +74,38 @@ p=0.99180，未检出形状差异。未检出不等于证明绝对无偏。
 全部新测试原始输出已校验归档：
   host10:/mnt/data16/yhlu/CorsikaData/production_pair_policy_merge_20261013/
 生成数据不放入 Git。未捆绑工作区原有 cached-loss、射电接口或多卡调度改动。
+
+七、推送前的精确提交复验（2026-10-13）
+另将提交 57d802a65f879b2b2a63c6b27252309aa66b0aa0 用 git archive 导出并构建，
+2001 个跟踪文件逐个核对 Git blob；不使用当前脏工作区作为发布构建输入。
+CONEX/data 复用此前冻结依赖并记录实际内容哈希，不声称额外验证其 gitlink。
+CUDA Release ADA89 构建的 c8_air_shower SHA256：
+32efab014af3b5ef257d6b0b5170a080e301937350f0927b7275b9e55643f5c6
+
+重新通过以下 6 项定向测试：testPhotonPairSplitFallback、testMuonBrems、
+testPhotonMuonPair、testNativeProcessCoverage、testProposalFallbackVertexGate、
+testPhotonFallbackVertex。22 个当前空气反应通道完整，CDF/方向/LPM 与原生对照通过。
+
+13 例真实 GPU shower 全部完成：gamma/e- 1 TeV 各三例，mu- 100 TeV 三例；
+另以 min-batch=1 测 mu-/mu+ 100 TeV、e+ 1 TeV、gamma 10 TeV 各一例。
+全部使用同一 RTX 4060、70% 显存预算、垂直/81 天线/0.2 rad、相同 cut 配置；
+停止正电子湮灭采用生产默认开启。
+累计指定 CPU 反应完成 766 次：直接电子对 616 次、光致强子 150 次；全部排空。
+设备光子产电子对 183179 次，设备直接电子产对 0 次，分能拒绝试验 0 次。
+无 generic fallback、内存溢出回退、队列/profile/radio 溢出或 CDF 反演失败；
+4855258 个输出值有限。稀有反应不依赖这些 shower 必然命中，由定向测试覆盖。
+
+三个默认批量 muon shower 分别出现 67/55/77 次环境入口拒绝，已逐个诊断：
+均为有限的新生电子方向模平方误差超过既有 1e-12 门槛，最大 6.6154e-9。
+该保护早于本次反应改动，粒子由 scalar/C8 继续处理，并未丢弃反应。
+只增加日志的三个复现与原输出 21 张 Parquet 表、1034388 个值完全一致。
+保留最初把非零入口计数作为失败的审查记录，未为放行修改生产保护。
+这类入口/小批量 CPU 输运与“指定反应末态回退”分开统计，不应称全部 CPU 回退
+都只有核/强子反应；方向规范化是可后续独立评估的性能余量。
+
+精确提交再次与第四节冻结候选运行 4 对相同种子（gamma/e+/mu-/proton）：
+28 张 Parquet 表、1384634 个物理值完全一致，含 profile/沉积/粒子/两种射电输出。
+这轮不是重新做 500 例统计验收，也不据此宣称性能改善。
+完整命令、哈希、首轮审查记录与结果：analysis_jobs/production_fallback_audit_20261013/。
+原始输出经哈希校验归档 host10:/mnt/data16/yhlu/CorsikaData/production_fallback_audit_20261013/；
+本地仅保留脚本、构建和小体积摘要，诊断代码不合入生产版。
