@@ -221,7 +221,10 @@ namespace corsika::gpu::em {
         return false;
       }
       auto const layer = queryAtmosphereLayer(
-          environment_, state.position_m, state.direction);
+          environment_, state.position_m, state.direction,
+          state.pid == static_cast<std::int32_t>(EmPid::Photon)
+              ? AtmosphereBoundaryPolicy::StraightPathGuard
+              : AtmosphereBoundaryPolicy::RadialGuard);
       if (layer.status != AtmosphereStatus::Success)
         ++statistics_.route_environment_rejections;
       return layer.status == AtmosphereStatus::Success;
@@ -251,7 +254,10 @@ namespace corsika::gpu::em {
           particle, coordinate_system_, history_id,
           parent_history_id, generation, step_id);
       auto const layer = queryAtmosphereLayer(
-          environment_, state.position_m, state.direction);
+          environment_, state.position_m, state.direction,
+          state.pid == static_cast<std::int32_t>(EmPid::Photon)
+              ? AtmosphereBoundaryPolicy::StraightPathGuard
+              : AtmosphereBoundaryPolicy::RadialGuard);
       if (layer.status != AtmosphereStatus::Success) {
         throw std::logic_error(
             "physical CUDA EM router staged a particle outside its environment");

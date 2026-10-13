@@ -154,6 +154,32 @@ if (CORSIKA_ENABLE_KOKKOS)
   if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
     add_test(NAME testPhotonFallbackVertexOpenMP COMMAND testPhotonFallbackVertex openmp)
   endif()
+
+  add_executable(testAtmosphereBoundaryGuard
+    testAtmosphereBoundaryGuard.cpp AtmosphereBoundaryNativeReference.cpp)
+  target_include_directories(testAtmosphereBoundaryGuard PRIVATE ${CMAKE_SOURCE_DIR}/tests/common)
+  target_link_libraries(testAtmosphereBoundaryGuard PRIVATE CORSIKA8 Kokkos::kokkos)
+  add_dependencies(testAtmosphereBoundaryGuard GenParticlesHeaders)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(testAtmosphereBoundaryGuard.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testAtmosphereBoundaryGuard PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    target_link_libraries(testAtmosphereBoundaryGuard PRIVATE CUDA::cudart CUDA::cuda_driver)
+    target_link_options(testAtmosphereBoundaryGuard PRIVATE "LINKER:--no-as-needed")
+    set_target_properties(testAtmosphereBoundaryGuard PROPERTIES
+      CUDA_STANDARD 17 CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      target_compile_options(testAtmosphereBoundaryGuard PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+    endif()
+  elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties(testAtmosphereBoundaryGuard.cpp PROPERTIES LANGUAGE HIP)
+  endif()
+  add_test(NAME testAtmosphereBoundaryGuard COMMAND testAtmosphereBoundaryGuard)
+  set_tests_properties(testAtmosphereBoundaryGuard PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+  if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+    add_test(NAME testAtmosphereBoundaryGuardOpenMP COMMAND testAtmosphereBoundaryGuard openmp)
+  endif()
   if (CORSIKA_KOKKOS_BACKEND MATCHES "^(OPENMP|CUDA_OPENMP)$")
     # Host-only Kokkos instance: no CUDA initialization in this exact-ledger test.
     add_executable(testKokkosHostProfileShards EXCLUDE_FROM_ALL

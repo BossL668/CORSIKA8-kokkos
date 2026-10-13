@@ -28,11 +28,15 @@ namespace corsika::gpu::em {
   inline constexpr double SpeedOfLightMPerS =
       accelerator::scalar_constants::SpeedOfLightMPerS;
   // TrackingLeapFrogCurved ignores volume intersections closer than 0.1 mm.
-  // Layer ownership and straight intersections must use the same guard;
-  // otherwise a state a few micrometres outside a layer can be assigned to
-  // that layer while the magnetic solver intentionally skips the near root
-  // and selects a remote second sphere crossing.
+  // Straight-track ownership must interpret this as a distance ALONG THE
+  // TRACK, not a radial shell thickness. Curved transport retains its existing
+  // radial endpoint guard: a straight-ray root is not a curved-track root.
   inline constexpr double AtmosphereBoundaryGuardM = 1.e-4;
+
+  enum class AtmosphereBoundaryPolicy : std::uint32_t {
+    RadialGuard, // Existing magnetic endpoint/layer-ownership convention.
+    StraightPathGuard,
+  };
 
   enum class AtmosphereStatus : std::uint32_t {
     Success = 0,
@@ -252,6 +256,15 @@ namespace corsika::gpu::em {
       return layer.density_parameter_a;
     }
 
+    CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline double boundaryPathGuard(
+        double const sphere_radius_m) {
+      auto const floating_tolerance =
+          32. * 2.22044604925031308085e-16 *
+          (sphere_radius_m > 1. ? sphere_radius_m : 1.);
+      return floating_tolerance > AtmosphereBoundaryGuardM
+                 ? floating_tolerance : AtmosphereBoundaryGuardM;
+    }
+
     CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline double forwardSphereDistance(
         EnvironmentSnapshot const& environment, double const position[3],
         double const direction[3], double sphere_radius_m) {
@@ -270,13 +283,7 @@ namespace corsika::gpu::em {
       auto const root = squareRoot(discriminant);
       auto const lower = -projection - root;
       auto const upper = -projection + root;
-      auto const floating_tolerance =
-          32. * 2.22044604925031308085e-16 *
-          (sphere_radius_m > 1. ? sphere_radius_m : 1.);
-      auto const epsilon =
-          floating_tolerance > AtmosphereBoundaryGuardM
-              ? floating_tolerance
-              : AtmosphereBoundaryGuardM;
+      auto const epsilon = boundaryPathGuard(sphere_radius_m);
       if (lower > epsilon) {
         return lower;
       }
@@ -291,7 +298,8 @@ namespace corsika::gpu::em {
   CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline AtmosphereLayerQuery
   queryAtmosphereLayer(
       EnvironmentSnapshot const& environment, double const position_m[3],
-      double const* direction = nullptr) {
+      double const* direction = nullptr,
+      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard) {
     using namespace atmosphere_detail;
     if (!validEnvironment(environment)) {
       return {AtmosphereStatus::InvalidSnapshot, -1, 0., 0.};
@@ -357,10 +365,33 @@ namespace corsika::gpu::em {
       if (direction != nullptr && index > 0 &&
           absolute(radius_m - layer.inner_radius_m) <=
               tolerance) {
-        auto const selected =
-            radial_direction < 0.
-                ? static_cast<std::int32_t>(index - 1)
-                : static_cast<std::int32_t>(index);
+        auto const boundary_radius = layer.inner_radius_m;
+        auto const inside = radius_m < boundary_radius;
+        auto selected = static_cast<std::int32_t>(inside ? index - 1 : index);
+        if (policy == AtmosphereBoundaryPolicy::RadialGuard ||
+            radius_m == boundary_radius) {
+          // A completed crossing owns the layer on its outgoing side.
+          selected = static_cast<std::int32_t>(
+              radial_direction < 0. ? index - 1 : index);
+        } else if ((inside && radial_direction > 0.) ||
+                   (!inside && radial_direction < 0.)) {
+          // A radial offset < 0.1 mm does NOT imply a path < 0.1 mm.
+          // Use the same roots and path guard as forwardSphereDistance.
+          // Otherwise ownership can advance early while the oblique near
+          // root is still accepted, yielding an apparent same-layer crossing.
+          auto const projection = dot(radial, direction);
+          auto const discriminant = projection * projection -
+              (dot(radial, radial) - boundary_radius * boundary_radius);
+          if (discriminant > 0. && finite(discriminant)) {
+            auto const root = squareRoot(discriminant);
+            auto const crossing = inside ? -projection + root
+                                         : -projection - root;
+            if (crossing >= -floating_tolerance &&
+                crossing <= boundaryPathGuard(boundary_radius)) {
+              selected = static_cast<std::int32_t>(inside ? index : index - 1);
+            }
+          }
+        }
         auto const& selected_layer =
             environment.atmosphere_layers[selected];
         return {
@@ -384,10 +415,11 @@ namespace corsika::gpu::em {
   CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline AtmosphereBoundaryQuery
   distanceToAtmosphereBoundary(
       EnvironmentSnapshot const& environment, double const position_m[3],
-      double const direction[3]) {
+      double const direction[3],
+      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard) {
     using namespace atmosphere_detail;
     auto const layer_query =
-        queryAtmosphereLayer(environment, position_m, direction);
+        queryAtmosphereLayer(environment, position_m, direction, policy);
     if (layer_query.status != AtmosphereStatus::Success) {
       return {layer_query.status, -1, 0., 0.};
     }

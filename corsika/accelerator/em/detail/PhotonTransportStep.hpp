@@ -82,7 +82,8 @@ namespace corsika::accelerator::em::detail {
     }
 
     auto const layer = queryAtmosphereLayer(
-        environment, start.position_m, start.direction);
+        environment, start.position_m, start.direction,
+        AtmosphereBoundaryPolicy::StraightPathGuard);
     if (layer.status != AtmosphereStatus::Success) {
       output.fallback = makePhotonTransportFallback(
           interaction, ProposalFallbackReason::UnsupportedGeometry);
@@ -107,7 +108,8 @@ namespace corsika::accelerator::em::detail {
     }
 
     auto const atmosphere_boundary = distanceToAtmosphereBoundary(
-        environment, start.position_m, start.direction);
+        environment, start.position_m, start.direction,
+        AtmosphereBoundaryPolicy::StraightPathGuard);
     auto const observation = intersectObservationPlaneStraight(
         environment, start.position_m, start.direction);
     auto const has_atmosphere_boundary =
@@ -180,7 +182,8 @@ namespace corsika::accelerator::em::detail {
       }
       advancePhotonState(start, distance.value, record.end);
       auto const vertex = queryAtmosphereLayer(
-          environment, record.end.position_m, record.end.direction);
+          environment, record.end.position_m, record.end.direction,
+          AtmosphereBoundaryPolicy::StraightPathGuard);
       if (vertex.status != AtmosphereStatus::Success ||
           !transportFinite(vertex.density_g_per_cm3) ||
           !(vertex.density_g_per_cm3 > 0.)) {
@@ -239,7 +242,8 @@ namespace corsika::accelerator::em::detail {
         record.end_density_g_per_cm3 = 0.;
       } else {
         auto const next = queryAtmosphereLayer(
-            environment, record.end.position_m, record.end.direction);
+            environment, record.end.position_m, record.end.direction,
+            AtmosphereBoundaryPolicy::StraightPathGuard);
         if (next.status != AtmosphereStatus::Success ||
             next.layer_index == layer.layer_index) {
           output.fallback = makePhotonTransportFallback(
