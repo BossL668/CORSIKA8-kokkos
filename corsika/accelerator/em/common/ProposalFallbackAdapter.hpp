@@ -170,13 +170,11 @@ namespace corsika::gpu::em {
                  event.particle.pid, event.process_id) ==
              GpuProcessCapability::CpuOnlyFinalState;
     }
-    if (event.reason ==
-        ProposalFallbackReason::EpairRejectionEnvelopeExceeded) {
+    if (event.reason == ProposalFallbackReason::EpairRejectionEnvelopeExceeded ||
+        event.reason == ProposalFallbackReason::EpairRejectionTrialsExhausted) {
       return event.process_id == ElectronPairProcessId &&
-             (event.particle.pid ==
-                  static_cast<std::int32_t>(EmPid::Electron) ||
-              event.particle.pid ==
-                  static_cast<std::int32_t>(EmPid::Positron));
+             (isElectronOrPositronPid(event.particle.pid) ||
+              isMuonPid(event.particle.pid));
     }
     return false;
   }

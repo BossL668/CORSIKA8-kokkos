@@ -240,7 +240,7 @@ namespace corsika::gpu::em::tables {
         // is_only_stochastic<PhotoMuPairBurkhardtKelnerKokoulin> to true, so
         // CrossSection::CalculateStochasticLoss returns the external loss
         // fraction v=1 for every residual rate.  Keep that scalar contract;
-        // the selected CPU final-state completion samples x independently.
+        // the separate device/CPU final-state query samples x independently.
         return NativeKinematicModel::OnlyStochastic;
       }
 
@@ -596,6 +596,7 @@ namespace corsika::gpu::em::tables {
         table.cubic_interpolation_version != "0.1.5")
       throw std::invalid_argument("PROPOSAL native dependency version mismatch");
     if (!(table.constants.electron_mass_MeV > 0.) ||
+        !(table.constants.muon_mass_MeV > 0.) ||
         !(table.constants.charged_pion_mass_MeV > 0.) ||
         !(table.constants.fine_structure_constant > 0.) ||
         !(table.constants.classical_electron_radius_cm > 0.) ||
@@ -979,6 +980,7 @@ namespace corsika::gpu::em::tables {
     encoder.floating(table.constants.classical_electron_radius_cm);
     encoder.floating(table.constants.pi);
     encoder.floating(table.constants.sqrt_e);
+    encoder.floating(table.constants.muon_mass_MeV);
     encoder.floating(table.stochastic_cut_MeV);
     encoder.sequence(
         table.interaction_identities,
@@ -1075,7 +1077,7 @@ namespace corsika::gpu::em::tables {
     result.proposal_version = getPROPOSALVersion();
     result.cubic_interpolation_version = getCubicInterpolationVersion();
     result.constants = {PROPOSAL::ME, PROPOSAL::MPI, PROPOSAL::ALPHA,
-                        PROPOSAL::RE, PROPOSAL::PI, PROPOSAL::SQRTE};
+                        PROPOSAL::RE, PROPOSAL::PI, PROPOSAL::SQRTE, PROPOSAL::MMU};
     requireSingleComposition(interactions, continuous);
     for (auto const& view : interactions) {
       if (!supportedNativeProjectile(view.projectile)) continue;

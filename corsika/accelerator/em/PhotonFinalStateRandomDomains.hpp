@@ -24,5 +24,8 @@ namespace corsika::accelerator::em {
   inline constexpr std::uint64_t PhotonPairAnalyticAcceptanceDrawIdBase = 0x60;
   inline constexpr std::uint32_t PhotonPairAnalyticMaximumAttempts = 64;
   inline constexpr std::uint64_t ComptonAzimuthDrawId = 1;
+  // Preserve the former specified-CPU-final-state Philox addresses.
+  inline constexpr std::uint64_t PhotonMuonPairSplitDrawId = std::uint64_t{1} << 32;
+  inline constexpr std::uint64_t PhotonMuonPairAzimuthDrawId = PhotonMuonPairSplitDrawId + 1;
 
 } // namespace corsika::accelerator::em

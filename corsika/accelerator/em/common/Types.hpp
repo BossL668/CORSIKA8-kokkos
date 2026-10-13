@@ -124,6 +124,7 @@ namespace corsika::gpu::em {
     // Included in deposited_energy_GeV, but written at the endpoint (ParticleCut),
     // not distributed along the preceding continuous-transport segment.
     double cut_deposited_energy_GeV{};
+    std::uint32_t native_muon_pair_cut{};
   };
 
   /**
@@ -147,6 +148,7 @@ namespace corsika::gpu::em {
     double weight{};
     double cut_deposited_energy_GeV{};
     std::uint32_t observation_surface_reached_before_cut{};
+    std::uint32_t native_muon_pair_cut{};
   };
 
   enum class ProposalFallbackReason : std::int32_t {
@@ -189,6 +191,9 @@ namespace corsika::gpu::em {
     // tolerance.  CPU PROPOSAL replays that same uniform, verifies the
     // selected identity, and completes the final state after the wavefront.
     NativeSelectionReplay = 28,
+    // The selected interaction and v are valid; finish rho on the CPU,
+    // never run a numerical inverse integral in a device exhaustion branch.
+    EpairRejectionTrialsExhausted = 29,
   };
 
   struct ProposalFallbackEvent {
@@ -528,6 +533,8 @@ namespace corsika::gpu::em {
     // Signed numerical convention change from PROPOSAL total energy to the
     // CORSIKA kinetic-energy stack; not a physical interaction with the medium.
     double weighted_mass_convention_correction_GeV{};
+    // Signed ParticleCut bookkeeping for tagged sub-rest-mass BKK children.
+    double weighted_native_muon_pair_cut_energy_GeV{};
   };
 
   struct GpuProfileStatistics {
@@ -717,6 +724,7 @@ namespace corsika::gpu::em {
     std::uint64_t photon_pair_lpm_trials{};
     std::uint64_t photon_pair_lpm_suppressions{};
     std::uint64_t photon_pair_final_states{};
+    std::uint64_t photon_muon_pair_final_states{};
     std::uint64_t brems_final_states{};
     std::uint64_t compton_final_states{};
     std::uint64_t photoelectric_final_states{};
@@ -1077,6 +1085,7 @@ namespace corsika::gpu::em {
     std::size_t input_interactions{};
     std::size_t gpu_interactions{};
     std::size_t photon_pair_interactions{};
+    std::size_t photon_muon_pair_interactions{};
     std::size_t compton_interactions{};
     std::size_t photoelectric_interactions{};
     std::vector<PhotonPairFinalStateRecord> final_state_records{};
@@ -1118,6 +1127,7 @@ namespace corsika::gpu::em {
     std::uint64_t gpu_final_states{};
     std::uint64_t physical_secondaries_generated{};
     std::uint64_t photon_pair_final_states{};
+    std::uint64_t photon_muon_pair_final_states{};
     std::uint64_t brems_final_states{};
     std::uint64_t compton_final_states{};
     std::uint64_t photoelectric_final_states{};

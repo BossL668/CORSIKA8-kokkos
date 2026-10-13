@@ -210,6 +210,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       auto const& classification = host_classifications(i);
       result.batch.photon_pair_interactions +=
           classification.photon_pair_flag;
+      result.batch.photon_muon_pair_interactions += classification.photon_muon_pair_flag;
       result.batch.compton_interactions += classification.compton_flag;
       result.batch.photoelectric_interactions +=
           classification.photoelectric_flag;

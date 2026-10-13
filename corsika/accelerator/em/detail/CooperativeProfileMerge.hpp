@@ -67,6 +67,7 @@ inline gpu::em::detail::DeviceProfileCounters mergeProfileCounters(
   ADD(weighted_observed_total_energy);ADD(weighted_escaped_total_energy);
   ADD(weighted_unwritten_photoelectric_binding_energy);
   ADD(weighted_observation_cut_overlap_energy);ADD(weighted_mass_convention_correction);
+  ADD(weighted_native_muon_pair_cut_energy);
 #undef ADD
   a.moliere_max_newton_iterations=std::max(a.moliere_max_newton_iterations,
                                          b.moliere_max_newton_iterations);
@@ -148,6 +149,9 @@ inline gpu::em::GpuProfileResult decodeFixedProfile(FixedProfileSnapshot const& 
           view_.inverse_energy_scale;
       result.weighted_mass_convention_correction_GeV =
           static_cast<double>(counters.weighted_mass_convention_correction) *
+          view_.inverse_energy_scale;
+      result.weighted_native_muon_pair_cut_energy_GeV =
+          static_cast<double>(counters.weighted_native_muon_pair_cut_energy) *
           view_.inverse_energy_scale;
 
   return result;

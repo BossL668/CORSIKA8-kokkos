@@ -25,9 +25,9 @@ namespace corsika::proposal {
 
 namespace corsika::gpu::em::tables {
 
-  inline constexpr std::uint32_t ProposalNativeAuxFormatVersion = 3;
+  inline constexpr std::uint32_t ProposalNativeAuxFormatVersion = 4;
   inline constexpr char ProposalNativeAuxAlgorithmVersion[] =
-      "proposal-native-aux-v3-epair-device-rejection-v1";
+      "proposal-native-aux-v4-muon-brems-v1";
 
   /**
    * Small auxiliary state that is not part of the native PROPOSAL spline

@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
+
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -47,6 +49,12 @@ namespace corsika::accelerator::em::detail {
     record.process_random_process_id = InteractionColumnRandomProcessId;
     auto const infinity = HUGE_VAL;
     auto const energy_MeV = particle.energy_GeV * 1000.;
+
+    if (isNativeMuonPairCut(particle)) {
+      record.status = EmInteractionStatus::ParticleCut;
+      record.interaction_grammage_g_per_cm2 = infinity;
+      return output; // no rate, decay, or momentum evaluation below rest mass
+    }
 
     if (exceedsParticleCutTime(particle.time_s)) {
       record.status = EmInteractionStatus::ParticleCut;

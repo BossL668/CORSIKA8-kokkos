@@ -7,12 +7,14 @@
 
 #pragma once
 
+
 #include <cmath>
 #include <cstdint>
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/PhotonFinalStateRandomDomains.hpp>
 #include <corsika/accelerator/em/common/EmThinning.hpp>
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
 #include <corsika/accelerator/em/common/Philox.hpp>
 #include <corsika/accelerator/em/common/PhotonPairFinalState.hpp>
 #include <corsika/accelerator/em/common/PhotonPairKinematics.hpp>
@@ -46,6 +48,7 @@ namespace corsika::accelerator::em::detail {
     double thinning_second_uniform{};
     double thinning_first_weight{};
     double thinning_second_weight{};
+    double secondary_mass_GeV{}; // BKK muon mass exported from PROPOSAL.
   };
 
   struct PhotonFinalStateClassification {
@@ -59,6 +62,7 @@ namespace corsika::accelerator::em::detail {
     std::uint32_t photon_pair_flag{};
     std::uint32_t compton_flag{};
     std::uint32_t photoelectric_flag{};
+    std::uint32_t photon_muon_pair_flag{};
   };
 
   struct PhotonFinalStateMaterialization {
@@ -285,9 +289,7 @@ namespace corsika::accelerator::em::detail {
     return true;
   }
 
-  // Shorter caps are instantiated only by the forced-exhaustion regression.
-  // Production callers retain the fixed cap and existing random-number keys.
-  template <std::uint32_t MaximumRejectionAttempts = PhotonPairAnalyticMaximumAttempts>
+  // Pair energy sharing always uses the native PROPOSAL cumulative table.
   C8_ACCELERATOR_INLINE_FUNCTION inline PhotonFinalStateClassification
   classifyPhotonFinalState(
       gpu::em::tables::NativePhysicsView const& table,
@@ -295,7 +297,6 @@ namespace corsika::accelerator::em::detail {
       gpu::em::EmThinningConfig const& thinning,
       gpu::em::EmInteractionRecord const& interaction,
       std::uint64_t random_seed, std::uint64_t shower_id) {
-    static_assert(MaximumRejectionAttempts <= PhotonPairAnalyticMaximumAttempts);
     static_assert(PhotonPairSplitDrawId < PhotonPairAnalyticCandidateDrawIdBase);
     static_assert(PhotonPairAnalyticCandidateDrawIdBase + PhotonPairAnalyticMaximumAttempts
                   <= PhotonPairAnalyticAcceptanceDrawIdBase);
@@ -333,6 +334,7 @@ namespace corsika::accelerator::em::detail {
     auto const capability = gpu::em::gpuProcessCapability(
         interaction.particle.pid, interaction.process_id);
     if (capability != gpu::em::GpuProcessCapability::PhotonPair &&
+        capability != gpu::em::GpuProcessCapability::PhotonMuonPair &&
         capability != gpu::em::GpuProcessCapability::Compton &&
         capability != gpu::em::GpuProcessCapability::Photoelectric) {
       result.fallback = gpu::em::makeProcessFallbackEvent(
@@ -341,6 +343,55 @@ namespace corsika::accelerator::em::detail {
       return result;
     }
     auto const& parent = interaction.particle;
+    if (capability == gpu::em::GpuProcessCapability::PhotonMuonPair) {
+      auto& sample = result.parameters;
+      sample.process_id = gpu::em::PhotonMuonPairProcessId;
+      sample.secondary_mass_GeV = table.proposal_native.constants.muon_mass_MeV / 1000.;
+      if (!photonFinite(parent.energy_GeV) || !photonFinite(parent.weight) ||
+          parent.weight < 0. || !(sample.secondary_mass_GeV > 0.) ||
+          parent.generation == 0xffffffffU || parent.step_id == 0xffffffffffffffffULL) {
+        result.fallback = invalidPhotonFinalState(interaction);
+        result.fallback_flag = 1;
+        return result;
+      }
+      gpu::em::RandomNumberKey key{
+          random_seed, shower_id, parent.history_id, parent.step_id,
+          static_cast<std::uint32_t>(gpu::em::PhotonMuonPairProcessId), PhotonMuonPairSplitDrawId};
+      sample.split_uniform = gpu::em::uniformOpen01(key);
+      sample.split_draw_id = PhotonMuonPairSplitDrawId;
+      auto const split = gpu::em::tables::executeTableQuery(table, {
+          gpu::em::tables::TableQueryKind::LossFraction, parent.pid,
+          gpu::em::PhotonMuonPairFinalStateProcessId, interaction.component_hash,
+          parent.energy_GeV * 1000., sample.split_uniform});
+      if (split.status != gpu::em::tables::TableLookupStatus::Success) {
+        // A corrupt/missing/out-of-range native table is not a normal CPU
+        // physics path. Fail closed with the original vertex for diagnosis.
+        result.fallback = invalidPhotonFinalState(interaction, sample);
+        result.fallback.diagnostic_status = static_cast<std::uint32_t>(split.status);
+        result.fallback_flag = 1;
+        return result;
+      }
+      sample.split_fraction = split.value; // x = E_mu+ / E_gamma.
+      auto const minus = (1. - split.value) * parent.energy_GeV;
+      auto const plus = split.value * parent.energy_GeV;
+      if (!photonFinite(split.value) || !(minus > 0.) || !(plus > 0.)) {
+        result.fallback = invalidPhotonFinalState(interaction, sample);
+        result.fallback_flag = 1;
+        return result;
+      }
+      key.draw_id = PhotonMuonPairAzimuthDrawId;
+      sample.azimuth_uniform = gpu::em::uniformOpen01(key);
+      // EMThinning::doSecondaries returns when either child is non-EM.
+      // Muons therefore inherit the parent weight even when EM thinning is on.
+      // CheckForLPM likewise applies no electron-pair LPM veto to PhotoMuPair.
+      sample.thinning_status = static_cast<std::uint32_t>(gpu::em::EmThinningStatus::NotApplied);
+      sample.thinning_keep_mask = 3U;
+      sample.thinning_first_weight = sample.thinning_second_weight = parent.weight;
+      result.child_count = 2;
+      result.record_flag = 1;
+      result.photon_muon_pair_flag = 1;
+      return result;
+    }
     if (capability == gpu::em::GpuProcessCapability::Compton) {
       double photon_cosine = 0.;
       double electron_cosine = 0.;
@@ -409,80 +460,53 @@ namespace corsika::accelerator::em::detail {
 
     auto& sample = result.parameters;
     sample.process_id = gpu::em::PhotonPairProcessId;
-    bool split_ready = false;
-    for (std::uint32_t attempt = 0; attempt < MaximumRejectionAttempts; ++attempt) {
-      gpu::em::RandomNumberKey candidate_key{
-          random_seed, shower_id, parent.history_id, parent.step_id,
-          static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId),
-          PhotonPairAnalyticCandidateDrawIdBase + attempt};
-      auto acceptance_key = candidate_key;
-      acceptance_key.draw_id = PhotonPairAnalyticAcceptanceDrawIdBase + attempt;
-      sample.split_uniform = gpu::em::uniformOpen01(candidate_key);
-      sample.split_draw_id = candidate_key.draw_id;
-      auto const trial = gpu::em::photonPairFinalStateTrial(
-          lpm_snapshot, interaction.component_hash, parent.energy_GeV * 1000.,
-          sample.split_uniform, gpu::em::uniformOpen01(acceptance_key));
-      // Invalid weights/material/envelopes are not ordinary exhaustion.
-      if (trial.status != gpu::em::PhotonPairFinalStateStatus::Success) {
+    // Independent CDF quantile; no candidate/acceptance rejection loop.
+    gpu::em::RandomNumberKey const split_key{
+        random_seed, shower_id, parent.history_id, parent.step_id,
+        static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId), PhotonPairSplitDrawId};
+    sample.split_uniform = gpu::em::uniformOpen01(split_key);
+    sample.split_draw_id = PhotonPairSplitDrawId;
+    gpu::em::tables::TableQuery const split_query{
+        gpu::em::tables::TableQueryKind::LossFraction, parent.pid,
+        gpu::em::PhotonPairFinalStateProcessId, interaction.component_hash,
+        parent.energy_GeV * 1000., sample.split_uniform};
+    auto const split = gpu::em::tables::executeTableQuery(table, split_query);
+    if (split.status == gpu::em::tables::TableLookupStatus::Success) {
+      auto const split_ready = gpu::em::decodePhotonPairNormalizedSplit(
+          parent.energy_GeV, split.value, sample.split_fraction);
+      if (!split_ready) {
         result.fallback = invalidPhotonFinalState(interaction, sample);
         result.fallback_flag = 1;
         return result;
       }
-      if (trial.accepted != 0) {
-        sample.split_fraction = trial.split_fraction;
-        split_ready = true;
-        break;
-      }
-    }
-    if (!split_ready) {
-      // Fresh draw, disjoint from rejected candidates, angles, LPM and thinning.
-      // Never recycle the final rejected candidate as the CDF quantile.
-      gpu::em::RandomNumberKey const split_key{
-          random_seed, shower_id, parent.history_id, parent.step_id,
-          static_cast<std::uint32_t>(gpu::em::PhotonPairProcessId), PhotonPairSplitDrawId};
-      sample.split_uniform = gpu::em::uniformOpen01(split_key);
-      sample.split_draw_id = PhotonPairSplitDrawId;
-      gpu::em::tables::TableQuery const split_query{
-          gpu::em::tables::TableQueryKind::LossFraction, parent.pid,
-          gpu::em::PhotonPairFinalStateProcessId, interaction.component_hash,
-          parent.energy_GeV * 1000., sample.split_uniform};
-      auto const split = gpu::em::tables::executeTableQuery(table, split_query);
-      if (split.status == gpu::em::tables::TableLookupStatus::Success) {
-        split_ready = gpu::em::decodePhotonPairNormalizedSplit(
-            parent.energy_GeV, split.value, sample.split_fraction);
-        if (!split_ready) {
-          result.fallback = invalidPhotonFinalState(interaction, sample);
-          result.fallback_flag = 1;
-          return result;
-        }
-      } else {
-        auto event = gpu::em::makeTableFallbackEvent(
-            parent, split_query, split, PhotonPairSplitDrawId,
-            interaction.input_index);
-        event.energy_fraction = interaction.energy_fraction;
-        event.process_id = interaction.process_id;
-        auto const native_selection =
-            interaction.proposal_selection_random_process_id != 0u;
-        event.selection_uniform =
-            native_selection ? interaction.proposal_selection_uniform
-                             : interaction.process_uniform;
-        event.loss_quantile = interaction.loss_quantile;
-        event.outer_acceptance_uniform = interaction.process_uniform;
-        event.outer_acceptance_random_process_id =
-            interaction.process_random_process_id;
-        event.outer_acceptance_draw_id = interaction.process_draw_id;
-        event.random_process_id =
-            native_selection ? interaction.proposal_selection_random_process_id
-                             : 0u;
-        event.random_draw_id =
-            native_selection ? interaction.proposal_selection_draw_id
-                             : interaction.loss_draw_id;
-        event.final_state_uniform = sample.split_uniform;
-        event.final_state_draw_id = PhotonPairSplitDrawId;
-        result.fallback = event;
-        result.fallback_flag = 1;
-        return result;
-      }
+    } else {
+      auto event = gpu::em::makeTableFallbackEvent(
+          parent, split_query, split, PhotonPairSplitDrawId,
+          interaction.input_index);
+      event.interaction_vertex_reached = interaction.interaction_vertex_reached;
+      event.energy_fraction = interaction.energy_fraction;
+      event.process_id = interaction.process_id;
+      auto const native_selection =
+          interaction.proposal_selection_random_process_id != 0u;
+      event.selection_uniform =
+          native_selection ? interaction.proposal_selection_uniform
+                           : interaction.process_uniform;
+      event.loss_quantile = interaction.loss_quantile;
+      event.outer_acceptance_uniform = interaction.process_uniform;
+      event.outer_acceptance_random_process_id =
+          interaction.process_random_process_id;
+      event.outer_acceptance_draw_id = interaction.process_draw_id;
+      event.random_process_id =
+          native_selection ? interaction.proposal_selection_random_process_id
+                           : 0u;
+      event.random_draw_id =
+          native_selection ? interaction.proposal_selection_draw_id
+                           : interaction.loss_draw_id;
+      event.final_state_uniform = sample.split_uniform;
+      event.final_state_draw_id = PhotonPairSplitDrawId;
+      result.fallback = event;
+      result.fallback_flag = 1;
+      return result;
     }
     auto const electron_energy = parent.energy_GeV * sample.split_fraction;
     auto const positron_energy = parent.energy_GeV - electron_energy;
@@ -720,6 +744,48 @@ namespace corsika::accelerator::em::detail {
           gpu::em::PhotoelectricProcessId, sample.split_fraction,
           interaction.loss_quantile, 0., 0., 0., 0., 0.,
           interaction.loss_draw_id, 0, 0, 0, 0};
+    } else if (sample.process_id == gpu::em::PhotonMuonPairProcessId) {
+      // PROPOSAL BKK uses equal polar angles m_mu/E_gamma and opposite
+      // azimuths. This is its existing direction approximation, not an exact
+      // nuclear recoil solver. Keep its (E in MeV)/MMU operation order.
+      auto const k = (parent.energy_GeV * 1000.) / (sample.secondary_mass_GeV * 1000.);
+      auto cosine = photonCos(1. / k);
+      if (cosine == -1.) cosine *= -1.;
+      gpu::em::EmParticleState minus = parent, plus = parent;
+      minus.pid = static_cast<std::int32_t>(gpu::em::EmPid::MuonMinus);
+      plus.pid = static_cast<std::int32_t>(gpu::em::EmPid::MuonPlus);
+      minus.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          minus.pid, (1. - sample.split_fraction) * parent.energy_GeV, sample.secondary_mass_GeV);
+      plus.energy_GeV = gpu::em::proposalSecondaryTransportEnergyGeV(
+          plus.pid, sample.split_fraction * parent.energy_GeV, sample.secondary_mass_GeV);
+      minus.parent_history_id = plus.parent_history_id = parent.history_id;
+      minus.generation = plus.generation = parent.generation + 1;
+      minus.step_id = plus.step_id = 0;
+      minus.reserved = plus.reserved = 0;
+      if (minus.energy_GeV <= gpu::em::transportMassGeV(minus.pid))
+        minus.reserved = gpu::em::NativeMuonPairCutFlag;
+      if (plus.energy_GeV <= gpu::em::transportMassGeV(plus.pid))
+        plus.reserved = gpu::em::NativeMuonPairCutFlag;
+      minus.weight = sample.thinning_first_weight;
+      plus.weight = sample.thinning_second_weight;
+      deflectPhotonChild(parent.direction, cosine, azimuth, minus.direction);
+      deflectPhotonChild(parent.direction, cosine,
+          photonFmod(azimuth + 3.1415926535897932384626433832795,
+                     6.283185307179586476925286766559), plus.direction);
+      output.firstInteraction(parent, sample.process_id, minus, &plus);
+      if (sample.thinning_keep_mask & 0x1U) {
+        minus.history_id = first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, minus);
+      }
+      if (sample.thinning_keep_mask & 0x2U) {
+        plus.history_id = first_history_id + child_offset + secondary_count;
+        output.secondary(secondary_count++, plus);
+      }
+      output.record() = {
+          interaction.input_index, parent.history_id, child_offset, secondary_count,
+          sample.process_id, sample.split_fraction, sample.split_uniform,
+          sample.azimuth_uniform, 0., 0., 0., 0., sample.split_draw_id,
+          PhotonMuonPairAzimuthDrawId, 0, 0, 0};
     } else {
       auto const electron_energy =
           parent.energy_GeV * sample.split_fraction;
@@ -790,7 +856,10 @@ namespace corsika::accelerator::em::detail {
     }
     record.weighted_mass_convention_correction_GeV =
         gpu::em::weightedProposalMassCorrectionGeV(
-            11, gpu::em::ElectronMassGeV, kept_lepton_weight);
+            sample.process_id == gpu::em::PhotonMuonPairProcessId ? 13 : 11,
+            sample.process_id == gpu::em::PhotonMuonPairProcessId
+                ? sample.secondary_mass_GeV : gpu::em::ElectronMassGeV,
+            kept_lepton_weight);
     record.thinning_status = sample.thinning_status;
     record.thinning_keep_mask = sample.thinning_keep_mask;
     record.thinning_first_uniform = sample.thinning_first_uniform;

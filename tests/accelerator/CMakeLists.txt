@@ -56,6 +56,39 @@ foreach (selection_backend IN ITEMS CUDA_OPENMP CUDA OPENMP HIP SYCL)
 endforeach ()
 
 if (CORSIKA_ENABLE_KOKKOS)
+  add_executable(testNativeProcessCoverage EXCLUDE_FROM_ALL testNativeProcessCoverage.cpp)
+  target_link_libraries(testNativeProcessCoverage PRIVATE CORSIKA8ProposalNative CORSIKA8 PROPOSAL::PROPOSAL)
+  add_dependencies(testNativeProcessCoverage GenParticlesHeaders GenMediaProperties)
+  add_test(NAME testNativeProcessCoverage COMMAND testNativeProcessCoverage)
+
+  add_executable(testMuonBrems EXCLUDE_FROM_ALL testMuonBrems.cpp MuonBremsDriver.cpp)
+  target_link_libraries(testMuonBrems PRIVATE CORSIKA8ProposalNative Kokkos::kokkos CORSIKA8 PROPOSAL::PROPOSAL)
+  add_dependencies(testMuonBrems GenParticlesHeaders GenMediaProperties)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(MuonBremsDriver.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testMuonBrems PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    target_link_libraries(testMuonBrems PRIVATE CUDA::cudart CUDA::cuda_driver)
+    target_link_options(testMuonBrems PRIVATE "LINKER:--no-as-needed")
+    set_target_properties(testMuonBrems PROPERTIES CUDA_STANDARD 17
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+  endif()
+  add_test(NAME testMuonBrems COMMAND testMuonBrems)
+
+  add_executable(testPhotonMuonPair EXCLUDE_FROM_ALL
+    testPhotonMuonPair.cpp PhotonMuonPairDriver.cpp PhotonMuonPairCutReference.cpp)
+  target_link_libraries(testPhotonMuonPair PRIVATE
+    CORSIKA8ProposalNative Kokkos::kokkos CORSIKA8 PROPOSAL::PROPOSAL)
+  add_dependencies(testPhotonMuonPair GenParticlesHeaders GenMediaProperties)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(PhotonMuonPairDriver.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testPhotonMuonPair PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    target_link_libraries(testPhotonMuonPair PRIVATE CUDA::cudart CUDA::cuda_driver)
+    target_link_options(testPhotonMuonPair PRIVATE "LINKER:--no-as-needed")
+    set_target_properties(testPhotonMuonPair PROPERTIES CUDA_STANDARD 17
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+  endif()
+  add_test(NAME testPhotonMuonPair COMMAND testPhotonMuonPair)
+
   add_executable(testPhotonPairSplitFallback EXCLUDE_FROM_ALL
     testPhotonPairSplitFallback.cpp PhotonPairFallbackDriver.cpp)
   target_link_libraries(testPhotonPairSplitFallback PRIVATE

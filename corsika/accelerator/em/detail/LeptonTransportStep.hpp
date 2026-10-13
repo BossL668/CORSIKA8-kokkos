@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
+
 #include <cmath>
 #include <cstdint>
 
@@ -82,6 +84,13 @@ namespace corsika::accelerator::em::detail {
         return 1;
       }
 
+      if (interaction.status == EmInteractionStatus::ParticleCut &&
+          isNativeMuonPairCut(start)) {
+        record = nativeMuonPairCutRecord(interaction);
+        // Exactly the scalar ParticleCut signed kinetic-energy accounting.
+        // No magnetic/Moliere calculation and no finite radio trajectory.
+        return apply_moliere ? 2U : 0U;
+      }
       auto const continuous =
           prepareLeptonContinuousStep(
               table, interaction);

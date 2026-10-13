@@ -324,6 +324,11 @@ CORSIKA_GPU_TABLE_HOST_DEVICE inline TableQueryResult queryLossFraction(
       NativePhysicsView const& view, std::int32_t pdg_id,
       std::int32_t process_id, std::uint64_t component_hash,
       double energy_MeV, double quantile) {
+      if (process_id == PhotonMuonPairFinalStateProcessId && pdg_id == 22) {
+        return detail::fromProposalNative(queryProposalNativeLossFraction(
+            view.proposal_native, pdg_id, PhotonMuonPairProcessId, component_hash,
+            energy_MeV, quantile, true));
+      }
       if (process_id == PhotonPairFinalStateProcessId && pdg_id == 22) {
         auto result = detail::fromProposalNative(queryProposalNativeLossFraction(
             view.proposal_native, pdg_id, PhotonPairProcessId, component_hash,

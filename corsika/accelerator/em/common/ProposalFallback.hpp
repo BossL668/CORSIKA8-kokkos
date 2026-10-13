@@ -27,7 +27,8 @@ namespace corsika::gpu::em {
   proposalFallbackRequiresInteractionVertex(ProposalFallbackReason reason) {
     return proposalFallbackRequiresSelectedLoss(reason) ||
            reason == ProposalFallbackReason::CpuOnlyProcess ||
-           reason == ProposalFallbackReason::EpairRejectionEnvelopeExceeded;
+           reason == ProposalFallbackReason::EpairRejectionEnvelopeExceeded ||
+           reason == ProposalFallbackReason::EpairRejectionTrialsExhausted;
   }
 
   inline char const*
@@ -89,6 +90,8 @@ namespace corsika::gpu::em {
       return "atmosphere_vertex_lookup_failed";
     case ProposalFallbackReason::EpairRejectionEnvelopeExceeded:
       return "epair_rejection_envelope_exceeded";
+    case ProposalFallbackReason::EpairRejectionTrialsExhausted:
+      return "epair_rejection_trials_exhausted";
     case ProposalFallbackReason::NativeSelectionReplay:
       return "native_selection_replay";
     }

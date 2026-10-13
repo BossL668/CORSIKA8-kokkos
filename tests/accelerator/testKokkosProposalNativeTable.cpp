@@ -626,6 +626,8 @@ int main(int argc, char** argv) {
     }
     double maximum_photon_direction_difference = 0.;
     double maximum_photon_direction_norm_error = 0.;
+    double maximum_photon_child_relative_energy_error = 0.;
+    double maximum_photon_child_parent_scaled_energy_error = 0.;
     std::size_t photon_component_relative_exceedances = 0;
     for (std::size_t i = 0; i < final_states.secondaries.size(); ++i) {
       auto const& actual = final_states.secondaries[i];
@@ -650,18 +652,42 @@ int main(int argc, char** argv) {
       maximum_photon_direction_norm_error = std::max(
           {maximum_photon_direction_norm_error, actual_norm_error, expected_norm_error});
       photon_component_relative_exceedances += component_relative_exceeded;
+      auto const parent = std::find_if(
+          vertex_interactions.begin(), vertex_interactions.end(),
+          [&](auto const& interaction) {
+            return interaction.particle.history_id == actual.parent_history_id;
+          });
+      if (parent == vertex_interactions.end())
+        throw std::runtime_error("photon secondary has no input parent");
+      auto const energy_error = std::abs(actual.energy_GeV - expected.energy_GeV);
+      auto const parent_scaled_error = energy_error / parent->particle.energy_GeV;
+      maximum_photon_child_relative_energy_error = std::max(
+          maximum_photon_child_relative_energy_error,
+          energy_error / std::max(std::abs(expected.energy_GeV), 1.e-300));
+      maximum_photon_child_parent_scaled_energy_error = std::max(
+          maximum_photon_child_parent_scaled_energy_error, parent_scaled_error);
+      // For pair daughters E2 = (1-x)*E_parent, a few ulps in x are
+      // amplified by 1/(1-x) in the relative error of the small daughter.
+      // Keep the existing relative-energy gate, with a 64-epsilon absolute
+      // bound in the natural parent-energy scale for this subtraction only.
+      // The sampled x, particle identity, directions and counts are checked
+      // independently above/below; no production sampler is changed here.
+      bool const energy_matches = sameOrClose(actual.energy_GeV, expected.energy_GeV) ||
+          (parent->process_id == gpu::em::PhotonPairProcessId &&
+           std::isfinite(parent_scaled_error) && actual.energy_GeV > 0. &&
+           parent_scaled_error <= 64. * std::numeric_limits<double>::epsilon());
       // Direction is a unit vector: component-wise relative error becomes
       // singular as a component crosses zero (e.g. 90-degree Compton
       // deflection). Keep the 2e-12 precision gate on its Euclidean chord,
       // which is the small-angle error in radians, and independently enforce
-      // normalization. Identity/weight and the energy tolerance are unchanged.
+      // normalization. Identity and weight remain exact checks.
       bool const mismatch = actual.pid != expected.pid ||
           actual.history_id != expected.history_id ||
           actual.parent_history_id != expected.parent_history_id ||
           actual.generation != expected.generation ||
           actual.step_id != expected.step_id ||
           actual.weight != expected.weight ||
-          !sameOrClose(actual.energy_GeV, expected.energy_GeV) ||
+          !energy_matches ||
           !std::isfinite(direction_difference) || direction_difference > 2.e-12 ||
           !std::isfinite(actual_norm_error) || actual_norm_error > 2.e-12 ||
           !std::isfinite(expected_norm_error) || expected_norm_error > 2.e-12;
@@ -733,6 +759,10 @@ int main(int argc, char** argv) {
               << " legacy_component_relative_exceedances=" << photon_component_relative_exceedances
               << " max_unit_vector_difference=" << maximum_photon_direction_difference
               << " max_unit_vector_norm_error=" << maximum_photon_direction_norm_error << '\n';
+    std::cout << "photon_child_max_relative_energy_error="
+              << maximum_photon_child_relative_energy_error
+              << " max_parent_scaled_energy_error="
+              << maximum_photon_child_parent_scaled_energy_error << '\n';
 
     auto const electron_total = std::find_if(
         source.total_rate_columns.begin(), source.total_rate_columns.end(),

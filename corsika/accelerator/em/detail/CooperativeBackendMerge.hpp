@@ -22,6 +22,7 @@ inline void mergeCooperative(gpu::em::ResidentEmProcessStatistics& a,gpu::em::Re
   a.gpu_final_states=cooperativeAdd(a.gpu_final_states,b.gpu_final_states);
   a.physical_secondaries_generated=cooperativeAdd(a.physical_secondaries_generated,b.physical_secondaries_generated);
   a.photon_pair_final_states=cooperativeAdd(a.photon_pair_final_states,b.photon_pair_final_states);
+  a.photon_muon_pair_final_states=cooperativeAdd(a.photon_muon_pair_final_states,b.photon_muon_pair_final_states);
   a.brems_final_states=cooperativeAdd(a.brems_final_states,b.brems_final_states);
   a.compton_final_states=cooperativeAdd(a.compton_final_states,b.compton_final_states);
   a.photoelectric_final_states=cooperativeAdd(a.photoelectric_final_states,b.photoelectric_final_states);
@@ -138,6 +139,7 @@ inline gpu::em::GpuEmStatistics mergeCooperativeStatistics(
   a.photon_pair_lpm_trials=cooperativeAdd(a.photon_pair_lpm_trials,b.photon_pair_lpm_trials);
   a.photon_pair_lpm_suppressions=cooperativeAdd(a.photon_pair_lpm_suppressions,b.photon_pair_lpm_suppressions);
   a.photon_pair_final_states=cooperativeAdd(a.photon_pair_final_states,b.photon_pair_final_states);
+  a.photon_muon_pair_final_states=cooperativeAdd(a.photon_muon_pair_final_states,b.photon_muon_pair_final_states);
   a.brems_final_states=cooperativeAdd(a.brems_final_states,b.brems_final_states);
   a.compton_final_states=cooperativeAdd(a.compton_final_states,b.compton_final_states);
   a.photoelectric_final_states=cooperativeAdd(a.photoelectric_final_states,b.photoelectric_final_states);

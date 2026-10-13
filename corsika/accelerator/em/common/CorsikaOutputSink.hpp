@@ -20,6 +20,7 @@
 #include <corsika/framework/geometry/StraightTrajectory.hpp>
 #include <corsika/framework/process/ProcessReturn.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
 #include <corsika/accelerator/radio/common/Types.hpp>
 #include <corsika/modules/writers/FirstInteractionSnapshot.hpp>
 
@@ -156,7 +157,7 @@ namespace corsika::gpu::em {
         statistics_.weighted_deposited_energy_GeV += weighted_deposit;
         ++statistics_.deposited_steps;
       }
-      if (record.cut_deposited_energy_GeV > 0.) {
+      if (record.cut_deposited_energy_GeV > 0. || record.native_muon_pair_cut != 0U) {
         auto const weighted_deposit = record.cut_deposited_energy_GeV * record.weight;
         energy_loss_.write(end, pid, weighted_deposit * 1_GeV);
         statistics_.weighted_deposited_energy_GeV += weighted_deposit;
@@ -185,7 +186,7 @@ namespace corsika::gpu::em {
             weighted_deposit;
         ++statistics_.deposited_steps;
       }
-      if (record.cut_deposited_energy_GeV > 0.) {
+      if (record.cut_deposited_energy_GeV > 0. || record.native_muon_pair_cut != 0U) {
         auto const weighted_deposit = record.cut_deposited_energy_GeV * record.weight;
         // Use the point-writer bin convention, independent of the continuous
         // dX threshold (which may be zero). No original CPU writer is changed.
@@ -225,7 +226,10 @@ namespace corsika::gpu::em {
           result.invalid_records != 0 ||
           !std::isfinite(
               result.weighted_deposited_energy_GeV) ||
-          result.weighted_deposited_energy_GeV < 0. ||
+          !std::isfinite(result.weighted_native_muon_pair_cut_energy_GeV) ||
+          result.weighted_native_muon_pair_cut_energy_GeV > 0. ||
+          result.weighted_deposited_energy_GeV <
+              result.weighted_native_muon_pair_cut_energy_GeV - 1.e-12 ||
           !std::isfinite(
               result.weighted_medium_rest_mass_input_GeV) ||
           result.weighted_medium_rest_mass_input_GeV < 0. ||
@@ -264,9 +268,10 @@ namespace corsika::gpu::em {
             !std::isfinite(muon_plus) || muon_plus < 0. ||
             !std::isfinite(muon_parent_productions) ||
             muon_parent_productions < 0. ||
-            !std::isfinite(deposited) || deposited < 0. ||
+            !std::isfinite(deposited) ||
+            deposited < result.weighted_native_muon_pair_cut_energy_GeV - 1.e-12 ||
             !std::isfinite(muon_deposited) ||
-            muon_deposited < 0. ||
+            muon_deposited < result.weighted_native_muon_pair_cut_energy_GeV - 1.e-12 ||
             muon_deposited > deposited) {
           throw std::runtime_error(
               "CUDA resident profile contains a non-finite or negative bin");
@@ -300,7 +305,7 @@ namespace corsika::gpu::em {
           statistics_.weighted_muon_parent_productions +=
               muon_parent_productions;
         }
-        if (deposited != 0.) {
+        if (deposited != 0. || muon_deposited != 0.) {
           auto const electromagnetic_deposited =
               deposited - muon_deposited;
           if (electromagnetic_deposited != 0.) {
@@ -488,6 +493,12 @@ namespace corsika::gpu::em {
 
   private:
     static void validateStep(EmStepRecord const& record) {
+      auto const native_cut = isNativeMuonPairCutDeposit(
+          record.pid, record.native_muon_pair_cut, record.end_energy_GeV,
+          record.cut_deposited_energy_GeV) &&
+          record.start_time_s == record.end_time_s &&
+          record.start_energy_GeV == record.end_energy_GeV &&
+          record.deposited_energy_GeV == record.cut_deposited_energy_GeV;
       if (!std::isfinite(record.start_time_s) ||
           !std::isfinite(record.end_time_s) ||
           record.end_time_s < record.start_time_s ||
@@ -495,9 +506,10 @@ namespace corsika::gpu::em {
           !std::isfinite(record.end_energy_GeV) ||
           record.start_energy_GeV < 0. || record.end_energy_GeV < 0. ||
           !std::isfinite(record.deposited_energy_GeV) ||
-          record.deposited_energy_GeV < 0. ||
+          (record.deposited_energy_GeV < 0. && !native_cut) ||
           !std::isfinite(record.cut_deposited_energy_GeV) ||
-          record.cut_deposited_energy_GeV < 0. ||
+          (record.cut_deposited_energy_GeV < 0. && !native_cut) ||
+          (record.native_muon_pair_cut != 0U && !native_cut) ||
           record.cut_deposited_energy_GeV > record.deposited_energy_GeV ||
           !std::isfinite(record.weight) ||
           record.weight < 0.) {
@@ -506,7 +518,8 @@ namespace corsika::gpu::em {
       }
       for (int axis = 0; axis < 3; ++axis) {
         if (!std::isfinite(record.start_position_m[axis]) ||
-            !std::isfinite(record.end_position_m[axis])) {
+            !std::isfinite(record.end_position_m[axis]) ||
+            (native_cut && record.start_position_m[axis] != record.end_position_m[axis])) {
           throw std::runtime_error(
               "CUDA EM output contains a non-finite position");
         }
@@ -515,6 +528,12 @@ namespace corsika::gpu::em {
 
     static void validateProjectedStep(
         ProjectedEmStepRecord const& record) {
+      auto const native_cut = isNativeMuonPairCutDeposit(
+          record.pid, record.native_muon_pair_cut, record.end_energy_GeV,
+          record.cut_deposited_energy_GeV) &&
+          record.start_grammage_g_per_cm2 == record.end_grammage_g_per_cm2 &&
+          record.transport_limit == static_cast<std::int32_t>(LeptonTransportLimit::ParticleCut) &&
+          record.deposited_energy_GeV == record.cut_deposited_energy_GeV;
       if (!std::isfinite(record.start_grammage_g_per_cm2) ||
           !std::isfinite(record.end_grammage_g_per_cm2) ||
           record.start_grammage_g_per_cm2 < 0. ||
@@ -522,9 +541,10 @@ namespace corsika::gpu::em {
           !std::isfinite(record.end_energy_GeV) ||
           record.end_energy_GeV < 0. ||
           !std::isfinite(record.deposited_energy_GeV) ||
-          record.deposited_energy_GeV < 0. ||
+          (record.deposited_energy_GeV < 0. && !native_cut) ||
           !std::isfinite(record.cut_deposited_energy_GeV) ||
-          record.cut_deposited_energy_GeV < 0. ||
+          (record.cut_deposited_energy_GeV < 0. && !native_cut) ||
+          (record.native_muon_pair_cut != 0U && !native_cut) ||
           record.cut_deposited_energy_GeV > record.deposited_energy_GeV ||
           !std::isfinite(record.weight) ||
           record.weight < 0.) {

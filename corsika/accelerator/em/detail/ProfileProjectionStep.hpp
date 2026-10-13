@@ -12,6 +12,7 @@
 
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/accelerator/em/common/Types.hpp>
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
 #include <corsika/accelerator/em/common/detail/ProfileProjectionData.hpp>
 
 namespace corsika::accelerator::em::detail {
@@ -82,6 +83,8 @@ namespace corsika::accelerator::em::detail {
         static_cast<std::uint32_t>(record.multiple_scattering_applied) |
         (static_cast<std::uint32_t>(record.multiple_scattering_status) << 1) |
         (record.multiple_scattering_iterations << 8));
+    projected.native_muon_pair_cut =
+        isNativeMuonPairCut(record.start) ? NativeMuonPairCutFlag : 0U;
     projected.start_grammage_g_per_cm2 =
         projectProfileGrammage(projection, record.start.position_m);
     projected.end_grammage_g_per_cm2 =

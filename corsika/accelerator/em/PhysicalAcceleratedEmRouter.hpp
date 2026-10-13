@@ -6,6 +6,7 @@
  */
 
 #pragma once
+
 #include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
 
 #include <algorithm>
@@ -1002,21 +1003,33 @@ namespace corsika::gpu::em {
       return {first, limit, count};
     }
 
+    bool consumeNativeMuonPairCut(EmParticleState const& particle) {
+      if (!isNativeMuonPairCut(particle)) return false;
+      EmInteractionRecord interaction{};
+      interaction.particle = particle;
+      auto const record = nativeMuonPairCutRecord(interaction);
+      recordLeptonStep(record);
+      ++statistics_.particles_cut;
+      ++statistics_.leptons_advanced;
+      statistics_.deposited_energy_GeV += record.cut_deposited_energy_GeV * particle.weight;
+      // A downloaded newborn/spill has not entered the device profile. With
+      // device profiling off, recordLeptonStep already books this rest mass.
+      if (backend_.gpuProfileEnabled())
+        statistics_.cut_rest_mass_energy_GeV += transportMassGeV(particle.pid) * particle.weight;
+      return true;
+    }
+
     void appendParticles(
         std::vector<EmParticleState> const& particles) {
-      staged_.insert(
-          staged_.end(), particles.begin(), particles.end());
+      for (auto const& particle : particles)
+        if (!consumeNativeMuonPairCut(particle)) staged_.push_back(particle);
     }
 
     void appendNonPhotonParticles(
         std::vector<EmParticleState> const& particles) {
-      std::copy_if(
-          particles.begin(), particles.end(),
-          std::back_inserter(staged_),
-          [](EmParticleState const& particle) {
-            return particle.pid !=
-                   static_cast<std::int32_t>(EmPid::Photon);
-          });
+      for (auto const& particle : particles)
+        if (particle.pid != static_cast<std::int32_t>(EmPid::Photon) &&
+            !consumeNativeMuonPairCut(particle)) staged_.push_back(particle);
     }
 
     std::size_t returnFallbacks(
@@ -1046,7 +1059,9 @@ namespace corsika::gpu::em {
               if (!cpu_fallback_steps_.insert(key).second)
                 throw std::runtime_error("duplicate CPU fallback for one transport step");
               auto start=std::chrono::steady_clock::now();
+              {
               fallback_handler_->handle(stack,event);
+              }
               statistics_.specified_cpu_fallback_time_ms+=
                   elapsedMilliseconds(start,std::chrono::steady_clock::now());
               ++statistics_.specified_cpu_final_states;
@@ -1185,7 +1200,9 @@ namespace corsika::gpu::em {
             throw std::logic_error(
                 "deferred PROPOSAL fallback lost its specified CPU capability");
           }
+          {
           fallback_handler_->handle(stack, event);
+          }
           if (retain_records_) {
             fallback_events_.push_back(event);
           }
@@ -1222,7 +1239,11 @@ namespace corsika::gpu::em {
     std::size_t returnMemorySpills(
         TStack& stack,
         std::vector<EmParticleState> const& particles) {
+      std::size_t returned = 0;
       for (auto const& particle : particles) {
+        // Native C8 cuts these newborn states before any transport. Do not
+        // import them into the CPU stack's ordinary transport entry point.
+        if (consumeNativeMuonPairCut(particle)) continue;
         auto const key = std::make_pair(
             particle.history_id,
             particle.step_id);
@@ -1232,10 +1253,11 @@ namespace corsika::gpu::em {
         }
         router_detail::importParticle(
             stack, particle, coordinate_system_);
+        ++returned;
       }
       statistics_.particles_returned_for_cpu_memory_spill +=
-          particles.size();
-      return particles.size();
+          returned;
+      return returned;
     }
 
     std::size_t returnForcedDecays(
@@ -1462,6 +1484,8 @@ namespace corsika::gpu::em {
       auto step = makeStepRecord(
           record.start, record.end, process_id, deposited);
       step.cut_deposited_energy_GeV = record.cut_deposited_energy_GeV;
+      step.native_muon_pair_cut =
+          isNativeMuonPairCut(record.start) ? NativeMuonPairCutFlag : 0U;
       if (retain_records_) {
         step_records_.push_back(step);
       }

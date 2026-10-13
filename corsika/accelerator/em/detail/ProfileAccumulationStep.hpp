@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
 #include <corsika/accelerator/em/LeptonFinalStateRandomDomains.hpp>
 
 #include <cmath>
@@ -199,8 +200,11 @@ namespace corsika::accelerator::em::detail {
   template <class AtomicOperations>
   C8_ACCELERATOR_INLINE_FUNCTION inline void accumulatePointEnergyProfile(
       gpu::em::detail::DeviceProfileAccumulator const& accumulator,
-      long long* energy_loss, double grammage, double weighted_deposit_GeV) {
-    if (!(weighted_deposit_GeV > 0.) || accumulator.bins == 0) return;
+      long long* energy_loss, double grammage, double weighted_deposit_GeV,
+      bool native_signed_cut = false) {
+    if ((!(weighted_deposit_GeV > 0.) &&
+         !(native_signed_cut && weighted_deposit_GeV < 0.)) ||
+        accumulator.bins == 0) return;
     // Mirror EnergyLossWriter::write(Point, ...), including a zero dX threshold.
     // Reusing the segment overload with equal endpoints divides by zero when
     // the configured continuous-track threshold is zero.
@@ -362,6 +366,16 @@ namespace corsika::accelerator::em::detail {
       gpu::em::detail::DeviceProfileAccumulator const& accumulator,
       gpu::em::LeptonTransportRecord const& record) {
     using namespace gpu::em;
+    auto const native_cut = isNativeMuonPairCut(record.start);
+    if (native_cut &&
+        (record.limit != LeptonTransportLimit::ParticleCut ||
+         record.continuous_deposited_energy_GeV != 0. ||
+         !isNativeMuonPairCutDeposit(record.start.pid, record.start.reserved,
+                                    record.end.energy_GeV,
+                                    record.cut_deposited_energy_GeV))) {
+      AtomicOperations::add(&accumulator.counters->invalid_records, 1ULL);
+      return;
+    }
     auto const start = projectProfileGrammage(projection, record.start.position_m);
     auto const end = projectProfileGrammage(projection, record.end.position_m);
     accumulateParticleProfile<AtomicOperations>(
@@ -374,7 +388,12 @@ namespace corsika::accelerator::em::detail {
         record.continuous_deposited_energy_GeV * record.start.weight);
     accumulatePointEnergyProfile<AtomicOperations>(
         accumulator, energy_loss, end,
-        record.cut_deposited_energy_GeV * record.start.weight);
+        record.cut_deposited_energy_GeV * record.start.weight, native_cut);
+    if (native_cut)
+      addProfileFixedPoint<AtomicOperations>(
+          &accumulator.counters->weighted_native_muon_pair_cut_energy,
+          record.cut_deposited_energy_GeV * record.start.weight,
+          accumulator.energy_scale, accumulator.counters);
     AtomicOperations::add(&accumulator.counters->steps, 1ULL);
     auto const limit = static_cast<std::int32_t>(record.limit);
     if (limit < 0 || limit >= 8)

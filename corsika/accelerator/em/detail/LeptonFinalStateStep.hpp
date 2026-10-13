@@ -7,6 +7,7 @@
 
 #pragma once
 
+
 #include <cmath>
 #include <cstdint>
 
@@ -413,7 +414,7 @@ namespace corsika::accelerator::em::detail {
     return {BremsLpmStatus::Success, 0, probability};
   }
 
-  template <bool UsePreparedLpm>
+  template <bool UsePreparedLpm, int EpairMaximumTrials = gpu::em::EpairRejectionMaximumTrials>
   C8_ACCELERATOR_INLINE_FUNCTION inline LeptonFinalStateClassification
   classifyLeptonFinalStateImpl(
       gpu::em::BremsLpmSnapshot const& lpm_snapshot,
@@ -462,8 +463,7 @@ namespace corsika::accelerator::em::detail {
         gpuProcessCapability(interaction.particle.pid, interaction.process_id);
     if (capability != GpuProcessCapability::Bremsstrahlung &&
         capability != GpuProcessCapability::Annihilation &&
-        capability != GpuProcessCapability::Ionization &&
-        capability != GpuProcessCapability::ElectronPair) {
+        capability != GpuProcessCapability::Ionization) {
       result.fallback = makeProcessFallbackEvent(
           interaction, processFallbackReason(capability));
       result.fallback_flag = 1;
@@ -471,10 +471,8 @@ namespace corsika::accelerator::em::detail {
     }
     auto const& parent = interaction.particle;
     auto const v = interaction.energy_fraction;
-    // Preserve the native CUDA/PROPOSAL adapter convention exactly.  The
-    // snapshot passed to this final-state stage is the active lepton
-    // snapshot; its lepton mass is also the legacy electron-mass fallback.
-    auto const electron_mass_GeV = lpm_snapshot.lepton_mass_MeV / 1000.;
+    // The parent may be a muon; the produced pair is always e- / e+.
+    auto const electron_mass_GeV = lpm_snapshot.electron_mass_MeV / 1000.;
     auto const lepton_mass_GeV = interaction.particle_mass_GeV > 0.
                                      ? interaction.particle_mass_GeV
                                      : lpm_snapshot.lepton_mass_MeV / 1000.;
@@ -555,87 +553,6 @@ namespace corsika::accelerator::em::detail {
       result.ionization_flag = 1;
       return result;
     }
-    if (capability == GpuProcessCapability::ElectronPair) {
-      auto const effective_v = effectiveLossFraction(parent.energy_GeV, v);
-      auto const loss = parent.energy_GeV * effective_v;
-      auto const surviving = parent.energy_GeV - loss;
-      if (!leptonFinite(effective_v) || !(effective_v > 0.) ||
-          !(effective_v < 1.) || !leptonFinite(loss) ||
-          !(loss >= 4. * lepton_mass_GeV) || !leptonFinite(surviving) ||
-          surviving < lepton_mass_GeV) {
-        result.fallback = invalidLeptonFinalState(interaction, sample);
-        result.fallback_flag = 1;
-        return result;
-      }
-      RandomNumberKey const rho_key{
-          random_seed, shower_id, parent.history_id, parent.step_id,
-          static_cast<std::uint32_t>(ElectronPairProcessId), EpairRhoDrawId};
-      auto sign_key = rho_key;
-      sign_key.draw_id = EpairSignDrawId;
-      auto direction_key = rho_key;
-      direction_key.draw_id = EpairDirectionDrawId;
-      sample.final_state_uniform = uniformOpen01(rho_key);
-      sample.azimuth_uniform = uniformOpen01(sign_key);
-      sample.auxiliary_uniform = uniformOpen01(direction_key);
-      auto const rejection = sampleEpairRhoRejection(
-          lpm_snapshot, interaction.component_hash,
-          parent.energy_GeV * 1000., effective_v, sample.azimuth_uniform,
-          rho_key);
-      auto const split = rejection.sample;
-      result.electron_pair_rejection_trials = rejection.trial_count;
-      if (rejection.trial_count == 0 &&
-          split.status == EpairFinalStateStatus::Success && split.rho == 0.)
-        result.electron_pair_zero_weight_flag = 1;
-      if (split.status != EpairFinalStateStatus::Success) {
-        result.electron_pair_rejection_fallback_flag = 1;
-        if (split.status == EpairFinalStateStatus::RejectionEnvelopeExceeded)
-          result.electron_pair_envelope_violation_flag = 1;
-        auto reason = ProposalFallbackReason::InvalidFinalState;
-        if (split.status == EpairFinalStateStatus::ComponentNotFound ||
-            split.status == EpairFinalStateStatus::InvalidSnapshot)
-          reason = ProposalFallbackReason::LpmParametersUnavailable;
-        else if (split.status ==
-                 EpairFinalStateStatus::RejectionEnvelopeExceeded)
-          reason = ProposalFallbackReason::EpairRejectionEnvelopeExceeded;
-        result.fallback = makeProcessFallbackEvent(interaction, reason);
-        result.fallback.diagnostic_status =
-            static_cast<std::int32_t>(split.status);
-        result.fallback.diagnostic_value0 = split.rho_max;
-        result.fallback.diagnostic_value1 =
-            static_cast<double>(rejection.trial_count);
-        result.fallback.final_state_uniform = sample.final_state_uniform;
-        result.fallback.final_state_draw_id = EpairRhoDrawId;
-        result.fallback_flag = 1;
-        return result;
-      }
-      sample.energy_split_fraction = split.rho;
-      auto const lpm = epairLpmSuppressionFactor(
-          lpm_snapshot, parent.energy_GeV * 1000., effective_v,
-          split.rho * split.rho, interaction.mass_density_g_per_cm3);
-      if (lpm.status != EpairLpmStatus::Success) {
-        auto const reason = lpm.status == EpairLpmStatus::InvalidInput
-                                ? ProposalFallbackReason::InvalidMassDensity
-                                : ProposalFallbackReason::LpmParametersUnavailable;
-        result.fallback = makeProcessFallbackEvent(interaction, reason);
-        result.fallback.final_state_uniform = sample.final_state_uniform;
-        result.fallback.final_state_draw_id = EpairRhoDrawId;
-        result.fallback_flag = 1;
-        return result;
-      }
-      sample.lpm_survival_probability = lpm.survival_probability;
-      auto lpm_key = rho_key;
-      lpm_key.draw_id = EpairLpmDrawId;
-      sample.lpm_uniform = uniformOpen01(lpm_key);
-      if (sample.lpm_uniform > sample.lpm_survival_probability) {
-        result.suppression_flag = 1;
-        result.electron_pair_suppression_flag = 1;
-        return result;
-      }
-      result.child_count = 3;
-      result.record_flag = 1;
-      result.electron_pair_flag = 1;
-      return result;
-    }
     auto const photon_energy = parent.energy_GeV * v;
     auto const lepton_energy = parent.energy_GeV - photon_energy;
     if (!leptonFinite(v) || !(v > 0.) || !(v < 1.) ||
@@ -695,12 +612,56 @@ namespace corsika::accelerator::em::detail {
     return result;
   }
 
+  template <int EpairMaximumTrials = gpu::em::EpairRejectionMaximumTrials>
+  C8_ACCELERATOR_INLINE_FUNCTION inline LeptonFinalStateClassification
+  classifyMuonRadiativeFinalState(
+      gpu::em::BremsLpmSnapshot const& source,
+      gpu::em::EmThinningConfig const& thinning,
+      gpu::em::EmInteractionRecord const& interaction,
+      std::uint64_t random_seed, std::uint64_t shower_id) {
+    if (interaction.process_id == gpu::em::ElectronPairProcessId) {
+      // CPU-only channel: do not require any device muon LPM data.
+      return classifyLeptonFinalStateImpl<false>(
+          source, {}, thinning, interaction, random_seed, shower_id);
+    }
+    // Missing auxiliary data must never silently use the electron model.
+    if (!leptonFinite(source.muon_e_lpm_MeV) || !(source.muon_e_lpm_MeV > 0.) ||
+        !leptonFinite(source.muon_mass_MeV) || !(source.muon_mass_MeV > 0.) ||
+        !leptonFinite(interaction.particle_mass_GeV) ||
+        leptonFabs(interaction.particle_mass_GeV * 1000. - source.muon_mass_MeV) >
+            1.e-10 * source.muon_mass_MeV) {
+      LeptonFinalStateClassification result{};
+      result.fallback = gpu::em::makeProcessFallbackEvent(
+          interaction, gpu::em::ProposalFallbackReason::LpmParametersUnavailable);
+      result.fallback_flag = 1;
+      return result;
+    }
+    auto snapshot = source;
+    snapshot.lepton_mass_MeV = source.muon_mass_MeV;
+    snapshot.baseline_mass_density_g_per_cm3 = source.muon_baseline_mass_density_g_per_cm3;
+    snapshot.molecular_density_per_cm3 = source.muon_molecular_density_per_cm3;
+    snapshot.sum_charge = source.muon_sum_charge;
+    snapshot.e_lpm_MeV = source.muon_e_lpm_MeV;
+    return classifyLeptonFinalStateImpl<false, EpairMaximumTrials>(
+        snapshot, {}, thinning, interaction, random_seed, shower_id);
+  }
+
+  C8_ACCELERATOR_INLINE_FUNCTION inline bool needsMuonRadiativeFinalState(
+      gpu::em::EmInteractionRecord const& interaction) {
+    return gpu::em::isMuonPid(interaction.particle.pid) &&
+           interaction.process_id == gpu::em::BremsProcessId &&
+           interaction.status == gpu::em::EmInteractionStatus::Selected;
+  }
+
   C8_ACCELERATOR_INLINE_FUNCTION inline LeptonFinalStateClassification
   classifyLeptonFinalState(
       gpu::em::BremsLpmSnapshot const& lpm_snapshot,
       gpu::em::EmThinningConfig const& thinning,
       gpu::em::EmInteractionRecord const& interaction,
       std::uint64_t random_seed, std::uint64_t shower_id) {
+    if (needsMuonRadiativeFinalState(interaction))
+      return classifyMuonRadiativeFinalState(lpm_snapshot, thinning, interaction,
+                                            random_seed, shower_id);
     return classifyLeptonFinalStateImpl<false>(
         lpm_snapshot, {}, thinning, interaction, random_seed, shower_id);
   }
@@ -712,6 +673,9 @@ namespace corsika::accelerator::em::detail {
       gpu::em::EmThinningConfig const& thinning,
       gpu::em::EmInteractionRecord const& interaction,
       std::uint64_t random_seed, std::uint64_t shower_id) {
+    if (needsMuonRadiativeFinalState(interaction))
+      return classifyMuonRadiativeFinalState(lpm_snapshot, thinning, interaction,
+                                            random_seed, shower_id);
     return classifyLeptonFinalStateImpl<true>(
         lpm_snapshot, prepared_lpm, thinning, interaction, random_seed,
         shower_id);
@@ -1022,9 +986,9 @@ namespace corsika::accelerator::em::detail {
       if (!leptonFinite(surviving_energy) ||
           surviving_energy < lepton_mass_GeV ||
           !leptonFinite(electron_energy) ||
-          electron_energy < lepton_mass_GeV ||
+          electron_energy < electron_mass_GeV ||
           !leptonFinite(positron_energy) ||
-          positron_energy < lepton_mass_GeV) {
+          positron_energy < electron_mass_GeV) {
         output.fail(1);
         return;
       }

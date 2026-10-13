@@ -64,7 +64,7 @@ KOKKOS_FUNCTION Result exercise(std::size_t index) {
   auto selected=physics::selectDiscreteInteraction(table,p,index,2026110001,0);
   check(!selected.fallback_flag);
   check(!selected.interaction.interaction_vertex_reached);
-  if(scenario!=4&&scenario!=6&&process!=2) {
+  if(scenario!=4&&scenario!=6&&(process==0||process==3)) {
     check(selected.interaction.deferred_photon_fallback_reason>=0);
     ++out.pending;
     // Even a syntactically complete selection must NOT be allowed to create
@@ -72,6 +72,10 @@ KOKKOS_FUNCTION Result exercise(std::size_t index) {
     auto premature=physics::classifyPhotonFinalState(table,{}, {},selected.interaction,2026110001,0);
     check(premature.fallback_flag && premature.fallback.reason==em::ProposalFallbackReason::InvalidFinalState);
     check(!premature.fallback.interaction_vertex_reached);
+  }
+  if(scenario!=4&&scenario!=6&&process==1) {
+    check(selected.interaction.deferred_photon_fallback_reason<0);
+    check(selected.interaction.energy_fraction==1.);
   }
   auto transported=physics::transportPhoton(env,selected.interaction,boundary);
   check(!transported.fallback_flag);

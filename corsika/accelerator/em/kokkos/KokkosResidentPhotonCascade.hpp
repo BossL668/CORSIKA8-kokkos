@@ -265,6 +265,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     PhotonInteractionGpuFinalStates,
     PhotonInteractionPhysicalSecondaries,
     PhotonInteractionPairFinalStates,
+    PhotonInteractionMuonPairFinalStates,
     PhotonInteractionComptonFinalStates,
     PhotonInteractionPhotoelectricFinalStates,
     PhotonInteractionLpmTrials,
@@ -325,6 +326,7 @@ namespace corsika::accelerator::em::kokkos_detail {
             final.child_count;
         value.values[PhotonInteractionPairFinalStates] +=
             final.photon_pair_flag;
+        value.values[PhotonInteractionMuonPairFinalStates] += final.photon_muon_pair_flag;
         value.values[PhotonInteractionComptonFinalStates] +=
             final.compton_flag;
         value.values[PhotonInteractionPhotoelectricFinalStates] +=
@@ -1647,6 +1649,8 @@ namespace corsika::accelerator::em::kokkos_detail {
     process_statistics.photon_pair_final_states += host_call_statistics(
         PhotonCallInteractionStatisticOffset +
         PhotonInteractionPairFinalStates);
+    process_statistics.photon_muon_pair_final_states += host_call_statistics(
+        PhotonCallInteractionStatisticOffset + PhotonInteractionMuonPairFinalStates);
     process_statistics.compton_final_states += host_call_statistics(
         PhotonCallInteractionStatisticOffset +
         PhotonInteractionComptonFinalStates);

@@ -818,6 +818,7 @@ namespace corsika::accelerator::em::detail {
         result.batch.secondaries.size();
     impl_->statistics_.photon_pair_final_states +=
         result.batch.photon_pair_interactions;
+    impl_->statistics_.photon_muon_pair_final_states += result.batch.photon_muon_pair_interactions;
     impl_->statistics_.compton_final_states +=
         result.batch.compton_interactions;
     impl_->statistics_.photoelectric_final_states +=
@@ -1177,6 +1178,7 @@ namespace corsika::accelerator::em::detail {
         process.physical_secondaries_generated;
     impl_->statistics_.photon_pair_final_states +=
         process.photon_pair_final_states;
+    impl_->statistics_.photon_muon_pair_final_states += process.photon_muon_pair_final_states;
     impl_->statistics_.compton_final_states += process.compton_final_states;
     impl_->statistics_.photoelectric_final_states +=
         process.photoelectric_final_states;

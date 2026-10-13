@@ -27,7 +27,8 @@ namespace corsika::gpu::em::tables {
   // cross-list/component dE/dX accumulation order.  Descriptors remain in
   // canonical identity order; a compact index permutation restores the
   // scalar floating-point summation order on the device.
-  inline constexpr std::uint32_t ProposalNativeTableFormatVersion = 6;
+  // v7 adds PROPOSAL's muon mass for the BKK secondary-split limits.
+  inline constexpr std::uint32_t ProposalNativeTableFormatVersion = 7;
   inline constexpr char ProposalNativePhysicsSource[] = "proposal-native";
   inline constexpr std::uint64_t NoNativePolynomialCoefficients =
       std::numeric_limits<std::uint64_t>::max();
@@ -192,6 +193,7 @@ namespace corsika::gpu::em::tables {
     double classical_electron_radius_cm{};
     double pi{};
     double sqrt_e{};
+    double muon_mass_MeV{};
   };
 
   struct NativeInteractionIdentity {
@@ -1380,31 +1382,46 @@ namespace corsika::gpu::em::tables {
         view, pdg_id, process_id, component_hash);
     if (!column)
       return {NativeQueryStatus::ColumnNotFound, 0, 0, 0.};
-    // The public photon loss is v=1. Only the explicit secondary-split query
-    // inverts the same native cumulative table for x = E_e / E_gamma.
+    // Both pair channels consume the photon (v=1). Explicit secondary-split
+    // queries invert x instead: E_e-/E_gamma for Koch--Motz, E_mu+/E_gamma
+    // for BKK. No extra rate column is inserted into interaction selection.
+    bool const muon_split = photon_split && process_id == 1000000015 &&
+        column->kinematic_model == NativeKinematicModel::OnlyStochastic;
     if (photon_split &&
         (pdg_id != 22 ||
-         column->kinematic_model != NativeKinematicModel::PhotonPairFullLoss ||
+         (!muon_split && column->kinematic_model != NativeKinematicModel::PhotonPairFullLoss) ||
          column->loss_transform != NativeLossTransform::RelativeLog))
       return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};
     // These public transport variables are degenerate at v=1.  Return before
     // considering the backing rate representation: a process may expose a
     // bicubic cumulative-rate table even though it has no loss variable to
     // invert (PhotoPairKochMotz and BKK photon-muon-pair in PROPOSAL 7.6.2).
-    if (column->kinematic_model == NativeKinematicModel::OnlyStochastic ||
+    if ((column->kinematic_model == NativeKinematicModel::OnlyStochastic && !muon_split) ||
         (column->kinematic_model == NativeKinematicModel::PhotonPairFullLoss &&
          !photon_split))
       return {NativeQueryStatus::Success, 0, 0, 1.};
     if (column->rate_model != NativeRateModel::BicubicSpline) {
       return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};
     }
-    auto const xmin = view.constants.electron_mass_MeV / energy_MeV;
+    auto xmin = view.constants.electron_mass_MeV / energy_MeV;
+    double xmax = 1. - xmin;
+    if (muon_split) {
+      auto const threshold = 2. * view.constants.muon_mass_MeV * view.constants.sqrt_e;
+      if (!(view.constants.muon_mass_MeV > 0.) || !(energy_MeV > threshold))
+        return {NativeQueryStatus::EnergyOutOfRange, 0, 0, 0.};
+      // Match PhotoMuPairProduction::GetKinematicLimits, including operation
+      // order: don't substitute electron limits or infer these from v=1.
+      auto const width = native_detail::squareRoot(
+          1. - 2. * view.constants.sqrt_e * view.constants.muon_mass_MeV / energy_MeV);
+      xmin = .5 * (1. - width);
+      xmax = .5 * (1. + width);
+    }
     if (photon_split &&
         (xmin >= .5 || energy_MeV < column->spline.energy_axis.low ||
          energy_MeV > column->spline.energy_axis.high))
       return {NativeQueryStatus::EnergyOutOfRange, 0, 0, 0.};
     auto const limits = photon_split
-        ? native_detail::NativeKinematicLimits{xmin, 1. - xmin, true}
+        ? native_detail::NativeKinematicLimits{xmin, xmax, true}
         : native_detail::kinematicLimits(view, *column, energy_MeV);
     if (!limits.valid)
       return {NativeQueryStatus::UnsupportedKinematics, 0, 0, 0.};

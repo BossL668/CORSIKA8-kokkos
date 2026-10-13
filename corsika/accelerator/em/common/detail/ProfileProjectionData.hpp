@@ -50,6 +50,7 @@ namespace corsika::gpu::em::detail {
     long long weighted_unwritten_photoelectric_binding_energy{};
     long long weighted_observation_cut_overlap_energy{};
     long long weighted_mass_convention_correction{};
+    long long weighted_native_muon_pair_cut_energy{};
   };
 
   struct DeviceProfileAccumulator {

@@ -368,6 +368,9 @@ namespace corsika::accelerator::em::kokkos_detail {
       result.weighted_mass_convention_correction_GeV =
           static_cast<double>(counters.weighted_mass_convention_correction) *
           view_.inverse_energy_scale;
+      result.weighted_native_muon_pair_cut_energy_GeV =
+          static_cast<double>(counters.weighted_native_muon_pair_cut_energy) *
+          view_.inverse_energy_scale;
       downloaded_ = true;
       return result;
     }

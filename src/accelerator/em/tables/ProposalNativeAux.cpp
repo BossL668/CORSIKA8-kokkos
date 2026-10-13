@@ -283,6 +283,8 @@ namespace corsika::gpu::em::tables {
       Sha256Digest static_medium_physics{};
       PROPOSAL::crosssection::PhotoPairLPM const* photon_lpm = nullptr;
       PROPOSAL::crosssection::BremsLPM const* brems_lpm = nullptr;
+      PROPOSAL::crosssection::BremsLPM const* muon_brems_lpm = nullptr;
+      std::size_t muon_lpm_medium_hash = std::numeric_limits<std::size_t>::max();
       std::size_t photon_lpm_medium_hash =
           std::numeric_limits<std::size_t>::max();
       std::size_t brems_lpm_medium_hash =
@@ -321,8 +323,13 @@ namespace corsika::gpu::em::tables {
           brems_lpm = view.brems_lpm;
           brems_lpm_medium_hash = view.medium_hash;
         }
-        if (view.projectile == Code::MuMinus || view.projectile == Code::MuPlus)
+        if (view.projectile == Code::MuMinus || view.projectile == Code::MuPlus) {
           has_muon = true;
+          if (view.brems_lpm && view.medium_hash < muon_lpm_medium_hash) {
+            muon_brems_lpm = view.brems_lpm;
+            muon_lpm_medium_hash = view.medium_hash;
+          }
+        }
       }
       if (!photon_lpm || !brems_lpm)
         throw std::invalid_argument(
@@ -351,6 +358,17 @@ namespace corsika::gpu::em::tables {
       payload.brems_lpm.muon_mass_MeV = PROPOSAL::MMU;
       payload.brems_lpm.classical_electron_radius_cm = PROPOSAL::RE;
       payload.brems_lpm.fine_structure_constant = PROPOSAL::ALPHA;
+      if (has_muon) {
+        if (!muon_brems_lpm)
+          throw std::invalid_argument("muon device final states require native muon LPM parameters");
+        auto const muon = muon_brems_lpm->ExportParameters();
+        if (muon.particle_mass_MeV != PROPOSAL::MMU)
+          throw std::invalid_argument("unexpected muon LPM mass");
+        payload.brems_lpm.muon_baseline_mass_density_g_per_cm3 = muon.mass_density_g_per_cm3;
+        payload.brems_lpm.muon_molecular_density_per_cm3 = muon.molecular_density_per_cm3;
+        payload.brems_lpm.muon_sum_charge = muon.sum_charge;
+        payload.brems_lpm.muon_e_lpm_MeV = muon.e_lpm_MeV;
+      }
 
       auto const components = medium->GetComponents();
       if (components.empty() ||
@@ -385,6 +403,12 @@ namespace corsika::gpu::em::tables {
     void validatePayload(AuxPayload const& payload) {
       auto const& photon = payload.photon_pair_lpm;
       auto const& brems = payload.brems_lpm;
+      if (payload.has_muon_moliere &&
+          (!finitePositive(brems.muon_baseline_mass_density_g_per_cm3) ||
+           !finitePositive(brems.muon_molecular_density_per_cm3) ||
+           !finitePositive(brems.muon_sum_charge) ||
+           !finitePositive(brems.muon_e_lpm_MeV)))
+        throw std::runtime_error("c8emaux muon LPM payload is invalid");
       if (!finitePositive(photon.baseline_mass_density_g_per_cm3) ||
           !finitePositive(photon.molecular_density_per_cm3) ||
           !finitePositive(photon.sum_charge) ||

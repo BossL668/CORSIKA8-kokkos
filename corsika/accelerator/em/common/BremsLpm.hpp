@@ -49,6 +49,12 @@ namespace corsika::gpu::em {
     std::uint32_t component_count{};
     std::uint32_t reserved{};
     BremsLpmComponentSnapshot components[MaxBremsLpmComponents]{};
+    // Exported from the live muon calculator, not
+    // inferred by scaling the electron characteristic energy.
+    double muon_baseline_mass_density_g_per_cm3{};
+    double muon_molecular_density_per_cm3{};
+    double muon_sum_charge{};
+    double muon_e_lpm_MeV{};
   };
 
   /**
