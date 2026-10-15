@@ -26,6 +26,7 @@
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/modules/Random.hpp>
 #include <corsika/modules/fluka/ParticleConversion.hpp>
+#include <corsika/modules/fluka/DiagnosticTimer.hpp>
 
 #include <FLUKA.hpp>
 
@@ -219,6 +220,9 @@ namespace corsika::fluka {
     ::fluka::stpxyz_(&nElements, nelmfl.get(), izelfl.data(), wfelml.get(), &mxelfl,
                      &pptmax, &ef2dp3, &df2dp3, &iflxyz_, &lprint, mtflka.get(), crvrck,
                      &size);
+    // Historical libfluka can lack __wrap_fpenab_. Do not assume the library
+    // provides the signal-safety guard: confirm the policy at the interface.
+    disableDiagnosticTimerAfterInitialization();
 
     // now create & fill vector of (C8 Code, FLUKA mat. no.) pairs
     std::vector<std::pair<Code, int>> mapping;

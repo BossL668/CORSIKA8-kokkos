@@ -1281,11 +1281,20 @@ int main(int argc, char** argv) {
         std::make_tuple(beamCode, eKin, propDir.normalized(), injectionPos, 0_ns);
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
     std::unique_ptr<applications::multigpu::FrontierInput> frontier_source;
+    std::unique_ptr<gpu::em::environment_tree::SnapshotStorage> frontier_environment;
+    gpu::em::environment_tree::FullView frontier_tree{};
+    if ((!frontier_in.empty() || !frontier_out.empty()) &&
+        gpu_cli.em_backend != "kokkos-egs4") {
+      auto exported = gpu::em::environment_tree::exportFullEnvironmentTree(*env.getUniverse(), rootCS);
+      frontier_environment = std::make_unique<gpu::em::environment_tree::SnapshotStorage>(exported);
+      frontier_tree = frontier_environment->view();
+    }
     if (!frontier_in.empty()) {
       if (frontier_legacy_import) {
-        applications::multigpu::importFrontier(stack, rootCS, frontier_in, frontier_worker_id);
+        applications::multigpu::importFrontier(stack, rootCS, frontier_in, frontier_worker_id, frontier_tree);
       } else {
         frontier_source = std::make_unique<applications::multigpu::FrontierInput>(frontier_in);
+        frontier_source->setEnvironmentTree(frontier_tree);
         frontier_source->reserveNamespace(stack, frontier_worker_id);
       }
     } else
@@ -1314,7 +1323,7 @@ int main(int argc, char** argv) {
             output.getEventId());
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
     if (!frontier_out.empty() && gpu_cli.em_backend != "kokkos-egs4") {
-      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy);
+      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy, frontier_tree);
       HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
                     applications::multigpu::CaptureRouter> cascade(
           env, tracking, sequence, output, stack, router);

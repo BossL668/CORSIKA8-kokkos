@@ -29,6 +29,9 @@
 namespace corsika {
 
   namespace hybrid_detail {
+    template<typename T,typename=void> struct HasPreserveLogicalNodes:std::false_type {};
+    template<typename T> struct HasPreserveLogicalNodes<T,
+        std::void_t<decltype(std::declval<T const&>().preserveLogicalNodes())>>:std::true_type {};
     template <typename T, typename = void>
     struct HasEndOfShower : std::false_type {};
 

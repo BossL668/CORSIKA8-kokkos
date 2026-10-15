@@ -11,12 +11,15 @@
 
 #include <corsika/accelerator/em/AcceleratedPhysicsRequirements.hpp>
 #include <corsika/accelerator/em/common/EnvironmentSnapshotBuilder.hpp>
+#include <corsika/accelerator/em/common/FullEnvironmentTreeBuilder.hpp>
+#include <corsika/accelerator/em/common/EnvironmentSnapshotStorage.hpp>
 #include <corsika/accelerator/em/common/ProcessSequenceCompatibility.hpp>
 #include <corsika/accelerator/radio/common/RadioSnapshotBuilder.hpp>
 #include <corsika/modules/proposal/ProposalProcessBase.hpp>
 #include <corsika/validation/CudaReplayTrace.hpp>
 
 #include <array>
+#include <memory>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -53,6 +56,7 @@ namespace corsika::applications::air_shower {
     accelerator::em::AcceleratedPhysicsRequirements physics_requirements;
     HEPEnergyType proposal_stochastic_cut{};
     bool gpu_radio_enabled{};
+    std::shared_ptr<gpu::em::environment_tree::SnapshotStorage const> environment_storage;
   };
 
   template <
@@ -130,9 +134,21 @@ namespace corsika::applications::air_shower {
             1_MeV,
         event.em_cut / 1_MeV, event.muon_cut / 1_MeV,
         prepared.proposal_stochastic_cut / 1_MeV};
-    prepared.environment_snapshot = makeCorsika7AtmosphereSnapshot(
-        event.atmosphere_id, {0., 0., 0.}, 17, observation_height_m,
-        magnetic_field_T, event.maximum_magnetic_deflection_rad);
+    {
+      auto exported=environment_tree::exportFullEnvironmentTree(*environment.getUniverse(),root_cs);
+      // This air-shower session has one PROPOSAL medium per PID. Export all
+      // nodes, but never apply its air cross sections silently to another medium.
+      for(auto const& model:exported.models)
+        if(model.medium_id!=static_cast<int>(Medium::AirDry1Atm))
+          throw std::invalid_argument("full air-shower snapshot contains a medium not covered by this PROPOSAL session");
+      prepared.environment_storage=std::make_shared<environment_tree::SnapshotStorage>(exported);
+      prepared.environment_snapshot.geometry=EnvironmentGeometry::NodeTree;
+      prepared.environment_snapshot.node_tree=prepared.environment_storage->view();
+      prepared.environment_snapshot.maximum_magnetic_deflection_rad=event.maximum_magnetic_deflection_rad;
+      prepared.environment_snapshot.observation_radius_m=observation_height_m;
+      CORSIKA_LOG_INFO("C8 environment snapshot: {} nodes, {} models, {} child links, {} exclusions",
+          exported.topology.nodes.size(),exported.models.size(),exported.topology.children.size(),exported.topology.exclusions.size());
+    }
     setObservationPlane(
         prepared.environment_snapshot,
         {shower_core_x_m, shower_core_y_m, observation_height_m},

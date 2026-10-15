@@ -65,7 +65,7 @@ namespace corsika::accelerator::em::detail {
       gpu::em::ExternalTransportBoundary const external = {}) {
     using namespace gpu::em;
     PhotonTransportOutcome output{};
-    auto const start = interaction.particle;
+    auto start = interaction.particle;
     if (start.pid != static_cast<std::int32_t>(EmPid::Photon)) {
       output.fallback = makePhotonTransportFallback(
           interaction, ProposalFallbackReason::UnsupportedParticle);
@@ -83,7 +83,7 @@ namespace corsika::accelerator::em::detail {
 
     auto const layer = queryAtmosphereLayer(
         environment, start.position_m, start.direction,
-        AtmosphereBoundaryPolicy::StraightPathGuard);
+        AtmosphereBoundaryPolicy::StraightPathGuard,start.environment_node);
     if (layer.status != AtmosphereStatus::Success) {
       output.fallback = makePhotonTransportFallback(
           interaction, ProposalFallbackReason::UnsupportedGeometry);
@@ -91,6 +91,7 @@ namespace corsika::accelerator::em::detail {
       return output;
     }
     auto& record = output.record;
+    if (environment.geometry==EnvironmentGeometry::NodeTree) start.environment_node=layer.layer_index;
     if (interaction.status == EmInteractionStatus::ParticleCut) {
       record.interaction = interaction;
       record.interaction.interaction_vertex_reached = 0;
@@ -109,7 +110,7 @@ namespace corsika::accelerator::em::detail {
 
     auto const atmosphere_boundary = distanceToAtmosphereBoundary(
         environment, start.position_m, start.direction,
-        AtmosphereBoundaryPolicy::StraightPathGuard);
+        AtmosphereBoundaryPolicy::StraightPathGuard,start.environment_node);
     auto const observation = intersectObservationPlaneStraight(
         environment, start.position_m, start.direction);
     auto const has_atmosphere_boundary =
@@ -183,7 +184,7 @@ namespace corsika::accelerator::em::detail {
       advancePhotonState(start, distance.value, record.end);
       auto const vertex = queryAtmosphereLayer(
           environment, record.end.position_m, record.end.direction,
-          AtmosphereBoundaryPolicy::StraightPathGuard);
+          AtmosphereBoundaryPolicy::StraightPathGuard,start.environment_node);
       if (vertex.status != AtmosphereStatus::Success ||
           !transportFinite(vertex.density_g_per_cm3) ||
           !(vertex.density_g_per_cm3 > 0.)) {
@@ -216,6 +217,18 @@ namespace corsika::accelerator::em::detail {
       return output;
     }
 
+    // Infinite column depth is permitted only as a competing boundary bound.
+    // Without a finite winning interaction, never commit an infinite-depth
+    // trajectory or silently lose the photon.
+    if (!transportFinite(boundary_grammage.value)) {
+      output.fallback = makePhotonTransportFallback(
+          interaction, ProposalFallbackReason::AtmosphereGrammageFailed);
+      output.fallback.diagnostic_status =
+          static_cast<std::int32_t>(AtmosphereStatus::GrammageOutOfRange);
+      output.fallback.diagnostic_value0 = boundary_distance_m;
+      output.fallback_flag = 1;
+      return output;
+    }
     advancePhotonState(start, boundary_distance_m, record.end);
     record.end.step_id++;
     record.distance_m = boundary_distance_m;
@@ -231,6 +244,23 @@ namespace corsika::accelerator::em::detail {
       record.limit = PhotonTransportLimit::ObservationSurface;
       record.end_layer_index = -1;
       record.end_density_g_per_cm3 = layer.density_g_per_cm3;
+    } else if (environment.geometry==EnvironmentGeometry::NodeTree) {
+      auto const node=atmosphere_boundary.next_node;
+      record.end.environment_node=node;
+      auto model=environment.node_tree.model(node);
+      if (!model) {
+        record.limit=PhotonTransportLimit::EscapedEnvironment;
+        record.end_layer_index=node;record.end_density_g_per_cm3=0.;
+      } else {
+        auto const next=queryAtmosphereLayer(environment,record.end.position_m,record.end.direction,
+            AtmosphereBoundaryPolicy::StraightPathGuard,node);
+        if (next.status!=AtmosphereStatus::Success || node==layer.layer_index) {
+          output.fallback=makePhotonTransportFallback(interaction,ProposalFallbackReason::UnsupportedGeometry);
+          output.fallback_flag=1;return output;
+        }
+        record.limit=PhotonTransportLimit::LayerBoundary;record.end_layer_index=node;
+        record.end.medium_id=model->medium_id;record.end_density_g_per_cm3=next.density_g_per_cm3;
+      }
     } else {
       auto const outermost =
           environment.atmosphere_layers[environment.number_of_layers - 1]

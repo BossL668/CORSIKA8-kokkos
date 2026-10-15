@@ -8,6 +8,7 @@
 #pragma once
 
 #include <corsika/accelerator/em/common/NativeMuonPairCut.hpp>
+#include <corsika/framework/utility/PositronAtRest.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -17,12 +18,14 @@
 #include <corsika/accelerator/em/common/ExternalTransportBoundary.hpp>
 #include <corsika/accelerator/em/common/SphericalAtmosphere.hpp>
 #include <corsika/accelerator/em/common/UniformMagneticField.hpp>
+#include <corsika/accelerator/em/common/EnvironmentLeptonBoundary.hpp>
 #include <corsika/accelerator/em/common/ProcessCapabilities.hpp>
 
 namespace corsika::accelerator::em::detail {
 
   C8_ACCELERATOR_INLINE_FUNCTION inline void prepareStoppedAnnihilation(
       gpu::em::LeptonTransportRecord& record) {
+    if constexpr (!corsika::EnableStoppedPositronAnnihilation) return;
     using namespace gpu::em;
     if (record.end.pid != static_cast<std::int32_t>(EmPid::Positron) ||
         exceedsParticleCutTime(record.end.time_s)) return;
@@ -57,7 +60,7 @@ namespace corsika::accelerator::em::detail {
       gpu::em::ProposalFallbackEvent& fallback,
       gpu::em::ExternalTransportBoundary const external = {}) {
     using namespace gpu::em;
-      auto const& start = interaction.particle;
+      auto start = interaction.particle;
       if (!isChargedLeptonPid(start.pid)) {
         fallback = makeLeptonTransportFallback(
             interaction, ProposalFallbackReason::UnsupportedParticle);
@@ -104,13 +107,17 @@ namespace corsika::accelerator::em::detail {
 
       if (continuous.particle_cut != 0) {
         auto const layer = queryAtmosphereLayer(
-            environment, start.position_m, start.direction);
+            environment, start.position_m, start.direction,
+            AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
         if (layer.status != AtmosphereStatus::Success) {
           fallback = makeLeptonTransportFallback(
               interaction,
               ProposalFallbackReason::UnsupportedGeometry);
           return 1;
         }
+
+        if (environment.geometry==EnvironmentGeometry::NodeTree)
+          start.environment_node=layer.layer_index;
 
         // This state is already at the lowest energy represented by the
         // continuous table.  It cannot make a finite transport step, so
@@ -146,16 +153,22 @@ namespace corsika::accelerator::em::detail {
           continuous.maximum_grammage_g_per_cm2;
 
       auto const layer = queryAtmosphereLayer(
-          environment, start.position_m, start.direction);
+          environment, start.position_m, start.direction,
+          AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
       if (layer.status != AtmosphereStatus::Success) {
         fallback = makeLeptonTransportFallback(
             interaction, ProposalFallbackReason::UnsupportedGeometry);
         return 1;
       }
       auto const charge_number = start.pid > 0 ? -1. : 1.;
+      auto const tree_mode=environment.geometry==EnvironmentGeometry::NodeTree;
+      if (tree_mode) start.environment_node=layer.layer_index;
+      auto const* field_T=tree_mode
+          ? environment.node_tree.model(start.environment_node)->magnetic_field_T
+          : environment.magnetic_field_T;
       auto const magnetic_limit = maximumUniformMagneticStep(
           start, mass_MeV / 1000., charge_number,
-          environment.magnetic_field_T,
+          field_T,
           environment.maximum_magnetic_deflection_rad);
       if (magnetic_limit.status ==
               MagneticStepStatus::InvalidInput ||
@@ -171,7 +184,28 @@ namespace corsika::accelerator::em::detail {
       auto limiting_radius_m = 0.;
       auto magnetic_step_wins = false;
       auto observation_plane_wins = false;
-      if (magnetic_limit.status ==
+      auto next_node=start.environment_node;
+      if (tree_mode) {
+        auto const boundary=environment_tree::leptonBoundary(
+            environment.node_tree,start,mass_MeV/1000.,charge_number,field_T,magnetic_limit);
+        if (boundary.failed) {
+          fallback=makeLeptonTransportFallback(interaction,ProposalFallbackReason::MagneticBoundaryFailed);
+          return 1;
+        }
+        geometry_distance_m=boundary.distance_m;
+        next_node=boundary.next_node;
+        magnetic_step_wins=next_node==start.environment_node;
+        // Observation is a separate process, not a material-tree node.
+        if (!external.disable_observation) {
+          auto const observation=environment_tree::leptonObservationDistance(
+              environment,start,mass_MeV/1000.,charge_number,field_T,magnetic_limit);
+          if (observation<geometry_distance_m) {
+            geometry_distance_m=observation;
+            observation_plane_wins=true;
+          }
+          if (observation_plane_wins) magnetic_step_wins=false;
+        }
+      } else if (magnetic_limit.status ==
           MagneticStepStatus::Linear) {
         auto const atmosphere_boundary = distanceToAtmosphereBoundary(
             environment, start.position_m, start.direction);
@@ -410,7 +444,7 @@ namespace corsika::accelerator::em::detail {
       auto const* propagation_field_T =
           magnetic_limit.status == MagneticStepStatus::Linear
               ? zero_field_T
-              : environment.magnetic_field_T;
+              : field_T;
       auto const magnetic_advance =
           advanceUniformMagneticField(
               start, mass_MeV / 1000., charge_number,
@@ -539,7 +573,8 @@ namespace corsika::accelerator::em::detail {
           record.end_density_g_per_cm3 = layer.density_g_per_cm3;
         } else {
           auto const end_layer = queryAtmosphereLayer(
-              environment, record.end.position_m, record.end.direction);
+              environment, record.end.position_m, record.end.direction,
+              AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
           if (end_layer.status != AtmosphereStatus::Success) {
             fallback = makeLeptonTransportFallback(
                 interaction, ProposalFallbackReason::UnsupportedGeometry);
@@ -559,7 +594,7 @@ namespace corsika::accelerator::em::detail {
       if (decay_wins) {
         auto const vertex = queryAtmosphereLayer(
             environment, record.end.position_m,
-            record.end.direction);
+            record.end.direction,AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
         if (vertex.status != AtmosphereStatus::Success) {
           fallback = makeLeptonTransportFallback(
               interaction,
@@ -585,7 +620,7 @@ namespace corsika::accelerator::em::detail {
       if (interaction_wins) {
         auto const vertex = queryAtmosphereLayer(
             environment, record.end.position_m,
-            record.end.direction);
+            record.end.direction,AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
         if (vertex.status != AtmosphereStatus::Success ||
             !leptonContinuousFinite(vertex.density_g_per_cm3) ||
             !(vertex.density_g_per_cm3 > 0.)) {
@@ -622,7 +657,7 @@ namespace corsika::accelerator::em::detail {
       if (continuous_wins) {
         auto const end_layer = queryAtmosphereLayer(
             environment, record.end.position_m,
-            record.end.direction);
+            record.end.direction,AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
         if (end_layer.status != AtmosphereStatus::Success) {
           fallback = makeLeptonTransportFallback(
               interaction, ProposalFallbackReason::UnsupportedGeometry);
@@ -639,7 +674,7 @@ namespace corsika::accelerator::em::detail {
       if (magnetic_step_wins) {
         auto const end_layer = queryAtmosphereLayer(
             environment, record.end.position_m,
-            record.end.direction);
+            record.end.direction,AtmosphereBoundaryPolicy::RadialGuard,start.environment_node);
         if (end_layer.status != AtmosphereStatus::Success) {
           auto event = makeLeptonTransportFallback(
               interaction,
@@ -723,6 +758,25 @@ namespace corsika::accelerator::em::detail {
         record.end_layer_index = -1;
         record.end_density_g_per_cm3 =
             layer.density_g_per_cm3;
+      } else if (tree_mode) {
+        record.end.environment_node=next_node;
+        auto const* model=environment.node_tree.model(next_node);
+        if (!model) {
+          record.limit=LeptonTransportLimit::EscapedEnvironment;
+          record.end_layer_index=next_node;
+          record.end_density_g_per_cm3=0.;
+        } else {
+          auto const next=queryAtmosphereLayer(environment,record.end.position_m,record.end.direction,
+              AtmosphereBoundaryPolicy::RadialGuard,next_node);
+          if (next.status!=AtmosphereStatus::Success || next_node==start.environment_node) {
+            fallback=makeLeptonTransportFallback(interaction,ProposalFallbackReason::UnsupportedGeometry);
+            return 1;
+          }
+          record.limit=LeptonTransportLimit::LayerBoundary;
+          record.end_layer_index=next_node;
+          record.end.medium_id=model->medium_id;
+          record.end_density_g_per_cm3=next.density_g_per_cm3;
+        }
       } else {
         auto const outermost =
             environment.atmosphere_layers[

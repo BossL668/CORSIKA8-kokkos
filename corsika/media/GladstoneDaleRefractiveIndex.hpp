@@ -8,6 +8,7 @@
 #pragma once
 
 #include <corsika/media/IRefractiveIndexModel.hpp>
+#include <corsika/media/EnvironmentModelExport.hpp>
 
 namespace corsika {
 
@@ -18,7 +19,7 @@ namespace corsika {
    * for a specific height bin.
    */
   template <typename T>
-  class GladstoneDaleRefractiveIndex : public T {
+  class GladstoneDaleRefractiveIndex : public T, public IRefractivityExport {
 
     double const
         referenceRefractivity_; ///< The constant reference refractive index minus one.
@@ -47,6 +48,10 @@ namespace corsika {
      * @returns    The refractive index at this point.
      */
     double getRefractiveIndex(Point const& point) const override;
+
+    ExportRefractivity exportRefractivity() const override {
+      return {ExportRefractivity::Kind::GladstoneDale,referenceRefractivity_,referenceInvDensity_};
+    }
 
   }; // END: class GladstoneDaleRefractiveIndex
 

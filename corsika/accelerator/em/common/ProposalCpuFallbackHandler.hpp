@@ -66,6 +66,10 @@ namespace corsika::gpu::em {
       }
     }
 
+    void setEnvironmentTree(environment_tree::FullView const& tree) {
+      environment_tree_=tree;
+    }
+
     bool canHandle(
         ProposalFallbackEvent const& event) const noexcept {
       return permitsSpecifiedProposalCpuFinalState(event) ||
@@ -80,10 +84,10 @@ namespace corsika::gpu::em {
             "PROPOSAL CPU fallback handler received an incomplete event");
       }
       auto parent = router_detail::importParticle(
-          stack, event.particle, coordinate_system_);
-      auto const* node =
-          environment_.getUniverse()->getContainingNode(
-              parent.getPosition());
+          stack, event.particle, coordinate_system_,environment_tree_);
+      auto const* node = environment_tree_.topology.node_count
+          ? parent.getNode()
+          : environment_.getUniverse()->getContainingNode(parent.getPosition());
       if (node == nullptr ||
           (node == environment_.getUniverse().get() &&
            !environment_.getUniverse()
@@ -177,6 +181,7 @@ namespace corsika::gpu::em {
     TProposalInteractionModel& proposal_model_;
     TProcessList& process_list_;
     TEnvironment const& environment_;
+    environment_tree::FullView environment_tree_{};
     CoordinateSystemPtr coordinate_system_;
     std::uint64_t random_seed_{};
     std::uint64_t shower_id_{};

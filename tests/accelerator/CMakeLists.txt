@@ -56,6 +56,8 @@ foreach (selection_backend IN ITEMS CUDA_OPENMP CUDA OPENMP HIP SYCL)
 endforeach ()
 
 if (CORSIKA_ENABLE_KOKKOS)
+  add_subdirectory(${CMAKE_SOURCE_DIR}/validation/accelerator/environment_tree
+    ${CMAKE_CURRENT_BINARY_DIR}/environment_tree)
   add_executable(testNativeProcessCoverage EXCLUDE_FROM_ALL testNativeProcessCoverage.cpp)
   target_link_libraries(testNativeProcessCoverage PRIVATE CORSIKA8ProposalNative CORSIKA8 PROPOSAL::PROPOSAL)
   add_dependencies(testNativeProcessCoverage GenParticlesHeaders GenMediaProperties)

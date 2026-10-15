@@ -4,9 +4,7 @@
 
 **Use the [`CORSIKA8-kokkos` branch](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)
 of the public [CORSIKA8-kokkos repository](https://github.com/BossL668/CORSIKA8-kokkos).**
-The repository's default GitHub page currently opens the older `cuda-em-refactor`
-branch. Select `CORSIKA8-kokkos` explicitly; this is the branch formerly named
-`kokkos-beta5`.
+This is also the default GitHub branch, formerly named `kokkos-beta5`.
 
 A standalone CORSIKA-based application for atmospheric particle showers and
 CoREAS/ZHS radio signals. The same Kokkos electromagnetic-transport and radio
@@ -14,7 +12,28 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 beta project, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest published changes (2026-10-08):
+Latest changes (2026-10-15):
+
+- The air-shower Kokkos path now exports C8's environment-node hierarchy,
+  including parent/child and excluded-node relations, and shares C8's ordered
+  boundary-search logic. The observation plane remains a separate step limit.
+- Curved sphere intersections use stable quartic factorization; the parallel-field
+  transport projection is corrected. No per-step residual scan or bisection
+  fallback is introduced. This does not promise bitwise-identical trajectories.
+- Logical environment-node IDs survive device queues, CPU fallback and static
+  multi-GPU handoff. Full-tree runs require the new V2 frontier format; regenerate
+  older V1 frontiers before using them with this path.
+- Extra two-photon emission from positrons removed at the energy cut is now
+  **disabled by default**, matching original C8, on both scalar and shared Kokkos
+  cut paths. **In-flight positron annihilation remains enabled.** Rebuild both
+  CPU and GPU binaries; do not mix samples with different stopped-cut policies.
+- The existing native-CDF policy is retained: photon pair production and muon
+  bremsstrahlung use native-table inversion on the accelerated path; electron
+  and muon direct electron-pair final states use CPU PROPOSAL because their
+  conditional asymmetry tables are unavailable. No pair-splitting rejection
+  sampler or experimental CDF-derivative/inverse-loss optimization is enabled.
+
+Application interfaces retained from the previous release:
 
 - The air application selects EM physics with `--em-backend proposal`,
   `kokkos-proposal` or `kokkos-egs4`; execution hardware is selected separately.
@@ -26,10 +45,8 @@ Latest published changes (2026-10-08):
 - Application bindings and run sessions encapsulate backend setup and reuse;
   the main air-shower application remains the entry point for both EM backends.
 
-The cached-loss selector described below is a **local development candidate,
-not yet included in the published branch**. Tiny-batch CPU fallback and tail
-repartitioning experiments are also not production defaults. Module-level
-speedups must not be interpreted as whole-shower speedups.
+Tiny-batch CPU fallback and tail-repartitioning experiments are not production
+defaults. Module-level speedups must not be interpreted as whole-shower speedups.
 
 Air application update (2026-09-23): `c8_air_shower` now defaults to
 `--profile-crossings original-c8` (forward crossings, closed endpoints).
@@ -39,11 +56,11 @@ policy; transport, radio tracks, cuts and deposited energy are unchanged.
 Rebuild and reinstall; do not mix profile cohorts using different conventions.
 See [counting semantics and runnable examples](documentation/profile_crossings_CN.md).
 
-Physics update (2026-09-20): the scalar and shared Kokkos paths now include
-two-photon annihilation of positrons stopped at the energy cut, preserving
-particle weights and accounting for the target electron rest energy. Rebuild
-before using this change; keep earlier C8 samples in a separate physics cohort.
-See the [implementation and validation note](documentation/stopped_positron_annihilation_20260920_CN.md).
+Historical note (2026-09-20): an additional stopped-positron two-photon model
+was introduced at the energy cut. Its implementation is retained, but the
+2026-10-15 default disables it to match original C8. The
+[original implementation note](documentation/stopped_positron_annihilation_20260920_CN.md)
+describes the earlier enabled policy, not the current default.
 
 This guide starts with **Ubuntu 24.04 x86-64, Bash and an empty Conda environment**.
 After the common setup, choose an independent backend or the new single-binary
@@ -220,6 +237,17 @@ flowchart TD
    GPUs use device policies. Checked fixed-point accumulation preserves the
    existing determinism/overflow checks. Final waveform download/writing occurs
    after all pending work is drained. Window completeness still needs validation.
+
+The air-shower `kokkos-proposal` path exports the C8 environment tree at
+initialization, including parent/child links, excluded nodes and exact supported
+medium parameters. Native C8 and the exported tree use the same ordered
+boundary-search routine; the observation plane remains a separate step limit.
+Logical node IDs are retained across wavefront queues, CPU fallback and static
+multi-GPU handoff, rather than reconstructed from rounded boundary positions.
+Curved sphere intersections use a stable quartic solver, without a per-step
+residual scan or bisection fallback. See
+[environment regression tests](validation/accelerator/environment_tree/README.md)
+for supported shapes, validation and compatibility limits.
 
 Where this logic lives:
 

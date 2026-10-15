@@ -134,13 +134,16 @@ std::uint32_t workerSeed(std::uint64_t seed,unsigned index) {
 Json partition(fs::path const& source,std::vector<fs::path> const& destinations) {
   require(!destinations.empty(),"No shard destinations");
   std::ifstream in(source); std::string line;
-  require(bool(std::getline(in,line)) && line=="C8_STATIC_FRONTIER_V1","Invalid frontier header");
+  require(bool(std::getline(in,line)),"Missing frontier header");
+  auto const header = line;
+  bool const logicalNodes = header.rfind("C8_STATIC_FRONTIER_V2 ",0)==0;
+  require(logicalNodes || header=="C8_STATIC_FRONTIER_V1","Invalid frontier header");
   struct Root { double energy,weight; std::uint64_t history; std::string line; };
   std::vector<Root> roots; std::set<std::uint64_t> seen; long double weighted=0;
   while(std::getline(in,line)) {
     std::istringstream row(line);
     std::vector<std::string> c{std::istream_iterator<std::string>(row),{}};
-    require(c.size()==14,"Invalid frontier column count");
+    require(c.size()==(logicalNodes ? 15u : 14u),"Invalid frontier column count");
     std::size_t used=0; auto history=std::stoull(c[1],&used);
     require(used==c[1].size() && c[1].front()!='-' && history>0,"Invalid frontier history");
     auto energy=std::stod(c[5],&used); require(used==c[5].size(),"Invalid energy");
@@ -157,7 +160,7 @@ Json partition(fs::path const& source,std::vector<fs::path> const& destinations)
   std::vector<std::ofstream> files;
   for(auto const& p:destinations) {
     require(!fs::exists(p),"Shard exists"); files.emplace_back(p);
-    require(bool(files.back()),"Cannot create shard"); files.back()<<"C8_STATIC_FRONTIER_V1\n";
+    require(bool(files.back()),"Cannot create shard"); files.back()<<header<<'\n';
   }
   std::vector<double> cost(destinations.size(),0);
   std::vector<std::size_t> counts(destinations.size(),0);

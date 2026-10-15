@@ -77,12 +77,14 @@ def partition(source, destinations):
     No roots are cloned or reweighted. Descendants never migrate after this split.
     """
     lines = Path(source).read_text().splitlines()
-    if not lines or lines.pop(0) != HEADER:
+    header = lines.pop(0) if lines else ''
+    logical_nodes = header.startswith('C8_STATIC_FRONTIER_V2 ')
+    if header != HEADER and not logical_nodes:
         raise ValueError('Invalid frontier header')
     roots, seen = [], set()
     for line in lines:
         cols = line.split()
-        if len(cols) != 14:
+        if len(cols) != (15 if logical_nodes else 14):
             raise ValueError('Invalid frontier column count')
         history, energy, weight = int(cols[1]), float(cols[5]), float(cols[6])
         if history in seen or not math.isfinite(energy * weight) or energy < 0 or weight < 0:
@@ -97,7 +99,7 @@ def partition(source, destinations):
         cost[k] += energy
     for path, rows in zip(destinations, shards):
         with Path(path).open('x') as f:
-            f.write(HEADER + '\n' + ''.join(row + '\n' for row in rows))
+            f.write(header + '\n' + ''.join(row + '\n' for row in rows))
     return dict(roots=len(roots), counts=list(map(len, shards)),
                 weighted_energy_GeV=math.fsum(e*w for e, _, w, _ in roots),
                 cost_energy_GeV=cost, frontier_sha256=digest(source),

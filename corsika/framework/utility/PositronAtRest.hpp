@@ -4,6 +4,11 @@
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 
 namespace corsika {
+  // Match original C8's energy-cut policy on both scalar and device paths.
+  // This controls only the extra photons from a positron removed at the cut;
+  // stochastic in-flight annihilation is a separate, unchanged process.
+  inline constexpr bool EnableStoppedPositronAnnihilation = false;
+
   // Free, unpolarized e+ e- at rest: two photons of mass-energy m_e,
   // back-to-back on an isotropic axis. The cut-endpoint approximation first
   // deposits the untracked positron kinetic energy locally. The target

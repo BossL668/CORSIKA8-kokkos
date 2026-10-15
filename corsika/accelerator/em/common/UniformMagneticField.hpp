@@ -318,16 +318,18 @@ namespace corsika::gpu::em {
         squareRoot(
             (particle.energy_GeV - mass_GeV) *
             (particle.energy_GeV + mass_GeV));
-    auto const field_parallel =
-        dot(particle.direction, field_T);
-    auto const perpendicular_field_squared =
-        field_squared - field_parallel * field_parallel;
+    // Match C8's vector projection, not sqrt(B^2 - (n.B)^2).
+    // The latter subtracts nearly equal squares for parallel tracks and can
+    // manufacture p_perp > 1 eV/c, incorrectly selecting a microscopic step.
+    double momentum[3];
+    for (int axis = 0; axis < 3; ++axis)
+      momentum[axis] = momentum_GeV * particle.direction[axis];
+    auto const projection = dot(momentum, field_T) / field_squared;
+    double perpendicular[3];
+    for (int axis = 0; axis < 3; ++axis)
+      perpendicular[axis] = momentum[axis] - projection * field_T[axis];
     auto const perpendicular_momentum_GeV =
-        momentum_GeV *
-        squareRoot(
-            perpendicular_field_squared > 0.
-                ? perpendicular_field_squared / field_squared
-                : 0.);
+        squareRoot(dot(perpendicular, perpendicular));
     if (perpendicular_momentum_GeV < 1.e-9) {
       return {
           MagneticStepStatus::Linear, 0, infinity(), infinity()};

@@ -52,6 +52,7 @@ namespace corsika::accelerator::em::kokkos_detail {
   struct ParticleSoARawView {
     std::int32_t* pid{};
     std::int32_t* medium_id{};
+    std::int32_t* environment_node{};
     std::uint32_t* generation{};
     std::uint32_t* reserved{};
     double* energy_GeV{};
@@ -68,6 +69,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       gpu::em::EmParticleState state{};
       state.pid = pid[index];
       state.medium_id = medium_id[index];
+      state.environment_node = environment_node[index];
       state.generation = generation[index];
       state.reserved = reserved[index];
       state.energy_GeV = energy_GeV[index];
@@ -88,6 +90,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         gpu::em::EmParticleState const& state) const {
       pid[index] = state.pid;
       medium_id[index] = state.medium_id;
+      environment_node[index] = state.environment_node;
       generation[index] = state.generation;
       reserved[index] = state.reserved;
       energy_GeV[index] = state.energy_GeV;
@@ -113,6 +116,7 @@ namespace corsika::accelerator::em::kokkos_detail {
 
     Kokkos::View<std::int32_t*, MemorySpace> pid;
     Kokkos::View<std::int32_t*, MemorySpace> medium_id;
+    Kokkos::View<std::int32_t*, MemorySpace> environment_node;
     Kokkos::View<std::uint32_t*, MemorySpace> generation;
     Kokkos::View<std::uint32_t*, MemorySpace> reserved;
     Kokkos::View<double*, MemorySpace> energy_GeV;
@@ -129,7 +133,7 @@ namespace corsika::accelerator::em::kokkos_detail {
     static std::size_t deviceBytesForCapacity(
         std::size_t const capacity) {
       constexpr auto bytes_per_particle =
-          2 * sizeof(std::int32_t) + 2 * sizeof(std::uint32_t) +
+          3 * sizeof(std::int32_t) + 2 * sizeof(std::uint32_t) +
           9 * sizeof(double) + 3 * sizeof(std::uint64_t);
       return checkedMemoryMultiply(capacity, bytes_per_particle);
     }
@@ -146,6 +150,9 @@ namespace corsika::accelerator::em::kokkos_detail {
                         execution, Kokkos::WithoutInitializing,
                         label + "_medium"),
                     capacity)
+        , environment_node(Kokkos::view_alloc(
+                               execution,Kokkos::WithoutInitializing,
+                               label + "_environment_node"),capacity)
         , generation(Kokkos::view_alloc(
                          execution, Kokkos::WithoutInitializing,
                          label + "_generation"),
@@ -191,6 +198,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       gpu::em::EmParticleState state{};
       state.pid = pid(index);
       state.medium_id = medium_id(index);
+      state.environment_node = environment_node(index);
       state.generation = generation(index);
       state.reserved = reserved(index);
       state.energy_GeV = energy_GeV(index);
@@ -211,6 +219,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         gpu::em::EmParticleState const& state) const {
       pid(index) = state.pid;
       medium_id(index) = state.medium_id;
+      environment_node(index) = state.environment_node;
       generation(index) = state.generation;
       reserved(index) = state.reserved;
       energy_GeV(index) = state.energy_GeV;
@@ -229,6 +238,7 @@ namespace corsika::accelerator::em::kokkos_detail {
       return {
           pid.data(),
           medium_id.data(),
+          environment_node.data(),
           generation.data(),
           reserved.data(),
           energy_GeV.data(),
@@ -246,7 +256,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         return view.span() *
                sizeof(typename std::decay_t<decltype(view)>::value_type);
       };
-      return view_bytes(pid) + view_bytes(medium_id) +
+      return view_bytes(pid) + view_bytes(medium_id) + view_bytes(environment_node) +
              view_bytes(generation) + view_bytes(reserved) +
              view_bytes(energy_GeV) + view_bytes(position_m) +
              view_bytes(direction) + view_bytes(time_s) + view_bytes(weight) +

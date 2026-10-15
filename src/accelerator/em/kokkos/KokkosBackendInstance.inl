@@ -23,6 +23,7 @@
 #include <utility>
 
 #include <corsika/accelerator/em/kokkos/KokkosInteractionSelector.hpp>
+#include <corsika/accelerator/em/kokkos/KokkosEnvironmentTree.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosLeptonFinalState.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosLeptonTransport.hpp>
 #include <corsika/accelerator/em/kokkos/KokkosLeptonVertexSelector.hpp>
@@ -240,12 +241,14 @@ namespace corsika::accelerator::em::detail {
       std::size_t profile_accumulator{};
       std::size_t radio_accumulator{};
       std::size_t physics_context{};
+      std::size_t environment_tree{};
       kokkos_detail::KokkosMemoryProjection aggregate{};
     };
 
     static StaticDeviceMemoryProjection projectStaticDeviceMemory(
         gpu::em::tables::ProposalNativeTableSet const& table,
-        gpu::em::GpuEmConfig const& config) {
+        gpu::em::GpuEmConfig const& config,
+        gpu::em::EnvironmentSnapshot const& environment) {
       StaticDeviceMemoryProjection result{};
       result.proposal_native_table =
           kokkos_detail::KokkosProposalNativeTable<
@@ -267,6 +270,14 @@ namespace corsika::accelerator::em::detail {
       result.physics_context =
           kokkos_detail::KokkosPhysicsContext<
               BackendExecutionSpace>::projectedDeviceBytes();
+      if (environment.geometry==gpu::em::EnvironmentGeometry::NodeTree) {
+        auto const& tree=environment.node_tree;
+        using namespace gpu::em::environment_tree;
+        result.environment_tree=std::size_t(tree.topology.node_count)*sizeof(Node)+
+            (std::size_t(tree.child_count)+tree.exclusion_count)*sizeof(NodeId)+
+            std::size_t(tree.model_count)*sizeof(Model)+
+            std::size_t(tree.composition_count)*sizeof(Component);
+      }
 
       kokkos_detail::KokkosMemoryProjectionBuilder projection{0};
       projection.replace(0, result.proposal_native_table);
@@ -275,6 +286,7 @@ namespace corsika::accelerator::em::detail {
       projection.replace(0, result.profile_accumulator);
       projection.replace(0, result.radio_accumulator);
       projection.replace(0, result.physics_context);
+      projection.replace(0, result.environment_tree);
       result.aggregate = projection.result();
       return result;
     }
@@ -298,6 +310,7 @@ namespace corsika::accelerator::em::detail {
           ", radio=" +
           std::to_string(projection.radio_accumulator) +
           ", context=" + std::to_string(projection.physics_context) +
+          ", environment-tree=" + std::to_string(projection.environment_tree) +
           "), exceeding the configured " +
           std::to_string(memory_budget_bytes_) +
           " byte device-memory budget before any static upload");
@@ -310,6 +323,7 @@ namespace corsika::accelerator::em::detail {
       };
       append(moliere_interpolation_.deviceBytes());
       append(physics_context_.deviceBytes());
+      append(environment_tree_.deviceBytes());
       append(profile_projection_.deviceBytes());
       append(profile_accumulator_.deviceBytes());
       append(radio_accumulator_.deviceBytes());
@@ -400,6 +414,7 @@ namespace corsika::accelerator::em::detail {
     gpu::em::tables::ProposalNativeTableSet host_table_{};
     gpu::em::tables::ProposalNativeAuxData auxiliary_{};
     gpu::em::EnvironmentSnapshot environment_{};
+    kokkos_detail::FullEnvironmentOwner<BackendExecutionSpace> environment_tree_{};
     gpu::em::GpuEmConfig config_{};
     gpu::em::GpuEmStatistics statistics_{};
     gpu::em::tables::NativePhysicsView physics_{};
@@ -470,8 +485,12 @@ namespace corsika::accelerator::em::detail {
         throw std::runtime_error(
             "Kokkos GPU device-memory budget is zero");
     }
-    auto const static_memory = Impl::projectStaticDeviceMemory(table, config);
+    auto const static_memory = Impl::projectStaticDeviceMemory(table, config,environment);
     impl_->requireStaticDeviceMemory(static_memory);
+    if (environment.geometry==gpu::em::EnvironmentGeometry::NodeTree) {
+      impl_->environment_tree_=kokkos_detail::FullEnvironmentOwner<BackendExecutionSpace>(environment.node_tree);
+      impl_->environment_.node_tree=impl_->environment_tree_.view();
+    }
     KokkosTuningKey const tuning_key{
         runtime.backend,
         runtime.device_name,
@@ -700,6 +719,8 @@ namespace corsika::accelerator::em::detail {
           impl_->radio_accumulator_.staticHostToDeviceBytes());
       static_upload_bytes = checkedMemoryAdd(
           static_upload_bytes, impl_->physics_context_.deviceBytes());
+      static_upload_bytes = checkedMemoryAdd(
+          static_upload_bytes, impl_->environment_tree_.deviceBytes());
       impl_->statistics_.static_host_to_device_bytes = static_upload_bytes;
     }
     impl_->statistics_.one_time_initialization_ms =

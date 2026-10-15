@@ -21,6 +21,35 @@
 
 namespace corsika::gpu::em::router_detail {
 
+  template<typename T,typename=void> struct HasEnvironmentNode:std::false_type {};
+  template<typename T> struct HasEnvironmentNode<T,std::void_t<decltype(std::declval<T const&>().getNode())>>:std::true_type {};
+
+  template<typename TParticle>
+  void exportLogicalNode(TParticle const& particle,EmParticleState& state,
+                         environment_tree::FullView const& tree) {
+    if (!tree.topology.node_count) return;
+    if (!tree.native_nodes) throw std::logic_error("host environment identity map is missing");
+    if constexpr (HasEnvironmentNode<TParticle>::value) {
+      auto pointer=reinterpret_cast<std::uintptr_t>(particle.getNode());
+      for(unsigned i=0;i<tree.topology.node_count;++i)
+        if(tree.native_nodes[i]==pointer) {state.environment_node=i;return;}
+      throw std::logic_error("CPU logical node is not in the exported environment");
+    } else throw std::logic_error("CPU stack cannot export logical nodes");
+  }
+
+  template<typename TParticle>
+  void importLogicalNode(TParticle& particle,EmParticleState const& state,
+                         environment_tree::FullView const& tree) {
+    if (!tree.topology.node_count) return;
+    if (!tree.native_nodes || state.environment_node<0 ||
+        static_cast<unsigned>(state.environment_node)>=tree.topology.node_count)
+      throw std::logic_error("device logical node is absent from the host environment");
+    if constexpr (HasEnvironmentNode<TParticle>::value) {
+      using Pointer=decltype(particle.getNode());
+      particle.setNode(reinterpret_cast<Pointer>(tree.native_nodes[state.environment_node]));
+    } else throw std::logic_error("CPU stack cannot import logical nodes");
+  }
+
   template <typename T, typename = void>
   struct HasGetWeight : std::false_type {};
 
@@ -63,7 +92,8 @@ namespace corsika::gpu::em::router_detail {
       transport::HistoryId history_id,
       transport::HistoryId parent_history_id,
       transport::Generation generation,
-      transport::StepId step_id) {
+      transport::StepId step_id,
+      environment_tree::FullView const& tree = {}) {
     EmParticleState state{};
     state.pid = static_cast<std::int32_t>(particle.getPDG());
     state.energy_GeV = particle.getEnergy() / 1_GeV;
@@ -83,13 +113,15 @@ namespace corsika::gpu::em::router_detail {
     state.parent_history_id = parent_history_id;
     state.generation = generation;
     state.step_id = step_id;
+    exportLogicalNode(particle,state,tree);
     return state;
   }
 
   template <typename TStack>
   auto importParticle(
       TStack& stack, EmParticleState const& state,
-      CoordinateSystemPtr const& coordinate_system) {
+      CoordinateSystemPtr const& coordinate_system,
+      environment_tree::FullView const& tree = {}) {
     auto const code =
         convert_from_PDG(static_cast<PDGCode>(state.pid));
     auto const total_energy = state.energy_GeV * 1_GeV;
@@ -115,6 +147,7 @@ namespace corsika::gpu::em::router_detail {
         state.history_id, state.parent_history_id,
         state.generation, state.step_id});
     setWeightIfSupported(particle, state.weight);
+    importLogicalNode(particle,state,tree);
     return particle;
   }
 

@@ -147,6 +147,7 @@ namespace corsika {
   template <typename TParticle>
   inline bool ParticleCut<TOutput>::annihilateStoppedPositron(
       TParticle parent, HEPEnergyType kinetic, Point const& position, TimeType time) {
+    if constexpr (!EnableStoppedPositronAnnihilation) return false;
     // Time/geometry termination is not stopping physics. In particular, a
     // late positron must not start another cascade after the time limit.
     if (parent.getPID() != Code::Positron || time > 10_ms ||
@@ -254,7 +255,8 @@ namespace corsika {
     node["cut_hadrons"] = cut_hadrons_ / 1_GeV;
     node["cut_tau"] = cut_tau_ / 1_GeV;
     node["cut_invisibles"] = doCutInv_;
-    node["stopped_positron_annihilation"] = "two_photon_at_rest_v1";
+    node["stopped_positron_annihilation"] = EnableStoppedPositronAnnihilation
+        ? "two_photon_at_rest_v1" : "disabled_original_c8_cut";
     for (auto const& cut : cuts_) {
       node[fmt::format("cut_{}", cut.first)] = cut.second / 1_GeV;
     }

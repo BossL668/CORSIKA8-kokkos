@@ -430,6 +430,7 @@ namespace corsika::accelerator::em::kokkos_detail {
         count <= input.medium_id.extent(0) &&
         count <= input.generation.extent(0) &&
         count <= input.reserved.extent(0) &&
+        count <= input.environment_node.extent(0) &&
         count <= input.energy_GeV.extent(0) &&
         count <= input.position_m.extent(0) &&
         count <= input.direction.extent(0) &&
@@ -455,6 +456,8 @@ namespace corsika::accelerator::em::kokkos_detail {
          input.generation.data() == workspace_output.generation.data()) ||
         (input.reserved.data() != nullptr &&
          input.reserved.data() == workspace_output.reserved.data()) ||
+        (input.environment_node.data() != nullptr &&
+         input.environment_node.data() == workspace_output.environment_node.data()) ||
         (input.energy_GeV.data() != nullptr &&
          input.energy_GeV.data() == workspace_output.energy_GeV.data()) ||
         (input.position_m.data() != nullptr &&

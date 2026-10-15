@@ -109,6 +109,16 @@ int main(int argc,char** argv) {
     text(root/"roots","C8_STATIC_FRONTIER_V1\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1\n11 2 1 1 9 2 4 3 0 0 1 0 0 -1\n");
     auto a=partition(root/"roots",{root/"s0",root/"s1",root/"s2",root/"s3"});
     check(a["counts"]==Json({1,1,0,0}) && a["weighted_energy_GeV"]==24,"Partition weights/empty workers");
+    text(root/"nodes","C8_STATIC_FRONTIER_V2 123456\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1 4\n"
+         "11 2 1 1 9 4 2 0 0 0 1 0 0 -1 3\n");
+    auto nodes=partition(root/"nodes",{root/"n0",root/"n1"});
+    check(nodes["counts"]==Json({1,1}),"V2 partition counts");
+    for (auto name:{"n0","n1"}) {
+      std::ifstream input(root/name);std::string header,row;
+      std::getline(input,header);std::getline(input,row);
+      check(header=="C8_STATIC_FRONTIER_V2 123456","V2 environment identity lost");
+      check(row.substr(row.size()-2)==(std::string(name)=="n0"?" 4":" 3"),"V2 logical node lost");
+    }
     text(root/"duplicate","C8_STATIC_FRONTIER_V1\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1\n");
     rejects([&]{partition(root/"duplicate",{root/"dup0"});},"duplicate roots");
     fixture(root/"a",3); fixture(root/"b",-2); fixture(root/"c",4);

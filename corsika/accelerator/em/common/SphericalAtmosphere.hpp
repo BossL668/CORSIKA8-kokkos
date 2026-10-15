@@ -60,6 +60,7 @@ namespace corsika::gpu::em {
     std::int32_t layer_index{-1};
     double distance_m{};
     double radius_m{};
+    std::int32_t next_node{-3};
   };
 
   struct AtmosphereGrammageQuery {
@@ -160,6 +161,16 @@ namespace corsika::gpu::em {
 
     CORSIKA_GPU_ATMOSPHERE_HOST_DEVICE inline bool validEnvironment(
         EnvironmentSnapshot const& environment) {
+      if (environment.geometry==EnvironmentGeometry::NodeTree) {
+        auto const& tree=environment.node_tree;
+        return tree.topology.node_count>0 && tree.topology.nodes &&
+            (!tree.child_count || tree.topology.children) &&
+            (!tree.exclusion_count || tree.topology.exclusions) &&
+            tree.model_count>0 && tree.models &&
+            finite(environment.maximum_magnetic_deflection_rad) &&
+            environment.maximum_magnetic_deflection_rad>0. &&
+            environment.maximum_magnetic_deflection_rad<0.5*3.141592653589793;
+      }
       if (environment.geometry ==
           EnvironmentGeometry::HomogeneousConvexPolyhedron) {
         if (environment.number_of_layers != 1 ||
@@ -299,7 +310,8 @@ namespace corsika::gpu::em {
   queryAtmosphereLayer(
       EnvironmentSnapshot const& environment, double const position_m[3],
       double const* direction = nullptr,
-      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard) {
+      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard,
+      std::int32_t const logical_node=-3) {
     using namespace atmosphere_detail;
     if (!validEnvironment(environment)) {
       return {AtmosphereStatus::InvalidSnapshot, -1, 0., 0.};
@@ -312,6 +324,15 @@ namespace corsika::gpu::em {
     }
     if (direction != nullptr && !normalized(direction)) {
       return {AtmosphereStatus::NonFiniteInput, -1, 0., 0.};
+    }
+    if (environment.geometry==EnvironmentGeometry::NodeTree) {
+      auto const& tree=environment.node_tree;
+      auto const node=logical_node==-3?environment_tree::locate(tree.topology,position_m):logical_node;
+      auto model=tree.model(node);
+      if (!model) return {AtmosphereStatus::OutsideEnvironment,node,0.,0.};
+      auto rho=environment_tree::density(*model,position_m);
+      if (!finite(rho) || !(rho>0.)) return {AtmosphereStatus::InvalidSnapshot,node,0.,rho};
+      return {AtmosphereStatus::Success,node,0.,rho};
     }
     if (environment.geometry ==
         EnvironmentGeometry::HomogeneousConvexPolyhedron) {
@@ -416,12 +437,22 @@ namespace corsika::gpu::em {
   distanceToAtmosphereBoundary(
       EnvironmentSnapshot const& environment, double const position_m[3],
       double const direction[3],
-      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard) {
+      AtmosphereBoundaryPolicy const policy = AtmosphereBoundaryPolicy::RadialGuard,
+      std::int32_t const logical_node=-3) {
     using namespace atmosphere_detail;
     auto const layer_query =
-        queryAtmosphereLayer(environment, position_m, direction, policy);
+        queryAtmosphereLayer(environment, position_m, direction, policy,logical_node);
     if (layer_query.status != AtmosphereStatus::Success) {
       return {layer_query.status, -1, 0., 0.};
+    }
+    if (environment.geometry==EnvironmentGeometry::NodeTree) {
+      environment_tree::StraightAccess access;
+      static_cast<environment_tree::TreeView&>(access)=environment.node_tree.topology;
+      for (int a=0;a<3;++a) {access.position[a]=position_m[a];access.velocity[a]=direction[a];}
+      auto boundary=geometry_detail::nextEnvironmentBoundary(access,layer_query.layer_index,infinity());
+      if (!finite(boundary.distance))
+        return {AtmosphereStatus::NoForwardIntersection,layer_query.layer_index,0.,0.,boundary.node};
+      return {AtmosphereStatus::Success,layer_query.layer_index,boundary.distance,0.,boundary.node};
     }
     if (environment.geometry ==
         EnvironmentGeometry::HomogeneousConvexPolyhedron) {
@@ -468,6 +499,13 @@ namespace corsika::gpu::em {
       double const position_m[3], double const direction[3],
       double distance_m) {
     using namespace atmosphere_detail;
+    if (environment.geometry==EnvironmentGeometry::NodeTree) {
+      auto model=environment.node_tree.model(layer_index);
+      if (!validEnvironment(environment) || !model || !finite(distance_m) || distance_m<0. || !normalized(direction))
+        return {AtmosphereStatus::NonFiniteInput,0,0.};
+      auto x=environment_tree::grammage(*model,position_m,direction,distance_m);
+      return {finite(x) && x>=0.?AtmosphereStatus::Success:AtmosphereStatus::GrammageOutOfRange,0,x};
+    }
     if (!validEnvironment(environment) || layer_index < 0 ||
         layer_index >=
             static_cast<std::int32_t>(
@@ -529,6 +567,14 @@ namespace corsika::gpu::em {
       double const position_m[3], double const direction[3],
       double grammage_g_per_cm2) {
     using namespace atmosphere_detail;
+    if (environment.geometry==EnvironmentGeometry::NodeTree) {
+      auto model=environment.node_tree.model(layer_index);
+      if (!validEnvironment(environment) || !model || !finite(grammage_g_per_cm2) ||
+          grammage_g_per_cm2<0. || !normalized(direction))
+        return {AtmosphereStatus::NonFiniteInput,0,0.};
+      auto length=environment_tree::arclength(*model,position_m,direction,grammage_g_per_cm2);
+      return {finite(length) && length>=0.?AtmosphereStatus::Success:AtmosphereStatus::GrammageOutOfRange,0,length};
+    }
     if (!validEnvironment(environment) || layer_index < 0 ||
         layer_index >=
             static_cast<std::int32_t>(

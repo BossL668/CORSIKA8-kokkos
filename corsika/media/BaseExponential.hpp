@@ -35,6 +35,10 @@ namespace corsika {
 
     Point const& getAnchorPoint() const { return point_; }
 
+    MassDensityType getReferenceDensity() const { return rho0_; }
+    LengthType getScaleLength() const { return lambda_; }
+    LengthType getReferenceHeight() const { return referenceHeight_; }
+
   protected:
     auto const& getImplementation() const;
 

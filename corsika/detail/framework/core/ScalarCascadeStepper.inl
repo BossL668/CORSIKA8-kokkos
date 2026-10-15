@@ -524,8 +524,11 @@ namespace corsika {
   }
 
   template <typename TTracking, typename TProcessList, typename TStack>
-  inline void ScalarCascadeStepper<TTracking, TProcessList, TStack>::setNodes() {
+  inline void ScalarCascadeStepper<TTracking, TProcessList, TStack>::setNodes(bool preserve_existing) {
     std::for_each(stack_.begin(), stack_.end(), [&](auto& p) {
+      // Optional complete-tree routing retains the logical node selected by
+      // tracking even when the rounded boundary position is on the other side.
+      if (preserve_existing && p.getNode()!=nullptr) return;
       auto const* numericalNode =
           environment_.getUniverse()->getContainingNode(p.getPosition());
       p.setNode(numericalNode);

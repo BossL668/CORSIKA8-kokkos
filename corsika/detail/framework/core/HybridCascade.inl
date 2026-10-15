@@ -409,7 +409,9 @@ namespace corsika {
             typename TEmRouter>
   inline void
   HybridCascade<TTracking, TProcessList, TOutput, TStack, TEmRouter>::setNodes() {
-    stepper_.setNodes();
+    if constexpr (hybrid_detail::HasPreserveLogicalNodes<TEmRouter>::value)
+      stepper_.setNodes(em_router_ && em_router_->preserveLogicalNodes());
+    else stepper_.setNodes();
   }
 
   template <typename TTracking, typename TProcessList, typename TOutput, typename TStack,

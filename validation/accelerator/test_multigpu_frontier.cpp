@@ -3,6 +3,7 @@
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/media/Environment.hpp>
 #include <corsika/media/IMediumModel.hpp>
+#include <corsika/accelerator/em/common/FullEnvironmentTreeBuilder.hpp>
 #include <filesystem>
 #include <unistd.h>
 
@@ -114,6 +115,50 @@ int main() {
     if (exact.refill(bounded, cs, 1) != 1) return 14;
     bounded.clear();
     if (exact.refill(bounded, cs, 1) != 0 || exact.pending() || exact.count() != 1) return 15;
+    // V2 keeps the native logical owner even if rounded position is outside it.
+    auto inner = env.createNode<Sphere>(Point(cs, 0_m, 0_m, 6372000_m), 1_m);
+    auto const* innerNode = inner.get();
+    env.getUniverse()->addChild(std::move(inner));
+    gpu::em::environment_tree::FullHostTree<Env::BaseNodeType> exported;
+    exported.topology = gpu::em::environment_tree::exportEnvironmentTree(
+        *env.getUniverse(), cs, [](auto const&, unsigned) { return -1; });
+    gpu::em::environment_tree::SnapshotStorage storage(exported);
+    auto tree = storage.view();
+    auto boundary = s;
+    boundary.position_m[2] = std::nextafter(6372001., INFINITY);
+    boundary.environment_node = exported.topology.id(innerNode);
+    first.clear();
+    auto edge = gpu::em::router_detail::importParticle(first, boundary, cs, tree);
+    if (env.getUniverse()->getContainingNode(edge.getPosition()) == innerNode) return 16;
+    {
+      CaptureRouter capture(name, cs, 2., tree);
+      capture.stage(edge, edge.getHistoryId(), edge.getParentHistoryId(),
+                    edge.getGeneration(), edge.getStepId());
+      capture.endOfShower();
+    }
+    FrontierInput nodeAware(name);
+    nodeAware.setEnvironmentTree(tree);
+    bounded.clear();
+    if (nodeAware.refill(bounded, cs, 2) != 1 || bounded.last().getNode() != innerNode ||
+        bounded.last().getPosition().getCoordinates(cs)[2] / 1_m != boundary.position_m[2]) return 17;
+    // Both bounded and legacy import preserve the same ID. A different tree
+    // must fail before importing any root; old V1 rows must not silently guess.
+    Stack legacy;
+    if (importFrontier(legacy, cs, name, 4, tree) != 1 || legacy.last().getNode() != innerNode) return 18;
+    auto changed = storage;
+    changed.nodes[1].radius += 1.;
+    bool mismatch = false;
+    try { FrontierInput wrong(name); wrong.setEnvironmentTree(changed.view()); }
+    catch (std::runtime_error const&) { mismatch = true; }
+    if (!mismatch) return 19;
+    {
+      std::ofstream data(name);
+      data << "C8_STATIC_FRONTIER_V1\n" << std::setprecision(17); write(data, s);
+    }
+    mismatch = false;
+    try { FrontierInput old(name); old.setEnvironmentTree(tree); }
+    catch (std::runtime_error const&) { mismatch = true; }
+    if (!mismatch) return 20;
     s.direction[2] = 0.;
     bool rejected = false;
     try { validate(s); } catch (std::runtime_error const&) { rejected = true; }

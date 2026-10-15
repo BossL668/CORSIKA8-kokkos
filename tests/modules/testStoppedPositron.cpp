@@ -7,6 +7,7 @@
 using namespace corsika;
 
 TEST_CASE("Stopped positron endpoint and ledger", "[stopped-positron]") {
+  REQUIRE_FALSE(EnableStoppedPositronAnnihilation);
   RNGManager<>::getInstance().registerRandomStream("cascade");
   auto cs = get_root_CoordinateSystem();
   auto const mass = get_mass(Code::Electron);
@@ -16,12 +17,15 @@ TEST_CASE("Stopped positron endpoint and ledger", "[stopped-positron]") {
     for (auto kinetic : {0_MeV, 0.2_MeV, 0.25_MeV}) {
       for (auto time : {0_ns, 10_ms, 10_ms+1_ns}) {
         ParticleCut cut(0.25_MeV,cutPhoton,1_GeV,1_GeV,1_GeV,false);
+        CHECK(cut.getConfig()["stopped_positron_annihilation"].as<std::string>() ==
+              "disabled_original_c8_cut");
         test::Stack stack;
         auto parent=stack.addParticle(std::make_tuple(Code::Photon,1_GeV,direction,origin,time));
         parent.setWeight(7.);
         test::StackView view(parent);
         view.getProjectile().addSecondary(std::make_tuple(Code::Positron,kinetic,direction));
-        auto const shouldAnnihilate=kinetic<0.25_MeV && time<=10_ms;
+        auto const shouldAnnihilate=EnableStoppedPositronAnnihilation &&
+                                   kinetic<0.25_MeV && time<=10_ms;
         auto const shouldTransport=shouldAnnihilate && mass>=cutPhoton;
         cut.doSecondaries(view);
         CHECK(cut.statistics().stopped_positron_annihilations == (shouldAnnihilate?1:0));
@@ -44,14 +48,19 @@ TEST_CASE("Stopped positron endpoint and ledger", "[stopped-positron]") {
           CHECK(cut.statistics().weighted_kinetic_energy_GeV==Catch::Approx(7.*(kinetic+2.*mass)/1_GeV));
           CHECK(cut.statistics().weighted_rest_mass_energy_GeV==0.);
         } else {
-          CHECK(view.getEntries()==(time>10_ms?0:1));
+          auto const removed = kinetic < 0.25_MeV || time > 10_ms;
+          CHECK(view.getEntries()==(removed?0:1));
+          CHECK(cut.statistics().weighted_kinetic_energy_GeV ==
+                Catch::Approx(removed ? 7.*kinetic/1_GeV : 0.));
+          CHECK(cut.statistics().weighted_rest_mass_energy_GeV ==
+                Catch::Approx(removed ? 7.*mass/1_GeV : 0.));
         }
       }
     }
   }
 }
 
-TEST_CASE("Continuous stopped positron uses post-step endpoint", "[stopped-positron]") {
+TEST_CASE("Continuous positron cut adds no annihilation photons", "[stopped-positron]") {
   RNGManager<>::getInstance().registerRandomStream("cascade");
   auto cs=get_root_CoordinateSystem();
   Point origin(cs,0_m,0_m,0_m);
@@ -63,13 +72,12 @@ TEST_CASE("Continuous stopped positron uses post-step endpoint", "[stopped-posit
   auto track=setup::testing::make_track<setup::Trajectory>(
       Line{origin,VelocityVector{cs,{0_m/second,0_m/second,constants::c}}},12_m/constants::c);
   Step step(p,track);
-  auto endpoint=step.getPositionPost();auto time=step.getTimePost();
   REQUIRE(cut.doContinuous(step)==ProcessReturn::ParticleAbsorbed);
   p.erase();
-  REQUIRE(stack.getEntries()==2);
-  for(auto const& photon:stack){
-    CHECK(photon.getPosition().getZ(cs)==endpoint.getZ(cs));
-    CHECK(photon.getTime()==time);CHECK(photon.getWeight()==3.);
-  }
-  CHECK(cut.statistics().weighted_rest_mass_energy_GeV==0.);
+  REQUIRE(stack.getEntries()==0);
+  CHECK(cut.statistics().stopped_positron_annihilations==0);
+  CHECK(cut.statistics().weighted_medium_rest_mass_input_GeV==0.);
+  CHECK(cut.statistics().weighted_kinetic_energy_GeV==Catch::Approx(3.*0.2_MeV/1_GeV));
+  CHECK(cut.statistics().weighted_rest_mass_energy_GeV==
+        Catch::Approx(3.*get_mass(Code::Electron)/1_GeV));
 }

@@ -1,6 +1,7 @@
 /* Experimental static subshower handoff. No production-router changes. */
 #pragma once
 #include <corsika/accelerator/em/common/RouterParticleConversion.hpp>
+#include <corsika/accelerator/em/common/EnvironmentSnapshotStorage.hpp>
 #include <corsika/framework/core/HybridCascade.hpp>
 #include <algorithm>
 #include <cmath>
@@ -14,6 +15,26 @@
 
 namespace corsika::applications::multigpu {
 using State = gpu::em::EmParticleState;
+using EnvironmentView = gpu::em::environment_tree::FullView;
+struct FrontierHeader {
+  bool logical_nodes{};
+  std::uint64_t environment_fingerprint{};
+  explicit FrontierHeader(std::string const& header) {
+    if (header == "C8_STATIC_FRONTIER_V1") return;
+    std::istringstream in(header);
+    std::string version, extra;
+    if (!(in >> version >> environment_fingerprint) ||
+        version != "C8_STATIC_FRONTIER_V2" || (in >> extra))
+      throw std::runtime_error("Missing/unsupported frontier header");
+    logical_nodes = true;
+  }
+  void validateEnvironment(EnvironmentView const& tree) const {
+    if (logical_nodes != (tree.topology.node_count != 0) ||
+        (logical_nodes && environment_fingerprint !=
+         gpu::em::environment_tree::snapshotFingerprint(tree)))
+      throw std::runtime_error("Frontier environment mismatch; logical nodes cannot be reconstructed from position");
+  }
+};
 constexpr std::uint64_t historyStride = std::uint64_t{1} << 48;
 inline bool routable(int pid) {
   return pid == 22 || pid == 11 || pid == -11 || pid == 13 || pid == -13;
@@ -34,14 +55,18 @@ inline void validate(State const& s) {
     throw std::runtime_error("Invalid frontier identity, direction, energy or weight");
 }
 // Explicit portable records, never pointers. The coordinator hashes the closed
-// file before assigning every root exactly once. Medium nodes are rebuilt locally.
-inline void write(std::ostream& out, State const& s) {
+// file before assigning every root exactly once. V2 retains the logical node ID.
+inline void write(std::ostream& out, State const& s, bool logical_nodes = false) {
   validate(s);
   out << s.pid << ' ' << s.history_id << ' ' << s.parent_history_id << ' '
       << s.generation << ' ' << s.step_id << ' ' << s.energy_GeV << ' '
       << s.weight << ' ' << s.time_s;
   for (auto x : s.position_m) out << ' ' << x;
   for (auto x : s.direction) out << ' ' << x;
+  if (logical_nodes) {
+    if (s.environment_node < 0) throw std::runtime_error("Missing frontier logical node");
+    out << ' ' << s.environment_node;
+  }
   out << '\n';
 }
 
@@ -54,11 +79,18 @@ class FrontierInput {
   bool exhausted_{};
   std::unordered_set<std::uint64_t> seen_;
   std::size_t batches_{}, peak_batch_{};
+  FrontierHeader header_{"C8_STATIC_FRONTIER_V1"};
+  EnvironmentView environment_{};
 public:
   explicit FrontierInput(std::string const& path) : file_(path) {
     std::string header;
-    if (!std::getline(file_, header) || header != "C8_STATIC_FRONTIER_V1")
+    if (!std::getline(file_, header))
       throw std::runtime_error("Missing/unsupported frontier header: " + path);
+    header_ = FrontierHeader(header);
+  }
+  void setEnvironmentTree(EnvironmentView const& tree) {
+    header_.validateEnvironment(tree);
+    environment_ = tree;
   }
   template<class Stack> void reserveNamespace(Stack& stack, unsigned worker) {
     if (worker < 1 || worker > 255) throw std::runtime_error("Worker ID outside [1,255]");
@@ -73,6 +105,7 @@ public:
   std::size_t peakBatch() const { return peak_batch_; }
   template<class Stack>
   std::size_t refill(Stack& stack, CoordinateSystemPtr const& cs, std::size_t limit) {
+    header_.validateEnvironment(environment_);
     if (!stack.isEmpty()) throw std::logic_error("Frontier refill requires a drained scalar stack");
     if (limit == 0 || limit > 65536) throw std::logic_error("Invalid bounded frontier batch");
     std::vector<State> batch;
@@ -85,6 +118,7 @@ public:
           >> s.step_id >> s.energy_GeV >> s.weight >> s.time_s;
       for (auto& x : s.position_m) row >> x;
       for (auto& x : s.direction) row >> x;
+      if (header_.logical_nodes) row >> s.environment_node;
       std::string trailing;
       if (!row || (row >> trailing)) throw std::runtime_error("Malformed frontier row");
       validate(s);
@@ -94,7 +128,7 @@ public:
     if (file_.eof()) exhausted_ = true;
     else if (!file_) throw std::runtime_error("Frontier read failed");
     for (auto it = batch.rbegin(); it != batch.rend(); ++it)
-      gpu::em::router_detail::importParticle(stack, *it, cs);
+      gpu::em::router_detail::importParticle(stack, *it, cs, environment_);
     if (!batch.empty()) ++batches_;
     peak_batch_ = std::max(peak_batch_, batch.size());
     return batch.size();
@@ -125,6 +159,9 @@ class BufferedFrontierRouter : public BaseRouter {
   CoordinateSystemPtr cs_;
   std::size_t limit_;
 public:
+  void setFrontierEnvironment(EnvironmentView const& tree) {
+    if (source_) source_->setEnvironmentTree(tree);
+  }
   template<class... Args>
   BufferedFrontierRouter(ForwardRouterArguments, CoordinateSystemPtr const& cs,
                         std::size_t limit, Args&&... args)
@@ -165,11 +202,16 @@ class CaptureRouter {
   double maximumEnergy_;
   std::ofstream file_;
   std::size_t count_{};
+  EnvironmentView environment_{};
 public:
-  CaptureRouter(std::string const& path, CoordinateSystemPtr cs, double cap)
-      : cs_(cs), maximumEnergy_(cap), file_(path) {
+  CaptureRouter(std::string const& path, CoordinateSystemPtr cs, double cap,
+                EnvironmentView const& tree = {})
+      : cs_(cs), maximumEnergy_(cap), file_(path), environment_(tree) {
     if (!file_) throw std::runtime_error("Cannot create frontier: " + path);
-    file_ << "C8_STATIC_FRONTIER_V1\n" << std::setprecision(17);
+    if (tree.topology.node_count)
+      file_ << "C8_STATIC_FRONTIER_V2 " << gpu::em::environment_tree::snapshotFingerprint(tree) << '\n';
+    else file_ << "C8_STATIC_FRONTIER_V1\n";
+    file_ << std::setprecision(17);
     file_.exceptions(std::ios::badbit | std::ios::failbit);
   }
   template<class Particle, class Step>
@@ -181,10 +223,12 @@ public:
     // beginTransportStep increments storage but RETURNS the old (zero-based)
     // counter. No physical step happened: export the returned value unchanged.
     write(file_, gpu::em::router_detail::toDeviceState(
-        p, cs_, history, parent, generation, step));
+        p, cs_, history, parent, generation, step, environment_),
+        environment_.topology.node_count != 0);
     ++count_;
   }
   bool pending() const { return false; }
+  bool preserveLogicalNodes() const { return environment_.topology.node_count != 0; }
   template<class Stack> std::size_t advanceOneWavefrontAndReturn(Stack&) { return 0; }
   void endOfShower() {
     file_.flush();
@@ -194,12 +238,15 @@ public:
 };
 template<class Stack>
 std::size_t importFrontier(Stack& stack, CoordinateSystemPtr cs,
-                          std::string const& path, unsigned worker) {
+                          std::string const& path, unsigned worker,
+                          EnvironmentView const& tree = {}) {
   if (worker < 1 || worker > 255) throw std::runtime_error("Worker ID outside [1,255]");
   std::ifstream in(path);
   std::string line;
-  if (!std::getline(in, line) || line != "C8_STATIC_FRONTIER_V1")
+  if (!std::getline(in, line))
     throw std::runtime_error("Missing/unsupported frontier header: " + path);
+  FrontierHeader const header(line);
+  header.validateEnvironment(tree);
   std::set<std::uint64_t> seen;
   while (std::getline(in, line)) {
     State s{};
@@ -208,11 +255,12 @@ std::size_t importFrontier(Stack& stack, CoordinateSystemPtr cs,
         >> s.step_id >> s.energy_GeV >> s.weight >> s.time_s;
     for (auto& x : s.position_m) row >> x;
     for (auto& x : s.direction) row >> x;
+    if (header.logical_nodes) row >> s.environment_node;
     std::string trailing;
     if (!row || (row >> trailing)) throw std::runtime_error("Malformed frontier row");
     validate(s);
     if (!seen.insert(s.history_id).second) throw std::runtime_error("Duplicate frontier root");
-    gpu::em::router_detail::importParticle(stack, s, cs);
+    gpu::em::router_detail::importParticle(stack, s, cs, tree);
   }
   if (!in.eof()) throw std::runtime_error("Frontier read failed");
   // Ancestors retain original IDs; children use an exclusive 48-bit range.

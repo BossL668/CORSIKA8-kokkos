@@ -20,7 +20,20 @@ struct EndpointTest {
     cut.end=cut.start;cut.end.position_m[2]=101.;cut.end.time_s=1.e-9;
     cut.end.step_id=4;cut.input_index=i;cut.interaction.input_index=i;
     cut.limit=em::LeptonTransportLimit::ParticleCut;cut.cut_deposited_energy_GeV=.0002;
+    cut.interaction.status=em::EmInteractionStatus::ParticleCut;
     phy::prepareStoppedAnnihilation(cut);
+    r.errors+=corsika::EnableStoppedPositronAnnihilation;
+    r.errors+=cut.interaction.status!=em::EmInteractionStatus::ParticleCut;
+    r.errors+=cut.interaction.interaction_vertex_reached!=0;
+    r.errors+=cut.cut_deposited_energy_GeV!=.0002;
+    // Keep the low-level two-photon endpoint oracle, but inject it explicitly:
+    // production transport must no longer create this vertex at an energy cut.
+    cut.interaction.status=em::EmInteractionStatus::AtRestAnnihilation;
+    cut.interaction.process_id=em::AnnihilationProcessId;
+    cut.interaction.interaction_vertex_reached=1;
+    cut.interaction.particle=cut.end;
+    cut.interaction.particle.energy_GeV=em::TransportElectronMassGeV;
+    cut.interaction.particle_mass_GeV=em::TransportElectronMassGeV;
     auto vertex=phy::selectLeptonVertex({},cut.interaction,20260920,0);
     r.errors+=!vertex.interaction_flag||vertex.fallback_flag;
     em::EmThinningConfig thinning{};

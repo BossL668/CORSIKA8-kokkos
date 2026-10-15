@@ -83,7 +83,7 @@ namespace corsika {
     /**
      * Set the logical environment node for every particle currently on the stack.
      */
-    void setNodes();
+    void setNodes(bool preserve_existing = false);
 
     /**
      * Advance one particle until the nearest continuous, discrete, or geometric

@@ -20,6 +20,10 @@
 
 namespace corsika::gpu::em::detail {
 
+  template<typename T,typename=void> struct HasEnvironmentTreeSetter:std::false_type {};
+  template<typename T> struct HasEnvironmentTreeSetter<T,std::void_t<decltype(
+      std::declval<T&>().setEnvironmentTree(std::declval<environment_tree::FullView>()))>>:std::true_type {};
+
   struct AcceleratedHybridRunOptions {
     bool retain_records{};
     bool fail_on_unexpected_fallback{true};
@@ -68,6 +72,11 @@ namespace corsika::gpu::em::detail {
     using Stack = std::remove_reference_t<TStack>;
     using Backend = std::remove_reference_t<decltype(backend)>;
     using FallbackHandler = decltype(fallback_handler);
+    if (environment_snapshot.geometry==EnvironmentGeometry::NodeTree) {
+      if constexpr (HasEnvironmentTreeSetter<FallbackHandler>::value)
+        fallback_handler.setEnvironmentTree(environment_snapshot.node_tree);
+      else throw std::logic_error("full environment tree requires a node-aware CPU fallback handler");
+    }
     using OutputSink = decltype(output_sink);
     using Router =
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
@@ -80,6 +89,9 @@ namespace corsika::gpu::em::detail {
         ;
     Router router{backend, root_cs, environment_snapshot, fallback_handler,
                   output_sink};
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+    router.setFrontierEnvironment(environment_snapshot.node_tree);
+#endif
     router.setRetainRecords(options.retain_records);
     router.setFailOnUnexpectedFallback(
         options.fail_on_unexpected_fallback);

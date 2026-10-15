@@ -215,7 +215,7 @@ namespace corsika::gpu::em {
           particle, coordinate_system_,
           particle.getHistoryId(),
           particle.getParentHistoryId(),
-          particle.getGeneration(), step_id);
+          particle.getGeneration(), step_id,environment_.node_tree);
       if (!backend_.canTransport(state)) {
         ++statistics_.route_backend_rejections;
         return false;
@@ -224,7 +224,7 @@ namespace corsika::gpu::em {
           environment_, state.position_m, state.direction,
           state.pid == static_cast<std::int32_t>(EmPid::Photon)
               ? AtmosphereBoundaryPolicy::StraightPathGuard
-              : AtmosphereBoundaryPolicy::RadialGuard);
+              : AtmosphereBoundaryPolicy::RadialGuard,state.environment_node);
       if (layer.status != AtmosphereStatus::Success)
         ++statistics_.route_environment_rejections;
       return layer.status == AtmosphereStatus::Success;
@@ -252,20 +252,19 @@ namespace corsika::gpu::em {
       cooperative_scalar_yield_ = false;
       auto state = router_detail::toDeviceState(
           particle, coordinate_system_, history_id,
-          parent_history_id, generation, step_id);
+          parent_history_id, generation, step_id,environment_.node_tree);
       auto const layer = queryAtmosphereLayer(
           environment_, state.position_m, state.direction,
           state.pid == static_cast<std::int32_t>(EmPid::Photon)
               ? AtmosphereBoundaryPolicy::StraightPathGuard
-              : AtmosphereBoundaryPolicy::RadialGuard);
+              : AtmosphereBoundaryPolicy::RadialGuard,state.environment_node);
       if (layer.status != AtmosphereStatus::Success) {
         throw std::logic_error(
             "physical CUDA EM router staged a particle outside its environment");
       }
-      state.medium_id =
-          environment_
-              .atmosphere_layers[layer.layer_index]
-              .medium_id;
+      state.medium_id = environment_.geometry==EnvironmentGeometry::NodeTree
+          ? environment_.node_tree.model(state.environment_node)->medium_id
+          : environment_.atmosphere_layers[layer.layer_index].medium_id;
       auto const previous =
           last_cpu_expansion_states_.find(
               state.history_id);
@@ -276,6 +275,10 @@ namespace corsika::gpu::em {
       }
       staged_.push_back(state);
       ++statistics_.particles_staged;
+    }
+
+    bool preserveLogicalNodes() const {
+      return environment_.geometry==EnvironmentGeometry::NodeTree;
     }
 
     bool pending() const {
@@ -456,7 +459,7 @@ namespace corsika::gpu::em {
                 "duplicate CPU wavefront-expansion step");
           }
           router_detail::importParticle(
-              stack, particle, coordinate_system_);
+              stack, particle, coordinate_system_,environment_.node_tree);
           last_cpu_expansion_states_.emplace(
               particle.history_id, particle);
         }
@@ -913,6 +916,8 @@ namespace corsika::gpu::em {
         EmParticleState const& left,
         EmParticleState const& right) {
       if (left.pid != right.pid ||
+          left.environment_node != right.environment_node ||
+          left.medium_id != right.medium_id ||
           left.energy_GeV != right.energy_GeV ||
           left.time_s != right.time_s ||
           left.weight != right.weight) {
@@ -1158,7 +1163,7 @@ namespace corsika::gpu::em {
               "duplicate CPU fallback for one transport step");
         }
         router_detail::importParticle(
-            stack, event.particle, coordinate_system_);
+            stack, event.particle, coordinate_system_,environment_.node_tree);
         if (retain_records_) {
           fallback_events_.push_back(event);
         }
@@ -1258,7 +1263,7 @@ namespace corsika::gpu::em {
               "duplicate CPU memory spill for one transport step");
         }
         router_detail::importParticle(
-            stack, particle, coordinate_system_);
+            stack, particle, coordinate_system_,environment_.node_tree);
         ++returned;
       }
       statistics_.particles_returned_for_cpu_memory_spill +=
@@ -1277,7 +1282,7 @@ namespace corsika::gpu::em {
               "duplicate forced CPU decay for one transport step");
         }
         router_detail::importParticle(
-            stack, particle, coordinate_system_);
+            stack, particle, coordinate_system_,environment_.node_tree);
       }
       statistics_.particles_returned_for_cpu_decay +=
           particles.size();

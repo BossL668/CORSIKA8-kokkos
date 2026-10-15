@@ -105,6 +105,9 @@ namespace corsika::applications::air_shower {
     configuration["environment"]["maximum_magnetic_deflection_rad"] =
         environment.maximum_magnetic_deflection_rad;
     configuration["environment"]["observation_geometry"] = "plane";
+    configuration["environment"]["geometry"] = "native-node-tree";
+    configuration["environment"]["boundary_search"] = "shared-c8-ordered-tree";
+    configuration["environment"]["sphere_solver"] = "stable-quartic-v2";
     configuration["environment"]["antenna_file"] = environment.antenna_file;
     run_output_ =
         std::make_unique<gpu::em::GpuEmRunOutput>(std::move(configuration));

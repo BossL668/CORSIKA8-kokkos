@@ -19,6 +19,7 @@
 #include <corsika/accelerator/AcceleratorMacros.hpp>
 #include <corsika/framework/utility/LongitudinalCrossings.hpp>
 #include <corsika/accelerator/em/common/EmThinning.hpp>
+#include <corsika/accelerator/em/common/EnvironmentModelSnapshot.hpp>
 #include <corsika/accelerator/radio/common/Types.hpp>
 #include <corsika/framework/geometry/ConvexPolyhedronData.hpp>
 
@@ -88,6 +89,9 @@ namespace corsika::gpu::em {
     std::uint64_t history_id{};
     std::uint64_t parent_history_id{};
     std::uint64_t step_id{};
+    // Independent of medium_id: distinct logical nodes may share one model.
+    // -3 denotes legacy/unassigned, -1 denotes outside the exported tree.
+    std::int32_t environment_node{-3};
   };
 
   /**
@@ -360,6 +364,7 @@ namespace corsika::gpu::em {
   enum class EnvironmentGeometry : std::uint32_t {
     SphericalLayers = 0,
     HomogeneousConvexPolyhedron = 1,
+    NodeTree = 2,
   };
 
   /**
@@ -387,6 +392,7 @@ namespace corsika::gpu::em {
     std::uint32_t number_of_convex_planes{};
     geometry_detail::ConvexPlane convex_planes[MaxConvexEnvironmentPlanes]{};
     double convex_boundary_tolerance_m{1.e-8};
+    environment_tree::FullView node_tree{};
   };
 
   enum class GpuPhysicsSource : std::uint32_t {
