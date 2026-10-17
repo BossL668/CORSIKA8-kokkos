@@ -2,7 +2,7 @@
 
 [English](terrain_getting_started.md) · [主安装教程](../README_CN.md)
 
-本文针对已发布 beta5 的应用接口，不依赖旧 mountain 项目，也不把未提交的射电原型当作已发布功能。
+本文针对已发布 CORSIKA8-kokkos 的应用接口，不依赖旧 mountain 项目，也不把未提交的射电原型当作已发布功能。
 先完成主 README 第 2–4 节的空环境、分支/子模块、Conan 配方与合法 FLUKA 配置。
 只安装 Python 准备工具不会生成 C++ 模拟程序。
 
@@ -12,7 +12,7 @@
 物理，但下面的完整流程需要 FLUKA：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 conda activate corsika_venv
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
@@ -50,7 +50,7 @@ install/openmp/bin/c8_mountain_neutrino --help
 完成主教程的 CUDA Toolkit 安装后，将构建命令替换为：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 C8_BUILD_JOBS=1 bash tools/build_kokkos.sh cuda \
   -DWITH_FLUKA=ON -DCORSIKA_BUILD_MOUNTAIN_APPLICATION=ON \
   -DC8_INTERFACE_EXECUTION_SPACE=CUDA
@@ -67,7 +67,7 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos.sh cuda \
 在源码目录安装独立地形 Python 包，`pyproject.toml` 会声明所需地理依赖：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 python -m pip install ./python
 c8-terrain --help
 c8-terrain --bounds 86.700 42.930 86.710 42.940 \
@@ -101,7 +101,7 @@ CUDA 路线相应替换验证器路径。首次下载 DEM/大地水准面数据�
 直接套在其他场景。在项目容器目录执行：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5"
+cd "$HOME/corsika8-workspace"
 export CORSIKA_DATA="$PWD/install/openmp/share/corsika/data"
 install/openmp/bin/c8_terrain_cascade \
   --scene "$HOME/CorsikaData/terrain/demo/terrain/scene.yaml" \

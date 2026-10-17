@@ -27,7 +27,7 @@ can detect supported NVIDIA architectures; the combined helper defaults to Ada
 and needs `C8_KOKKOS_DUAL_PROFILE` for other targets.
 
 [`locks/`](locks) preserves historical beta4 recipe revisions, not a current
-beta5 release lock. The build helpers do not consume these locks. Export the
+production release lock. The build helpers do not consume these locks. Export the
 current patched recipes and record the actual resolved dependency graph for
 reproduction; do not blindly apply a historical lock to newer recipes. Never
 mix generated dependency/toolchain directories between variants.

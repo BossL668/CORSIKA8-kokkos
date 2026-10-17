@@ -1,4 +1,4 @@
-# beta5 山体中微子独立应用
+# CORSIKA8-kokkos 山体中微子独立应用
 
 完整 21CMA 场景的当前缺项、真实 CPU/OpenMP/CUDA 测试以及与原 mountain 的差别，见
 [2026-09-08 逐项复核](mountain_21cma_integration_audit_CN.md)。当前不是 DEM 嵌入标准大气的完整应用。
@@ -7,7 +7,7 @@
 [真实山体迁移与构建](terrain_native_scene_build_CN.md)；不要用本页的有限凸体配置替代真实场景。
 
 `c8_mountain_neutrino` 是独立的有限山体示例：在均匀 SiO₂ 凸山体中产生或传播
-中微子 CC 事例，随后由标量 CPU 或 beta5 Kokkos 输运级联，并可计算山体内部
+中微子 CC 事例，随后由标量 CPU 或 Kokkos 后端输运级联，并可计算山体内部
 observer 的 CoREAS/ZHS 信号。它不修改 `c8_air_shower` 的参数、模型装配和大气模块。
 
 **这是限定物理范围的集成示例，不是完整的地球/山体中微子探测率程序。**
@@ -57,9 +57,9 @@ YAML：凸山体、均匀 SiO₂、初级、cut/thinning、内部 observer
 ## 2. 编译
 
 先按[项目中文 README](../README_CN.md)准备 Conda、编译器、授权 FLUKA 和对应的
-Kokkos 工具链。新应用与 beta5 共用这些依赖，不需要另一个旧 mountain 项目。
+Kokkos 工具链。山体应用与空气程序共用这些依赖，不需要另一个旧 mountain 项目。
 
-以下在 `corsika8_kokkos_beta5/` **源码目录**执行。选一种后端，不必全部编译：
+以下在 `CORSIKA8-kokkos/` **源码目录**执行。选一种后端，不必全部编译：
 
 ```bash
 # 无 GPU：独立 OpenMP
@@ -168,7 +168,7 @@ CLI 的后端选择覆盖 EM 和射电，不能混用 OpenMP EM 与 GPU radio：
 | `--kokkos-num-threads` | `0`：runtime 决定；GPU 模式禁止大于 1 |
 | `--kokkos-device` | `0` |
 | `--gpu-min-batch` | `4096` |
-| `--gpu-resident-batch-limit` | `0`：使用 beta5 的内存预算策略 |
+| `--gpu-resident-batch-limit` | `0`：使用共享 Kokkos 后端的内存预算策略 |
 | `--gpu-memory-fraction` | `0.7`，是上限，不要求显存一直占满 |
 | `--gpu-aux-cache-dir` | 可选的可写辅助缓存位置 |
 | `--geometry-only` | 配置/几何检查，不运行物理 |
@@ -192,7 +192,7 @@ PROPOSAL 原生样条，不要求手工 `.c8emrt` 文件，也不需要先跑完
 
 **首次**遇到当前 SiO₂、密度、cut 和依赖配置时，PROPOSAL 自身缓存及必要的辅助数据
 可能自动生成，因此冷启动可能明显较慢。之后兼容缓存可复用；这不是“任何介质永远
-不需要计算新表”。辅助缓存默认由 beta5 管理，可用 `--gpu-aux-cache-dir PATH` 指定。
+不需要计算新表”。辅助缓存默认由 CORSIKA8-kokkos 管理，可用 `--gpu-aux-cache-dir PATH` 指定。
 缓存损坏、版本或覆盖范围不匹配等门禁仍有效，不能用更换表路径或旧数据静默绕过。
 
 ## 6. 输出与验收

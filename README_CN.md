@@ -4,9 +4,9 @@
 
 **公开仓库：[CORSIKA8-kokkos](https://github.com/BossL668/CORSIKA8-kokkos)，请使用同名的
 [`CORSIKA8-kokkos` 分支](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)。**
-该分支也是 GitHub 默认分支，原名为 `kokkos-beta5`。
+该分支是 GitHub 默认分支，也是当前生产版源码所在分支。
 
-本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧 beta 项目、已有构建目录或手工生成的 `.c8emrt` 表。
+本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧项目目录、已有构建目录或手工生成的 `.c8emrt` 表。
 
 最近更新（2026-10-15）：
 
@@ -80,12 +80,13 @@ flowchart TD
 
 ### 1.2 目录结构
 
-示例沿用历史 `beta5` 本地目录名，以保持已有 build/install 路径一致；这不是
-GitHub 仓库名或分支名，已有工作目录不需要随仓库改名而搬迁。
+新安装示例将源码放在 `~/corsika8-workspace/CORSIKA8-kokkos`，
+`build/` 和 `install/` 与源码目录并列。已有安装可以保留原路径，
+不要直接搬迁已经配置好的 CMake 构建目录。
 
 ```text
-corsika-21cma-kokkos-beta5/
-├── corsika8_kokkos_beta5/  源码、依赖配方、示例、文档、测试
+corsika8-workspace/
+├── CORSIKA8-kokkos/       源码、依赖配方、示例、文档、测试
 ├── build/                编译产物，不是第二份项目
 │   ├── openmp/deps/       OpenMP 的 Conan/CMake 工具链
 │   ├── cuda/deps/         CUDA 的独立工具链
@@ -99,6 +100,9 @@ corsika-21cma-kokkos-beta5/
 ```
 
 `deps` 描述依赖位置与编译选项，实际 Conan 包在用户缓存；它不是物理插值表。配置好的 `CMakeCache.txt` 含绝对路径，不能跨后端或跨机器复制使用。所有后端使用同一个应用源码文件。
+
+示例路径 `examples/beta5/`、带 `Beta5` 的 CTest 名称及带日期的报告文件名
+为兼容已有引用而保留。命令中应照写这些标识，它们不表示需要安装旧版本。
 
 ### 1.3 算法逻辑：驻留波前输运与分批在线射电累积
 
@@ -219,7 +223,7 @@ gfortran --version
 ## 3. 获取源码，配置 Conan
 
 源码位于[公开仓库的 `CORSIKA8-kokkos` 分支](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)。
-HTTPS 只读克隆无需 GitHub 认证；旧版本仍保留在其他分支，不要把默认分支当作当前分支。
+HTTPS 只读克隆无需 GitHub 认证；`CORSIKA8-kokkos` 就是默认分支，旧版本仍保留在其他分支。
 仓库公开不改变 FLUKA 等第三方模型各自的许可要求。
 
 如使用 SSH，配置 GitHub SSH key 后将 clone 地址换为
@@ -227,11 +231,11 @@ HTTPS 只读克隆无需 GitHub 认证；旧版本仍保留在其他分支，不
 不要把 token 写入 URL、脚本或文档。
 
 ```bash
-mkdir -p "$HOME/corsika-21cma-kokkos-beta5"
-cd "$HOME/corsika-21cma-kokkos-beta5"
+mkdir -p "$HOME/corsika8-workspace"
+cd "$HOME/corsika8-workspace"
 git clone --branch CORSIKA8-kokkos --single-branch --recurse-submodules \
-  https://github.com/BossL668/CORSIKA8-kokkos.git corsika8_kokkos_beta5
-cd corsika8_kokkos_beta5
+  https://github.com/BossL668/CORSIKA8-kokkos.git CORSIKA8-kokkos
+cd CORSIKA8-kokkos
 test -f CMakeLists.txt
 test -f conanfile.py
 test -f modules/data/CMakeLists.txt
@@ -242,7 +246,7 @@ git submodule status --recursive
 已有 clone 先检查 `git status` 和 `git branch --show-current`，不要覆盖。
 子模块缺失可执行 `git submodule update --init --recursive`；状态行开头 `-` 表示未初始化，`+` 表示与当前源码锁定的子模块版本不一致。
 
-模型数据和可选 CONEX 源码以锁定版本的上游子模块提供，不将大文件重复放进 beta5 仓库；子模块使用绝对地址，可从 GitHub 正常定位。GitHub 自动生成的源码 ZIP **不包含子模块内容**。若采用离线归档，应向维护者索取包含两个子模块、依赖配方、资源及示例的完整包。源码仓库不包含本机的 build/install、自动生成的缓存或模拟数据集。
+模型数据和可选 CONEX 源码以锁定版本的上游子模块提供，不将大文件重复放进 CORSIKA8-kokkos 仓库；子模块使用绝对地址，可从 GitHub 正常定位。GitHub 自动生成的源码 ZIP **不包含子模块内容**。若采用离线归档，应向维护者索取包含两个子模块、依赖配方、资源及示例的完整包。源码仓库不包含本机的 build/install、自动生成的缓存或模拟数据集。
 
 Conan 负责 C++ 依赖，CMake 负责装配应用。保持第 2 节环境和编译器设置，在源码目录执行：
 
@@ -321,7 +325,7 @@ OpenMP 应显示 `installed: true`，探针 `available: true`、`gpu=false`、`o
 mkdir -p "$HOME/CorsikaData"
 install/bin/c8_air_shower --backend openmp --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_openmp" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 这是 10 GeV 垂直光子、一个 shower；统一入口默认开启 Kokkos EM 和 Kokkos CoREAS/ZHS。**`-f` 最终目录必须不存在**，只创建上级目录。重复运行请换名称，不删除旧科研数据。低能信号可能很弱或个别天线无有效脉冲，此例用于安装检查而非性能评估。
@@ -376,7 +380,7 @@ nvidia-smi
 ### 7.1 独立 CUDA 二进制（当前生产基准）
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export FC=/usr/bin/gfortran
@@ -400,14 +404,14 @@ C8_KOKKOS_PROFILE=cuda-ampere80 C8_BUILD_JOBS=1 \
   bash tools/build_kokkos.sh cuda -DWITH_FLUKA=ON
 ```
 
-这只绕过架构探测，不修复驱动。`CORSIKA_ENABLE_CUDA=ON` 不是 beta5 开关，应选择 Kokkos CUDA。也可以 `bash tools/build_kokkos.sh openmp,cuda -DWITH_FLUKA=ON` 顺序构建安装两套。
+这只绕过架构探测，不修复驱动。`CORSIKA_ENABLE_CUDA=ON` 不是受支持的构建选项，应选择 Kokkos CUDA。也可以 `bash tools/build_kokkos.sh openmp,cuda -DWITH_FLUKA=ON` 顺序构建安装两套。
 
 ```bash
 cd ..
 install/bin/c8_air_shower --backend cuda --check-backends
 install/bin/c8_air_shower --backend cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 这两条命令会访问 GPU。GPU 模式不要加 `--kokkos-num-threads 16`。默认显存预算为初始化时可用显存的 70% 上限，不要求小事件占满。
@@ -417,7 +421,7 @@ install/bin/c8_air_shower --backend cuda \
 先完成第 2–4 节和本节开头的 CUDA Toolkit 配置。**不必先编译独立 OpenMP/CUDA 应用**，可以直接构建组合版。保持相同 Conda 环境与已授权的 `FLUPRO`：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 conda activate corsika_venv
 test -f tools/build_kokkos_dual.sh
 test -r "$FLUPRO/libflukahp.a"
@@ -455,13 +459,13 @@ mkdir -p "$HOME/CorsikaData"
 install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 
 install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution openmp \
   --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 空气簇射应用的 `--em-backend` 统一使用以下名称：
@@ -499,7 +503,7 @@ install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos \
   --kokkos-execution cuda-openmp --kokkos-num-threads 4 \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_cooperative" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 CPU 优先只需将 `cuda-openmp` 改为 `openmp-cuda`，并换一个输出目录。
@@ -519,7 +523,7 @@ CPU 优先不能混用 `--kokkos-cooperative-policy adaptive`。
 ```bash
 install/bin/c8_air_shower --backend cuda -p 2212 -E 1000 \
   -f "$HOME/CorsikaData/proton_1TeV_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 换成 `--backend openmp --kokkos-num-threads 16` 就用多核 CPU，其他物理参数不变。标量对照用 OpenMP 安装的程序，但不开 Kokkos EM：
@@ -528,7 +532,7 @@ install/bin/c8_air_shower --backend cuda -p 2212 -E 1000 \
 install/bin/c8_air_shower --backend openmp \
   --em-backend proposal --radio-backend cpu \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_1TeV_scalar" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 `proposal/cpu` 不是 OpenMP 加速。直接调用 `install/<backend>/bin/c8_air_shower` 的默认值也仍是标量；统一入口才补上 `--em-backend kokkos-proposal --radio-backend kokkos`。`kokkos-proposal` 使用 `proposal-native` 物理源，不用另填物理源选择器、YAML 或 `.c8emrt`；可选 `kokkos-egs4` 路径见第 8.3 节。
@@ -615,7 +619,7 @@ mkdir -p "$HOME/CorsikaData"
 install/bin/c8_air_shower --backend openmp \
   --em-backend kokkos-egs4 --radio-backend kokkos --kokkos-num-threads 4 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
   -f "$HOME/CorsikaData/egs4_photon_openmp"
 ```
 
@@ -626,7 +630,7 @@ install/bin/c8_air_shower --backend cuda \
   --em-backend kokkos-egs4 --radio-backend kokkos \
   --device 0,1,2,3 --gpu-memory-fraction 0.90 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
   -f "$HOME/CorsikaData/egs4_photon_four_gpu"
 ```
 
@@ -685,7 +689,7 @@ OMP_NUM_THREADS=4 ctest --test-dir build/openmp \
 ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 ```
 
-测试可能生成缓存并耗时；通过基础测试不是所有能量/介质的生产验收。同 seed 的结果还取决于 RNG 域、物理修订和容量，记录二进制 SHA-256、参数、依赖和 `gpu_em` 元数据，不能仅凭“beta5”文件名认定相同版本。
+测试可能生成缓存并耗时；通过基础测试不是所有能量/介质的生产验收。同 seed 的结果还取决于 RNG 域、物理修订和容量，记录二进制 SHA-256、参数、依赖和 `gpu_em` 元数据，不能仅凭仓库名认定是相同版本。
 
 | 现象 | 检查/处理 |
 |---|---|
@@ -707,10 +711,10 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 
 更新源码后，独立版重跑对应 `build_kokkos.sh <backend>`，组合实验重跑 `build_kokkos_dual.sh` 才会编译安装；不要把一种构建的缓存改配置成另一种。编辑 README 不改变二进制。新机器重新构建，不复制旧 CMakeCache。复用预构建 Pythia/TAUOLA 仅限同版本/ABI 的高级部署，不是从零安装前提。
 
-已保存本地修改、确认在 beta5 分支后，可以从对应远端更新；新 clone 的远端名为 `origin`：
+已保存本地修改、确认在 `CORSIKA8-kokkos` 分支后，可以从对应远端更新；新 clone 的远端名为 `origin`：
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 git status --short
 git branch --show-current
 # 只在 CORSIKA8-kokkos 且本地修改已妥善保存后继续：
@@ -728,7 +732,7 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos.sh openmp -DWITH_FLUKA=ON
 
 ## 11. 可选地形与中微子应用
 
-前面的空气程序不是 DEM 导航器。beta5 提供独立应用，默认构建不开启这些应用目标：
+前面的空气程序不是 DEM 导航器。CORSIKA8-kokkos 提供独立应用，默认构建不开启这些应用目标：
 
 | 可执行文件 | 用途 |
 |---|---|

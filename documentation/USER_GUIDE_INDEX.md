@@ -1,10 +1,10 @@
-# beta5 documentation map / 文档导航
+# CORSIKA8-kokkos documentation map / 文档导航
 
-Start from the `kokkos-beta5` branch, not the repository's older default branch.
+Use the default `CORSIKA8-kokkos` branch for the current production source.
 Beginner instructions are maintained in both languages; detailed research notes
 below are mainly Chinese. They are dated evidence, not interchangeable recipes.
 
-请在 `kokkos-beta5` 分支阅读。入门教程提供中英文；下面多数研究记录为中文，
+请在默认的 `CORSIKA8-kokkos` 生产分支阅读。入门教程提供中英文；下面多数研究记录为中文，
 其结论对应记录中的代码、物理设置和硬件，不应混作当前安装命令。
 
 | Task / 任务 | Entry / 入口 |
@@ -42,7 +42,7 @@ below are mainly Chinese. They are dated evidence, not interchangeable recipes.
 更新旧二进制/样本。空波形需检查窗口与天线，山体界面矩方法不等于空气 observer 或全波解。
 原始数据、FLUKA 和本机构建目录不随 GitHub 分发，历史本地路径不作为下载链接。
 
-## Maintenance check (2026-09-17) / 本次教程检查
+## Historical tutorial check (2026-09-17) / 历史教程检查
 
 The README routes, recipe names, CLI flags and optional-target install behavior
 were checked against source. The dual helper now builds the complete configured

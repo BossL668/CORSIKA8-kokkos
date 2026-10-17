@@ -1,4 +1,4 @@
-# beta5 通用地形准备入口：经纬度 → DEM → 标准大气中的山体
+# CORSIKA8-kokkos 通用地形准备入口：经纬度 → DEM → 标准大气中的山体
 
 准备工具实测日期：2026-09-09；安装入口与功能说明核对：2026-09-17。
 从空环境开始请先看[当前山体完整教程](terrain_getting_started_CN.md)。
@@ -6,7 +6,7 @@
 
 ## 1. 哪些已经存在，本轮新增了什么？
 
-beta5 的 `c8_terrain_cascade` 已经使用通用非凸 `ClosedMesh/BVH` 和
+CORSIKA8-kokkos 的 `c8_terrain_cascade` 已经使用通用非凸 `ClosedMesh/BVH` 和
 `TerrainAtmosphere`：真实 DEM 岩体是 CORSIKA 原生 USStdBK 五层球形大气的子节点。
 它不同于 `c8_mountain_neutrino`，后者是有限凸、均匀岩体示例，不能代替真实山谷地形。
 
@@ -55,7 +55,7 @@ beta5 的 `c8_terrain_cascade` 已经使用通用非凸 `ClosedMesh/BVH` 和
 
 ## 2. 安装与最简准备
 
-在 **beta5 源码目录**运行。Python 安装和 C++ 应用构建是两件事：
+在 **CORSIKA8-kokkos 源码目录**运行。Python 安装和 C++ 应用构建是两件事：
 
 ```bash
 conda activate corsika_venv

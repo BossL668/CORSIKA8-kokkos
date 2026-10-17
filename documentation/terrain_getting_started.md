@@ -2,8 +2,8 @@
 
 [中文](terrain_getting_started_CN.md) · [Main installation guide](../README.md)
 
-This guide describes the published beta5 application interfaces, not an older
-mountain checkout or an uncommitted radio prototype. First complete the main
+This guide describes the published CORSIKA8-kokkos application interfaces,
+not an older mountain checkout or an uncommitted radio prototype. Complete the main
 README's empty environment, branch/submodule, Conan recipe and FLUKA setup
 (sections 3–5). Python preparation alone does not build a C++ simulator.
 
@@ -14,7 +14,7 @@ Fortran headers. The geometry validator alone does not require shower physics,
 but the following complete workflow uses FLUKA:
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 conda activate corsika_venv
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
@@ -55,7 +55,7 @@ material crossings. These are direct executables, not the air launcher.
 After the main README's CUDA Toolkit setup, substitute this build command:
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 C8_BUILD_JOBS=1 bash tools/build_kokkos.sh cuda \
   -DWITH_FLUKA=ON -DCORSIKA_BUILD_MOUNTAIN_APPLICATION=ON \
   -DC8_INTERFACE_EXECUTION_SPACE=CUDA
@@ -74,7 +74,7 @@ In the source directory, install the separate terrain Python package and check
 its entry point. Its `pyproject.toml` supplies the geographic dependencies:
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 python -m pip install ./python
 c8-terrain --help
 c8-terrain --bounds 86.700 42.930 86.710 42.940 \
@@ -117,7 +117,7 @@ Verify that in the manifest/geometry check; never reuse these injection
 coordinates blindly for another scene. From the project container directory:
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5"
+cd "$HOME/corsika8-workspace"
 export CORSIKA_DATA="$PWD/install/openmp/share/corsika/data"
 install/openmp/bin/c8_terrain_cascade \
   --scene "$HOME/CorsikaData/terrain/demo/terrain/scene.yaml" \

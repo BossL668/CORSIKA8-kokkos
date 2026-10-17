@@ -4,13 +4,13 @@
 
 **Use the [`CORSIKA8-kokkos` branch](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos)
 of the public [CORSIKA8-kokkos repository](https://github.com/BossL668/CORSIKA8-kokkos).**
-This is also the default GitHub branch, formerly named `kokkos-beta5`.
+This is the default GitHub branch and the current production source.
 
 A standalone CORSIKA-based application for atmospheric particle showers and
 CoREAS/ZHS radio signals. The same Kokkos electromagnetic-transport and radio
 sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
-beta project, an existing build tree or manually prepared `.c8emrt` tables.
+checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
 Latest changes (2026-10-15):
 
@@ -160,13 +160,13 @@ for the detailed validation record and limitations.
 
 ### 2.2 Directory layout
 
-The examples retain the historical `beta5` local directory names so existing
-build/install paths remain valid. These directory names are not the GitHub
-repository or branch name; existing checkouts do not need to be relocated.
+New installations below use `~/corsika8-workspace/CORSIKA8-kokkos` for the
+source, with sibling `build/` and `install/` directories. Existing checkouts
+can keep their current paths; do not move configured CMake build trees.
 
 ```text
-corsika-21cma-kokkos-beta5/
-├── corsika8_kokkos_beta5/       source, recipes, examples, docs and tests
+corsika8-workspace/
+├── CORSIKA8-kokkos/            source, recipes, examples, docs and tests
 ├── build/
 │   ├── openmp/deps/            OpenMP build and Conan/CMake descriptors
 │   ├── cuda/deps/              separate CUDA equivalents
@@ -183,6 +183,10 @@ corsika-21cma-kokkos-beta5/
 project or physics tables. Actual Conan packages live in the user cache.
 Configured CMake trees contain absolute paths: do not copy their caches between
 backends or machines. All variants use the same application source.
+
+Example paths such as `examples/beta5/`, CTest names containing `Beta5`, and
+dated report filenames retain their existing identifiers for compatibility.
+Use those paths and names literally; they do not select an older release.
 
 ### 2.3 Algorithm: resident wavefront transport and online radio accumulation
 
@@ -346,7 +350,7 @@ a different name. In every new terminal, source the actual Conda installation's
 The source is on the `CORSIKA8-kokkos` branch of the
 [public project repository](https://github.com/BossL668/CORSIKA8-kokkos/tree/CORSIKA8-kokkos).
 Read-only HTTPS cloning does not require GitHub authentication. Older branches
-remain separate; do not use the default branch as a substitute for this branch.
+remain separate; the default branch is `CORSIKA8-kokkos`.
 The public repository does not remove third-party model licensing requirements.
 
 For SSH, use `git@github.com:BossL668/CORSIKA8-kokkos.git` with a configured
@@ -354,11 +358,11 @@ GitHub SSH key. Pushing changes requires authentication and write permission;
 never put a token in a URL, script or README.
 
 ```bash
-mkdir -p "$HOME/corsika-21cma-kokkos-beta5"
-cd "$HOME/corsika-21cma-kokkos-beta5"
+mkdir -p "$HOME/corsika8-workspace"
+cd "$HOME/corsika8-workspace"
 git clone --branch CORSIKA8-kokkos --single-branch --recurse-submodules \
-  https://github.com/BossL668/CORSIKA8-kokkos.git corsika8_kokkos_beta5
-cd corsika8_kokkos_beta5
+  https://github.com/BossL668/CORSIKA8-kokkos.git CORSIKA8-kokkos
+cd CORSIKA8-kokkos
 test -f CMakeLists.txt
 test -f conanfile.py
 test -f modules/data/CMakeLists.txt
@@ -373,7 +377,7 @@ submodule status indicates an uninitialized module; a leading `+` means it does
 not match the revision pinned by this checkout.
 
 The model data and optional CONEX source are pinned upstream submodules, not
-large files duplicated in the beta5 repository. Their absolute URLs also work
+large files duplicated in this repository. Their absolute URLs also work
 when cloning from GitHub. GitHub's automatic source ZIP does **not** include
 submodule contents. If receiving an offline archive instead, ask for a complete
 archive including both submodules, recipes, resources and examples. Local
@@ -483,7 +487,7 @@ provided with the source; no private dataset is required:
 mkdir -p "$HOME/CorsikaData"
 install/bin/c8_air_shower --backend openmp --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_openmp" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 This runs one vertical 10 GeV photon shower, with Kokkos EM and both Kokkos
@@ -568,7 +572,7 @@ Toolkit installations.
 ### 8.1 Independent CUDA executable (production baseline)
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export FC=/usr/bin/gfortran
@@ -593,7 +597,7 @@ C8_KOKKOS_PROFILE=cuda-ampere80 C8_BUILD_JOBS=1 \
 ```
 
 This bypasses architecture discovery, not driver validation.
-`CORSIKA_ENABLE_CUDA=ON` is not a beta5 switch; select Kokkos CUDA instead.
+`CORSIKA_ENABLE_CUDA=ON` is not a supported build option; select Kokkos CUDA instead.
 `bash tools/build_kokkos.sh openmp,cuda -DWITH_FLUKA=ON` builds both sequentially.
 
 After installation, from the project container directory:
@@ -603,7 +607,7 @@ cd ..
 install/bin/c8_air_shower --backend cuda --check-backends
 install/bin/c8_air_shower --backend cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 Both commands access the GPU. Do not request multiple Kokkos host threads in
@@ -617,7 +621,7 @@ need to build the independent OpenMP/CUDA applications before this experiment.
 From the source directory, with the same environment and licensed FLUPRO:
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 conda activate corsika_venv
 test -f tools/build_kokkos_dual.sh
 test -r "$FLUPRO/libflukahp.a"
@@ -684,13 +688,13 @@ mkdir -p "$HOME/CorsikaData"
 install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 
 install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution openmp \
   --kokkos-num-threads 4 \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/dual_photon_openmp" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 The direct application retains scalar defaults, so keep both `--em-backend
@@ -731,7 +735,7 @@ install/cuda-openmp/bin/c8_air_shower \
   --em-backend kokkos-proposal --radio-backend kokkos \
   --kokkos-execution cuda-openmp --kokkos-num-threads 4 \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_cooperative" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 For CPU-primary scheduling replace only `cuda-openmp` with `openmp-cuda` and
@@ -754,7 +758,7 @@ From the project container directory:
 ```bash
 install/bin/c8_air_shower --backend cuda -p 2212 -E 1000 \
   -f "$HOME/CorsikaData/proton_1TeV_cuda" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 Replace `--backend cuda` with `--backend openmp --kokkos-num-threads 16` for
@@ -764,7 +768,7 @@ multicore CPU execution, keeping the physics parameters. For scalar reference:
 install/bin/c8_air_shower --backend openmp \
   --em-backend proposal --radio-backend cpu \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_1TeV_scalar" \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 Here the OpenMP installation supplies the executable, but `proposal/cpu` does
@@ -917,7 +921,7 @@ mkdir -p "$HOME/CorsikaData"
 install/bin/c8_air_shower --backend openmp \
   --em-backend kokkos-egs4 --radio-backend kokkos --kokkos-num-threads 4 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
   -f "$HOME/CorsikaData/egs4_photon_openmp"
 ```
 
@@ -928,7 +932,7 @@ install/bin/c8_air_shower --backend cuda \
   --em-backend kokkos-egs4 --radio-backend kokkos \
   --device 0,1,2,3 --gpu-memory-fraction 0.90 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
-  --antenna-file corsika8_kokkos_beta5/examples/beta5/antennas_minimal_nwu.txt \
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
   -f "$HOME/CorsikaData/egs4_photon_four_gpu"
 ```
 
@@ -1011,7 +1015,7 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 Tests may build physics caches and take time. Basic checks are not production
 acceptance for every medium/energy. Seed equivalence also depends on RNG domains,
 physics revision and capacity. Record executable SHA-256, settings, dependencies
-and `gpu_em` metadata; the name "beta5" alone does not identify an exact binary.
+and `gpu_em` metadata; the repository name alone does not identify an exact binary.
 
 | Symptom | Check/action |
 |---|---|
@@ -1042,7 +1046,7 @@ For a clean, unmodified checkout, update from the remote that owns this
 branch (a fresh clone names it `origin`):
 
 ```bash
-cd "$HOME/corsika-21cma-kokkos-beta5/corsika8_kokkos_beta5"
+cd "$HOME/corsika8-workspace/CORSIKA8-kokkos"
 git status --short
 git branch --show-current
 # Continue only on CORSIKA8-kokkos after preserving any local changes:
@@ -1069,7 +1073,7 @@ Do not commit FLUKA, build products, caches or private simulation data.
 
 ## 12. Optional terrain and neutrino applications
 
-The air application above is not a DEM navigator. beta5 provides separate
+The air application above is not a DEM navigator. CORSIKA8-kokkos provides separate
 executables, disabled in the default application build:
 
 | Executable | Role |
