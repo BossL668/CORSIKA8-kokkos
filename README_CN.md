@@ -8,7 +8,16 @@
 
 本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧项目目录、已有构建目录或手工生成的 `.c8emrt` 表。
 
-最近更新（2026-10-15）：
+最近更新（2026-10-19）：
+
+- 新增可选的**静态 CPU 并行 prefix**：通过 `--prefix-workers N`，先由独立 CPU 进程推进子簇，再将汇总后的 EM/μ 前沿交给所选 GPU。CPU 进程数与 GPU 数量独立，支持后续单卡或多卡；目前用于 `kokkos-proposal`。默认仍为串行 prefix，不引入动态再分配。
+- `--prefix-split-energy` 控制 CPU 分支拆分能量上限，不是物理 cut；可选环境变量 `C8_STATIC_FRONTIER_IMPORT_BATCH` 独立控制静态前沿导入块，不等于 `--gpu-min-batch`，未设置时沿用原规则。
+- 交接保留粒子种类（含核与强子）、动能、权重、输运身份和逻辑环境节点；CPU/GPU 后代编号范围互不重叠。合并包括初始 bootstrap 和所有完成的 worker，profile 与带符号射电场不漏计、不重复计数。
+- 协调进程与大型物理栈帧隔离，SHA256 文件读取缓冲改用堆内存；新增交接、编号和小栈回归测试。物理模型、CDF 算法、cut、薄化及停止正电子默认策略均未改动。并行拆分会改变后续随机历史，低能事件也可能更慢，不自动开启。
+
+参数和示例见[静态并行前缀说明](documentation/native_multigpu_CN.md#静态-cpu-并行前缀2026-10-19)。
+
+更新（2026-10-15）：
 
 - 大气 Kokkos 路径初始化时导出 C8 环境节点树，包含父子和排除节点关系，复用原 C8 的有序边界搜索逻辑；观测面仍是独立的步长限制。
 - 曲线与球面求交采用稳定的四次多项式因子分解，修正平行磁场投影；不引入逐步残差扫描或二分兜底。这不意味着与原 C8 逐位相同的轨迹。
@@ -551,9 +560,11 @@ install/bin/c8_air_shower --backend openmp \
 | `--geomagnetic-model`、`--geomagnetic-year` | 默认 IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/协同线程数；单 GPU 模式不接受大于 1 |
 | `--device 0` / `--device 0,1,2,3` | NVIDIA 物理编号/UUID：一个编号走单卡，多个编号同 shower 多卡并行；也支持空格分隔 |
+| `--prefix-workers N` | 可选静态 CPU prefix 进程数，与 GPU 数独立；默认 0 保留串行，目前仅支持 `kokkos-proposal` |
+| `--prefix-split-energy` | CPU 拆分能量上限（GeV），不是 cut；默认 0 使用 EM 前沿上限 |
 | `--kokkos-loss-solver original\|cached` | 仅本地候选、尚未发布：连续能损求逆，默认 `original`；`cached` 保留原迭代及容差 |
 | `--gpu-min-batch` | 默认 4096，不是 shower 数量 |
-| `--gpu-memory-fraction` | 单卡默认 0.70，多卡默认 0.50；预算上限非填充目标 |
+| `--gpu-memory-fraction` | 普通单卡默认 0.70；协调模式默认 0.50（含并行 prefix 后接单卡）；预算上限非填充目标 |
 | `--gpu-resident-batch-limit` | 默认 0 自动容量；固定容量用于回放/诊断 |
 | `--radio-sampling-rate-ghz` | 默认 1 GHz |
 | `--radio-window-duration-ns`、`--radio-pretrigger-ns` | 默认 400 ns / 10 ns |
@@ -565,6 +576,20 @@ CUDA/组合构建中，`--device 0` 自动选择单卡 CUDA，`--device 0 1 2 3`
 不再创建单 worker 协调目录。旧 `--kokkos-device` 可见设备序号保留给旧脚本和
 内部 worker，不能与新参数混用。CPU-only 构建不传 GPU 编号。
 详见[单卡/多卡入口](documentation/native_multigpu_CN.md)。
+
+可在多卡命令后添加 `--prefix-workers 16`；`--device 0 --prefix-workers 2`
+则先用两个 CPU 进程推进 prefix，再由一张 GPU 继续。两阶段不同时运行；
+CPU worker 不占用 GPU 显存。这是不同子簇的进程并行，不是强子模型内部多线程。
+启用后单卡也采用协调输出结构，最终结果位于 `merged/`；普通单卡命令不变。
+
+`--prefix-split-energy 0` 沿用 EM 前沿上限（`--multigpu-frontier-energy`，
+自动值为初级总能量除以所选 GPU 数的八倍），二者均不是物理 cut。
+环境变量 `C8_STATIC_FRONTIER_IMPORT_BATCH=32768` 可选地设定静态导入块，
+允许 1--65536；未设置时保持原后端阈值规则。它与 `--gpu-min-batch` 分开，
+只在已有驻留工作及回退处理排空后导入下一块，不做动态迁移。
+这些值依赖能量、粒子和硬件，不能当作通用最优值；低能事件增加 CPU 进程可能更慢。
+新模式暂不支持 EGS4；串行 EGS4 路径不变。应用与 worker 需一起重新编译，
+并行 CPU 后代使用 V3 EM 前沿；原串行前沿仍为 V2。
 
 **仅本地开发候选——缓存求逆（截至 2026-10-08 尚未发布）：** 下述选项与回归文件
 需要本地候选代码；从公开分支重新克隆尚不能使用。构建候选及测试后，在 `kokkos-proposal`

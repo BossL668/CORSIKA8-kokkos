@@ -1,5 +1,6 @@
 #include <corsika/framework/geometry/PhysicalGeometry.hpp>
 #include "../../applications/detail/air_shower_multigpu/Frontier.hpp"
+#include "../../applications/detail/air_shower_multigpu/CpuFrontier.hpp"
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/media/Environment.hpp>
 #include <corsika/media/IMediumModel.hpp>
@@ -22,6 +23,22 @@ struct FakeRouter {
 int main() {
   using namespace corsika;
   using namespace corsika::applications::multigpu;
+  unsetenv("C8_STATIC_FRONTIER_IMPORT_BATCH");
+  if (staticFrontierImportLimit(4096) != 4096 ||
+      staticFrontierImportLimit(0) != 1 ||
+      staticFrontierImportLimit(100000) != 65536) return 101;
+  for (auto const* value : {"1", "32768", "65536"}) {
+    setenv("C8_STATIC_FRONTIER_IMPORT_BATCH", value, 1);
+    if (staticFrontierImportLimit(4096) != std::stoul(value)) return 102;
+  }
+  for (auto const* value : {"", "0", "65537", "-1", "32768x", "999999999999999999"}) {
+    setenv("C8_STATIC_FRONTIER_IMPORT_BATCH", value, 1);
+    bool rejected = false;
+    try { staticFrontierImportLimit(4096); }
+    catch (std::runtime_error const&) { rejected = true; }
+    if (!rejected) return 103;
+  }
+  unsetenv("C8_STATIC_FRONTIER_IMPORT_BATCH");
   using Env = Environment<IMediumModel>;
   using Stack = setup::HybridStack<Env>;
   Env env;
@@ -159,6 +176,57 @@ int main() {
     try { FrontierInput old(name); old.setEnvironmentTree(tree); }
     catch (std::runtime_error const&) { mismatch = true; }
     if (!mismatch) return 20;
+    // CPU bootstrap retains every species, nuclear A/Z, kinetic energy,
+    // weights, zero-based steps and exact logical owner at a rounded boundary.
+    for (auto code : {Code::Proton, Code::Neutron, Code::PiPlus, Code::PiMinus,
+                      Code::KPlus, Code::KMinus, get_nucleus_code(56,26),
+                      Code::Electron, Code::Positron, Code::Photon,
+                      Code::MuPlus, Code::MuMinus, Code::NuE, Code::NuMu}) {
+      first.clear();
+      auto cpu = boundary; cpu.pid=static_cast<int>(get_PDG(code));
+      cpu.energy_GeV=100.; cpu.step_id=7;
+      auto p = gpu::em::router_detail::importParticle(first,cpu,cs,tree);
+      p.setKineticEnergy(0.123456789012345 * 1_GeV);
+      double expectedKin=p.getKineticEnergy()/1_GeV;
+      {
+        CpuBootstrapRouter capture(name,cs,tree);
+        if (!capture.canRoute(p,p.getStepId())) return 21;
+        capture.stage(p,p.getHistoryId(),p.getParentHistoryId(),p.getGeneration(),p.getStepId());
+        capture.endOfShower();
+      }
+      bounded.clear();
+      if(importCpuFrontier(bounded,cs,name,16,tree)!=1) return 22;
+      auto q=bounded.last();
+      if(q.getPID()!=code || q.getKineticEnergy()/1_GeV!=expectedKin ||
+         q.getNode()!=innerNode || q.getStepId()!=7 || q.getWeight()!=cpu.weight ||
+         q.getHistoryId()!=cpu.history_id || bounded.reserveTransportHistoryIds(1)!=16*historyStride)
+        return 23;
+      auto primaryIdentity=q.getTransportIdentity(); primaryIdentity.generation=0;
+      primaryIdentity.parent_history_id=0;
+      q.setTransportIdentity(primaryIdentity);
+      CpuBootstrapRouter notPrimary(name,cs,tree);
+      if(notPrimary.canRoute(q,0)) return 24;
+      notPrimary.endOfShower();
+    }
+    // CPU-created EM histories occupy namespaces 1..16; GPU starts at 17.
+    first.clear();
+    auto wide=boundary; wide.history_id=16*historyStride+9;
+    wide.parent_history_id=16*historyStride+2; wide.generation=2;
+    auto wp=gpu::em::router_detail::importParticle(first,wide,cs,tree);
+    {
+      CaptureRouter capture(name,cs,2.,tree,17*historyStride);
+      capture.stage(wp,wp.getHistoryId(),wp.getParentHistoryId(),wp.getGeneration(),wp.getStepId());
+      capture.endOfShower();
+    }
+    FrontierInput multiNamespace(name); multiNamespace.setEnvironmentTree(tree);
+    bounded.clear(); multiNamespace.reserveNamespace(bounded,17);
+    if(multiNamespace.refill(bounded,cs,2)!=1 || bounded.last().getHistoryId()!=wide.history_id ||
+       bounded.last().getParentHistoryId()!=wide.parent_history_id || bounded.last().getNode()!=innerNode)
+      return 25;
+    FrontierInput overlap(name); bounded.clear(); bool namespaceRejected=false;
+    try { overlap.reserveNamespace(bounded,16); }
+    catch(std::runtime_error const&) { namespaceRejected=true; }
+    if(!namespaceRejected) return 26;
     s.direction[2] = 0.;
     bool rejected = false;
     try { validate(s); } catch (std::runtime_error const&) { rejected = true; }

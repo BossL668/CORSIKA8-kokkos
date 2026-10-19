@@ -116,7 +116,10 @@ void save(fs::path const& file,Json const& value) {
 std::string digest(fs::path const& file) {
   Hash h; std::ifstream in(file,std::ios::binary);
   require(bool(in),"Cannot hash "+file.string());
-  std::array<char,65536> buf{};
+  // The CUDA-linked application already has a large caller stack frame. Keep
+  // bulk file I/O off that stack (also safe for small guarded worker stacks).
+  // This changes allocation only, not the bytes hashed or the SHA256 algorithm.
+  std::vector<char> buf(65536);
   while(in) { in.read(buf.data(),buf.size()); h.add(buf.data(),in.gcount()); }
   require(in.eof(),"Hash read failed");
   auto bytes=h.finish(); std::ostringstream out;
@@ -136,14 +139,16 @@ Json partition(fs::path const& source,std::vector<fs::path> const& destinations)
   std::ifstream in(source); std::string line;
   require(bool(std::getline(in,line)),"Missing frontier header");
   auto const header = line;
-  bool const logicalNodes = header.rfind("C8_STATIC_FRONTIER_V2 ",0)==0;
+  bool const cpuRoots = header.rfind("C8_CPU_FRONTIER_V1 ",0)==0;
+  bool const logicalNodes = cpuRoots || header.rfind("C8_STATIC_FRONTIER_V2 ",0)==0 ||
+                            header.rfind("C8_STATIC_FRONTIER_V3 ",0)==0;
   require(logicalNodes || header=="C8_STATIC_FRONTIER_V1","Invalid frontier header");
   struct Root { double energy,weight; std::uint64_t history; std::string line; };
   std::vector<Root> roots; std::set<std::uint64_t> seen; long double weighted=0;
   while(std::getline(in,line)) {
     std::istringstream row(line);
     std::vector<std::string> c{std::istream_iterator<std::string>(row),{}};
-    require(c.size()==(logicalNodes ? 15u : 14u),"Invalid frontier column count");
+    require(c.size()==(cpuRoots ? 16u : logicalNodes ? 15u : 14u),"Invalid frontier column count");
     std::size_t used=0; auto history=std::stoull(c[1],&used);
     require(used==c[1].size() && c[1].front()!='-' && history>0,"Invalid frontier history");
     auto energy=std::stod(c[5],&used); require(used==c[5].size(),"Invalid energy");
@@ -176,6 +181,28 @@ Json partition(fs::path const& source,std::vector<fs::path> const& destinations)
   require(std::isfinite(double(weighted)),"Weighted energy overflow");
   return {{"roots",roots.size()},{"counts",counts},{"cost_energy_GeV",cost},{"weighted_energy_GeV",double(weighted)},
     {"frontier_sha256",digest(source)},{"shard_sha256",hashes}};
+}
+Json joinFrontiers(std::vector<fs::path> const& sources, fs::path const& destination) {
+  require(!sources.empty() && !fs::exists(destination), "Invalid frontier join destination/sources");
+  std::ofstream out(destination); out.exceptions(std::ios::badbit | std::ios::failbit);
+  std::string header, line; std::set<std::uint64_t> seen;
+  Json hashes=Json::array();
+  for (auto const& path : sources) {
+    std::ifstream in(path); std::string current;
+    require(bool(std::getline(in,current)), "Missing CPU-produced frontier header");
+    if (header.empty()) { header=current; out<<header<<'\n'; }
+    require(current==header && header.rfind("C8_STATIC_FRONTIER_V3 ",0)==0,
+            "Incompatible CPU-produced frontier headers");
+    while (std::getline(in,line)) {
+      int pid; std::uint64_t id; std::istringstream row(line);
+      require(bool(row>>pid>>id) && seen.insert(id).second, "Duplicate joined frontier root");
+      out<<line<<'\n';
+    }
+    require(in.eof(), "CPU-produced frontier read failed");
+    hashes.push_back({{"path",path.string()},{"sha256",digest(path)}});
+  }
+  out.close();
+  return {{"roots",seen.size()},{"sources",hashes},{"joined_sha256",digest(destination)}};
 }
 void validateOutputs(fs::path const& folder) {
   for(auto rel:{"profile/profile.parquet","CoREAS/observers.parquet","ZHS/observers.parquet"})

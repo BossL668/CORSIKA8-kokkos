@@ -118,6 +118,7 @@
 #endif
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
 #include "detail/air_shower_multigpu/Frontier.hpp"
+#include "detail/air_shower_multigpu/CpuFrontier.hpp"
 #endif
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
 #include "detail/air_shower_kokkos/KokkosRunSession.hpp"
@@ -438,6 +439,14 @@ namespace {
 
 } // namespace
 
+// Keep the coordinator out of the large shower/Fortran stack frame. In
+// particular, explicit-loader deployments have little heap/stack headroom.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+int runAirShower(int argc, char** argv,
+                corsika::applications::gpu_cli::DeviceSelection const& selected_devices);
+
 int main(int argc, char** argv) {
   corsika::applications::gpu_cli::DeviceSelection selected_devices;
   try {
@@ -448,9 +457,14 @@ int main(int argc, char** argv) {
   }
 #ifdef C8_NATIVE_MULTIGPU
   // Dispatch before initializing Kokkos or any shower/Fortran model state.
-  if (selected_devices.multiple()) return c8::multigpu::mainEntry(argc, argv);
+  if (c8::multigpu::requested(argc, argv))
+    return c8::multigpu::mainEntry(argc, argv);
 #endif
+  return runAirShower(argc, argv, selected_devices);
+}
 
+int runAirShower(int argc, char** argv,
+                corsika::applications::gpu_cli::DeviceSelection const& selected_devices) {
   // the main command line description
   CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
 
@@ -653,6 +667,13 @@ int main(int argc, char** argv) {
   double frontier_max_energy = 0.;
   unsigned frontier_worker_id = 0;
   bool frontier_legacy_import = false;
+  std::string cpu_frontier_in, cpu_frontier_out;
+  double cpu_frontier_max_energy = std::numeric_limits<double>::infinity();
+  std::uint64_t frontier_history_limit = applications::multigpu::historyStride;
+  app.add_option("--prefix-cpu-in", cpu_frontier_in, "Import one statically assigned CPU subshower shard");
+  app.add_option("--prefix-cpu-out", cpu_frontier_out, "Capture all secondary species for static CPU splitting");
+  app.add_option("--prefix-cpu-max-energy", cpu_frontier_max_energy, "CPU split energy cap, not a physics cut")->check(CLI::PositiveNumber);
+  app.add_option("--frontier-history-limit", frontier_history_limit, "Exclusive input-history namespace ceiling");
   app.add_flag("--frontier-legacy-import", frontier_legacy_import,
                "Diagnostic control: import the entire frontier into the scalar stack");
   app.add_option("--frontier-out", frontier_out, "Capture independent EM subshower roots");
@@ -665,6 +686,15 @@ int main(int argc, char** argv) {
   if (!corsika::applications::air_shower::prepareDeviceCli(app, gpu_cli, selected_devices)) return EXIT_FAILURE;
   if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+  if ((!cpu_frontier_in.empty() || !cpu_frontier_out.empty()) &&
+      (nevent != 1 || !cli_energy_range.empty() || gpu_cli.em_backend != "proposal" ||
+       force_interaction || force_decay || !frontier_in.empty() || frontier_legacy_import ||
+       (!cpu_frontier_out.empty() && (!cpu_frontier_in.empty() || !frontier_out.empty())) ||
+       (!cpu_frontier_in.empty() && (frontier_out.empty() || frontier_worker_id == 0 ||
+          frontier_history_limit <= (frontier_worker_id + 1ULL) * applications::multigpu::historyStride - 1)))) {
+    CORSIKA_LOG_CRITICAL("CPU prefix splitting requires N=1, scalar PROPOSAL, no forced vertex, and disjoint history namespaces");
+    return EXIT_FAILURE;
+  }
   if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos-proposal" && gpu_cli.em_backend != "kokkos-egs4") ||
       (frontier_legacy_import && frontier_in.empty())) {
     CORSIKA_LOG_CRITICAL("Buffered frontier input requires the Kokkos worker; legacy control requires --frontier-in");
@@ -1283,13 +1313,17 @@ int main(int argc, char** argv) {
     std::unique_ptr<applications::multigpu::FrontierInput> frontier_source;
     std::unique_ptr<gpu::em::environment_tree::SnapshotStorage> frontier_environment;
     gpu::em::environment_tree::FullView frontier_tree{};
-    if ((!frontier_in.empty() || !frontier_out.empty()) &&
+    if ((!frontier_in.empty() || !frontier_out.empty() ||
+         !cpu_frontier_in.empty() || !cpu_frontier_out.empty()) &&
         gpu_cli.em_backend != "kokkos-egs4") {
       auto exported = gpu::em::environment_tree::exportFullEnvironmentTree(*env.getUniverse(), rootCS);
       frontier_environment = std::make_unique<gpu::em::environment_tree::SnapshotStorage>(exported);
       frontier_tree = frontier_environment->view();
     }
-    if (!frontier_in.empty()) {
+    if (!cpu_frontier_in.empty()) {
+      applications::multigpu::importCpuFrontier(stack, rootCS, cpu_frontier_in,
+                                               frontier_worker_id, frontier_tree);
+    } else if (!frontier_in.empty()) {
       if (frontier_legacy_import) {
         applications::multigpu::importFrontier(stack, rootCS, frontier_in, frontier_worker_id, frontier_tree);
       } else {
@@ -1322,8 +1356,16 @@ int main(int argc, char** argv) {
         static_cast<unsigned int>(
             output.getEventId());
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    if (!frontier_out.empty() && gpu_cli.em_backend != "kokkos-egs4") {
-      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy, frontier_tree);
+    if (!cpu_frontier_out.empty()) {
+      applications::multigpu::CpuBootstrapRouter router(cpu_frontier_out, rootCS, frontier_tree,
+                                                       cpu_frontier_max_energy);
+      HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
+                    applications::multigpu::CpuBootstrapRouter> cascade(
+          env, tracking, sequence, output, stack, router);
+      cascade.run();
+    } else if (!frontier_out.empty() && gpu_cli.em_backend != "kokkos-egs4") {
+      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy,
+                                                  frontier_tree, frontier_history_limit);
       HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
                     applications::multigpu::CaptureRouter> cascade(
           env, tracking, sequence, output, stack, router);

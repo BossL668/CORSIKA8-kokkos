@@ -12,7 +12,29 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest changes (2026-10-15):
+Latest changes (2026-10-19):
+
+- Optional **static CPU-parallel prefix**: `--prefix-workers N` advances
+  independent CPU subshowers before handing their combined EM/muon frontier
+  to the selected GPUs. The CPU process count is independent of the GPU count;
+  both one-GPU and multi-GPU continuation are supported with `kokkos-proposal`.
+  The default remains the serial prefix; no dynamic redistribution is added.
+- `--prefix-split-energy` controls the CPU splitting threshold, not a physics
+  cut. `C8_STATIC_FRONTIER_IMPORT_BATCH` optionally controls static GPU-root
+  import chunks independently of `--gpu-min-batch`; unset retains the old rule.
+- CPU handoff preserves particle species (including nuclei and hadrons), kinetic
+  energy, weights, transport identity and logical environment ownership. CPU
+  and GPU descendants use disjoint history ranges; signed radio fields and
+  profiles include the bootstrap and every completed worker exactly once.
+- The coordinator no longer reserves the large shower stack frame, and SHA256
+  file reads use a heap buffer. Added handoff, namespace and small-stack tests.
+  Physics models, CDF algorithms, cuts, thinning and stopped-positron defaults
+  are unchanged. Parallel splitting changes subsequent random histories and
+  may be slower for low-energy events; it is not enabled automatically.
+
+See [prefix options and examples](documentation/native_multigpu_CN.md#静态-cpu-并行前缀2026-10-19).
+
+Changes (2026-10-15):
 
 - The air-shower Kokkos path now exports C8's environment-node hierarchy,
   including parent/child and excluded-node relations, and shares C8's ordered
@@ -804,9 +826,11 @@ full four-L20 production/performance acceptance remains a separate step.
 | `--geomagnetic-model`, `--geomagnetic-year` | IGRF14 / 2027 |
 | `--kokkos-num-threads N` | OpenMP/cooperative threads; single-GPU execution rejects values above 1 |
 | `--device 0` / `--device 0,1,2,3` | NVIDIA physical index/UUID: one selects the direct single-GPU path; several cooperate on each shower; space-separated IDs also accepted |
+| `--prefix-workers N` | Optional static CPU prefix processes, independent of GPU count; default 0 (serial); currently `kokkos-proposal` only |
+| `--prefix-split-energy` | CPU splitting energy cap in GeV, not a cut; default 0 uses the EM frontier cap |
 | `--kokkos-loss-solver original\|cached` | Local candidate only, not yet published: continuous-loss inversion; default `original`; `cached` preserves iterations and tolerances |
 | `--gpu-min-batch` | 4096, not a shower count |
-| `--gpu-memory-fraction` | Budget ceiling: 0.70 normally, 0.50 with multiple GPUs; explicit values override the default |
+| `--gpu-memory-fraction` | Budget ceiling: 0.70 for direct single-GPU execution; 0.50 in the coordinator, including single-GPU parallel prefix; explicit values override the default |
 | `--gpu-resident-batch-limit` | 0 for automatic capacity; explicit for replay/diagnosis |
 | `--radio-sampling-rate-ghz` | 1 GHz |
 | `--radio-window-duration-ns`, `--radio-pretrigger-ns` | 400 ns / 10 ns |
@@ -877,7 +901,7 @@ cd ../install/cuda-openmp/bin
   --ring 1 --antenna-file /dev/null -f demo_multigpu
 ```
 
-Each shower uses all selected GPUs. A CPU prefix creates independent roots;
+Each shower uses all selected GPUs. By default, a serial CPU prefix creates independent roots;
 one process per GPU transports its assigned subshowers and handles its own
 CPU fallbacks. The C++ coordinator merges profiles and signed CoREAS/ZHS fields
 after all workers finish. `-N` showers run sequentially, with seeds incremented
@@ -888,6 +912,31 @@ backend selection. `--devices` remains a compatibility alias; a single ID
 now uses the ordinary output layout, not a one-worker coordinator directory.
 The legacy `--kokkos-device` visible-device ordinal remains supported for
 older scripts and internal workers; do not combine it with `--device`/`--devices`.
+
+To parallelize the CPU prefix, add `--prefix-workers 16` to the four-GPU
+example, or use `--device 0 --prefix-workers 2` for two CPU prefix processes
+followed by one GPU. These stages run sequentially: a serial bootstrap creates
+disjoint CPU roots, CPU workers advance them, then GPU workers continue the
+joined frontier. CPU workers do not reserve GPU memory. This is process-level
+subshower parallelism, not multithreading inside a hadronic model.
+
+`--prefix-split-energy` sets the CPU root energy cap; zero uses the GPU frontier
+cap (`--multigpu-frontier-energy`, automatically primary energy divided by
+eight times the number of selected GPUs). Neither cap is a physical cut.
+The optional environment variable `C8_STATIC_FRONTIER_IMPORT_BATCH=32768`
+sets a static import chunk; accepted values are 1--65536. Without it, the
+existing backend-threshold-based chunk rule is retained. It is distinct from
+`--gpu-min-batch`, and new roots are imported only after pending local work
+and fallback have drained. These settings are workload-dependent, not
+universal optimal values; more CPU workers can make small showers slower.
+
+When `--prefix-workers` is positive, even a single selected GPU uses the
+coordinator layout (`bootstrap/`, `cpu_prefix_*/`, `worker_*/`, `merged/`).
+The new prefix mode currently requires `kokkos-proposal`; the existing
+serial-prefix EGS4 path is unchanged. Rebuild the application and all workers
+together: parallel CPU histories require V3 EM frontiers, while the unchanged
+serial prefix continues to write V2. Parallel and serial events need statistical
+comparison, not identical random histories.
 
 The GPU IDs are physical `nvidia-smi` indices (full UUIDs also work). The
 memory fraction is a per-GPU budget. Slow, high-energy jobs can raise the

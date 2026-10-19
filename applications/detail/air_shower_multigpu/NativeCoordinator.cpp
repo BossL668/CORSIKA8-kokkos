@@ -150,7 +150,8 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
   common.insert(common.end(),{"-N","1","--hadronic-workers","1","--hadronic-backend","scalar"});
   if(o.emBackend=="kokkos-egs4")common.insert(common.end(),{"--egs4-stepfc",number(o.egs4Stepfc)});
   std::map<std::string,std::string> env{{"OMP_NUM_THREADS","1"},{"OMP_THREAD_LIMIT","1"},
-    {"OPENBLAS_NUM_THREADS","1"},{"MKL_NUM_THREADS","1"},{"CUDA_VISIBLE_DEVICES",devices.front()}};
+    {"OPENBLAS_NUM_THREADS","1"},{"MKL_NUM_THREADS","1"},{"ARROW_NUM_THREADS","1"},
+    {"ARROW_IO_THREADS","1"},{"CUDA_VISIBLE_DEVICES",devices.front()}};
   auto launch=[&](std::string const& name,std::vector<std::string> const& options,
                   std::map<std::string,std::string> const& environment) {
     std::vector<std::string> args{o.worker.string()};
@@ -163,17 +164,64 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
     save(root/"CONFIG.json",{{"command",{o.worker.string()}},{"physics_args",physics},{"seed",seed},
       {"devices",devices},{"gpu_memory_fraction",o.memoryFraction},
       {"em_backend",o.emBackend},{"egs4_stepfc",o.egs4Stepfc},
+      {"cpu_prefix_workers",o.prefixWorkers},
+      {"cpu_prefix_split_energy_GeV",o.prefixSplitEnergy},
       {"coordinator","C++"},{"output",root.string()}});
     auto frontier=root/"frontier.txt";
     auto cap=o.frontierEnergy>0?o.frontierEnergy:o.energy/(8*devices.size());
-    std::cout<<"Seed "<<seed<<": computing shower prefix"<<std::endl;
-    auto prefix=launch("prefix",{"-s",std::to_string(seed),"--em-backend",o.emBackend=="kokkos-egs4"?"kokkos-egs4":"proposal","--radio-backend","cpu",
-      "--frontier-out",frontier.string(),"--frontier-max-energy",number(cap)},env);
-    p.wait({prefix},o.timeout); validateOutputs(root/"prefix/shower");
+    std::vector<fs::path> parts;
+    fs::path primaryPart;
+    auto prefixStart=Clock::now();
+    if (o.prefixWorkers==0) {
+      std::cout<<"Seed "<<seed<<": computing serial shower prefix"<<std::endl;
+      auto prefix=launch("prefix",{"-s",std::to_string(seed),"--em-backend",o.emBackend=="kokkos-egs4"?"kokkos-egs4":"proposal","--radio-backend","cpu",
+        "--frontier-out",frontier.string(),"--frontier-max-energy",number(cap)},env);
+      p.wait({prefix},o.timeout); validateOutputs(root/"prefix/shower");
+      primaryPart=root/"prefix/shower"; parts.push_back(primaryPart);
+    } else {
+      std::cout<<"Seed "<<seed<<": static CPU bootstrap + "<<o.prefixWorkers<<" prefix workers"<<std::endl;
+      auto cpuEnv=env; cpuEnv["CUDA_VISIBLE_DEVICES"]="";
+      auto cpuRoots=root/"cpu_frontier.txt";
+      auto bootstrap=launch("bootstrap",{"-s",std::to_string(seed),"--em-backend","proposal",
+        "--radio-backend","cpu","--prefix-cpu-out",cpuRoots.string(),
+        "--prefix-cpu-max-energy",number(o.prefixSplitEnergy>0?o.prefixSplitEnergy:cap)},cpuEnv);
+      p.wait({bootstrap},o.timeout); validateOutputs(root/"bootstrap/shower");
+      primaryPart=root/"bootstrap/shower"; parts.push_back(primaryPart);
+      std::vector<fs::path> cpuShards;
+      for(unsigned i=0;i<o.prefixWorkers;++i) cpuShards.push_back(root/("cpu_roots_"+std::to_string(i)+".txt"));
+      auto cpuAudit=partition(cpuRoots,cpuShards); save(root/"CPU_PARTITION.json",cpuAudit);
+      require(cpuAudit["roots"].get<std::size_t>()>0, "Bootstrap produced no CPU subshower roots");
+      std::vector<std::size_t> cpuWorkers;
+      std::vector<fs::path> cpuFrontiers;
+      auto historyLimit=(std::uint64_t(o.prefixWorkers)+1)*(std::uint64_t{1}<<48);
+      for(unsigned i=0;i<o.prefixWorkers;++i) {
+        if(cpuAudit["counts"][i]==0) continue;
+        auto name="cpu_prefix_"+std::to_string(i);
+        auto file=root/(name+"_frontier.txt"); cpuFrontiers.push_back(file);
+        cpuWorkers.push_back(launch(name,{"-s",std::to_string(workerSeed(seed,1024+i)),
+          "--em-backend","proposal","--radio-backend","cpu",
+          "--prefix-cpu-in",cpuShards[i].string(),"--frontier-worker-id",std::to_string(i+1),
+          "--frontier-out",file.string(),"--frontier-max-energy",number(cap),
+          "--frontier-history-limit",std::to_string(historyLimit)},cpuEnv));
+        parts.push_back(root/name/"shower");
+      }
+      p.wait(cpuWorkers,o.timeout);
+      for(unsigned i=0;i<o.prefixWorkers;++i) {
+        if(cpuAudit["counts"][i]==0) continue;
+        auto folder=root/("cpu_prefix_"+std::to_string(i));
+        validateOutputs(folder/"shower");
+        auto feed=readJson(folder/"CPU_FRONTIER_FEED.json");
+        require(feed["roots_consumed"]==cpuAudit["counts"][i], "CPU prefix did not consume its complete shard");
+        require(digest(cpuShards[i])==cpuAudit["shard_sha256"][i], "CPU shard changed during execution");
+      }
+      require(digest(cpuRoots)==cpuAudit["frontier_sha256"], "CPU bootstrap frontier changed");
+      save(root/"FRONTIER_JOIN.json",joinFrontiers(cpuFrontiers,frontier));
+    }
+    double prefixPhase=seconds(prefixStart);
     std::vector<fs::path> shards;
     for(std::size_t i=0;i<devices.size();++i) shards.push_back(root/("roots_"+std::to_string(i)+".txt"));
     auto audit=partition(frontier,shards); save(root/"PARTITION.json",audit);
-    std::vector<std::size_t> workers; std::vector<fs::path> parts{root/"prefix/shower"};
+    std::vector<std::size_t> workers;
     std::cout<<"Seed "<<seed<<": "<<audit["counts"]<<" roots on "<<devices.size()<<" GPUs"<<std::endl;
     for(unsigned i=0;i<devices.size();++i) {
       if(audit["counts"][i]==0) continue;
@@ -182,7 +230,7 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
         "-s",std::to_string(workerSeed(seed,i)),"--em-backend",o.emBackend,"--radio-backend","kokkos",
         "--kokkos-execution","cuda","--kokkos-num-threads","1","--kokkos-device","0",
         "--gpu-memory-fraction",number(o.memoryFraction),"--gpu-resident-batch-limit","0",
-        "--frontier-in",shards[i].string(),"--frontier-worker-id",std::to_string(i+1)};
+        "--frontier-in",shards[i].string(),"--frontier-worker-id",std::to_string(o.prefixWorkers+i+1)};
       workers.push_back(launch("worker_"+std::to_string(i),workerOptions,workerEnv));
       parts.push_back(root/("worker_"+std::to_string(i))/"shower");
     }
@@ -196,14 +244,15 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
     for(unsigned i=0;i<shards.size();++i) require(digest(shards[i])==audit["shard_sha256"][i],"Shard changed while running");
     auto mergeStart=Clock::now(); auto products=merge(parts,root/"merged");
     fs::create_directory(root/"merged/primary");
-    for(auto name:{"config.yaml","summary.yaml"}) fs::copy_file(parts.front()/"primary"/name,root/"merged/primary"/name);
+    for(auto name:{"config.yaml","summary.yaml"}) fs::copy_file(primaryPart/"primary"/name,root/"merged/primary"/name);
     save(root/"merged/config.yaml",{{"creator","CORSIKA8 native multi-GPU"},{"physics_args",physics},
       {"coordinator_config",(root/"CONFIG.json").string()},{"merge",(root/"merged/MERGE.json").string()}});
     save(root/"merged/summary.yaml",{{"showers",1},{"seed",seed},{"runtime_seconds",seconds(p.started)},
       {"experimental",true},{"statistical_acceptance",false},
       {"output_dirs",{"profile","production_profile","energyloss","particles","interactions","primary","CoREAS","ZHS"}}});
     checkInterrupt(); auto wall=seconds(p.started);
-    save(root/"TIMING.json",{{"wall_s",wall},{"merge_s",seconds(mergeStart)},{"parts",p.records()}});
+    save(root/"TIMING.json",{{"wall_s",wall},{"merge_s",seconds(mergeStart)},
+      {"prefix_phase_wall_s",prefixPhase},{"cpu_prefix_workers",o.prefixWorkers},{"parts",p.records()}});
     save(root/"COMPLETE.json",{{"products",products},{"wall_s",wall},{"partition_sha256",digest(root/"PARTITION.json")},
       {"process_complete",true},{"physics_validated_against_beta2",false},{"experimental",true},{"coordinator","C++"}});
     std::cout<<"Seed "<<seed<<": complete in "<<wall<<" s; "<<root/"merged"<<std::endl;
@@ -222,6 +271,10 @@ void installSignalHandlers() {
 void run(Options const& options) {
   auto o=options; o.output=fs::absolute(o.output).lexically_normal(); o.worker=fs::absolute(o.worker).lexically_normal();
   require(!o.devices.empty() && o.devices.size()<=255,"Select 1..255 distinct GPUs");
+  require(o.prefixWorkers + o.devices.size()<=255 &&
+          (o.prefixWorkers==0 || o.emBackend=="kokkos-proposal"),
+          "CPU prefix workers require PROPOSAL and disjoint namespaces (CPU + GPU <=255)");
+  require(std::isfinite(o.prefixSplitEnergy) && o.prefixSplitEnergy>=0, "Invalid CPU splitting energy");
   require(std::isfinite(o.energy) && o.energy>0,"Positive fixed primary energy required");
   require(o.seed>0 && o.events>0 && o.seed<=std::uint64_t(std::numeric_limits<std::int64_t>::max())-o.events,"Invalid seed/event count");
   require(std::isfinite(o.memoryFraction) && o.memoryFraction>0 && o.memoryFraction<=.9,"Memory fraction must be in (0,0.9]");
@@ -254,6 +307,9 @@ void run(Options const& options) {
   }
 }
 bool requested(int argc,char** argv) {
+  for(int i=1;i<argc;++i)
+    if(std::string(argv[i])=="--prefix-workers" || std::string(argv[i]).rfind("--prefix-workers=",0)==0)
+      return true;
   return corsika::applications::gpu_cli::parseDevices(argc, argv).multiple();
 }
 int mainEntry(int argc,char** argv) {
@@ -271,6 +327,8 @@ int mainEntry(int argc,char** argv) {
   app.add_option("--gpu-memory-fraction",o.memoryFraction,"Memory budget per GPU (0,0.9]")->default_val(.5);
   app.add_option("--multigpu-timeout",o.timeout,"Timeout seconds per prefix/worker")->default_val(7200);
   app.add_option("--multigpu-frontier-energy",o.frontierEnergy,"Scheduling cap [GeV]; 0=automatic")->default_val(0);
+  app.add_option("--prefix-workers",o.prefixWorkers,"Static CPU prefix processes; 0 retains the original serial prefix")->default_val(0);
+  app.add_option("--prefix-split-energy",o.prefixSplitEnergy,"Static CPU split energy cap [GeV]; 0 uses the EM handoff cap")->default_val(0);
   app.add_option("--multigpu-worker",worker,"Optional compatible worker binary; default: this binary");
   app.add_option("--em-backend",emBackend,"Multi-GPU transport backend: kokkos-proposal or kokkos-egs4");
   app.add_option("--egs4-stepfc",o.egs4Stepfc,"C7-EGS4 step factor (default: 1)")->check(CLI::PositiveNumber);
@@ -279,7 +337,8 @@ int mainEntry(int argc,char** argv) {
   try {
     o.devices = corsika::applications::gpu_cli::parseDevices(argc, argv).ids;
     app.parse(argc,argv); o.output=output;
-    require(o.devices.size()>1, "Multi-GPU coordination requires at least two GPU IDs");
+    require(o.devices.size()>1 || (o.devices.size()==1 && o.prefixWorkers>0),
+            "Select multiple GPUs or enable static CPU prefix workers");
     require((emBackend.empty() || emBackend=="kokkos-proposal" || emBackend=="kokkos-egs4") &&
             (radioBackend.empty() || radioBackend=="kokkos") &&
             (execution.empty() || execution=="cuda"), "Multi-GPU requires kokkos-proposal/kokkos-egs4 transport, kokkos radio and cuda execution");
@@ -297,7 +356,7 @@ int mainEntry(int argc,char** argv) {
       "--hadronic-backend","--gpu-resident-batch-limit","--compress"};
     for(std::size_t i=0;i<o.physics.size();++i) {
       auto key=o.physics[i].substr(0,o.physics[i].find('='));
-      require(!reserved.count(key) && key.rfind("--frontier-",0)!=0 && key!="--",
+      require(!reserved.count(key) && key.rfind("--frontier-",0)!=0 && key.rfind("--prefix-",0)!=0 && key!="--",
         "Multi-GPU coordinator owns or does not support option: "+key);
       if(key=="--antenna-file" || key=="--gpu-aux-cache-dir" || key=="--kokkos-tuning-cache") {
         auto eq=o.physics[i].find('=');

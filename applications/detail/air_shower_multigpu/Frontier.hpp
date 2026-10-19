@@ -5,6 +5,7 @@
 #include <corsika/framework/core/HybridCascade.hpp>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <set>
@@ -16,16 +17,24 @@
 namespace corsika::applications::multigpu {
 using State = gpu::em::EmParticleState;
 using EnvironmentView = gpu::em::environment_tree::FullView;
+constexpr std::uint64_t historyStride = std::uint64_t{1} << 48;
 struct FrontierHeader {
   bool logical_nodes{};
   std::uint64_t environment_fingerprint{};
+  std::uint64_t history_limit{historyStride};
   explicit FrontierHeader(std::string const& header) {
     if (header == "C8_STATIC_FRONTIER_V1") return;
     std::istringstream in(header);
     std::string version, extra;
-    if (!(in >> version >> environment_fingerprint) ||
-        version != "C8_STATIC_FRONTIER_V2" || (in >> extra))
+    if (!(in >> version >> environment_fingerprint))
       throw std::runtime_error("Missing/unsupported frontier header");
+    if (version == "C8_STATIC_FRONTIER_V3") {
+      if (!(in >> history_limit) || history_limit <= historyStride ||
+          history_limit > 255 * historyStride || history_limit % historyStride)
+        throw std::runtime_error("Invalid frontier history limit");
+    } else if (version != "C8_STATIC_FRONTIER_V2")
+      throw std::runtime_error("Missing/unsupported frontier header");
+    if (in >> extra) throw std::runtime_error("Trailing frontier header fields");
     logical_nodes = true;
   }
   void validateEnvironment(EnvironmentView const& tree) const {
@@ -35,29 +44,30 @@ struct FrontierHeader {
       throw std::runtime_error("Frontier environment mismatch; logical nodes cannot be reconstructed from position");
   }
 };
-constexpr std::uint64_t historyStride = std::uint64_t{1} << 48;
 inline bool routable(int pid) {
   return pid == 22 || pid == 11 || pid == -11 || pid == 13 || pid == -13;
 }
-inline void validate(State const& s) {
+inline void validate(State const& s, std::uint64_t history_limit = historyStride,
+                     bool require_em = true) {
   double norm = 0.;
   for (int k = 0; k != 3; ++k) {
     if (!std::isfinite(s.position_m[k]) || !std::isfinite(s.direction[k]))
       throw std::runtime_error("Non-finite frontier coordinates");
     norm += s.direction[k] * s.direction[k];
   }
-  if (!routable(s.pid) || !std::isfinite(s.energy_GeV) ||
+  if ((require_em && !routable(s.pid)) || !std::isfinite(s.energy_GeV) ||
       s.energy_GeV < get_mass(convert_from_PDG(static_cast<PDGCode>(s.pid))) / 1_GeV ||
       !std::isfinite(s.time_s) || !std::isfinite(s.weight) || s.weight < 0. ||
       std::abs(norm - 1.) > 1.e-9 || !s.history_id ||
-      s.history_id >= historyStride || s.parent_history_id >= historyStride ||
+      s.history_id >= history_limit || s.parent_history_id >= history_limit ||
       ((s.generation == 0) != (s.parent_history_id == 0)))
     throw std::runtime_error("Invalid frontier identity, direction, energy or weight");
 }
 // Explicit portable records, never pointers. The coordinator hashes the closed
 // file before assigning every root exactly once. V2 retains the logical node ID.
-inline void write(std::ostream& out, State const& s, bool logical_nodes = false) {
-  validate(s);
+inline void write(std::ostream& out, State const& s, bool logical_nodes = false,
+                  std::uint64_t history_limit = historyStride) {
+  validate(s, history_limit);
   out << s.pid << ' ' << s.history_id << ' ' << s.parent_history_id << ' '
       << s.generation << ' ' << s.step_id << ' ' << s.energy_GeV << ' '
       << s.weight << ' ' << s.time_s;
@@ -81,6 +91,7 @@ class FrontierInput {
   std::size_t batches_{}, peak_batch_{};
   FrontierHeader header_{"C8_STATIC_FRONTIER_V1"};
   EnvironmentView environment_{};
+  std::uint64_t namespace_base_{};
 public:
   explicit FrontierInput(std::string const& path) : file_(path) {
     std::string header;
@@ -96,6 +107,9 @@ public:
     if (worker < 1 || worker > 255) throw std::runtime_error("Worker ID outside [1,255]");
     auto const next = stack.reserveTransportHistoryIds(1);
     auto const base = worker * historyStride;
+    if (base < header_.history_limit)
+      throw std::runtime_error("Worker namespace overlaps imported CPU histories");
+    namespace_base_ = base;
     if (next >= base) throw std::runtime_error("Worker history namespace collision");
     if (base - next > 1) stack.reserveTransportHistoryIds(base - next - 1);
   }
@@ -121,7 +135,10 @@ public:
       if (header_.logical_nodes) row >> s.environment_node;
       std::string trailing;
       if (!row || (row >> trailing)) throw std::runtime_error("Malformed frontier row");
-      validate(s);
+      validate(s, header_.history_limit);
+      if (namespace_base_ && (s.history_id >= namespace_base_ ||
+                              s.parent_history_id >= namespace_base_))
+        throw std::runtime_error("Imported root overlaps worker namespace");
       if (!seen_.insert(s.history_id).second) throw std::runtime_error("Duplicate frontier root");
       batch.push_back(s);
     }
@@ -141,6 +158,21 @@ public:
 inline thread_local FrontierInput* activeFrontierInput = nullptr;
 inline thread_local std::string activeFrontierOutput;
 struct ForwardRouterArguments {};
+// Opt-in control: static import chunking is independent of the GPU
+// dispatch threshold. No live queue is refilled until its local work drains.
+inline std::size_t staticFrontierImportLimit(std::size_t original) {
+  if (auto const* value = std::getenv("C8_STATIC_FRONTIER_IMPORT_BATCH")) {
+    std::string text(value);
+    if (text.empty() || text.size() > 5 ||
+        !std::all_of(text.begin(), text.end(), [](char c) { return c >= '0' && c <= '9'; }))
+      throw std::runtime_error("Invalid static frontier import batch");
+    auto const count = std::stoul(text);
+    if (count == 0 || count > 65536)
+      throw std::runtime_error("Static frontier import batch outside [1,65536]");
+    return count;
+  }
+  return std::min<std::size_t>(65536, std::max<std::size_t>(1, original));
+}
 class ScopedFrontierInput {
 public:
   explicit ScopedFrontierInput(FrontierInput* input, std::string output = {}) {
@@ -166,13 +198,13 @@ public:
   BufferedFrontierRouter(ForwardRouterArguments, CoordinateSystemPtr const& cs,
                         std::size_t limit, Args&&... args)
       : BaseRouter(std::forward<Args>(args)...), source_(activeFrontierInput),
-        cs_(cs), limit_(std::min<std::size_t>(65536, std::max<std::size_t>(1,limit))) {}
+        cs_(cs), limit_(staticFrontierImportLimit(limit)) {}
   template<class Backend, class Env, class Fallback, class Output>
   BufferedFrontierRouter(Backend& backend, CoordinateSystemPtr const& cs,
                         Env const& env, Fallback& fallback, Output& output)
       : BaseRouter(backend, cs, env, fallback, output),
         source_(activeFrontierInput), cs_(cs),
-        limit_(std::min<std::size_t>(65536, std::max<std::size_t>(1, backend.minimumBatchSize()))) {}
+        limit_(staticFrontierImportLimit(backend.minimumBatchSize())) {}
   bool pending() const {
     return BaseRouter::pending() || (source_ && source_->pending());
   }
@@ -191,7 +223,8 @@ public:
       audit.exceptions(std::ios::badbit | std::ios::failbit);
       audit << "{\"mode\":\"bounded-high-energy-first\",\"roots_consumed\":"
             << source_->count() << ",\"batches\":" << source_->batches()
-            << ",\"maximum_imported_batch\":" << source_->peakBatch() << "}\n";
+            << ",\"maximum_imported_batch\":" << source_->peakBatch()
+            << ",\"configured_import_batch\":" << limit_ << "}\n";
       CORSIKA_LOG_INFO("Bounded frontier drained: {} roots, {} batches, peak imported batch {}",
                       source_->count(), source_->batches(), source_->peakBatch());
     }
@@ -203,12 +236,21 @@ class CaptureRouter {
   std::ofstream file_;
   std::size_t count_{};
   EnvironmentView environment_{};
+  std::uint64_t history_limit_{historyStride};
 public:
   CaptureRouter(std::string const& path, CoordinateSystemPtr cs, double cap,
-                EnvironmentView const& tree = {})
-      : cs_(cs), maximumEnergy_(cap), file_(path), environment_(tree) {
+                EnvironmentView const& tree = {},
+                std::uint64_t history_limit = historyStride)
+      : cs_(cs), maximumEnergy_(cap), file_(path), environment_(tree),
+        history_limit_(history_limit) {
     if (!file_) throw std::runtime_error("Cannot create frontier: " + path);
-    if (tree.topology.node_count)
+    if (history_limit != historyStride) {
+      if (!tree.topology.node_count || history_limit <= historyStride ||
+          history_limit > 255 * historyStride || history_limit % historyStride)
+        throw std::runtime_error("Invalid CPU-prefix history namespace limit");
+      file_ << "C8_STATIC_FRONTIER_V3 " << gpu::em::environment_tree::snapshotFingerprint(tree)
+            << ' ' << history_limit << '\n';
+    } else if (tree.topology.node_count)
       file_ << "C8_STATIC_FRONTIER_V2 " << gpu::em::environment_tree::snapshotFingerprint(tree) << '\n';
     else file_ << "C8_STATIC_FRONTIER_V1\n";
     file_ << std::setprecision(17);
@@ -224,7 +266,7 @@ public:
     // counter. No physical step happened: export the returned value unchanged.
     write(file_, gpu::em::router_detail::toDeviceState(
         p, cs_, history, parent, generation, step, environment_),
-        environment_.topology.node_count != 0);
+        environment_.topology.node_count != 0, history_limit_);
     ++count_;
   }
   bool pending() const { return false; }
@@ -258,7 +300,7 @@ std::size_t importFrontier(Stack& stack, CoordinateSystemPtr cs,
     if (header.logical_nodes) row >> s.environment_node;
     std::string trailing;
     if (!row || (row >> trailing)) throw std::runtime_error("Malformed frontier row");
-    validate(s);
+    validate(s, header.history_limit);
     if (!seen.insert(s.history_id).second) throw std::runtime_error("Duplicate frontier root");
     gpu::em::router_detail::importParticle(stack, s, cs, tree);
   }
@@ -266,6 +308,7 @@ std::size_t importFrontier(Stack& stack, CoordinateSystemPtr cs,
   // Ancestors retain original IDs; children use an exclusive 48-bit range.
   auto const next = stack.reserveTransportHistoryIds(1);
   auto const base = worker * historyStride;
+  if (base < header.history_limit) throw std::runtime_error("Worker namespace overlaps input");
   if (next >= base) throw std::runtime_error("Worker history namespace collision");
   if (base - next > 1) stack.reserveTransportHistoryIds(base - next - 1);
   CORSIKA_LOG_INFO("Worker {} imported {} roots; new histories start at {}", worker, seen.size(), base);

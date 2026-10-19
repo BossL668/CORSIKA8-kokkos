@@ -51,7 +51,7 @@ static void fixture(fs::path const& p,double value,double timeOffset=0) {
   fs::create_directories(p/"primary"); text(p/"primary/config.yaml","energy: 10\n"); text(p/"primary/summary.yaml","pdg: 22\n");
 }
 static int worker(int argc,char** argv) {
-  std::string out,frontierIn,frontierOut,emBackend,stepfc; unsigned id=0;
+  std::string out,frontierIn,frontierOut,emBackend,stepfc,cpuIn,cpuOut,historyLimit; unsigned id=0;
   for(int i=1;i<argc;++i) {
     std::string a(argv[i]);
     if(a=="-f") out=argv[++i];
@@ -60,6 +60,9 @@ static int worker(int argc,char** argv) {
     else if(a=="--frontier-worker-id") id=std::stoul(argv[++i]);
     else if(a=="--em-backend") emBackend=argv[++i];
     else if(a=="--egs4-stepfc") stepfc=argv[++i];
+    else if(a=="--prefix-cpu-in") cpuIn=argv[++i];
+    else if(a=="--prefix-cpu-out") cpuOut=argv[++i];
+    else if(a=="--frontier-history-limit") historyLimit=argv[++i];
   }
   if(std::getenv("C8_TEST_EXPECT_EGS4"))
     check(emBackend=="kokkos-egs4" && std::stod(stepfc)==.0625,
@@ -72,7 +75,26 @@ static int worker(int argc,char** argv) {
     if(id) std::this_thread::sleep_for(std::chrono::seconds(10));
   }
   if(std::getenv("C8_TEST_SLEEP") && id) std::this_thread::sleep_for(std::chrono::seconds(10));
-  if(!frontierOut.empty()) text(frontierOut,
+  if(!cpuOut.empty()) {
+    check(std::string(std::getenv("CUDA_VISIBLE_DEVICES"))=="", "Bootstrap must not reserve a GPU");
+    std::string data="C8_CPU_FRONTIER_V1 123456\n";
+    for(unsigned i=0;i<32;++i)
+      data+="2212 "+std::to_string(i+2)+" 1 1 0 8 1 0 0 0 1 0 0 -1 0 7.0617\n";
+    text(cpuOut,data);
+  }
+  if(!cpuIn.empty()) {
+    check(std::string(std::getenv("CUDA_VISIBLE_DEVICES"))=="", "CPU prefix must not reserve a GPU");
+    std::ifstream in(cpuIn);std::string line;std::getline(in,line);std::size_t count=0;
+    std::string data="C8_STATIC_FRONTIER_V3 123456 "+historyLimit+"\n";
+    while(std::getline(in,line)) {
+      data+="22 "+std::to_string(id*(std::uint64_t{1}<<48)+100+count)+
+            " 1 2 0 4 1 0 0 0 1 0 0 -1 0\n";
+      ++count;
+    }
+    text(frontierOut,data);
+    if(std::getenv("C8_TEST_BAD_CPU_FEED")) ++count;
+    save("CPU_FRONTIER_FEED.json",{{"roots_consumed",count}});
+  } else if(!frontierOut.empty()) text(frontierOut,
     "C8_STATIC_FRONTIER_V1\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1\n"
     "11 2 1 1 9 4 4 3 0 0 1 0 0 -1\n22 3 1 1 9 2 1 0 0 0 1 0 0 -1\n22 4 1 1 9 1 1 0 0 0 1 0 0 -1\n");
   if(!frontierIn.empty()) {
@@ -97,7 +119,7 @@ int main(int argc,char** argv) {
     if(argc>1 && std::string(argv[1]).rfind("--query-gpu",0)==0) {
       std::cout<<"0, GPU-test-0\n1, GPU-test-1\n2, GPU-test-2\n3, GPU-test-3\n"; return 0;
     }
-    for(int i=1;i<argc;++i) if(std::string(argv[i])=="--frontier-in" || std::string(argv[i])=="--frontier-out")
+    for(int i=1;i<argc;++i) if(std::string(argv[i])=="--frontier-in" || std::string(argv[i])=="--frontier-out" || std::string(argv[i])=="--prefix-cpu-out")
       return worker(argc,argv);
     if(argc>3 && std::string(argv[1])=="--merge") {
       std::vector<fs::path> parts; for(int i=3;i<argc;++i) parts.emplace_back(argv[i]);
@@ -140,6 +162,25 @@ int main(int argc,char** argv) {
     check(first(root/"four/merged/CoREAS/observers.parquet")==9,"Four worker sum plus prefix");
     check(json(root/"four/TIMING.json")["parts"].size()==5,"Prefix and four worker times");
     rejects([&]{run(o);},"output reuse");
+    o.output=root/"cpu16_gpu4";o.prefixWorkers=16;run(o);
+    check(json(o.output/"TIMING.json")["parts"].size()==21,"Bootstrap + sixteen CPU + four GPU processes");
+    check(json(o.output/"CPU_PARTITION.json")["roots"]==32,"CPU root accounting");
+    check(json(o.output/"FRONTIER_JOIN.json")["roots"]==32,"Joined EM root accounting");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==209,"Sum bootstrap, CPU prefixes and GPU workers once");
+    o.output=root/"cpu2_gpu1";o.prefixWorkers=2;o.devices={"0"};run(o);
+    check(json(o.output/"TIMING.json")["parts"].size()==4,"CPU/GPU process counts independent");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==5,"Single-GPU staged merge");
+    o.output=root/"cpu48_gpu1";o.prefixWorkers=48;run(o);
+    check(json(o.output/"TIMING.json")["parts"].size()==34,"Empty CPU shards must not launch workers");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==576,"Empty shards must not lose or duplicate output");
+    o.output=root/"bad_cpu_feed";o.prefixWorkers=2;setenv("C8_TEST_BAD_CPU_FEED","1",1);
+    rejects([&]{run(o);},"incomplete CPU prefix consumption");unsetenv("C8_TEST_BAD_CPU_FEED");
+    check(!fs::exists(o.output/"COMPLETE.json"),"Incomplete CPU prefix must not report success");
+    o.output=root/"prefix_egs4";o.emBackend="kokkos-egs4";
+    rejects([&]{run(o);},"unsupported parallel EGS4 prefix");o.emBackend="kokkos-proposal";
+    o.output=root/"prefix_namespace_overflow";o.prefixWorkers=255;
+    rejects([&]{run(o);},"CPU/GPU namespace overflow");
+    o.prefixWorkers=0;o.devices={"0","1","2","3"};
     o.output=root/"egs4";o.emBackend="kokkos-egs4";o.egs4Stepfc=.0625;
     setenv("C8_TEST_EXPECT_EGS4","1",1);run(o);unsetenv("C8_TEST_EXPECT_EGS4");
     check(first(o.output/"merged/CoREAS/observers.parquet")==9,"EGS4 worker merge");
@@ -205,6 +246,16 @@ int main(int argc,char** argv) {
                 "Worker must use ordinal zero inside UUID mask");
         }
       }
+      auto child=fork();check(child>=0,"fork prefix CLI");
+      if(child==0) {
+        auto bin=fs::absolute(argv[1]).string(),out=(root/"prefix CLI").string(),w=o.worker.string();
+        execl(bin.c_str(),bin.c_str(),"--device","0","--prefix-workers","2",
+          "--multigpu-worker",w.c_str(),"-E","10","-s","101","-f",out.c_str(),nullptr);
+        _exit(127);
+      }
+      int status=0;waitpid(child,&status,0);
+      check(WIFEXITED(status) && WEXITSTATUS(status)==0,"Single-GPU prefix CLI");
+      check(first(root/"prefix CLI/merged/CoREAS/observers.parquet")==5,"Single-GPU prefix CLI merge");
     }
     // Exercise public CLI forwarding with a path containing spaces, without any Python.
     if(argc>1) {
