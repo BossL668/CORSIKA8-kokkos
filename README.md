@@ -343,10 +343,10 @@ c8_miniforge_version=26.7.2-0
 c8_miniforge_asset="Miniforge3-${c8_miniforge_version}-Linux-x86_64.sh"
 curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}"
 curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}.sha256"
-sha256sum -c "${c8_miniforge_asset}.sha256"
-# Continue only after a successful checksum check:
-bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
+# Run the installer only if checksum verification succeeds:
+sha256sum -c "${c8_miniforge_asset}.sha256" &&
+  bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3" &&
+  source "$HOME/miniforge3/etc/profile.d/conda.sh"
 ```
 
 The installer and checksum must name the **same release asset**. The unversioned

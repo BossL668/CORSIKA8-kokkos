@@ -207,10 +207,10 @@ c8_miniforge_version=26.7.2-0
 c8_miniforge_asset="Miniforge3-${c8_miniforge_version}-Linux-x86_64.sh"
 curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}"
 curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}.sha256"
-sha256sum -c "${c8_miniforge_asset}.sha256"
-# 只有校验成功后才执行：
-bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
+# 只有校验成功后才执行安装：
+sha256sum -c "${c8_miniforge_asset}.sha256" &&
+  bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3" &&
+  source "$HOME/miniforge3/etc/profile.d/conda.sh"
 ```
 
 安装包和校验文件必须来自**同一 release、同一文件名**。不带版本号的安装包别名不一定提供同名 `.sha256`；遇到 404 不要跳过校验。
