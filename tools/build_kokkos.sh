@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# beta5: one source directory, one build root, one install root.
+# CORSIKA8-kokkos: one source directory, one build root, one install root.
 set -euo pipefail
 
 c8_source=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
@@ -53,6 +53,7 @@ for c8_backend in "${c8_backends[@]}"; do
       8.6) c8_profile=cuda-ampere86 ;;
       8.9) c8_profile=cuda-ada89 ;;
       9.0) c8_profile=cuda-hopper90 ;;
+      12.0) c8_profile=cuda-blackwell120 ;;
       *) echo "Unsupported or mixed CUDA capabilities ($c8_cap); set C8_KOKKOS_PROFILE" >&2; exit 2 ;;
     esac
   elif [[ -z $c8_profile ]]; then

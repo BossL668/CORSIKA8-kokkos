@@ -6,6 +6,41 @@
 #include <catch2/catch_all.hpp>
 using namespace corsika;
 
+namespace {
+  // Intentionally has no addSecondary(): a disabled physics branch must not
+  // require a mutable stack interface, even for a positron below the cut.
+  struct ReadOnlyCutParticle {
+    Code pid;
+    Point position;
+    DirectionVector direction;
+    Code getPID() const { return pid; }
+    HEPEnergyType getKineticEnergy() const { return 0.2_MeV; }
+    double getWeight() const { return 3.; }
+    TimeType getTime() const { return 0_ns; }
+    Point const& getPosition() const { return position; }
+    DirectionVector const& getDirection() const { return direction; }
+  };
+}
+
+TEST_CASE("Disabled stopped annihilation accepts read-only particles", "[stopped-positron]") {
+  REQUIRE_FALSE(EnableStoppedPositronAnnihilation);
+  auto cs = get_root_CoordinateSystem();
+  Point origin(cs, 0_m, 0_m, 0_m);
+  auto track = setup::testing::make_track<setup::Trajectory>(
+      Line{origin, VelocityVector{cs, {0_m/second, 0_m/second, constants::c}}},
+      1_m/constants::c);
+  for (auto pid : {Code::Positron, Code::Electron, Code::Photon}) {
+    ReadOnlyCutParticle particle{pid, origin, DirectionVector(cs, {0., 0., 1.})};
+    Step step(particle, track);
+    ParticleCut cut(0.25_MeV, 0.25_MeV, 1_GeV, 1_GeV, 1_GeV, false);
+    REQUIRE(cut.doContinuous(step) == ProcessReturn::ParticleAbsorbed);
+    CHECK(cut.statistics().stopped_positron_annihilations == 0);
+    CHECK(cut.statistics().weighted_medium_rest_mass_input_GeV == 0.);
+    CHECK(cut.statistics().weighted_kinetic_energy_GeV ==
+          Catch::Approx(3. * 0.2_MeV / 1_GeV));
+  }
+}
+
 TEST_CASE("Stopped positron endpoint and ledger", "[stopped-positron]") {
   REQUIRE_FALSE(EnableStoppedPositronAnnihilation);
   RNGManager<>::getInstance().registerRandomStream("cascade");

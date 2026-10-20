@@ -26,9 +26,13 @@ if [[ -z $c8_profile ]]; then
     8.6) c8_arch=ampere86 ;;
     8.9) c8_arch=ada89 ;;
     9.0) c8_arch=hopper90 ;;
+    12.0) c8_arch=blackwell120 ;;
     *) echo "Unsupported or mixed CUDA capabilities ($c8_cap); set C8_KOKKOS_DUAL_PROFILE" >&2; exit 2 ;;
   esac
   c8_profile="$c8_source/dependencies/kokkos/profiles/cuda-openmp-$c8_arch"
+fi
+if [[ $c8_profile != /* && ! -f $c8_profile ]]; then
+  c8_profile="$c8_source/dependencies/kokkos/profiles/$c8_profile"
 fi
 [[ -f $c8_profile ]] || { echo "Profile not found: $c8_profile" >&2; exit 2; }
 echo "Building CUDA/OpenMP using $c8_profile"

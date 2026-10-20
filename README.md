@@ -12,7 +12,18 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest changes (2026-10-19):
+Latest changes (2026-10-20):
+
+- Installation fixes: use versioned Miniforge installer/checksum assets; add
+  RTX 50-series compute-capability 12.0 profiles (`BLACKWELL120`, CUDA 12.8+).
+- Preserve Conan's backend and architecture selection when configuring with
+  a toolchain file, so the build flags and installed manifest agree.
+- Fix compilation of read-only particle adapters when stopped-positron
+  annihilation is disabled; its default and all physics algorithms are unchanged.
+- Clarify FLUKA checks and first CUDA-run diagnostics. See the
+  [installation feedback and fixes](documentation/installation_feedback_20261020_CN.md).
+
+Changes (2026-10-19):
 
 - Optional **static CPU-parallel prefix**: `--prefix-workers N` advances
   independent CPU subshowers before handing their combined EM/muon frontier
@@ -87,7 +98,7 @@ describes the earlier enabled policy, not the current default.
 This guide starts with **Ubuntu 24.04 x86-64, Bash and an empty Conda environment**.
 After the common setup, choose an independent backend or the new single-binary
 experiment. OpenMP is the simplest CPU-only starting point; NVIDIA users can
-proceed directly to section 8.2 for the combined executable. HIP/SYCL setup is
+proceed directly to section 8.1 for the independent CUDA executable. HIP/SYCL setup is
 described separately and still needs target-hardware acceptance.
 
 ### Reading order
@@ -311,7 +322,7 @@ On Ubuntu, an administrator can install the following; this installs no GPU driv
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential gfortran git curl ca-certificates \
-  pkg-config autoconf automake libtool bison flex patch unzip bzip2 xz-utils
+  pkg-config autoconf automake libtool bison flex patch unzip bzip2 xz-utils file
 ```
 
 Without sudo, ask the administrator for these tools or load the server's
@@ -328,13 +339,19 @@ See the [official Miniforge instructions](https://github.com/conda-forge/minifor
 ```bash
 mkdir -p "$HOME/Downloads"
 cd "$HOME/Downloads"
-curl -fLO https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
-curl -fLO https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh.sha256
-sha256sum -c Miniforge3-Linux-x86_64.sh.sha256
+c8_miniforge_version=26.7.2-0
+c8_miniforge_asset="Miniforge3-${c8_miniforge_version}-Linux-x86_64.sh"
+curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}"
+curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}.sha256"
+sha256sum -c "${c8_miniforge_asset}.sha256"
 # Continue only after a successful checksum check:
-bash Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3"
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 ```
+
+The installer and checksum must name the **same release asset**. The unversioned
+installer alias does not necessarily have an unversioned `.sha256` companion;
+do not bypass checksum verification after a 404.
 
 ### 3.3 Create and verify the environment
 
@@ -449,9 +466,34 @@ Keep its runtime data, not just a copied static library. If installed in `~/fluk
 ```bash
 export FLUPRO="$HOME/fluka"
 test -r "$FLUPRO/libflukahp.a"
+test -x "$FLUPRO/flutil/lfluka"
+cat "$FLUPRO/Version.tag"
+cat "$FLUPRO/makeflags"
+file "$FLUPRO/flukahp"
+ldd "$FLUPRO/flukahp"
 ```
 
-Fix installation/path problems before continuing with `WITH_FLUKA=ON`.
+For a compatible 64-bit Linux/GFortran package with `lfluka`, also check linking
+in a temporary directory. Explicitly select the compiler used in this guide
+instead of relying on the package's compiler autodetection (no simulation runs):
+
+```bash
+c8_fluka_check=$(mktemp -d)
+(cd "$c8_fluka_check" && FLUFOR=gfortran GFORFLU=/usr/bin/gfortran FLUARCH=64 \
+  "$FLUPRO/flutil/lfluka" -o fluka_link_check \
+  && ldd ./fluka_link_check)
+```
+
+Use the Linux package compatible with your Fortran compiler; a Windows package
+is not a WSL Linux library. Resolve any `not found` dependencies above. CMake
+must print `FLUKA support is enabled.`; `WITH_FLUKA=ON` alone is not proof that
+it found the library. If necessary, append
+`-DC8_FLUKALIB="$FLUPRO/libflukahp.a"` to the build command, keeping `FLUPRO`
+set for runtime data. Record both `Version.tag` and the version reported by
+the linked library; a mismatch needs checking against that installation, not
+hard-coding a different version string.
+
+Fix installation/path problems before continuing.
 SIBYLL-2.3d source is included. By default, CMake downloads and builds pinned
 Pythia 8.315 and TAUOLA 1.1.8 sources. **A fresh environment does not need an
 existing `build/external` or another machine's model paths.** Initial builds
@@ -574,8 +616,8 @@ installed compiler version. Administrators manage drivers. WSL2 uses the Windows
 NVIDIA driver; do not install a Linux display driver inside WSL.
 See [NVIDIA's WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
 
-Skip Toolkit installation if a compatible one already exists. For an empty
-development environment, CUDA 12.6.3 can be installed in Conda. This example
+Skip Toolkit installation if a compatible one already exists. For pre-Blackwell
+GPUs, CUDA 12.6.3 can be installed in Conda. This example
 pairs with Ubuntu 24.04's GCC 13 family; check other combinations against the
 [CUDA 12.6 compiler/install guide](https://docs.nvidia.com/cuda/archive/12.6.3/cuda-installation-guide-linux/index.html).
 
@@ -585,6 +627,20 @@ conda install --override-channels -c nvidia/label/cuda-12.6.3 -c conda-forge cud
 nvcc --version
 nvidia-smi
 ```
+
+For an **RTX 50-series GPU with compute capability 12.0** (for example RTX 5070),
+use **CUDA 12.8 or newer**, not the 12.6 example. One reported working setup uses
+Ubuntu 24.04 / WSL2, system GCC 13, CUDA 12.8.1 and Kokkos 4.7.03:
+
+```bash
+conda install --override-channels -c nvidia/label/cuda-12.8.1 -c conda-forge cuda
+nvcc --version
+nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader
+```
+
+See [NVIDIA's CUDA 12.8 release notes](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html).
+This is a standalone-CUDA installation smoke check, not validation of every
+Blackwell model or of the experimental CUDA/OpenMP combined executable.
 
 This installs developer tools, not a repaired system driver. The old runtime-only
 `cudatoolkit` package is not a substitute for `nvcc`. With a system Toolkit, put
@@ -610,8 +666,10 @@ The helper queries compute capability with `nvidia-smi` and selects a profile:
 | Ampere 8.6 | `cuda-ampere86` | 86 |
 | RTX 4060 / Ada 8.9 | `cuda-ada89` | 89 |
 | H100 | `cuda-hopper90` | 90 |
+| RTX 50-series / Blackwell 12.0 | `cuda-blackwell120` | 120 (CUDA 12.8+) |
 
-Unknown/mixed architectures are not guessed. A known target can be explicit:
+`BLACKWELL120` does not mean all Blackwell GPUs; compute capability 10.0 is a
+different target. Unknown/mixed architectures are not guessed. A known target can be explicit:
 
 ```bash
 C8_KOKKOS_PROFILE=cuda-ampere80 C8_BUILD_JOBS=1 \
@@ -627,14 +685,31 @@ After installation, from the project container directory:
 ```bash
 cd ..
 install/bin/c8_air_shower --backend cuda --check-backends
+set -o pipefail
 install/bin/c8_air_shower --backend cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_cuda" \
-  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
+  2>&1 | tee first_photon_cuda.log
 ```
 
 Both commands access the GPU. Do not request multiple Kokkos host threads in
 GPU mode. The default memory budget is a ceiling of 70% of available device
 memory at initialization, not a requirement to fill it with a small shower.
+
+Check the executable's exit status, event completion/output and the CUDA EM
+summary's processed photon/lepton steps. `--check-backends` checks availability;
+it does not prove that a shower used the device. The manifest's
+`host_execution: serial` describes the host execution space of a CUDA build,
+not a switch disabling CUDA. Its `architecture` must match the selected profile
+(for example `BLACKWELL120`, not `NONE`).
+
+A missing optional tuning file uses defaults. A low-energy thinning warning
+does not by itself mean failure. `energy_ledger.complete_coverage: false`
+(or `complete=false` in a summary) means the diagnostic does not account for
+all paths, so its residual is not a complete energy-conservation test.
+Zero `kernel`/`transfer` timing fields are also not sufficient to infer no GPU
+work; inspect the step counters and backend wall time. Successful installation
+and readable output are not substitutes for statistical physics acceptance.
 
 ### 8.2 New option: build CUDA and OpenMP into one executable
 
@@ -662,9 +737,10 @@ independent helper, it can also compile tests and optional interface libraries.
 
 **The combined script now detects the GPU architecture automatically.** It queries
 `nvidia-smi` and selects a bundled combined profile for capabilities 7.5
-(Turing/RTX 20), 8.0 (A100), 8.6 (RTX 30), 8.9 (Ada/RTX 40 and L20), or
-9.0 (H100). Normally the single build command above is sufficient; no
-manual Conan profile is needed. To inspect the target:
+(Turing/RTX 20), 8.0 (A100), 8.6 (RTX 30), 8.9 (Ada/RTX 40 and L20),
+9.0 (H100), or 12.0 (RTX 50, CUDA 12.8+). The Blackwell combined profile still
+needs target-hardware regression; the independent-CUDA installation report
+does not validate this combined mode. To inspect the target:
 
 ```bash
 nvidia-smi --query-gpu=compute_cap --format=csv,noheader
@@ -1073,9 +1149,13 @@ and `gpu_em` metadata; the repository name alone does not identify an exact bina
 | `@c8gpu/stable` not found | Export all three recipes into the active Conan cache |
 | Compiler/profile/ABI mismatch | Check CC/CXX/FC and profiles; reconfigure separately after toolchain changes |
 | FLUKA missing/link error | Check licensed installation, FLUPRO and Fortran compatibility, not model substitution |
+| Miniforge checksum 404 | Use the versioned installer and matching checksum in section 3.2 |
 | Download failure | Inspect the dependency URL/network; offline archives need checksums, not disabled validation |
 | Compiler killed/WSL restart | Use `C8_BUILD_JOBS=1`; check `free -h` and disk space |
 | `nvcc` missing | Install development tools, not just a driver; check PATH |
+| RTX 50 build fails / `sm_120` unsupported | Use CUDA 12.8+ and `cuda-blackwell120`; rebuild in a fresh tree after changing the Toolkit |
+| CUDA manifest says `architecture: NONE` | Regenerate Conan dependencies with this revision and reconfigure; do not just edit the manifest |
+| `RadioTrackParticle` has no `addSecondary` | Update and rebuild the fixed `ParticleCut` template; do not disable the test or enable stopped annihilation |
 | NVML driver/library mismatch | Administrator must reconcile driver versions; explicit architecture is not a repair |
 | Manifest present, probe fails | Check environment, device permissions and shared libraries; do not combine arbitrary libraries |
 | Dual OpenMP fails with GPUs hidden | Expected current limitation; use the independent OpenMP executable |

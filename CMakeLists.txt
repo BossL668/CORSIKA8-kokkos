@@ -20,7 +20,7 @@ set (c8_version 8.0.0.0)
 project (
   corsika
   VERSION ${c8_version}
-  DESCRIPTION "CORSIKA 8 beta5: Kokkos EM and radio backend"
+  DESCRIPTION "CORSIKA8-kokkos: portable EM and radio backends"
   LANGUAGES CXX
   )
 
@@ -68,6 +68,9 @@ option (
   "Build one mutually exclusive Kokkos EM/radio execution backend"
   ON
   )
+if (CORSIKA_ENABLE_KOKKOS)
+  include (cmake/CorsikaConanKokkos.cmake)
+endif ()
 set (
   CORSIKA_KOKKOS_BACKEND "OPENMP" CACHE STRING
   "Kokkos backend: OPENMP, CUDA, HIP, SYCL, or experimental CUDA_OPENMP"
@@ -87,7 +90,7 @@ if (CORSIKA_ENABLE_CUDA)
   message (
     FATAL_ERROR
     "| CORSIKA8 > Native CUDA and Kokkos are separate build products. "
-    "beta5 has no native CUDA backend; select CORSIKA_KOKKOS_BACKEND=CUDA."
+    "Select CORSIKA_KOKKOS_BACKEND=CUDA for the current CUDA implementation."
     )
 endif ()
 
@@ -109,6 +112,10 @@ if (CORSIKA_ENABLE_KOKKOS)
     set (CMAKE_CUDA_STANDARD_REQUIRED ON)
     set (CMAKE_CUDA_EXTENSIONS OFF)
     find_package (CUDAToolkit 12 REQUIRED)
+    if (CORSIKA_KOKKOS_ARCHITECTURE STREQUAL "BLACKWELL120" AND
+        CUDAToolkit_VERSION VERSION_LESS "12.8")
+      message (FATAL_ERROR "BLACKWELL120 / sm_120 requires CUDA Toolkit 12.8 or newer.")
+    endif ()
   elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
     enable_language (HIP)
     set (CMAKE_HIP_STANDARD 17)

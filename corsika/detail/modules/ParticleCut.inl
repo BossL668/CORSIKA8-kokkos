@@ -147,39 +147,44 @@ namespace corsika {
   template <typename TParticle>
   inline bool ParticleCut<TOutput>::annihilateStoppedPositron(
       TParticle parent, HEPEnergyType kinetic, Point const& position, TimeType time) {
-    if constexpr (!EnableStoppedPositronAnnihilation) return false;
-    // Time/geometry termination is not stopping physics. In particular, a
-    // late positron must not start another cascade after the time limit.
-    if (parent.getPID() != Code::Positron || time > 10_ms ||
-        !isBelowEnergyCut(Code::Positron, kinetic)) return false;
-    auto const mass = get_mass(Code::Electron);
-    auto const weight = parent.getWeight();
-    ++statistics_.stopped_positron_annihilations;
-    statistics_.weighted_medium_rest_mass_input_GeV += weight * mass / 1_GeV;
-    if (isBelowEnergyCut(Code::Photon, mass)) {
-      for (int i = 0; i < 2; ++i) {
-        recordCut(Code::Photon, mass, weight);
-        this->write(position, Code::Photon, weight * mass);
+    if constexpr (!EnableStoppedPositronAnnihilation) {
+      return false;
+    } else {
+      // Discard the entire implementation when disabled: read-only particle
+      // adapters used by output/cut tests do not provide addSecondary().
+      // Time/geometry termination is not stopping physics. In particular, a
+      // late positron must not start another cascade after the time limit.
+      if (parent.getPID() != Code::Positron || time > 10_ms ||
+          !isBelowEnergyCut(Code::Positron, kinetic)) return false;
+      auto const mass = get_mass(Code::Electron);
+      auto const weight = parent.getWeight();
+      ++statistics_.stopped_positron_annihilations;
+      statistics_.weighted_medium_rest_mass_input_GeV += weight * mass / 1_GeV;
+      if (isBelowEnergyCut(Code::Photon, mass)) {
+        for (int i = 0; i < 2; ++i) {
+          recordCut(Code::Photon, mass, weight);
+          this->write(position, Code::Photon, weight * mass);
+        }
+        return true;
+      }
+      auto& rng = RNGManager<>::getInstance().getRandomStream("cascade");
+      std::uniform_real_distribution<double> uniform(0., 1.);
+      // Separate statements make random consumption order explicit in C++17.
+      auto const u = uniform(rng);
+      auto const phi = uniform(rng);
+      double d[3];
+      positronAtRestDirection(u, phi, d);
+      // Copy all endpoint data before append: underlying SoA storage may grow.
+      auto const endpoint = position;
+      for (double sign : {1., -1.}) {
+        auto photon = parent.addSecondary(std::make_tuple(Code::Photon, mass,
+            DirectionVector(endpoint.getCoordinateSystem(), {sign*d[0], sign*d[1], sign*d[2]})));
+        photon.setPosition(endpoint);
+        photon.setTime(time);
+        photon.setWeight(weight); // no second thinning of a stopped parent
       }
       return true;
     }
-    auto& rng = RNGManager<>::getInstance().getRandomStream("cascade");
-    std::uniform_real_distribution<double> uniform(0., 1.);
-    // Separate statements make random consumption order explicit in C++17.
-    auto const u = uniform(rng);
-    auto const phi = uniform(rng);
-    double d[3];
-    positronAtRestDirection(u, phi, d);
-    // Copy all endpoint data before append: underlying SoA storage may grow.
-    auto const endpoint = position;
-    for (double sign : {1., -1.}) {
-      auto photon = parent.addSecondary(std::make_tuple(Code::Photon, mass,
-          DirectionVector(endpoint.getCoordinateSystem(), {sign*d[0], sign*d[1], sign*d[2]})));
-      photon.setPosition(endpoint);
-      photon.setTime(time);
-      photon.setWeight(weight); // no second thinning of a stopped parent
-    }
-    return true;
   }
 
   template <typename TOutput>

@@ -1,0 +1,8 @@
+include(default)
+
+# Experimental combined build; requires CUDA >= 12.8 for GeForce RTX 50-series.
+# The RTX 5070 installation report validates independent CUDA, not this mode.
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda_openmp
+&:kokkos_architecture=BLACKWELL120

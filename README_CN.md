@@ -8,7 +8,14 @@
 
 本程序模拟大气粒子级联及 CoREAS/ZHS 射电信号，通过 Kokkos 让同一套电磁输运与射电算法面向多核 CPU 或不同 GPU 编译。这是基于 CORSIKA 8 的独立软件分支，不是官方发布版；安装不需要旧项目目录、已有构建目录或手工生成的 `.c8emrt` 表。
 
-最近更新（2026-10-19）：
+最近更新（2026-10-20）：
+
+- 修复安装流程：Miniforge 安装包及校验文件使用同一版本的文件名；新增 RTX 50 系列计算能力 12.0 的 `BLACKWELL120` profile，要求 CUDA 12.8 及以上。
+- 将 Conan 选择的后端和架构传入直接使用 toolchain 的 CMake 配置，保证编译参数与安装清单一致。
+- 修复关闭停止正电子湮灭时，只读粒子适配器仍被要求实现 `addSecondary` 的编译错误；不改变默认开关和物理算法。
+- 补充 FLUKA 检查与首次 CUDA 运行的判断方法，问题分类见[安装反馈与修复记录](documentation/installation_feedback_20261020_CN.md)。
+
+更新（2026-10-19）：
 
 - 新增可选的**静态 CPU 并行 prefix**：通过 `--prefix-workers N`，先由独立 CPU 进程推进子簇，再将汇总后的 EM/μ 前沿交给所选 GPU。CPU 进程数与 GPU 数量独立，支持后续单卡或多卡；目前用于 `kokkos-proposal`。默认仍为串行 prefix，不引入动态再分配。
 - `--prefix-split-energy` 控制 CPU 分支拆分能量上限，不是物理 cut；可选环境变量 `C8_STATIC_FRONTIER_IMPORT_BATCH` 独立控制静态前沿导入块，不等于 `--gpu-min-batch`，未设置时沿用原规则。
@@ -38,7 +45,7 @@
 
 历史说明（2026-09-20）：曾加入能量 cut 处的停止正电子双光子模型；实现仍保留，但从 2026-10-15 起默认关闭，以对齐原 C8。[停止湮灭说明](documentation/stopped_positron_annihilation_20260920_CN.md) 记录的是之前开启时的实现，不代表当前默认策略。
 
-本文面向初学者，以 **Ubuntu 24.04 x86-64、Bash、空 Conda 环境**为例：完成公共环境准备后，选择独立后端或新增单二进制实验。无 GPU 从独立 OpenMP 开始；已有可用 NVIDIA 设备也可直接按第 7.2 节构建组合程序。HIP/SYCL 工具链单独说明，不能将配置支持等同于硬件验收通过。
+本文面向初学者，以 **Ubuntu 24.04 x86-64、Bash、空 Conda 环境**为例：完成公共环境准备后，选择独立后端或新增单二进制实验。无 GPU 从独立 OpenMP 开始；已有可用 NVIDIA 设备可直接按第 7.1 节构建独立 CUDA 程序。HIP/SYCL 工具链单独说明，不能将配置支持等同于硬件验收通过。
 
 ### 阅读顺序
 
@@ -184,7 +191,7 @@ flowchart TD
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential gfortran git curl ca-certificates \
-  pkg-config autoconf automake libtool bison flex patch unzip bzip2 xz-utils
+  pkg-config autoconf automake libtool bison flex patch unzip bzip2 xz-utils file
 ```
 
 无 `sudo` 请管理员提供这些工具或加载服务器已有编译器模块。不要自行替换共享服务器驱动。教程使用系统 GCC/G++/GFortran，不再混装另一套 Conda C++ 编译器；其他 Linux 发行版使用对应包管理器。
@@ -196,13 +203,17 @@ sudo apt-get install -y build-essential gfortran git curl ca-certificates \
 ```bash
 mkdir -p "$HOME/Downloads"
 cd "$HOME/Downloads"
-curl -fLO https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
-curl -fLO https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh.sha256
-sha256sum -c Miniforge3-Linux-x86_64.sh.sha256
+c8_miniforge_version=26.7.2-0
+c8_miniforge_asset="Miniforge3-${c8_miniforge_version}-Linux-x86_64.sh"
+curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}"
+curl -fLO "https://github.com/conda-forge/miniforge/releases/download/${c8_miniforge_version}/${c8_miniforge_asset}.sha256"
+sha256sum -c "${c8_miniforge_asset}.sha256"
 # 只有校验成功后才执行：
-bash Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+bash "${c8_miniforge_asset}" -b -p "$HOME/miniforge3"
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
 ```
+
+安装包和校验文件必须来自**同一 release、同一文件名**。不带版本号的安装包别名不一定提供同名 `.sha256`；遇到 404 不要跳过校验。
 
 ### 2.3 新建环境与检查
 
@@ -287,7 +298,23 @@ FLUKA 有独立许可，不通过源码或 Conan 分发。先按 [FLUKA 官方�
 ```bash
 export FLUPRO="$HOME/fluka"
 test -r "$FLUPRO/libflukahp.a"
+test -x "$FLUPRO/flutil/lfluka"
+cat "$FLUPRO/Version.tag"
+cat "$FLUPRO/makeflags"
+file "$FLUPRO/flukahp"
+ldd "$FLUPRO/flukahp"
 ```
+
+对于匹配的 64 位 Linux/GFortran 包，可在临时目录验证链接，明确选择本教程的编译器，不依赖包脚本的自动识别；这不会运行模拟：
+
+```bash
+c8_fluka_check=$(mktemp -d)
+(cd "$c8_fluka_check" && FLUFOR=gfortran GFORFLU=/usr/bin/gfortran FLUARCH=64 \
+  "$FLUPRO/flutil/lfluka" -o fluka_link_check \
+  && ldd ./fluka_link_check)
+```
+
+使用匹配 Fortran 编译器的 Linux 授权包，不要把 Windows 包当作 WSL Linux 库；先解决 `ldd` 中的 `not found`。CMake 应明确输出 `FLUKA support is enabled.`，仅传入 `WITH_FLUKA=ON` 不代表已找到库。必要时在构建命令追加 `-DC8_FLUKALIB="$FLUPRO/libflukahp.a"`，运行时仍保留 `FLUPRO` 指向完整数据。分别记录 `Version.tag` 和程序报告的库版本；不一致时核查安装包和实际链接的库，不要硬改版本字符串。
 
 检查失败先修正安装或路径。高能 SIBYLL-2.3d 源码已在项目内；Pythia 8.315 和 TAUOLA 1.1.8 默认由 CMake 下载固定来源并编译。**空环境不用先准备 `build/external`，不要复制旧机器的 Pythia/TAUOLA 绝对路径。** 首次需访问 ConanCenter、GitHub、Pythia GitLab 和 CERN 下载站点。
 
@@ -375,7 +402,7 @@ PY
 
 **只在获准使用 GPU 的机器执行本节**；无 GPU 用户完成上节即可。驱动让系统访问显卡，Toolkit 提供 `nvcc` 和开发库；`nvidia-smi` 的 CUDA 版本不是已安装的 `nvcc` 版本。驱动由管理员配置；WSL2 使用 Windows NVIDIA 驱动，不能在 WSL 安装 Linux 显示驱动。[NVIDIA WSL 说明](https://docs.nvidia.com/cuda/wsl-user-guide/index.html)
 
-已有可用 Toolkit 不重复安装。空开发环境可在 Conda 中安装 CUDA 12.6.3，示例与 Ubuntu 24.04 的 GCC 13 系列配套；其他组合需核对 [CUDA 12.6 编译器支持及安装说明](https://docs.nvidia.com/cuda/archive/12.6.3/cuda-installation-guide-linux/index.html)。
+已有可用 Toolkit 不重复安装。Blackwell 之前的 GPU 可使用下面的 CUDA 12.6.3 示例，与 Ubuntu 24.04 的 GCC 13 系列配套；其他组合需核对 [CUDA 12.6 编译器支持及安装说明](https://docs.nvidia.com/cuda/archive/12.6.3/cuda-installation-guide-linux/index.html)。
 
 ```bash
 conda activate corsika_venv
@@ -383,6 +410,16 @@ conda install --override-channels -c nvidia/label/cuda-12.6.3 -c conda-forge cud
 nvcc --version
 nvidia-smi
 ```
+
+**计算能力 12.0 的 RTX 50 系列（如 RTX 5070）需要 CUDA 12.8 及以上**，不能使用上面的 12.6 示例。一组安装反馈已验证 WSL2 / Ubuntu 24.04、系统 GCC 13、CUDA 12.8.1、Kokkos 4.7.03 的独立 CUDA 构建及小事件：
+
+```bash
+conda install --override-channels -c nvidia/label/cuda-12.8.1 -c conda-forge cuda
+nvcc --version
+nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader
+```
+
+参见 [NVIDIA CUDA 12.8 发布说明](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html)。这只是该配置的安装冒烟测试，不等于所有 Blackwell 设备、组合 CUDA/OpenMP 构建或完整物理验收均通过。
 
 这不安装/修复系统驱动。不要用只有运行库的老 `cudatoolkit` 包代替完整开发工具。已有系统 Toolkit 时将其 `bin` 放入 PATH，别混用不同版本头文件和库。
 
@@ -405,8 +442,9 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos.sh cuda -DWITH_FLUKA=ON
 | Ampere 8.6 | `cuda-ampere86` | 86 |
 | RTX 4060 等 Ada 8.9 | `cuda-ada89` | 89 |
 | H100 | `cuda-hopper90` | 90 |
+| RTX 50 系列 / Blackwell 12.0 | `cuda-blackwell120` | 120（CUDA 12.8+） |
 
-混合/未知架构不猜测；已知目标可显式选择，例如 A100：
+`BLACKWELL120` 不代表全部 Blackwell 型号，计算能力 10.0 是另一种目标。混合/未知架构不猜测；已知目标可显式选择，例如 A100：
 
 ```bash
 C8_KOKKOS_PROFILE=cuda-ampere80 C8_BUILD_JOBS=1 \
@@ -418,12 +456,18 @@ C8_KOKKOS_PROFILE=cuda-ampere80 C8_BUILD_JOBS=1 \
 ```bash
 cd ..
 install/bin/c8_air_shower --backend cuda --check-backends
+set -o pipefail
 install/bin/c8_air_shower --backend cuda \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_cuda" \
-  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
+  --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
+  2>&1 | tee first_photon_cuda.log
 ```
 
 这两条命令会访问 GPU。GPU 模式不要加 `--kokkos-num-threads 16`。默认显存预算为初始化时可用显存的 70% 上限，不要求小事件占满。
+
+检查退出码、事件完成及输出，并查看 CUDA EM 汇总中实际处理的 photon/lepton steps。`--check-backends` 只证明后端可用，不证明某个 shower 已在 GPU 推进。清单里的 `host_execution: serial` 是 CUDA 构建的主机执行空间，不是关闭 GPU；`architecture` 应与 profile 一致，例如 `BLACKWELL120`，不应是 `NONE`。
+
+可选 tuning 文件缺失会使用默认参数；低能下的 thinning 提示本身不代表失败。`energy_ledger.complete_coverage: false`（或摘要中的 `complete=false`）表示账本未覆盖所有路径，其残差不能当作完整能量守恒检验。`kernel` / `transfer` 计时为零也不能单独证明 GPU 没有工作，应结合步数计数和 backend wall time 判断。安装成功、小事件输出可读，不等于完成统计物理验收。
 
 ### 7.2 新方式：CUDA 和 OpenMP 编译进同一个可执行文件
 
@@ -441,7 +485,7 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos_dual.sh -DWITH_FLUKA=ON
 
 若没有该脚本，需要取得包含单二进制实验的源码版本；不要用 `build_kokkos.sh openmp,cuda` 替代，它生成的是**两个独立程序**。组合脚本建立自己的依赖图，设置 `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`，分别编译两套 EM/radio 实例再链接，完整构建所有已配置产物后再安装到 `../install/cuda-openmp`，不覆盖独立后端。与独立脚本一样，可能同时编译测试和可选界面库，不再仅编译空气目标就执行全局安装。
 
-**组合脚本现在会自动检测 GPU 架构。** 它通过 `nvidia-smi` 查询计算能力，并选择随源码提供的对应组合 profile：7.5（Turing/RTX 20）、8.0（A100）、8.6（RTX 30）、8.9（Ada/RTX 40、L20）、9.0（H100）。因此正常情况下只需执行上面的构建命令，无须自行创建 Conan profile。可先检查目标 GPU：
+**组合脚本现在会自动检测 GPU 架构。** 它通过 `nvidia-smi` 查询计算能力，并选择随源码提供的对应组合 profile：7.5（Turing/RTX 20）、8.0（A100）、8.6（RTX 30）、8.9（Ada/RTX 40、L20）、9.0（H100）、12.0（RTX 50，CUDA 12.8+）。Blackwell 组合 profile 尚需对应硬件回归，不等于独立 CUDA 安装反馈已验证组合版。可先检查目标 GPU：
 
 ```bash
 nvidia-smi --query-gpu=compute_cap --format=csv,noheader
@@ -723,9 +767,13 @@ ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
 | 找不到 `@c8gpu/stable` | 检查三个配方已导出到当前 Conan 缓存 |
 | profile/编译器/ABI 不匹配 | 核对 CC/CXX/FC 与 profile，换工具链后独立重配 |
 | FLUKA 找不到或链接失败 | 检查授权安装、FLUPRO、Fortran 兼容性，不静默换模型 |
+| Miniforge 校验文件 404 | 使用第 2.2 节的带版本安装包和同名校验文件 |
 | 下载失败 | 检查日志 URL/网络；离线需受控依赖归档，不能关闭哈希验证 |
 | 编译被 Killed / WSL 重启 | `C8_BUILD_JOBS=1`，检查 `free -h` 和磁盘空间 |
 | nvcc 找不到 | 需要开发工具而不只是驱动，检查 PATH |
+| RTX 50 编译失败 / 不支持 `sm_120` | 使用 CUDA 12.8+ 和 `cuda-blackwell120`；更换 Toolkit 后用新构建目录 |
+| CUDA 清单写 `architecture: NONE` | 用本次修复重新生成 Conan 依赖并配置，不要只手改清单 |
+| `RadioTrackParticle` 没有 `addSecondary` | 更新并重编译修复后的 `ParticleCut`；不要关闭测试或打开停止湮灭来绕过 |
 | NVML driver/library mismatch | 管理员协调驱动；指定架构不能修复运行时 |
 | 清单存在但探针失败 | 检查环境、设备权限、动态库，不随意拼接陌生库 |
 | 组合版 OpenMP 在隐藏 GPU 后失败 | 当前预期限制；改用独立 OpenMP 程序 |

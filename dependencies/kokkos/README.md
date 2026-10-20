@@ -18,13 +18,21 @@ conan export dependencies/kokkos --user=c8gpu --channel=stable
 ```
 
 The root CORSIKA Conan options then select the package variant. GPU architecture
-names use Kokkos spelling, for example `ADA89` for an RTX 4060.
+names use Kokkos spelling, for example `ADA89` for an RTX 4060 and
+`BLACKWELL120` for compute capability 12.0 / RTX 50-series (CUDA 12.8+).
 
 [`profiles/`](profiles) contains independent-backend profiles and the combined
-`cuda-openmp-ada89` example. Root Conan option `kokkos_backend=cuda_openmp`
+CUDA/OpenMP profiles. Root Conan option `kokkos_backend=cuda_openmp`
 corresponds to CMake `CORSIKA_KOKKOS_BACKEND=CUDA_OPENMP`. The independent helper
-can detect supported NVIDIA architectures; the combined helper defaults to Ada
-and needs `C8_KOKKOS_DUAL_PROFILE` for other targets.
+and combined helper both detect supported NVIDIA compute capabilities; neither
+guesses a default for unknown or mixed devices. Use `C8_KOKKOS_PROFILE` or
+`C8_KOKKOS_DUAL_PROFILE`, respectively, for an explicit target. The Blackwell
+combined profile still needs target-hardware regression.
+
+The root recipe exports backend/architecture metadata to the toolchain as well
+as the preset. Direct `-DCMAKE_TOOLCHAIN_FILE=...` configuration therefore carries
+the same architecture as the selected Kokkos package. Regenerate Conan
+dependencies after updating; editing `backend.json` does not change compilation.
 
 [`locks/`](locks) preserves historical beta4 recipe revisions, not a current
 production release lock. The build helpers do not consume these locks. Export the

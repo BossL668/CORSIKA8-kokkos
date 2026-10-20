@@ -1,0 +1,8 @@
+include(default)
+
+# GeForce RTX 50-series, compute capability 12.0. Requires CUDA >= 12.8.
+# This is not the CC 10.0 architecture used by Blackwell data-center GPUs.
+[options]
+&:with_kokkos=True
+&:kokkos_backend=cuda
+&:kokkos_architecture=BLACKWELL120

@@ -92,11 +92,16 @@ class Pkg(ConanFile):
         tc = CMakeToolchain(self)
         tc.absolute_paths = True
         if self.options.with_kokkos:
-            tc.cache_variables["CORSIKA_KOKKOS_BACKEND"] = str(
-                self.options.kokkos_backend
-            ).upper()
+            backend = str(self.options.kokkos_backend).upper()
+            tc.cache_variables["CORSIKA_KOKKOS_BACKEND"] = backend
             architecture = str(self.options.kokkos_architecture).upper()
             tc.cache_variables["CORSIKA_KOKKOS_ARCHITECTURE"] = architecture
+            # cache_variables only reach CMake through presets / the Conan
+            # CMake helper. Our shell helpers load conan_toolchain.cmake
+            # directly, so also export the package identity in that file.
+            # CMake checks it against explicit options before updating its cache.
+            tc.variables["C8_CONAN_KOKKOS_BACKEND"] = backend
+            tc.variables["C8_CONAN_KOKKOS_ARCHITECTURE"] = architecture
             cuda_architectures = {
                 "KEPLER35": "35",
                 "MAXWELL50": "50",
@@ -111,6 +116,7 @@ class Pkg(ConanFile):
                 "AMPERE86": "86",
                 "ADA89": "89",
                 "HOPPER90": "90",
+                "BLACKWELL120": "120",
             }
             if str(self.options.kokkos_backend) in ("cuda", "cuda_openmp"):
                 if architecture not in cuda_architectures:
@@ -119,6 +125,9 @@ class Pkg(ConanFile):
                         "kokkos_architecture (for example ADA89)"
                     )
                 tc.cache_variables["CORSIKA_KOKKOS_CUDA_ARCHITECTURES"] = (
+                    cuda_architectures[architecture]
+                )
+                tc.variables["C8_CONAN_KOKKOS_CUDA_ARCHITECTURES"] = (
                     cuda_architectures[architecture]
                 )
         tc.generate()
