@@ -12,14 +12,7 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest changes (2026-10-21):
-
-- Remove the Python air-shower launcher and its installation rule. Run each
-  backend's native `install/<backend>/bin/c8_air_shower` directly.
-- Update CPU/GPU examples to select Kokkos EM and radio explicitly; the binary's
-  scalar defaults and all physics algorithms remain unchanged.
-
-Changes (2026-10-20):
+Latest changes (2026-10-20):
 
 - Installation fixes: use versioned Miniforge installer/checksum assets; add
   RTX 50-series compute-capability 12.0 profiles (`BLACKWELL120`, CUDA 12.8+).
