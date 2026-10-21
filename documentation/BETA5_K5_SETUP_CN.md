@@ -2,6 +2,9 @@
 
 检查日期：2026-09-05。这里只记录 k5 的部署，不改变本地或 dirac 的生产任务。
 
+2026-10-21 入口更新：下面运行示例已改为直接调用原生二进制；硬件、
+构建和验收结果仍是上述日期的历史记录。当前完整安装步骤见 [README](../README_CN.md)。
+
 ## 硬件与驱动
 
 | 项目 | 实测值 |
@@ -39,8 +42,8 @@ beta5 的实际 Kokkos 探针也已通过：`gpu=true`、`openmp=false`，扫描
 │   ├── tools/                 独立 Conan Python 工具及依赖缓存
 │   └── audit/k5_setup/         锁文件、部署脚本、日志和验证数据
 └── install/
-    ├── bin/c8_air_shower       统一启动器
     └── cuda/                  CUDA + Serial 后端
+        └── bin/c8_air_shower   原生二进制
 ```
 
 k5 的 `corsika_venv` 保留原样；其原有 Conan Python 依赖不能正常导入，因此
@@ -90,17 +93,17 @@ bash build/audit/k5_setup/build_k5.sh
 source ~/miniconda/etc/profile.d/conda.sh
 conda activate corsika_venv
 cd ~/21CMA/corsika-21cma-kokkos-beta5
-install/bin/c8_air_shower --backend cuda --check-backends
+install/cuda/bin/kokkos_backend_probe --threads 1
 
-install/bin/c8_air_shower --backend cuda -p 2212 -E 1000 \
+install/cuda/bin/c8_air_shower -p 2212 -E 1000 \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   -f /path/to/new_output \
   --antenna-file ~/21CMA/data/antennas_nwu_coordinates_test.txt
 ```
 
-统一启动器自动添加 Kokkos EM 与 Kokkos radio；物理源为 proposal-native。
-显存预算默认 70%，不是保证任何低能事件都占满 70%。指定 `--backend cuda`
-失败时不切换 CPU；未指定时启动器用真实计算探针选择可用后端，不使用
-`nvidia-smi` 作为唯一判断条件。以上输出路径须替换为尚不存在的实际目录。
+直接调用二进制时显式选择 Kokkos EM 与 Kokkos radio；物理源为 proposal-native。
+显存预算默认 70%，不是保证任何低能事件都占满 70%。所选 CUDA 程序失败时
+不切换 CPU。独立探针检查真实计算能力；以上输出路径须替换为尚不存在的实际目录。
 
 本轮安装的是 CUDA + Serial 后端；没有安装 OpenMP、HIP/SYCL 后端，也未承诺
 旧原生 CUDA 二进制可用。CUDA 默认 batch 为 4096；尚未生成 A100 专用调优

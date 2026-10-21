@@ -43,7 +43,7 @@ install/openmp/bin/c8_mountain_neutrino --help
 ```
 
 `c8_mountain_neutrino` 是较早的有限凸体示例；真实 DEM、大气嵌入与介质穿越用下面的
-`c8_terrain_cascade`。这些是直接可执行文件，不经过空气统一启动器。
+`c8_terrain_cascade`。这些应用与空气应用一样，均直接调用各后端的原生二进制。
 
 ### NVIDIA 路线
 

@@ -33,5 +33,6 @@
 
 “能编译”不是物理验收通过。后续实际结果追加到本记录。
 
-统一入口、成对构建及跨设备审查结果见
+旧统一入口、成对构建及跨设备的历史审查结果见
 [BETA5_PORTABLE_ENTRY_AUDIT_CN.md](BETA5_PORTABLE_ENTRY_AUDIT_CN.md)。
+Python launcher 已于 2026-10-21 移除；当前直接调用各后端二进制，见 [README](../README_CN.md)。

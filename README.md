@@ -12,7 +12,14 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest changes (2026-10-20):
+Latest changes (2026-10-21):
+
+- Remove the Python air-shower launcher and its installation rule. Run each
+  backend's native `install/<backend>/bin/c8_air_shower` directly.
+- Update CPU/GPU examples to select Kokkos EM and radio explicitly; the binary's
+  scalar defaults and all physics algorithms remain unchanged.
+
+Changes (2026-10-20):
 
 - Installation fixes: use versioned Miniforge installer/checksum assets; add
   RTX 50-series compute-capability 12.0 profiles (`BLACKWELL120`, CUDA 12.8+).
@@ -149,8 +156,8 @@ used by that execution path.
 
 | Need | Build helper | How to select execution |
 |---|---|---|
-| CPU-only server | `build_kokkos.sh openmp` | Launcher: `--backend openmp` |
-| Portable CPU/GPU installations | `build_kokkos.sh openmp,cuda` (HIP/SYCL separately) | Launcher selects one installed executable |
+| CPU-only server | `build_kokkos.sh openmp` | Run `install/openmp/bin/c8_air_shower` |
+| Portable CPU/GPU installations | `build_kokkos.sh openmp,cuda` (HIP/SYCL separately) | Run the binary under `install/<backend>/bin/` |
 | One executable containing CUDA **and** OpenMP | `build_kokkos_dual.sh` | Direct executable: `--kokkos-execution cuda\|openmp` |
 
 Independent installations remain the production/deployment baseline. The new
@@ -162,8 +169,7 @@ flowchart TD
     SRC["One c8_air_shower application and shared Kokkos EM/radio templates"]
     SRC --> SEP["build_kokkos.sh: independent configurations"]
     SEP --> BINS["Separate OpenMP / CUDA / HIP / SYCL executables"]
-    BINS --> LAUNCH["install/bin/c8_air_shower --backend ..."]
-    LAUNCH --> EXEC["Probe, then exec one installed backend"]
+    BINS --> EXEC["Run install/openmp/bin/c8_air_shower or install/cuda/bin/c8_air_shower directly"]
     SRC --> DUAL["build_kokkos_dual.sh: CUDA_OPENMP configuration"]
     DUAL --> INST["Compile Cuda and OpenMP instances; link both"]
     INST --> ELF["install/cuda-openmp/bin/c8_air_shower"]
@@ -172,9 +178,9 @@ flowchart TD
     ELF --> COOP["Explicit cuda-openmp / openmp-cuda: air-shower cooperation experiment, section 9"]
 ```
 
-Backend specialization happens at compile time. The launcher selects an
-installed executable; it does not compile physics code at startup or schedule
-individual particles. CPU and GPU variants may coexist on disk. Each independent
+Backend specialization happens at compile time. Select a backend by running
+its native binary directly; there is no Python launcher or automatic backend
+selection. CPU and GPU variants may coexist on disk. Each independent
 GPU binary uses a Kokkos Serial host backend, while the OpenMP binary requires no
 GPU runtime. This is this project's deployment choice, not a universal Kokkos
 restriction.
@@ -186,7 +192,7 @@ concurrently. Explicit `cuda-openmp` and `openmp-cuda` instead select the
 air-shower cooperation experiments described in section 9. Unlike the
 independent OpenMP build, the combined executable currently requires a
 working NVIDIA device/driver even in OpenMP mode. It installs separately under
-`install/cuda-openmp` and is not selected by the normal launcher. Section 8.2
+`install/cuda-openmp` and is invoked directly, like the independent binaries. Section 8.2
 below provides the complete build/run steps after environment setup. See the
 [dual-backend experiment](documentation/cuda_em_refactor/beta5_dual_cuda_openmp_experiment_CN.md)
 for the detailed validation record and limitations.
@@ -206,16 +212,22 @@ corsika8-workspace/
 │   ├── cuda-openmp/deps/       combined experiment's own dependency graph
 │   └── ...                    HIP/SYCL or audit records
 └── install/
-    ├── bin/c8_air_shower       common Python launcher
     ├── openmp/                binaries, libraries, model data and manifest
+    │   └── bin/c8_air_shower   native OpenMP executable
     ├── cuda/                  GPU equivalents; HIP/SYCL added as needed
-    └── cuda-openmp/           optional single-binary experiment, separate prefix
+    │   └── bin/c8_air_shower   native CUDA executable
+    └── cuda-openmp/            optional single-binary experiment, separate prefix
 ```
 
 `deps` contains dependency locations and compiler settings, not another source
 project or physics tables. Actual Conan packages live in the user cache.
 Configured CMake trees contain absolute paths: do not copy their caches between
 backends or machines. All variants use the same application source.
+
+After upgrading an older installation, update scripts and PATH entries to use
+these backend-specific binaries. An existing `install/bin/c8_air_shower` Python
+wrapper is obsolete and is not updated by a new install; do not use it.
+Python remains a build/test dependency, not an air-shower launch requirement.
 
 Example paths such as `examples/beta5/`, CTest names containing `Beta5`, and
 dated report filenames retain their existing identifiers for compatibility.
@@ -521,7 +533,7 @@ conan install --build=missing
     -> build/openmp/deps/conan_toolchain.cmake
     -> CMake Release configuration
     -> compile models, application and tests
-    -> install/openmp plus the common install/bin/c8_air_shower launcher
+    -> install/openmp/bin/c8_air_shower and its libraries/data
 ```
 
 Initial dependency downloads/builds can take much longer than running a shower.
@@ -534,13 +546,13 @@ Return to the project container directory and check the installation:
 
 ```bash
 cd ..
-install/bin/c8_air_shower --list-backends
-install/bin/c8_air_shower --backend openmp --check-backends
-install/bin/c8_air_shower --backend openmp -- --help
+install/openmp/bin/kokkos_backend_probe --threads 1
+install/openmp/bin/c8_air_shower --help
 ```
 
-Expect OpenMP `installed: true`, then probe `available: true`, `gpu=false` and
-`openmp=true`. Listing reads metadata; a probe checks primitives, not full physics.
+Expect a successful probe with `gpu=false`, `openmp=true` and `scan_valid=true`.
+The probe checks primitives, not full physics; build metadata is in
+`install/openmp/share/corsika/backend.json`.
 
 ## 7. Run the first complete example
 
@@ -549,13 +561,14 @@ provided with the source; no private dataset is required:
 
 ```bash
 mkdir -p "$HOME/CorsikaData"
-install/bin/c8_air_shower --backend openmp --kokkos-num-threads 4 \
+install/openmp/bin/c8_air_shower --kokkos-num-threads 4 \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_openmp" \
   --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 This runs one vertical 10 GeV photon shower, with Kokkos EM and both Kokkos
-radio algorithms enabled by the launcher. **The final `-f` directory must not
+radio algorithms explicitly enabled. **The final `-f` directory must not
 already exist.** Create only its parent; use a new output name for a repeat.
 Low-energy signals may be weak or absent at some observers. This example checks
 installation, not GPU saturation or radio-distribution agreement.
@@ -684,9 +697,10 @@ After installation, from the project container directory:
 
 ```bash
 cd ..
-install/bin/c8_air_shower --backend cuda --check-backends
+install/cuda/bin/kokkos_backend_probe --threads 1
 set -o pipefail
-install/bin/c8_air_shower --backend cuda \
+install/cuda/bin/c8_air_shower \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   -p 22 -E 10 -s 12345 -f "$HOME/CorsikaData/first_photon_cuda" \
   --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
   2>&1 | tee first_photon_cuda.log
@@ -697,7 +711,7 @@ GPU mode. The default memory budget is a ceiling of 70% of available device
 memory at initialization, not a requirement to fill it with a small shower.
 
 Check the executable's exit status, event completion/output and the CUDA EM
-summary's processed photon/lepton steps. `--check-backends` checks availability;
+summary's processed photon/lepton steps. `kokkos_backend_probe` checks availability;
 it does not prove that a shower used the device. The manifest's
 `host_execution: serial` describes the host execution space of a CUDA build,
 not a switch disabling CUDA. Its `architecture` must match the selected profile
@@ -770,7 +784,7 @@ The air-shower application's `--em-backend` names are:
 Only the EM selector names changed. `--kokkos-execution`, `--device`,
 `--kokkos-num-threads`, `--radio-backend cpu|kokkos` and all physics defaults
 are unchanged. Update old EM names in scripts when using the rebuilt binary;
-do not mix a new launcher/coordinator with an old worker executable.
+do not mix a new coordinator with an old worker executable.
 For EGS4 build flags, embedded tables and examples, see section 9.4.
 
 After a successful build, these commands use the **same binary**, from the
@@ -798,8 +812,8 @@ install/cuda-openmp/bin/c8_air_shower \
 The direct application retains scalar defaults, so keep both `--em-backend
 kokkos-proposal` and `--radio-backend kokkos`. This PROPOSAL acceleration path
 uses `proposal-native` physics. Omitting `--kokkos-execution` in the combined build
-selects CUDA **only when accelerated mode is requested**. Do not pass the
-launcher's `--backend` to the application; the separate **probe** has its own
+selects CUDA **only when accelerated mode is requested**. The application has
+no `--backend` selector; the separate **probe** has its own
 `--backend` option, as shown above.
 
 - The combined program links/initializes CUDA even for OpenMP execution. A
@@ -808,8 +822,7 @@ launcher's `--backend` to the application; the separate **probe** has its own
 - A process chooses one execution space for EM **and** radio. It does not switch
   between showers in `-N N` or run OpenMP EM together with GPU radio. CUDA mode
   limits the compiled OpenMP host runtime to one thread; do not request 16.
-- The common launcher does not register `cuda-openmp`; call this executable
-  directly. HIP/SYCL remain independent target-specific builds, not members of
+- HIP/SYCL remain independent target-specific builds, not members of
   this experimental executable.
 - Release install, primitive/runtime gates and short `-N 2` photon/proton
   regressions passed locally against the corresponding independent backends.
@@ -854,24 +867,26 @@ physics fix. Dynamic scheduling does not promise an identical tree for equal see
 From the project container directory:
 
 ```bash
-install/bin/c8_air_shower --backend cuda -p 2212 -E 1000 \
+install/cuda/bin/c8_air_shower -p 2212 -E 1000 \
+  --em-backend kokkos-proposal --radio-backend kokkos \
   -f "$HOME/CorsikaData/proton_1TeV_cuda" \
   --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
-Replace `--backend cuda` with `--backend openmp --kokkos-num-threads 16` for
-multicore CPU execution, keeping the physics parameters. For scalar reference:
+Use `install/openmp/bin/c8_air_shower` and add `--kokkos-num-threads 16` for
+multicore CPU execution, keeping the EM/radio and physics parameters. For scalar reference:
 
 ```bash
-install/bin/c8_air_shower --backend openmp \
+install/openmp/bin/c8_air_shower \
   --em-backend proposal --radio-backend cpu \
   -p 2212 -E 1000 -s 12345 -f "$HOME/CorsikaData/proton_1TeV_scalar" \
   --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt
 ```
 
 Here the OpenMP installation supplies the executable, but `proposal/cpu` does
-not run accelerated EM. Direct `install/<backend>/bin/c8_air_shower` executables
-also retain scalar defaults; only the launcher adds Kokkos EM/radio defaults.
+not run accelerated EM. Native binaries retain scalar defaults; accelerated runs
+must explicitly select `--em-backend kokkos-proposal --radio-backend kokkos`
+(or `kokkos-egs4` for EGS4 EM).
 For `kokkos-proposal`, the physics source is `proposal-native`; no additional
 physics-source selector, medium YAML or `.c8emrt` file is needed.
 For the optional `kokkos-egs4` path, see section 9.4.
@@ -890,7 +905,6 @@ full four-L20 production/performance acceptance remains a separate step.
 
 | Parameter | Meaning / default |
 |---|---|
-| `--backend openmp/cuda/hip/sycl` | Launcher only: installed executable to select; omitted means `auto` |
 | `--em-backend proposal\|kokkos-proposal\|kokkos-egs4` | EM physics path, separate from hardware selection; direct application's default is `proposal` |
 | `--egs4-stepfc` | EGS4-only step factor; default `1`; requires EGS4 enabled at build time |
 | `--kokkos-execution cuda\|openmp\|cuda-openmp\|openmp-cuda` | Combined air application: one instance or explicit GPU-/CPU-primary cooperation; implicit CUDA in accelerated mode |
@@ -912,12 +926,12 @@ full four-L20 production/performance acceptance remains a separate step.
 | `--radio-window-duration-ns`, `--radio-pretrigger-ns` | 400 ns / 10 ns |
 | `--kokkos-tuning-cache`, `--kokkos-require-tuning` | Optional tuning record; require mode fails on mismatch/absence |
 
-`auto` probes installed GPUs, then announces OpenMP if none is usable; multiple
-usable GPU backends require explicit selection. It does not guarantee the
-fastest device. The launcher's explicit independent OpenMP never probes a GPU;
-this guarantee does not apply to the combined executable. Explicit selection failures
-and shower errors never trigger backend substitution. `--list-backends` is
-metadata-only; `--check-backends` and `--dry-run` run probes.
+Choose hardware through the installed binary's path. The independent OpenMP
+binary does not initialize a GPU; this does not apply to the combined executable.
+There is no automatic switch to another backend if the selected binary fails.
+Use `install/<backend>/bin/kokkos_backend_probe` for a separate runtime check.
+The old launcher-only `--list-backends`, `--check-backends` and `--dry-run`
+options are not application options.
 
 For campaigns, fix seeds, observers, models, energy, direction, cuts and windows.
 Do not assume the default 400 ns window contains high-energy/inclined pulses:
@@ -1043,7 +1057,7 @@ Then, from the project container directory, run a small CPU example:
 ```bash
 cd ..
 mkdir -p "$HOME/CorsikaData"
-install/bin/c8_air_shower --backend openmp \
+install/openmp/bin/c8_air_shower \
   --em-backend kokkos-egs4 --radio-backend kokkos --kokkos-num-threads 4 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
   --antenna-file CORSIKA8-kokkos/examples/beta5/antennas_minimal_nwu.txt \
@@ -1053,7 +1067,7 @@ install/bin/c8_air_shower --backend openmp \
 With the CUDA build installed, the corresponding four-GPU command is:
 
 ```bash
-install/bin/c8_air_shower --backend cuda \
+install/cuda/bin/c8_air_shower \
   --em-backend kokkos-egs4 --radio-backend kokkos \
   --device 0,1,2,3 --gpu-memory-fraction 0.90 \
   --egs4-stepfc 1 -p 22 -E 10 -s 12345 \
@@ -1134,7 +1148,7 @@ ctest --test-dir build/openmp -N
 OMP_NUM_THREADS=4 ctest --test-dir build/openmp \
   -R 'testKokkos|Beta5' --output-on-failure
 # Only where GPU use is permitted:
-ctest --test-dir build/cuda -R 'testKokkos|Beta5' --output-on-failure
+ctest --test-dir build/cuda -R 'testKokkos|Beta5|NativeBackend' --output-on-failure
 ```
 
 Tests may build physics caches and take time. Basic checks are not production
@@ -1159,7 +1173,7 @@ and `gpu_em` metadata; the repository name alone does not identify an exact bina
 | NVML driver/library mismatch | Administrator must reconcile driver versions; explicit architecture is not a repair |
 | Manifest present, probe fails | Check environment, device permissions and shared libraries; do not combine arbitrary libraries |
 | Dual OpenMP fails with GPUs hidden | Expected current limitation; use the independent OpenMP executable |
-| `--backend` rejected by application | Use it on the launcher/probe; use `--kokkos-execution` on the combined application |
+| `--backend` rejected by application | Select the binary's path; only the probe accepts `--backend`. The combined application uses `--kokkos-execution` |
 | Output directory exists | Choose another `-f`; preserve existing scientific data |
 | Empty/clipped radio signal | Check observers, coordinate height and time window; weak low-energy signals are also possible |
 | VRAM below 70% | Budget ceiling, dependent on workload/workspace and available memory |
@@ -1196,7 +1210,7 @@ space; caches and build products are separate from irreplaceable results.
 
 Implementation history and audits are separate from this guide:
 [source boundaries and validation](documentation/BETA5_EXTRACTION_CN.md),
-[launcher audit](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md).
+[historical entry-point audit (superseded)](documentation/BETA5_PORTABLE_ENTRY_AUDIT_CN.md).
 Core license: [LICENSE](LICENSE); model/dependency licenses remain separate.
 Do not commit FLUKA, build products, caches or private simulation data.
 

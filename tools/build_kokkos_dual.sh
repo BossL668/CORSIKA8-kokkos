@@ -45,7 +45,7 @@ cmake -S "$c8_source" -B "$c8_build" \
   -DCONAN_CMAKE_DIR="$c8_build/deps" \
   -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
   -DCORSIKA_KOKKOS_BACKEND=CUDA_OPENMP \
-  -DCMAKE_INSTALL_PREFIX="$c8_install" -DCORSIKA_LAUNCHER_PREFIX= "$@"
+  -DCMAKE_INSTALL_PREFIX="$c8_install" "$@"
 # A global install requires all configured installable products, including the
 # interface libraries and optional terrain applications. Building only the air
 # executable can appear to work in a warm tree but fail in a clean checkout.

@@ -6,35 +6,21 @@ set (scripts
 
 install (PROGRAMS ${scripts} DESTINATION share/corsika/tools)
 
-# The shared launcher never links a device runtime. Individual installations
-# remain <root>/<backend>; a single source tree may populate several of them.
-set (CORSIKA_LAUNCHER_PREFIX "" CACHE PATH
-     "Optional common install root containing bin/ and backend subdirectories")
+# Applications are native binaries installed directly in each backend's prefix.
+# Keep reading the old option so an existing build cache produces a clear notice.
+if (CORSIKA_LAUNCHER_PREFIX)
+  message (WARNING
+    "CORSIKA_LAUNCHER_PREFIX is obsolete and ignored. Run the native binary at "
+    "${CMAKE_INSTALL_PREFIX}/bin/c8_air_shower directly. An old common launcher, "
+    "if present, is not updated or used by this installation.")
+endif ()
 if (CORSIKA_ENABLE_KOKKOS)
-  string (TOLOWER "${CORSIKA_KOKKOS_BACKEND}" _c8_launcher_backend)
-  set (_c8_launcher_host "serial")
-  if (_c8_launcher_backend STREQUAL "openmp")
-    set (_c8_launcher_host "openmp")
-  elseif (_c8_launcher_backend STREQUAL "cuda_openmp")
-    set (_c8_launcher_host "openmp")
-    if (CORSIKA_LAUNCHER_PREFIX)
-      message(FATAL_ERROR
-        "The experimental dual executable is installed separately; leave CORSIKA_LAUNCHER_PREFIX empty.")
-    endif ()
+  string (TOLOWER "${CORSIKA_KOKKOS_BACKEND}" _c8_manifest_backend)
+  set (_c8_manifest_host "serial")
+  if (_c8_manifest_backend MATCHES "^(openmp|cuda_openmp)$")
+    set (_c8_manifest_host "openmp")
   endif ()
   configure_file (backend.json.in backend.json @ONLY)
   install (FILES "${CMAKE_CURRENT_BINARY_DIR}/backend.json"
-           DESTINATION share/corsika COMPONENT Launcher)
-  if (CORSIKA_LAUNCHER_PREFIX)
-    get_filename_component (_c8_expected_prefix
-      "${CORSIKA_LAUNCHER_PREFIX}/${_c8_launcher_backend}" ABSOLUTE)
-    if (NOT CMAKE_INSTALL_PREFIX STREQUAL _c8_expected_prefix)
-      message (FATAL_ERROR
-        "The unified launcher expects CMAKE_INSTALL_PREFIX="
-        "${_c8_expected_prefix}, not ${CMAKE_INSTALL_PREFIX}")
-    endif ()
-    install (PROGRAMS c8_air_shower_launcher.py
-      DESTINATION "${CORSIKA_LAUNCHER_PREFIX}/bin"
-      RENAME c8_air_shower COMPONENT Launcher)
-  endif ()
+           DESTINATION share/corsika COMPONENT Runtime)
 endif ()

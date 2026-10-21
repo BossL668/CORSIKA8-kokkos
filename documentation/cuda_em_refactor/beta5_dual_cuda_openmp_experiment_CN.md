@@ -47,7 +47,7 @@ corsika-21cma-kokkos-beta5/
   install/cuda-openmp/bin/c8_air_shower
 ```
 
-不设置 `CORSIKA_LAUNCHER_PREFIX`，不替换 `install/bin/c8_air_shower`。
+组合版安装在独立前缀，直接调用其二进制，不覆盖独立 OpenMP/CUDA 安装。
 
 ## 使用同一个程序
 

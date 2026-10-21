@@ -7,7 +7,7 @@ c8_project=$(dirname -- "$c8_source")
 c8_jobs=${C8_BUILD_JOBS:-1}
 if [[ $# == 0 || $1 == --help ]]; then
   echo 'Usage: bash tools/build_kokkos.sh openmp|cuda|hip|sycl|openmp,cuda [CMake options]'
-  echo 'A list builds independent backends sequentially and installs one shared launcher.'
+  echo 'A list builds independent backends sequentially; run each installed native binary directly.'
   echo 'Set C8_KOKKOS_PROFILE for an explicit GPU Conan profile (required for HIP/SYCL).'
   echo 'CUDA otherwise detects a supported local compute capability; no device is guessed.'
   echo 'C8_BUILD_JOBS defaults to 1, including Conan dependency builds.'
@@ -81,9 +81,8 @@ for c8_backend in "${c8_backends[@]}"; do
     -DCONAN_CMAKE_DIR="$c8_deps" \
     -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
     -DCORSIKA_KOKKOS_BACKEND="${c8_backend^^}" \
-    -DCMAKE_INSTALL_PREFIX="$c8_install" \
-    -DCORSIKA_LAUNCHER_PREFIX="$c8_project/install" "$@"
+    -DCMAKE_INSTALL_PREFIX="$c8_install" "$@"
   cmake --build "$c8_build" --parallel "$c8_jobs"
   cmake --install "$c8_build"
+  echo "Native executable: $c8_install/bin/c8_air_shower"
 done
-echo "Unified entry point: $c8_project/install/bin/c8_air_shower"

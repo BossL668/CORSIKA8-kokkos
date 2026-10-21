@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tempfile
 from types import SimpleNamespace
@@ -119,25 +120,59 @@ class InstallationConfiguration(unittest.TestCase):
                 (case / "CMakeLists.txt").write_text(
                     'cmake_minimum_required(VERSION 3.18)\nproject(InstallTest NONE)\n'
                     f'include("{ROOT}/cmake/CorsikaConanKokkos.cmake")\n'
-                    'string(TOLOWER "${CORSIKA_KOKKOS_BACKEND}" _c8_launcher_backend)\n'
-                    'set(Kokkos_VERSION 4.7.03)\nset(_c8_launcher_host serial)\n'
-                    f'configure_file("{ROOT}/tools/backend.json.in" backend.json @ONLY)\n')
+                    'set(Kokkos_VERSION 4.7.03)\nset(CORSIKA_ENABLE_KOKKOS ON)\n'
+                    f'add_subdirectory("{ROOT}/tools" tools)\n')
                 args = [CMAKE, "-S", str(case), "-B", str(case / "build"),
                         f"-DCMAKE_TOOLCHAIN_FILE={toolchain}",
                         f"-DCORSIKA_KOKKOS_BACKEND={backend}",
                         # Upgrade the legacy unspecified cache values, too.
-                        "-DCORSIKA_KOKKOS_ARCHITECTURE=NONE"]
+                        "-DCORSIKA_KOKKOS_ARCHITECTURE=NONE",
+                        f"-DCMAKE_INSTALL_PREFIX={case}/install/{backend.lower()}",
+                        # Old build caches must not recreate the Python entry point.
+                        f"-DCORSIKA_LAUNCHER_PREFIX={case}/install"]
                 if cuda:
                     args.append("-DCORSIKA_KOKKOS_CUDA_ARCHITECTURES=native")
                 result = subprocess.run(args, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                manifest = json.loads((case / "build/backend.json").read_text())
+                self.assertIn("CORSIKA_LAUNCHER_PREFIX is obsolete", result.stderr)
+                result = subprocess.run([CMAKE, "--install", str(case / "build")],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                prefix = case / "install" / backend.lower()
+                manifest = json.loads((prefix / "share/corsika/backend.json").read_text())
                 self.assertEqual(manifest["architecture"], architecture)
                 self.assertEqual(manifest["backend"], backend.lower())
+                self.assertEqual(manifest["host_execution"],
+                                 "openmp" if backend in ("OPENMP", "CUDA_OPENMP") else "serial")
+                self.assertFalse((case / "install/bin/c8_air_shower").exists())
+                # Every installed file stays within the selected backend prefix.
+                paths = (case / "build/install_manifest.txt").read_text().splitlines()
+                self.assertTrue(paths)
+                self.assertTrue(all(Path(path).is_relative_to(prefix) for path in paths))
                 cache = (case / "build/CMakeCache.txt").read_text()
                 self.assertIn(f"CORSIKA_KOKKOS_ARCHITECTURE:STRING={architecture}", cache)
                 if cuda:
                     self.assertIn(f"CORSIKA_KOKKOS_CUDA_ARCHITECTURES:STRING={cuda}", cache)
+
+    def test_readme_commands_use_explicit_native_binary_backends(self):
+        for name in ("README.md", "README_CN.md"):
+            with self.subTest(readme=name):
+                content = (ROOT / name).read_text().replace("\\\n", " ")
+                count = 0
+                for line in content.splitlines():
+                    if not line.startswith("install/") or "/c8_air_shower " not in line:
+                        continue
+                    args = shlex.split(line)
+                    self.assertNotEqual(args[0], "install/bin/c8_air_shower")
+                    self.assertNotIn("--backend", args)
+                    if "--help" not in args:
+                        self.assertIn("--em-backend", args)
+                        self.assertIn("--radio-backend", args)
+                    count += 1
+                self.assertGreaterEqual(count, 8)
+
+    def test_python_air_shower_launcher_removed(self):
+        self.assertFalse((ROOT / "tools/c8_air_shower_launcher.py").exists())
 
     @unittest.skipUnless(CMAKE, "cmake not installed")
     def test_explicit_metadata_conflicts_rejected(self):

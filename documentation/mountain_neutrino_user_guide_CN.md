@@ -82,7 +82,7 @@ install/cuda/bin/c8_mountain_neutrino
 install/<backend>/share/corsika/mountain/*.yaml
 ```
 
-山体应用当前直接调用各后端程序；不要将空气程序统一入口的 `--backend` 参数复制过来。
+与空气应用一样，山体应用直接调用各后端二进制，通过程序路径选择后端，不接受 `--backend` 参数。
 组合 CUDA/OpenMP 构建通过 `--kokkos-execution` 选实例，仍遵守组合程序对可用 NVIDIA
 runtime 的既有限制。HIP/SYCL 的源码分支需要目标设备编译和验收，本指南不声称已验证。
 

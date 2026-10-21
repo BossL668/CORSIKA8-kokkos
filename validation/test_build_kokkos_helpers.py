@@ -28,7 +28,7 @@ class BuildHelpers(unittest.TestCase):
         self.profiles.mkdir(parents=True)
         for name in ("build_kokkos.sh", "build_kokkos_dual.sh"):
             shutil.copyfile(SOURCE / "tools" / name, self.source / "tools" / name)
-        for name in ("openmp", "cuda-ada89", "cuda-openmp-turing75",
+        for name in ("openmp", "cuda-ada89", "hip-vega90a", "cuda-openmp-turing75",
                      "cuda-openmp-ampere80", "cuda-openmp-ampere86",
                      "cuda-openmp-ada89", "cuda-openmp-hopper90"):
             (self.profiles / name).write_text("include(default)\n")
@@ -83,6 +83,9 @@ class BuildHelpers(unittest.TestCase):
         self.assert_complete_build_before_install(calls, "1")
         configure = next(c for c in calls if c[:2] == ["cmake", "-S"])
         self.assertIn("-DCORSIKA_KOKKOS_BACKEND=CUDA_OPENMP", configure)
+        self.assertFalse(any("CORSIKA_LAUNCHER_PREFIX" in arg for arg in configure))
+        self.assertIn(str(self.project / "install/cuda-openmp/bin/c8_air_shower"),
+                      result.stdout)
         install = next(c for c in calls if c[:2] == ["cmake", "--install"])
         self.assertEqual(install[-1], str(self.project / "build/cuda-openmp"))
         conan = next(c for c in calls if c[:2] == ["conan", "install"])
@@ -157,6 +160,48 @@ class BuildHelpers(unittest.TestCase):
         result, calls = self.run_helper("build_kokkos.sh", "cuda,hip")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(calls, [])
+
+    def test_paired_install_has_distinct_native_binary_paths(self):
+        result, calls = self.run_helper("build_kokkos.sh", "openmp,cuda", "-DWITH_FLUKA=ON")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        configs = [c for c in calls if c[:2] == ["cmake", "-S"]]
+        installs = [c for c in calls if c[:2] == ["cmake", "--install"]]
+        builds = [c for c in calls if c[:2] == ["cmake", "--build"]]
+        self.assertEqual(len(configs), 2)
+        self.assertEqual(len(installs), 2)
+        self.assertEqual(len(builds), 2)
+        for index, backend in enumerate(("openmp", "cuda")):
+            self.assertIn(f"-DCMAKE_INSTALL_PREFIX={self.project}/install/{backend}",
+                          configs[index])
+            self.assertFalse(any("CORSIKA_LAUNCHER_PREFIX" in arg for arg in configs[index]))
+            self.assertEqual(installs[index][-1], str(self.project / "build" / backend))
+            self.assertEqual(builds[index][-2:], ["--parallel", "1"])
+            self.assertLess(calls.index(builds[index]), calls.index(installs[index]))
+            self.assertIn(str(self.project / "install" / backend / "bin/c8_air_shower"),
+                          result.stdout)
+        self.assertLess(calls.index(installs[0]), calls.index(configs[1]))
+        self.assertNotIn("install/bin/c8_air_shower", result.stdout)
+        for call in calls:
+            if call[:2] == ["conan", "install"]:
+                self.assertIn("tools.build:jobs=1", call)
+
+    def test_invalid_backend_lists_fail_before_build(self):
+        for value in ("openmp,openmp", "openmp,", "unknown"):
+            with self.subTest(backends=value):
+                result, calls = self.run_helper("build_kokkos.sh", value)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, [])
+
+    def test_hip_requires_explicit_profile(self):
+        result, calls = self.run_helper("build_kokkos.sh", "openmp,hip")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls, [])
+
+    def test_explicit_hip_profile_needs_no_gpu_discovery(self):
+        result, calls = self.run_helper("build_kokkos.sh", "openmp,hip",
+                                        C8_KOKKOS_PROFILE="hip-vega90a")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any(c[0] == "nvidia-smi" for c in calls))
 
 
 if __name__ == "__main__":

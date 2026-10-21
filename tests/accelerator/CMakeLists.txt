@@ -422,9 +422,12 @@ if (CORSIKA_ENABLE_KOKKOS)
     set_source_files_properties(KokkosCpuTransportAlignmentDriver.cpp PROPERTIES LANGUAGE HIP)
   endif()
   add_test(NAME testKokkosCpuTransportAlignment COMMAND testKokkosCpuTransportAlignment)
-  add_test (NAME Beta5UnifiedLauncher
+  add_test (NAME NativeBackendBuildHelpers
     COMMAND ${PYTHON_EXECUTABLE}
-      ${CMAKE_CURRENT_SOURCE_DIR}/test_beta5_launcher.py)
+      ${CMAKE_SOURCE_DIR}/validation/test_build_kokkos_helpers.py)
+  add_test (NAME NativeBackendInstallation
+    COMMAND ${PYTHON_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/tests/tools/test_install_configuration.py)
   add_test (NAME Beta5SourceBoundaries
     COMMAND ${PYTHON_EXECUTABLE}
       ${CMAKE_CURRENT_SOURCE_DIR}/check_beta5_boundaries.py ${CMAKE_SOURCE_DIR})
