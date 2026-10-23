@@ -12,7 +12,16 @@ sources are compiled for multicore CPUs or supported GPUs. This is a research
 branch, not an official CORSIKA release. Installation does not require an older
 checkout, an existing build tree or manually prepared `.c8emrt` tables.
 
-Latest changes (2026-10-20):
+Latest changes (2026-10-23):
+
+- Reduce global atomic traffic for GPU radio diagnostic counters by accumulating
+  them locally and combining them within each team on tiled ZHS/CoREAS+ZHS work.
+  CoREAS-only, small-track and sparse-observer paths retain their existing
+  counter updates. No new command-line option is required.
+- Radio formulas, propagation, waveform accumulation, physics cuts and thinning
+  are unchanged. CPU/OpenMP radio execution retains its existing implementation.
+
+Changes (2026-10-20):
 
 - Installation fixes: use versioned Miniforge installer/checksum assets; add
   RTX 50-series compute-capability 12.0 profiles (`BLACKWELL120`, CUDA 12.8+).

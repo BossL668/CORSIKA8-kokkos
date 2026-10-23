@@ -86,6 +86,26 @@ if (CORSIKA_ENABLE_KOKKOS)
   set_tests_properties(testKokkosHostRadioStaging PROPERTIES
     ENVIRONMENT "OMP_NUM_THREADS=4;OMP_PROC_BIND=false")
 
+  add_executable(testKokkosRadioCounters testKokkosRadioCounters.cpp)
+  target_link_libraries(testKokkosRadioCounters PRIVATE CORSIKA8 Kokkos::kokkos)
+  add_dependencies(testKokkosRadioCounters GenParticlesHeaders)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(testKokkosRadioCounters.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testKokkosRadioCounters PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      target_compile_options(testKokkosRadioCounters PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+    endif()
+    set_target_properties(testKokkosRadioCounters PROPERTIES CUDA_STANDARD 17
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+  elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties(testKokkosRadioCounters.cpp PROPERTIES LANGUAGE HIP)
+  endif()
+  add_test(NAME testKokkosRadioCounters COMMAND testKokkosRadioCounters)
+  set_tests_properties(testKokkosRadioCounters PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=4;OMP_PROC_BIND=false")
+
   add_subdirectory(${CMAKE_SOURCE_DIR}/validation/accelerator/environment_tree
     ${CMAKE_CURRENT_BINARY_DIR}/environment_tree)
   add_executable(testNativeProcessCoverage EXCLUDE_FROM_ALL testNativeProcessCoverage.cpp)

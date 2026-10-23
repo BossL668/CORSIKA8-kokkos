@@ -79,6 +79,19 @@ namespace corsika::accelerator::radio::kokkos_detail {
     }
   };
 
+  // Projection diagnostics use thread-local unsigned counters. Waveform
+  // additions (signed fixed-point or double) keep the global atomic path.
+  struct KokkosRadioLocalCounterOperations : KokkosRadioAtomicOperations {
+    using KokkosRadioAtomicOperations::add;
+
+    KOKKOS_INLINE_FUNCTION static unsigned long long add(
+        unsigned long long* address, unsigned long long value) {
+      auto const previous = *address;
+      *address += value;
+      return previous;
+    }
+  };
+
   struct KokkosRadioOpenMpThreadLocalOperations {
     KOKKOS_INLINE_FUNCTION static long long add(long long* address,
                                                 long long value) {
@@ -233,7 +246,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
     // NVCC can number the two extended lambdas inside project()'s constexpr
     // OpenMP/GPU branches differently, leaving the tiled GPU entry unregistered.
     // This is the former GPU lambda body, with the same data and tile order.
-    template <bool Coreas, bool Zhs>
+    template <bool Coreas, bool Zhs, bool ReduceCounters = false>
     struct RadioTileProjection {
       TrackView tracks;
       ObserverView coreas_observers;
@@ -275,6 +288,12 @@ namespace corsika::accelerator::radio::kokkos_detail {
           }
         }
         team.team_barrier();
+        detail::DeviceRadioCounters local_counts{};
+        using ProjectionOperations = std::conditional_t<
+            ReduceCounters, KokkosRadioLocalCounterOperations,
+            KokkosRadioAtomicOperations>;
+        auto* const projection_counts =
+            ReduceCounters ? &local_counts : counters.data();
         for (std::size_t lane = team.team_rank(); lane < tile_lanes;
              lane += team.team_size()) {
           auto const track_lane = lane / observer_tile_size;
@@ -285,14 +304,37 @@ namespace corsika::accelerator::radio::kokkos_detail {
               scratch->tracks[track_lane].valid == 0)
             continue;
           if (Coreas)
-            detail::accumulateCoREAS<KokkosRadioAtomicOperations>(
+            detail::accumulateCoREAS<ProjectionOperations>(
                 scratch->tracks[track_lane], propagation,
                 scratch->coreas_observers[observer_lane], coreas_waveforms,
-                counters.data());
+                projection_counts);
           if (Zhs)
-            detail::accumulateZHS<KokkosRadioAtomicOperations>(
+            detail::accumulateZHS<ProjectionOperations>(
                 scratch->tracks[track_lane], propagation,
-                scratch->zhs_observers[observer_lane], zhs_waveforms, counters.data());
+                scratch->zhs_observers[observer_lane], zhs_waveforms, projection_counts);
+        }
+        if constexpr (ReduceCounters) {
+          // All team members participate, including empty tail-tile lanes.
+          team.team_reduce(
+              Kokkos::Sum<unsigned long long>(local_counts.coreas_contributions));
+          if (team.team_rank() == 0 && local_counts.coreas_contributions)
+            KokkosRadioAtomicOperations::add(
+                &counters(0).coreas_contributions, local_counts.coreas_contributions);
+          team.team_reduce(
+              Kokkos::Sum<unsigned long long>(local_counts.zhs_contributions));
+          if (team.team_rank() == 0 && local_counts.zhs_contributions)
+            KokkosRadioAtomicOperations::add(
+                &counters(0).zhs_contributions, local_counts.zhs_contributions);
+          team.team_reduce(
+              Kokkos::Sum<unsigned long long>(local_counts.zhs_subtracks));
+          if (team.team_rank() == 0 && local_counts.zhs_subtracks)
+            KokkosRadioAtomicOperations::add(
+                &counters(0).zhs_subtracks, local_counts.zhs_subtracks);
+          team.team_reduce(
+              Kokkos::Sum<unsigned long long>(local_counts.fixed_point_overflows));
+          if (team.team_rank() == 0 && local_counts.fixed_point_overflows)
+            KokkosRadioAtomicOperations::add(
+                &counters(0).fixed_point_overflows, local_counts.fixed_point_overflows);
         }
       }
     };
@@ -1016,16 +1058,29 @@ namespace corsika::accelerator::radio::kokkos_detail {
       auto const team_size = std::min(team_size_, tile_lanes);
       auto policy = Policy(execution, league_size, team_size);
       policy.set_scratch_size(0, Kokkos::PerTeam(sizeof(RadioTileScratch)));
-      Kokkos::parallel_for(
-          Coreas && Zhs ? "c8_kokkos_coreas_zhs_tiled"
-                        : Coreas ? "c8_kokkos_coreas_tiled"
-                                 : "c8_kokkos_zhs_tiled",
-          policy,
-          RadioTileProjection<Coreas, Zhs>{tracks, coreas_observers, zhs_observers,
+      auto const label = Coreas && Zhs ? "c8_kokkos_coreas_zhs_tiled"
+                         : Coreas ? "c8_kokkos_coreas_tiled"
+                                  : "c8_kokkos_zhs_tiled";
+      // Sparse observer tiles and CoREAS-only work keep the original kernel:
+      // their counters do not repay the extra team-reduction overhead.
+      // Small track batches already use the unchanged projectDirect() path.
+      if (Zhs && observer_count >= observer_tile_size) {
+        Kokkos::parallel_for(
+            label, policy,
+            RadioTileProjection<Coreas, Zhs, Zhs>{
+                tracks, coreas_observers, zhs_observers,
+                propagation, coreas_waveforms, zhs_waveforms,
+                counters, track_count, observer_count,
+                observer_tiles, track_tile_size, observer_tile_size, tile_lanes});
+      } else {
+        Kokkos::parallel_for(
+            label, policy,
+            RadioTileProjection<Coreas, Zhs>{tracks, coreas_observers, zhs_observers,
                                           propagation, coreas_waveforms, zhs_waveforms,
                                           counters, track_count, observer_count,
                                           observer_tiles, track_tile_size,
                                           observer_tile_size, tile_lanes});
+      }
       }
       auto const pairs = track_count * observer_count;
       statistics_.track_observer_pairs +=
