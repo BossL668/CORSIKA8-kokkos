@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -89,6 +90,7 @@ class FrontierInput {
   bool exhausted_{};
   std::unordered_set<std::uint64_t> seen_;
   std::size_t batches_{}, peak_batch_{};
+  long double weighted_energy_GeV_{};
   FrontierHeader header_{"C8_STATIC_FRONTIER_V1"};
   EnvironmentView environment_{};
   std::uint64_t namespace_base_{};
@@ -117,6 +119,7 @@ public:
   std::size_t count() const { return seen_.size(); }
   std::size_t batches() const { return batches_; }
   std::size_t peakBatch() const { return peak_batch_; }
+  double weightedEnergyGeV() const { return static_cast<double>(weighted_energy_GeV_); }
   template<class Stack>
   std::size_t refill(Stack& stack, CoordinateSystemPtr const& cs, std::size_t limit) {
     header_.validateEnvironment(environment_);
@@ -140,6 +143,10 @@ public:
                               s.parent_history_id >= namespace_base_))
         throw std::runtime_error("Imported root overlaps worker namespace");
       if (!seen_.insert(s.history_id).second) throw std::runtime_error("Duplicate frontier root");
+      weighted_energy_GeV_ += static_cast<long double>(s.energy_GeV) * s.weight;
+      if (!std::isfinite(weighted_energy_GeV_) ||
+          weighted_energy_GeV_ > std::numeric_limits<double>::max())
+        throw std::runtime_error("Imported frontier energy overflow");
       batch.push_back(s);
     }
     if (file_.eof()) exhausted_ = true;
@@ -224,6 +231,7 @@ public:
       audit << "{\"mode\":\"bounded-high-energy-first\",\"roots_consumed\":"
             << source_->count() << ",\"batches\":" << source_->batches()
             << ",\"maximum_imported_batch\":" << source_->peakBatch()
+            << ",\"weighted_energy_GeV\":" << std::setprecision(17) << source_->weightedEnergyGeV()
             << ",\"configured_import_batch\":" << limit_ << "}\n";
       CORSIKA_LOG_INFO("Bounded frontier drained: {} roots, {} batches, peak imported batch {}",
                       source_->count(), source_->batches(), source_->peakBatch());

@@ -121,6 +121,8 @@
 #include "detail/air_shower_multigpu/CpuFrontier.hpp"
 #endif
 #if defined(CORSIKA8_WITH_KOKKOS_EM)
+#include <corsika/accelerator/radio/common/HostRadioCollector.hpp>
+#include <corsika/accelerator/radio/common/RadioTrackSpool.hpp>
 #include "detail/air_shower_kokkos/KokkosRunSession.hpp"
 #include "detail/air_shower_kokkos/KokkosAirShowerApplication.hpp"
 #endif
@@ -668,6 +670,7 @@ int runAirShower(int argc, char** argv,
   unsigned frontier_worker_id = 0;
   bool frontier_legacy_import = false;
   std::string cpu_frontier_in, cpu_frontier_out;
+  std::string radio_track_out;
   double cpu_frontier_max_energy = std::numeric_limits<double>::infinity();
   std::uint64_t frontier_history_limit = applications::multigpu::historyStride;
   app.add_option("--prefix-cpu-in", cpu_frontier_in, "Import one statically assigned CPU subshower shard");
@@ -680,12 +683,42 @@ int runAirShower(int argc, char** argv,
   app.add_option("--frontier-in", frontier_in, "Import roots of the SAME global primary");
   app.add_option("--frontier-max-energy", frontier_max_energy, "Root scheduling cap in GeV (not a cut)");
   app.add_option("--frontier-worker-id", frontier_worker_id, "Exclusive child history namespace [1,255]");
+  app.add_option("--radio-track-out", radio_track_out,
+                 "Internal CPU-prefix radio track output")->group("");
+  app.add_option("--radio-track-in", gpu_cli.radio_track_inputs,
+                 "Internal GPU-worker radio track inputs")->group("");
 #endif
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
   if (!corsika::applications::air_shower::prepareDeviceCli(app, gpu_cli, selected_devices)) return EXIT_FAILURE;
   if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
 #ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+  if ((!radio_track_out.empty() &&
+       (nevent != 1 || gpu_cli.em_backend != "proposal" || gpu_cli.radio_backend != "cpu" ||
+        (frontier_out.empty() && cpu_frontier_out.empty()) ||
+        !gpu_cli.radio_track_inputs.empty())) ||
+      (!gpu_cli.radio_track_inputs.empty() &&
+       (nevent != 1 || gpu_cli.em_backend != "kokkos-proposal" ||
+        gpu_cli.radio_backend != "kokkos" || frontier_in.empty()))) {
+    CORSIKA_LOG_CRITICAL("Radio track handoff requires a single CPU prefix or a Kokkos PROPOSAL frontier worker");
+    return EXIT_FAILURE;
+  }
+#ifndef CORSIKA8_WITH_KOKKOS_EM
+  if (!radio_track_out.empty() || !gpu_cli.radio_track_inputs.empty()) {
+    CORSIKA_LOG_CRITICAL("Radio track handoff requires a Kokkos-enabled worker build");
+    return EXIT_FAILURE;
+  }
+#endif
+  std::vector<std::filesystem::path> radio_input_paths;
+  for (auto const& path : gpu_cli.radio_track_inputs) {
+    auto const canonical = std::filesystem::canonical(path);
+    if (std::find(radio_input_paths.begin(), radio_input_paths.end(), canonical) !=
+        radio_input_paths.end()) {
+      CORSIKA_LOG_CRITICAL("Duplicate radio track handoff input: {}", path);
+      return EXIT_FAILURE;
+    }
+    radio_input_paths.push_back(canonical);
+  }
   if ((!cpu_frontier_in.empty() || !cpu_frontier_out.empty()) &&
       (nevent != 1 || !cli_energy_range.empty() || gpu_cli.em_backend != "proposal" ||
        force_interaction || force_decay || !frontier_in.empty() || frontier_legacy_import ||
@@ -1225,6 +1258,19 @@ int runAirShower(int argc, char** argv,
   // loop over each shower
   for (int i_shower = 1; i_shower < nevent + 1; i_shower++) {
 
+#if defined(C8_EXPERIMENTAL_STATIC_MULTIGPU) && defined(CORSIKA8_WITH_KOKKOS_EM)
+    // Prefixes transport on the CPU without initializing a GPU. Each segment
+    // is captured once; both native radio implementations skip projection.
+    // Closed files are assigned once to final workers by the coordinator.
+    std::unique_ptr<accelerator::radio::RadioTrackSpoolWriter> radio_spool;
+    std::optional<accelerator::radio::ScopedRadioTrackSink<decltype(coreas), decltype(zhs)>>
+        prefix_radio_sink;
+    if (!radio_track_out.empty()) {
+      radio_spool = std::make_unique<accelerator::radio::RadioTrackSpoolWriter>(radio_track_out);
+      prefix_radio_sink.emplace(coreas, zhs, *radio_spool, rootCS);
+    }
+#endif
+
     CORSIKA_LOG_INFO("Shower {} / {} ", i_shower, nevent);
     validation::CudaReplayTrace::instance().beginShower(i_shower - 1);
     validation::CudaDecisionReplayTape::instance().beginShower(
@@ -1419,6 +1465,13 @@ int runAirShower(int argc, char** argv,
 #endif
     }
 
+#if defined(C8_EXPERIMENTAL_STATIC_MULTIGPU) && defined(CORSIKA8_WITH_KOKKOS_EM)
+    if (radio_spool) {
+      radio_spool->complete();
+      prefix_radio_sink.reset();
+      CORSIKA_LOG_INFO("Deferred {} CPU-prefix radio segments to GPU workers", radio_spool->count());
+    }
+#endif
     HEPEnergyType const Efinal =
         dEdX.getEnergyLost() + observationLevel.getEnergyGround();
 

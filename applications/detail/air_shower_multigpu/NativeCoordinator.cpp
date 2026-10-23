@@ -140,8 +140,10 @@ std::vector<std::string> resolveDevices(std::vector<std::string> const& requeste
 void feedCheck(fs::path const& folder,std::size_t expected) {
   auto feed=readJson(folder/"FRONTIER_FEED.json");
   auto maximum=feed.at("maximum_imported_batch").get<std::size_t>();
+  auto const batches=feed.at("batches").get<std::size_t>();
   require(feed.at("mode")=="bounded-high-energy-first" && feed.at("roots_consumed").get<std::size_t>()==expected &&
-    maximum>0 && maximum<=65536 && feed.at("batches").get<std::size_t>()>0,"Incomplete frontier consumption: "+folder.string());
+    (expected ? maximum>0 && maximum<=65536 && batches>0 : maximum==0 && batches==0),
+    "Incomplete frontier consumption: "+folder.string());
 }
 void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<std::string> const& devices) {
   Processes p; auto physics=o.physics;
@@ -170,21 +172,38 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
     auto frontier=root/"frontier.txt";
     auto cap=o.frontierEnergy>0?o.frontierEnergy:o.energy/(8*devices.size());
     std::vector<fs::path> parts;
+    std::vector<fs::path> radioSpools;
+    bool const spoolPrefixRadio = o.emBackend == "kokkos-proposal";
+    auto prefixRadioOptions = [&](std::string const& name) {
+      std::vector<std::string> options;
+      if (spoolPrefixRadio) {
+        auto const file = root/name/"radio_tracks.bin";
+        radioSpools.push_back(file);
+        options = {"--radio-track-out", file.string()};
+      }
+      return options;
+    };
     fs::path primaryPart;
     auto prefixStart=Clock::now();
     if (o.prefixWorkers==0) {
       std::cout<<"Seed "<<seed<<": computing serial shower prefix"<<std::endl;
-      auto prefix=launch("prefix",{"-s",std::to_string(seed),"--em-backend",o.emBackend=="kokkos-egs4"?"kokkos-egs4":"proposal","--radio-backend","cpu",
-        "--frontier-out",frontier.string(),"--frontier-max-energy",number(cap)},env);
+      auto options = prefixRadioOptions("prefix");
+      options.insert(options.end(), {"-s",std::to_string(seed),"--em-backend",o.emBackend=="kokkos-egs4"?"kokkos-egs4":"proposal","--radio-backend","cpu",
+        "--frontier-out",frontier.string(),"--frontier-max-energy",number(cap)});
+      auto prefixEnv = env;
+      if (spoolPrefixRadio) prefixEnv["CUDA_VISIBLE_DEVICES"] = "";
+      auto prefix=launch("prefix",options,prefixEnv);
       p.wait({prefix},o.timeout); validateOutputs(root/"prefix/shower");
       primaryPart=root/"prefix/shower"; parts.push_back(primaryPart);
     } else {
       std::cout<<"Seed "<<seed<<": static CPU bootstrap + "<<o.prefixWorkers<<" prefix workers"<<std::endl;
       auto cpuEnv=env; cpuEnv["CUDA_VISIBLE_DEVICES"]="";
       auto cpuRoots=root/"cpu_frontier.txt";
-      auto bootstrap=launch("bootstrap",{"-s",std::to_string(seed),"--em-backend","proposal",
+      auto bootstrapOptions = prefixRadioOptions("bootstrap");
+      bootstrapOptions.insert(bootstrapOptions.end(), {"-s",std::to_string(seed),"--em-backend","proposal",
         "--radio-backend","cpu","--prefix-cpu-out",cpuRoots.string(),
-        "--prefix-cpu-max-energy",number(o.prefixSplitEnergy>0?o.prefixSplitEnergy:cap)},cpuEnv);
+        "--prefix-cpu-max-energy",number(o.prefixSplitEnergy>0?o.prefixSplitEnergy:cap)});
+      auto bootstrap=launch("bootstrap",bootstrapOptions,cpuEnv);
       p.wait({bootstrap},o.timeout); validateOutputs(root/"bootstrap/shower");
       primaryPart=root/"bootstrap/shower"; parts.push_back(primaryPart);
       std::vector<fs::path> cpuShards;
@@ -198,11 +217,13 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
         if(cpuAudit["counts"][i]==0) continue;
         auto name="cpu_prefix_"+std::to_string(i);
         auto file=root/(name+"_frontier.txt"); cpuFrontiers.push_back(file);
-        cpuWorkers.push_back(launch(name,{"-s",std::to_string(workerSeed(seed,1024+i)),
+        auto options = prefixRadioOptions(name);
+        options.insert(options.end(), {"-s",std::to_string(workerSeed(seed,1024+i)),
           "--em-backend","proposal","--radio-backend","cpu",
           "--prefix-cpu-in",cpuShards[i].string(),"--frontier-worker-id",std::to_string(i+1),
           "--frontier-out",file.string(),"--frontier-max-energy",number(cap),
-          "--frontier-history-limit",std::to_string(historyLimit)},cpuEnv));
+          "--frontier-history-limit",std::to_string(historyLimit)});
+        cpuWorkers.push_back(launch(name,options,cpuEnv));
         parts.push_back(root/name/"shower");
       }
       p.wait(cpuWorkers,o.timeout);
@@ -221,26 +242,48 @@ void event(Options const& o,fs::path const& root,std::uint64_t seed,std::vector<
     std::vector<fs::path> shards;
     for(std::size_t i=0;i<devices.size();++i) shards.push_back(root/("roots_"+std::to_string(i)+".txt"));
     auto audit=partition(frontier,shards); save(root/"PARTITION.json",audit);
+    std::vector<unsigned> activeRadioWorkers;
+    for (unsigned i=0;i<devices.size();++i)
+      if (audit["counts"][i]!=0) activeRadioWorkers.push_back(i);
+    // The prefix may have completed every particle while still producing
+    // radio tracks. An empty frontier worker can project those tracks without
+    // injecting a synthetic primary or running any CPU radio calculations.
+    if (activeRadioWorkers.empty() && !radioSpools.empty())
+      activeRadioWorkers.push_back(0);
+    auto const radioAudit = partitionRadioTracks(radioSpools, activeRadioWorkers);
+    save(root/"RADIO_TRACK_PARTITION.json", radioAudit);
+    std::set<unsigned> scheduledWorkers;
+    for (unsigned i=0;i<devices.size();++i)
+      if (audit["counts"][i]!=0) scheduledWorkers.insert(i);
+    for (auto const& spool : radioAudit.at("sources"))
+      if (!spool.at("worker").is_null())
+        scheduledWorkers.insert(spool.at("worker").get<unsigned>());
     std::vector<std::size_t> workers;
     std::cout<<"Seed "<<seed<<": "<<audit["counts"]<<" roots on "<<devices.size()<<" GPUs"<<std::endl;
     for(unsigned i=0;i<devices.size();++i) {
-      if(audit["counts"][i]==0) continue;
+      if(!scheduledWorkers.count(i)) continue;
       auto workerEnv=env; workerEnv["CUDA_VISIBLE_DEVICES"]=devices[i];
       std::vector<std::string> workerOptions{
         "-s",std::to_string(workerSeed(seed,i)),"--em-backend",o.emBackend,"--radio-backend","kokkos",
         "--kokkos-execution","cuda","--kokkos-num-threads","1","--kokkos-device","0",
         "--gpu-memory-fraction",number(o.memoryFraction),"--gpu-resident-batch-limit","0",
         "--frontier-in",shards[i].string(),"--frontier-worker-id",std::to_string(o.prefixWorkers+i+1)};
+      for (auto const& spool : radioAudit.at("sources"))
+        if (!spool.at("worker").is_null() && spool.at("worker").get<unsigned>() == i)
+          workerOptions.insert(workerOptions.end(), {"--radio-track-in", spool.at("path").get<std::string>()});
       workers.push_back(launch("worker_"+std::to_string(i),workerOptions,workerEnv));
       parts.push_back(root/("worker_"+std::to_string(i))/"shower");
     }
     p.wait(workers,o.timeout);
     // Per-process times are recorded at exit, before serial output validation.
-    for(unsigned i=0;i<devices.size();++i) if(audit["counts"][i]!=0) {
+    for(unsigned i=0;i<devices.size();++i) if(scheduledWorkers.count(i)) {
       auto folder=root/("worker_"+std::to_string(i));
       validateOutputs(folder/"shower"); feedCheck(folder,audit["counts"][i].get<std::size_t>());
     }
     require(digest(frontier)==audit["frontier_sha256"],"Frontier changed while running");
+    for (auto const& spool : radioAudit.at("sources"))
+      require(digest(spool.at("path").get<std::string>()) == spool.at("sha256"),
+              "Prefix radio spool changed while running");
     for(unsigned i=0;i<shards.size();++i) require(digest(shards[i])==audit["shard_sha256"][i],"Shard changed while running");
     auto mergeStart=Clock::now(); auto products=merge(parts,root/"merged");
     fs::create_directory(root/"merged/primary");
@@ -356,7 +399,7 @@ int mainEntry(int argc,char** argv) {
       "--hadronic-backend","--gpu-resident-batch-limit","--compress"};
     for(std::size_t i=0;i<o.physics.size();++i) {
       auto key=o.physics[i].substr(0,o.physics[i].find('='));
-      require(!reserved.count(key) && key.rfind("--frontier-",0)!=0 && key.rfind("--prefix-",0)!=0 && key!="--",
+      require(!reserved.count(key) && key.rfind("--frontier-",0)!=0 && key.rfind("--prefix-",0)!=0 && key.rfind("--radio-track-",0)!=0 && key!="--",
         "Multi-GPU coordinator owns or does not support option: "+key);
       if(key=="--antenna-file" || key=="--gpu-aux-cache-dir" || key=="--kokkos-tuning-cache") {
         auto eq=o.physics[i].find('=');

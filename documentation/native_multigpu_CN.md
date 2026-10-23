@@ -123,6 +123,34 @@ bootstrap、CPU 分片、CPU worker 推进与前沿汇总，不只是单个 work
 
 ## 计算与输出
 
+### CPU 轨迹的射电计算
+
+在 `kokkos-proposal` 配合 `--radio-backend kokkos` 的 CUDA 路径中，
+电子、正电子即使由 CPU 推进，其 CoREAS/ZHS 计算也交给 GPU。
+CPU 只记录该步的起止位置、时间、方向、能量和权重；每条轨迹只记录一次，
+由共用的 GPU 投影器计算两种射电模型，不再同时执行原生 CPU 射电计算。
+这不改变粒子输运、反应采样、cut 或随机数流。
+
+GPU worker 使用独立的 4096 条射电轨迹缓冲，满批提交，在输出波形前提交
+最后不足一批的轨迹。此缓冲不由 `--gpu-min-batch` 控制；小粒子批次仍可
+进行原来的 CPU 输运。新增缓冲计入显存预算，不逐轨迹分配显存。
+CPU 轨迹缓冲与粒子输运队列分离；上传及射电投影使用该后端原有的执行流，
+与设备轨迹的投影按序执行，共同累计而不重置波形。上传完成后才复用 CPU
+缓冲，设备缓冲的复用同样服从执行流顺序。它们会共享 GPU 计算资源，
+但不从两个独立流同时读写同一块轨迹暂存区。
+
+串行及并行 CPU 前缀不创建 GPU 上下文，而是写入版本化的
+`radio_tracks.bin`。协调器在前缀结束后把这些文件静态分配给 GPU worker，
+并记录 `RADIO_TRACK_PARTITION.json`，校验条数、完整消费及 SHA256。
+前缀输出本身不再累计射电场，其物理贡献包含在接收轨迹的 GPU worker
+波形中，最终仍按原顺序合并，不能再次把这些轨迹投影到 CPU 波形。
+
+`gpu_em/summary.yaml` 的 `host_tracks_enqueued`、`host_track_batches`
+分别记录转交的轨迹数和提交批次数；原生射电模块的
+`offloaded_segment_count` 记录其转交数，而不是 CPU 实际投影数。
+普通 CPU 射电路径及 EGS4 路径保持不变。实验性 cooperative 模式的
+OpenMP endpoint 仍保留其原有 Kokkos/OpenMP 射电计算，本节不表示它也全在 CUDA 上执行。
+
 以下说明针对默认串行前缀的多 GPU 路径；未开启并行前缀时，单卡仍使用普通应用的输出结构。
 一个 CPU 前缀导出互不重叠的 EM/μ 根粒子，按未加权能量代理分配一次；
 每张卡在独立进程内推进自己的子簇、CPU 回退和随机流。子进程重新执行同一个

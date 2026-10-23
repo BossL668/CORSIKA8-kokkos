@@ -124,6 +124,8 @@ namespace corsika::gpu::radio {
         weighted_track_length_by_kinetic_energy_m{};
     std::size_t device_bytes{};
     std::uint64_t host_to_device_bytes{};
+    std::uint64_t host_tracks_enqueued{};
+    std::uint64_t host_track_batches{};
     std::uint64_t device_to_host_bytes{};
     double device_time_ms{};
     double kernel_time_ms{};

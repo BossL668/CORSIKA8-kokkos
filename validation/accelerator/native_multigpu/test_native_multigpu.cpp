@@ -1,4 +1,5 @@
 #include "NativeCoordinator.hpp"
+#include <corsika/accelerator/radio/common/RadioTrackSpool.hpp>
 #include <arrow/api.h>
 #include <algorithm>
 #include <iterator>
@@ -35,13 +36,15 @@ static std::shared_ptr<arrow::Table> read(fs::path const& p) {
 static std::shared_ptr<arrow::Array> doubles(std::vector<double> const& v) {
   arrow::DoubleBuilder b; ok(b.AppendValues(v)); return take(b.Finish());
 }
-static void fixture(fs::path const& p,double value,double timeOffset=0) {
+static void fixture(fs::path const& p,double value,double timeOffset=0,
+                    bool suppressRadio=false,double extraRadio=0.) {
   for(auto name:{"profile/profile.parquet","production_profile/profile.parquet","energyloss/dEdX.parquet",
                 "CoREAS/observers.parquet","ZHS/observers.parquet"}) {
     bool radio=std::string(name).find("observers")!=std::string::npos;
+    auto const outputValue = radio ? (suppressRadio ? 0. : value + extraRadio) : value;
     auto t=arrow::Table::Make(arrow::schema({arrow::field("shower",arrow::float64()),
       arrow::field(radio?"Time":"X",arrow::float64()),arrow::field(radio?"Ex":"total",arrow::float64())}),
-      {doubles({0,0,0}),doubles({timeOffset,timeOffset+1,timeOffset+2}),doubles({value,-value,value})});
+      {doubles({0,0,0}),doubles({timeOffset,timeOffset+1,timeOffset+2}),doubles({outputValue,-outputValue,outputValue})});
     writeTable(p/name,t); text((p/name).parent_path()/"config.yaml","type: fixture\n");
   }
   for(auto name:{"particles/particles.parquet","interactions/interactions.parquet"}) {
@@ -52,6 +55,9 @@ static void fixture(fs::path const& p,double value,double timeOffset=0) {
 }
 static int worker(int argc,char** argv) {
   std::string out,frontierIn,frontierOut,emBackend,stepfc,cpuIn,cpuOut,historyLimit; unsigned id=0;
+  std::string radioOut;
+  std::vector<std::string> radioInputs;
+  std::size_t importedRoots=0;
   for(int i=1;i<argc;++i) {
     std::string a(argv[i]);
     if(a=="-f") out=argv[++i];
@@ -63,6 +69,8 @@ static int worker(int argc,char** argv) {
     else if(a=="--prefix-cpu-in") cpuIn=argv[++i];
     else if(a=="--prefix-cpu-out") cpuOut=argv[++i];
     else if(a=="--frontier-history-limit") historyLimit=argv[++i];
+    else if(a=="--radio-track-out") radioOut=argv[++i];
+    else if(a=="--radio-track-in") radioInputs.emplace_back(argv[++i]);
   }
   if(std::getenv("C8_TEST_EXPECT_EGS4"))
     check(emBackend=="kokkos-egs4" && std::stod(stepfc)==.0625,
@@ -87,24 +95,51 @@ static int worker(int argc,char** argv) {
     std::ifstream in(cpuIn);std::string line;std::getline(in,line);std::size_t count=0;
     std::string data="C8_STATIC_FRONTIER_V3 123456 "+historyLimit+"\n";
     while(std::getline(in,line)) {
-      data+="22 "+std::to_string(id*(std::uint64_t{1}<<48)+100+count)+
-            " 1 2 0 4 1 0 0 0 1 0 0 -1 0\n";
+      if (!std::getenv("C8_TEST_EMPTY_EM_FRONTIER"))
+        data+="22 "+std::to_string(id*(std::uint64_t{1}<<48)+100+count)+
+              " 1 2 0 4 1 0 0 0 1 0 0 -1 0\n";
       ++count;
     }
     text(frontierOut,data);
     if(std::getenv("C8_TEST_BAD_CPU_FEED")) ++count;
     save("CPU_FRONTIER_FEED.json",{{"roots_consumed",count}});
   } else if(!frontierOut.empty()) text(frontierOut,
+    std::getenv("C8_TEST_EMPTY_EM_FRONTIER") ? "C8_STATIC_FRONTIER_V1\n" :
     "C8_STATIC_FRONTIER_V1\n22 1 0 0 0 8 2 0 0 0 1 0 0 -1\n"
     "11 2 1 1 9 4 4 3 0 0 1 0 0 -1\n22 3 1 1 9 2 1 0 0 0 1 0 0 -1\n22 4 1 1 9 1 1 0 0 0 1 0 0 -1\n");
   if(!frontierIn.empty()) {
     std::ifstream in(frontierIn); std::string line; std::getline(in,line); std::size_t count=0;
     while(std::getline(in,line)) ++count;
+    importedRoots=count;
     if(std::getenv("C8_TEST_BAD_FEED")) ++count;
     save("FRONTIER_FEED.json",{{"mode","bounded-high-energy-first"},{"roots_consumed",count},
-      {"batches",1},{"maximum_imported_batch",count}});
+      {"batches",count ? 1 : 0},{"maximum_imported_batch",count}});
   }
-  fixture(out,id?double(id):-1.);
+  auto const value = !frontierIn.empty() && importedRoots==0 ? 0. : id ? double(id) : -1.;
+  if (!radioOut.empty()) {
+    check(std::string(std::getenv("CUDA_VISIBLE_DEVICES")).empty(),
+          "Radio-capturing prefix must not reserve a GPU");
+    corsika::accelerator::radio::RadioTrackSpoolWriter spool(radioOut);
+    corsika::radio::RadioTrackSegment track{};
+    track.pdg=11;track.weight=1.;track.start_position_m[0]=value;
+    track.end_position_m[0]=value+1.;track.end_time_s=1.e-8;
+    track.start_kinetic_energy_GeV=track.end_kinetic_energy_GeV=1.;
+    if (!std::getenv("C8_TEST_EMPTY_RADIO_SPOOL")) spool.append(track);
+    if (!std::getenv("C8_TEST_INCOMPLETE_RADIO_SPOOL")) spool.complete();
+  }
+  double transferred = 0.;
+  std::uint64_t transferredTracks = 0;
+  for (auto const& path : radioInputs) {
+    corsika::accelerator::radio::RadioTrackSpoolReader spool(path);
+    std::vector<corsika::radio::RadioTrackSegment> tracks;
+    while (spool.readBatch(tracks,2)) for (auto const& track : tracks) {
+      transferred += track.start_position_m[0];
+      ++transferredTracks;
+    }
+    check(spool.finished(), "Radio spool was not consumed");
+  }
+  if (!frontierIn.empty()) save("RADIO_TRACK_FEED.json", {{"records",transferredTracks}});
+  fixture(out,value,0.,!radioOut.empty(),transferred);
   return 0;
 }
 template<class F> static void rejects(F f,std::string const& name) {
@@ -161,21 +196,55 @@ int main(int argc,char** argv) {
     installSignalHandlers(); run(o);
     check(first(root/"four/merged/CoREAS/observers.parquet")==9,"Four worker sum plus prefix");
     check(json(root/"four/TIMING.json")["parts"].size()==5,"Prefix and four worker times");
+    check(first(root/"four/prefix/shower/CoREAS/observers.parquet")==0,
+          "Prefix radio must not also be included in its own waveform");
+    check(json(root/"four/RADIO_TRACK_PARTITION.json")["records"]==1,
+          "Serial-prefix radio accounting");
     rejects([&]{run(o);},"output reuse");
     o.output=root/"cpu16_gpu4";o.prefixWorkers=16;run(o);
     check(json(o.output/"TIMING.json")["parts"].size()==21,"Bootstrap + sixteen CPU + four GPU processes");
     check(json(o.output/"CPU_PARTITION.json")["roots"]==32,"CPU root accounting");
     check(json(o.output/"FRONTIER_JOIN.json")["roots"]==32,"Joined EM root accounting");
     check(first(o.output/"merged/CoREAS/observers.parquet")==209,"Sum bootstrap, CPU prefixes and GPU workers once");
+    auto const radioAudit = json(o.output/"RADIO_TRACK_PARTITION.json");
+    check(radioAudit["records"]==17,"Bootstrap + 16 CPU radio spools");
+    std::uint64_t transferredTracks = 0;
+    for (unsigned i=0;i<4;++i)
+      transferredTracks += json(o.output/("worker_"+std::to_string(i))/"RADIO_TRACK_FEED.json")["records"].get<std::uint64_t>();
+    check(transferredTracks==17,"Every prefix radio track must arrive once");
+    auto const firstSpool = radioAudit["sources"][0]["path"].get<std::string>();
+    rejects([&]{partitionRadioTracks({firstSpool,firstSpool},{0,1});},"duplicate radio spool");
+    rejects([&]{partitionRadioTracks({firstSpool},{0,0});},"duplicate radio receiver");
+    rejects([&]{partitionRadioTracks({firstSpool},{});},"missing radio receiver");
     o.output=root/"cpu2_gpu1";o.prefixWorkers=2;o.devices={"0"};run(o);
     check(json(o.output/"TIMING.json")["parts"].size()==4,"CPU/GPU process counts independent");
     check(first(o.output/"merged/CoREAS/observers.parquet")==5,"Single-GPU staged merge");
     o.output=root/"cpu48_gpu1";o.prefixWorkers=48;run(o);
     check(json(o.output/"TIMING.json")["parts"].size()==34,"Empty CPU shards must not launch workers");
     check(first(o.output/"merged/CoREAS/observers.parquet")==576,"Empty shards must not lose or duplicate output");
+    o.output=root/"radio_only_serial";o.prefixWorkers=0;o.devices={"0","1","2","3"};
+    setenv("C8_TEST_EMPTY_EM_FRONTIER","1",1);run(o);
+    check(json(o.output/"PARTITION.json")["roots"]==0,"Radio-only worker must not receive particle roots");
+    check(json(o.output/"TIMING.json")["parts"].size()==2,"Radio-only event needs exactly one GPU receiver");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==-1,"Completed prefix tracks must still be projected once");
+    check(json(o.output/"worker_0/FRONTIER_FEED.json")["roots_consumed"]==0,
+          "Radio-only receiver must not inject any particles");
+    check(first(o.output/"merged/profile/profile.parquet")==-1,"Radio-only receiver must not change the profile");
+    o.output=root/"radio_only_parallel";o.prefixWorkers=2;run(o);
+    check(json(o.output/"TIMING.json")["parts"].size()==4,"Bootstrap, two prefixes, one radio-only GPU receiver");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==2,"All completed CPU prefixes contribute radio exactly once");
+    check(json(o.output/"RADIO_TRACK_PARTITION.json")["records"]==3,"All radio-only spools accounted for");
+    o.output=root/"empty_particles_and_radio";o.prefixWorkers=0;
+    setenv("C8_TEST_EMPTY_RADIO_SPOOL","1",1);run(o);unsetenv("C8_TEST_EMPTY_RADIO_SPOOL");
+    check(json(o.output/"TIMING.json")["parts"].size()==1,"No GPU worker needed when particles and radio are both empty");
+    check(first(o.output/"merged/CoREAS/observers.parquet")==0,"Empty radio remains zero");
+    unsetenv("C8_TEST_EMPTY_EM_FRONTIER");
     o.output=root/"bad_cpu_feed";o.prefixWorkers=2;setenv("C8_TEST_BAD_CPU_FEED","1",1);
     rejects([&]{run(o);},"incomplete CPU prefix consumption");unsetenv("C8_TEST_BAD_CPU_FEED");
     check(!fs::exists(o.output/"COMPLETE.json"),"Incomplete CPU prefix must not report success");
+    o.output=root/"incomplete_radio_spool";setenv("C8_TEST_INCOMPLETE_RADIO_SPOOL","1",1);
+    rejects([&]{run(o);},"incomplete prefix radio spool");unsetenv("C8_TEST_INCOMPLETE_RADIO_SPOOL");
+    check(!fs::exists(o.output/"COMPLETE.json"),"Incomplete radio must not report success");
     o.output=root/"prefix_egs4";o.emBackend="kokkos-egs4";
     rejects([&]{run(o);},"unsupported parallel EGS4 prefix");o.emBackend="kokkos-proposal";
     o.output=root/"prefix_namespace_overflow";o.prefixWorkers=255;

@@ -23,6 +23,10 @@
 #include <corsika/accelerator/em/common/tables/Sha256.hpp>
 #include <corsika/validation/CudaReplayTrace.hpp>
 
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+#include "../air_shower_multigpu/Frontier.hpp"
+#endif
+
 #ifdef WITH_FLUKA
 #include <corsika/modules/FLUKA.hpp>
 #endif
@@ -1192,6 +1196,11 @@ namespace corsika::applications::air_shower {
           sink_stats.radio_tracks;
       shower_metadata["radio"]["backend"] =
           gpu_radio_enabled ? accelerated_backend_name : "cpu";
+      shower_metadata["radio"]["host_tracks_enqueued"] =
+          backend_stats.radio.host_tracks_enqueued;
+      shower_metadata["radio"]["host_track_batches"] =
+          backend_stats.radio.host_track_batches;
+      shower_metadata["radio"]["host_track_inputs"] = gpu_cli.radio_track_inputs;
       shower_metadata["radio"]["track_observer_pairs"] =
           backend_stats.radio.track_observer_pairs;
       shower_metadata["radio"]["fused_track_observer_pairs"] =
@@ -1673,8 +1682,17 @@ namespace corsika::applications::air_shower {
           scalar_em_steps += count;
         }
       }
-      auto const ledger_initial_GeV =
+      auto ledger_initial_GeV =
           primaryTotalEnergy / 1_GeV;
+#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
+      // A worker transports only its imported roots, not the global primary.
+      // This is also zero for a radio-only worker with an empty frontier.
+      if (auto const* source = applications::multigpu::activeFrontierInput) {
+        if (source->pending())
+          throw std::logic_error("Cannot report energy before the frontier is drained");
+        ledger_initial_GeV = source->weightedEnergyGeV();
+      }
+#endif
       auto const ledger_source_GeV =
           ledger_initial_GeV +
           router_stats.medium_rest_mass_input_GeV +

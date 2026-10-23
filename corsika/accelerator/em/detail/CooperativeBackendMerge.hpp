@@ -238,6 +238,8 @@ inline gpu::em::GpuEmStatistics mergeCooperativeStatistics(
   for(std::size_t i=0;i<a.radio.signed_charge_weighted_direction_change.size();++i) a.radio.signed_charge_weighted_direction_change[i]=cooperativeAdd(a.radio.signed_charge_weighted_direction_change[i],b.radio.signed_charge_weighted_direction_change[i]);
   for(std::size_t i=0;i<a.radio.weighted_track_length_by_kinetic_energy_m.size();++i) a.radio.weighted_track_length_by_kinetic_energy_m[i]=cooperativeAdd(a.radio.weighted_track_length_by_kinetic_energy_m[i],b.radio.weighted_track_length_by_kinetic_energy_m[i]);
   a.radio.host_to_device_bytes=cooperativeAdd(a.radio.host_to_device_bytes,b.radio.host_to_device_bytes);
+  a.radio.host_tracks_enqueued=cooperativeAdd(a.radio.host_tracks_enqueued,b.radio.host_tracks_enqueued);
+  a.radio.host_track_batches=cooperativeAdd(a.radio.host_track_batches,b.radio.host_track_batches);
   a.radio.device_to_host_bytes=cooperativeAdd(a.radio.device_to_host_bytes,b.radio.device_to_host_bytes);
   a.radio.device_time_ms=cooperativeAdd(a.radio.device_time_ms,b.radio.device_time_ms);
   a.radio.kernel_time_ms=cooperativeAdd(a.radio.kernel_time_ms,b.radio.kernel_time_ms);

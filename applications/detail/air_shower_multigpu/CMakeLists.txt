@@ -7,6 +7,7 @@ if(CORSIKA_ENABLE_EGS4)
   target_compile_definitions(c8_multigpu_coordinator PRIVATE CORSIKA8_WITH_NATIVE_EGS4=1)
 endif()
 target_include_directories(c8_multigpu_coordinator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(c8_multigpu_coordinator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 target_link_libraries(c8_multigpu_coordinator PUBLIC
   nlohmann_json::nlohmann_json Parquet::parquet_static yaml-cpp::yaml-cpp
   CLI11::CLI11 OpenSSL::Crypto)

@@ -15,10 +15,15 @@
 #include <corsika/accelerator/em/common/CorsikaOutputSink.hpp>
 #include <corsika/accelerator/em/detail/AcceleratedHybridCascadeRunner.hpp>
 #include <corsika/accelerator/em/common/ProposalCpuFallbackHandler.hpp>
+#include <corsika/accelerator/radio/common/HostRadioCollector.hpp>
+#include <corsika/accelerator/radio/common/RadioTrackSpool.hpp>
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <set>
 #include <type_traits>
 #include <vector>
 
@@ -145,6 +150,14 @@ namespace corsika::applications::air_shower {
     auto& runtime_session = cuda_session.runtimeSession();
     bool backend_reused_for_shower = false;
     bool muon_transport_available = false;
+    using HostRadioCollector = corsika::accelerator::radio::HostRadioCollector<
+        corsika::accelerator::em::IAcceleratedEmBackend>;
+    using ScalarRadioScope =
+        corsika::accelerator::radio::ScopedRadioTrackSink<TCoreas, TZhs>;
+    // Keep the collector alive through router finalization and output writing.
+    // Its backend flushes the last partial batch before downloading waveforms.
+    std::unique_ptr<HostRadioCollector> host_radio_collector;
+    std::unique_ptr<ScalarRadioScope> scalar_radio_scope;
     auto begin_backend = [&]() -> decltype(auto) {
 
         std::vector<proposal::NativeInteractionCalculatorView> native_views;
@@ -160,6 +173,30 @@ namespace corsika::applications::air_shower {
             native_views, native_continuous_views);
         backend_reused_for_shower = session_begin.reused;
         muon_transport_available = session_begin.muon_transport_available;
+        if (gpu_radio_enabled) {
+          host_radio_collector =
+              std::make_unique<HostRadioCollector>(*session_begin.backend);
+          scalar_radio_scope = std::make_unique<ScalarRadioScope>(
+              coreas, zhs, *host_radio_collector, rootCS);
+          // Prefix processes capture tracks without initializing a GPU. Each
+          // closed spool belongs to exactly one final GPU worker.
+          std::set<std::filesystem::path> inputs;
+          for (auto const& path : gpu_cli.radio_track_inputs) {
+            if (!inputs.insert(std::filesystem::canonical(path)).second) {
+              throw std::invalid_argument("duplicate prefix radio track input");
+            }
+            corsika::accelerator::radio::RadioTrackSpoolReader reader(path);
+            std::vector<corsika::radio::RadioTrackSegment> tracks;
+            while (reader.readBatch(tracks, 4096)) {
+              for (auto const& track : tracks) host_radio_collector->append(track);
+            }
+            if (reader.consumed() != reader.count()) {
+              throw std::runtime_error("prefix radio track input was not fully consumed");
+            }
+          }
+        } else if (!gpu_cli.radio_track_inputs.empty()) {
+          throw std::invalid_argument("prefix radio tracks require accelerated radio");
+        }
         return *session_begin.backend;
       
     };

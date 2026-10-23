@@ -13,6 +13,7 @@
 #include <corsika/framework/core/Step.hpp>
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/setup/SetupTrajectory.hpp>
+#include <corsika/modules/radio/RadioTrack.hpp>
 
 #include <algorithm>
 #include <array>
@@ -20,6 +21,8 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <stdexcept>
+#include <utility>
 
 namespace corsika {
 
@@ -73,6 +76,10 @@ namespace corsika {
         diagnosticSignedChargeWeightedDirectionChange_{};
     std::array<double, 15> diagnosticEnergyBinnedTrackLengthM_{};
     ShowerSummary diagnosticSummary_;
+    radio::RadioTrackSink* trackSink_{nullptr};
+    CoordinateSystemPtr trackSinkCoordinates_;
+    bool captureTrack_{true};
+    std::uint64_t offloadedSegmentCount_{0};
 
     inline static constexpr std::array<double, 15>
         diagnosticEnergyUpperEdgesGeV_{
@@ -98,6 +105,28 @@ namespace corsika {
      */
     template <typename Particle>
     ProcessReturn doContinuous(Step<Particle> const& step, bool const);
+
+    /**
+     * Redirect scalar tracks without changing their transport. When CoREAS
+     * and ZHS share a sink, exactly one process captures each track; both skip
+     * their native projection. The sink computes the enabled radio models.
+     * A null sink restores the original scalar path.
+     */
+    void setTrackSink(radio::RadioTrackSink* sink,
+                      CoordinateSystemPtr coordinates, bool capture = true) {
+      if (sink && (!coordinates || trackSink_)) {
+        throw std::logic_error("radio track sink needs a frame and exclusive ownership");
+      }
+      trackSink_ = sink;
+      trackSinkCoordinates_ = std::move(coordinates);
+      captureTrack_ = capture;
+    }
+
+    bool hasTrackSink() const noexcept { return trackSink_ != nullptr; }
+
+    std::uint64_t offloadedSegmentCount() const noexcept {
+      return offloadedSegmentCount_;
+    }
 
     /**
      * Return the maximum step length for this particle and track.

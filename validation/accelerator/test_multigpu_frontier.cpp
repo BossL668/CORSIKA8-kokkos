@@ -79,11 +79,13 @@ int main() {
       write(data, s); write(data, low); write(data, tail);
     }
     FrontierInput source(name);
+    if (source.weightedEnergyGeV() != 0.) return 104;
     Stack bounded;
     source.reserveNamespace(bounded, 3);
     if (source.refill(bounded, cs, 2) != 2 || bounded.getSize() != 2 ||
         bounded.last().getHistoryId() != 8 || bounded.at(0).getHistoryId() != 9 ||
         bounded.at(0).getStepId() != 7 || bounded.last().getWeight() != 3.) return 7;
+    if (source.weightedEnergyGeV() != 4.5) return 105;
     bool nonempty_rejected = false;
     try { source.refill(bounded, cs, 2); }
     catch (std::logic_error const&) { nonempty_rejected = true; }
@@ -92,6 +94,18 @@ int main() {
     if (source.refill(bounded, cs, 2) != 1 || source.pending() ||
         source.count() != 3 || source.batches() != 2 || source.peakBatch() != 2 ||
         bounded.last().getHistoryId() != 10) return 9;
+    if (source.weightedEnergyGeV() != 5.25) return 106;
+
+    // No injected primary and no imported energy for a radio-only worker.
+    {
+      std::ofstream data(name);
+      data << "C8_STATIC_FRONTIER_V1\n";
+    }
+    FrontierInput empty(name);
+    bounded.clear();
+    if (empty.refill(bounded, cs, 2) != 0 || empty.pending() ||
+        empty.count() != 0 || empty.weightedEnergyGeV() != 0. || !bounded.isEmpty())
+      return 107;
 
     // Duplicate histories across separate batches fail closed.
     {

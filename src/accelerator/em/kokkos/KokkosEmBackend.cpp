@@ -94,6 +94,11 @@ namespace corsika::accelerator::em {
     return impl_->backend->projectRadioForValidation(records);
   }
 
+  void KokkosEmBackend::enqueueRadioTracks(
+      gpu::em::LeptonTransportRecord const* records, std::size_t const count) {
+    impl_->backend->enqueueRadioTracks(records, count);
+  }
+
   void KokkosEmBackend::beginShower(
       AcceleratedEmShowerConfig const& shower) {
     return impl_->backend->beginShower(shower);

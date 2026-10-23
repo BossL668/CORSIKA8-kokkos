@@ -92,6 +92,8 @@ namespace corsika::accelerator::em {
     bool gpuProfileEnabled() const noexcept override;
     gpu::em::GpuProfileResult downloadProfile() override;
     bool gpuRadioEnabled() const noexcept override;
+    void enqueueRadioTracks(gpu::em::LeptonTransportRecord const*,
+                            std::size_t) override;
     gpu::radio::GpuRadioWaveforms downloadRadioWaveforms() override;
     std::optional<gpu::em::GpuFirstInteractionSnapshot>
     downloadFirstInteractionSnapshot() override;

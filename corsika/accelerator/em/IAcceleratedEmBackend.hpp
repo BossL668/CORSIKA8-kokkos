@@ -117,6 +117,12 @@ namespace corsika::accelerator::em {
     virtual bool gpuProfileEnabled() const noexcept = 0;
     virtual gpu::em::GpuProfileResult downloadProfile() = 0;
     virtual bool gpuRadioEnabled() const noexcept = 0;
+    // Append CPU-produced tracks to the current shower. Implementations own
+    // the copied records and flush a final partial batch before downloading.
+    virtual void enqueueRadioTracks(gpu::em::LeptonTransportRecord const*,
+                                    std::size_t) {
+      throw std::logic_error("Host radio tracks are unavailable on this backend");
+    }
     virtual gpu::radio::GpuRadioWaveforms downloadRadioWaveforms() = 0;
     virtual std::optional<gpu::em::GpuFirstInteractionSnapshot>
     downloadFirstInteractionSnapshot() = 0;

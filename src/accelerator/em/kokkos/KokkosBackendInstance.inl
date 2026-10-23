@@ -100,6 +100,8 @@ namespace corsika::accelerator::em::detail {
     bool gpuProfileEnabled() const noexcept override;
     gpu::em::GpuProfileResult downloadProfile() override;
     bool gpuRadioEnabled() const noexcept override;
+    void enqueueRadioTracks(gpu::em::LeptonTransportRecord const*,
+                            std::size_t) override;
     gpu::radio::GpuRadioWaveforms downloadRadioWaveforms() override;
     std::optional<gpu::em::GpuFirstInteractionSnapshot>
   downloadFirstInteractionSnapshot() override;
@@ -1700,6 +1702,7 @@ namespace corsika::accelerator::em::detail {
 
   template <class BackendExecutionSpace>
   AcceleratedEmStatistics const& KokkosBackendInstanceImpl<BackendExecutionSpace>::statistics() const {
+    impl_->statistics_.radio = impl_->radio_accumulator_.statistics();
     return impl_->statistics_;
   }
 
@@ -1726,6 +1729,14 @@ namespace corsika::accelerator::em::detail {
   template <class BackendExecutionSpace>
   bool KokkosBackendInstanceImpl<BackendExecutionSpace>::gpuRadioEnabled() const noexcept {
     return impl_->radio_accumulator_.enabled();
+  }
+
+  template <class BackendExecutionSpace>
+  void KokkosBackendInstanceImpl<BackendExecutionSpace>::enqueueRadioTracks(
+      gpu::em::LeptonTransportRecord const* records, std::size_t const count) {
+    impl_->requireInitialized();
+    impl_->radio_accumulator_.enqueueHostLeptonTracks(records, count,
+                                                     impl_->execution_);
   }
 
   template <class BackendExecutionSpace>

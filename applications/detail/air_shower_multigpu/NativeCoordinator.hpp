@@ -26,6 +26,8 @@ std::string digest(fs::path const& file);
 std::uint32_t workerSeed(std::uint64_t seed, unsigned index);
 Json partition(fs::path const& source, std::vector<fs::path> const& destinations);
 Json joinFrontiers(std::vector<fs::path> const& sources, fs::path const& destination);
+Json partitionRadioTracks(std::vector<fs::path> const& sources,
+                          std::vector<unsigned> const& workers);
 void validateOutputs(fs::path const& folder);
 Json merge(std::vector<fs::path> const& parts, fs::path const& destination);
 void save(fs::path const& file, Json const& value);

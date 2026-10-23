@@ -134,6 +134,13 @@ template<class Endpoint> class IndependentSubshowerPump {
     if (!idle()) throw std::logic_error("Independent subshower has uncommitted work");
   }
 
+  // Serialize a host radio submission with the CUDA driver, without taking
+  // ownership of its pending transport result or advancing any histories.
+  void waitCudaDriver() {
+    requireHealthy();
+    driver_.waitIdle();
+  }
+
   // Accept a bounded prefix, service any ready GPU result, and execute ONE
   // host epoch. Return without joining an unfinished GPU job. The caller may
   // service scalar fallback between calls. No callback is saved by the pump.

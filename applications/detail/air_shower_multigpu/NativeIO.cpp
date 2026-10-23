@@ -1,5 +1,6 @@
 // Native I/O for single-shower multi-GPU coordination.
 #include "NativeCoordinator.hpp"
+#include <corsika/accelerator/radio/common/RadioTrackSpool.hpp>
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <parquet/arrow/reader.h>
@@ -14,6 +15,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -203,6 +205,44 @@ Json joinFrontiers(std::vector<fs::path> const& sources, fs::path const& destina
   }
   out.close();
   return {{"roots",seen.size()},{"sources",hashes},{"joined_sha256",digest(destination)}};
+}
+Json partitionRadioTracks(std::vector<fs::path> const& sources,
+                          std::vector<unsigned> const& workers) {
+  // Independent, immutable track files are assigned only once. Particle
+  // frontier allocation and random histories are completely unchanged.
+  struct Spool { fs::path path; std::uint64_t count; std::string hash; };
+  std::vector<Spool> spools;
+  std::set<fs::path> seen;
+  std::uint64_t total = 0;
+  for (auto const& path : sources) {
+    require(seen.insert(fs::canonical(path)).second, "Duplicate prefix radio spool");
+    corsika::accelerator::radio::RadioTrackSpoolReader input(path);
+    auto const count = input.count();
+    require(count <= std::numeric_limits<std::uint64_t>::max() - total,
+            "Prefix radio record count overflow");
+    total += count;
+    spools.push_back({path, count, digest(path)});
+  }
+  require(!total || !workers.empty(), "Prefix radio has no receiving GPU worker");
+  require(std::set<unsigned>(workers.begin(), workers.end()).size() == workers.size(),
+          "Duplicate prefix radio worker");
+  std::stable_sort(spools.begin(), spools.end(), [](auto const& a, auto const& b) {
+    return a.count > b.count;
+  });
+  std::vector<std::uint64_t> counts(workers.size());
+  Json assignments = Json::array();
+  for (auto const& spool : spools) {
+    Json assignment{{"path", spool.path.string()}, {"records", spool.count},
+                    {"sha256", spool.hash}, {"worker", nullptr}};
+    if (spool.count) {
+      auto const index = std::min_element(counts.begin(), counts.end()) - counts.begin();
+      counts[index] += spool.count;
+      assignment["worker"] = workers[index];
+    }
+    assignments.push_back(std::move(assignment));
+  }
+  return {{"mode", "static-whole-spool"}, {"records", total},
+          {"workers", workers}, {"worker_records", counts}, {"sources", assignments}};
 }
 void validateOutputs(fs::path const& folder) {
   for(auto rel:{"profile/profile.parquet","CoREAS/observers.parquet","ZHS/observers.parquet"})

@@ -67,6 +67,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
     // Otherwise a cold CUDA arena can delay its first kernels until after
     // the entire first OpenMP batch has already finished.
     gpu_->prepareCooperativeWorkspace();
+    host_radio_tracks_.reserve(HostRadioBatchCapacity);
     // The auxiliary driver shares the authorized OpenMP CPU partition. Sleep
     // at existing CUDA result boundaries instead of contending with its worker
     // barriers. GPU-primary/adaptive and all single endpoints retain fences.
@@ -75,6 +76,8 @@ class CooperativeBackend final : public KokkosBackendInstance {
   }
   void beginShower(AcceleratedEmShowerConfig const& config) override {
     requireIdle();
+    if(!host_radio_tracks_.empty())
+      throw std::logic_error("Cooperative beginShower with uncommitted host radio tracks");
     if (pendingPhotonCount() || pendingLeptonCount())
       throw std::logic_error("Cooperative beginShower with unconsumed particles");
     cpu_->beginShower(config);
@@ -214,10 +217,23 @@ class CooperativeBackend final : public KokkosBackendInstance {
     return *profile_;
   }
   bool gpuRadioEnabled() const noexcept override { return gpu_->gpuRadioEnabled(); }
+  void enqueueRadioTracks(LeptonTransportRecord const* records,
+                          std::size_t count) override {
+    if(failed_ || radio_)
+      throw std::logic_error("Cooperative radio unavailable after failure/output");
+    if(count && !records) throw std::invalid_argument("null cooperative radio tracks");
+    while(count) {
+      auto n=std::min(count,HostRadioBatchCapacity-host_radio_tracks_.size());
+      host_radio_tracks_.insert(host_radio_tracks_.end(),records,records+n);
+      records+=n; count-=n;
+      if(host_radio_tracks_.size()==HostRadioBatchCapacity) flushHostRadioTracks();
+    }
+  }
   gpu::radio::GpuRadioWaveforms downloadRadioWaveforms() override {
     requireIdle();
     if(subshowers_) subshowers_->requireIdle();
     if(!radio_) {
+      flushHostRadioTracks();
       auto a=gpu_->downloadFixedRadio(identity_,CooperativeEndpoint::Cuda);
       auto b=cpu_->downloadFixedRadio(identity_,CooperativeEndpoint::OpenMP);
       radio::detail::CooperativeRadioMerge merged(identity_,a.config);
@@ -254,6 +270,17 @@ class CooperativeBackend final : public KokkosBackendInstance {
   FixedProfileSnapshot downloadFixedProfile(std::string const&,CooperativeEndpoint) override {throw std::logic_error("Cooperative output already contains both endpoints");}
   radio::detail::FixedRadioSnapshot downloadFixedRadio(std::string const&,CooperativeEndpoint) override {throw std::logic_error("Cooperative output already contains both endpoints");}
  private:
+  static constexpr std::size_t HostRadioBatchCapacity=4096;
+  void flushHostRadioTracks() {
+    if(host_radio_tracks_.empty()) return;
+    // Scalar fallback callbacks may run while a CUDA subshower is in flight.
+    // Wait once per bounded batch, never per CPU track, before touching that
+    // endpoint's accumulator. Its transport result stays owned by the pump.
+    driver_.waitIdle();
+    if(subshowers_) subshowers_->waitCudaDriver();
+    gpu_->enqueueRadioTracks(host_radio_tracks_.data(),host_radio_tracks_.size());
+    host_radio_tracks_.clear();
+  }
   // A scheduling checkpoint, not a particle cut or a GPU-wait time slice.
   // Bound the longest host epoch so a growing CPU cascade can be rebalanced.
   static constexpr std::size_t HostEpochWaves=8;
@@ -438,6 +465,7 @@ class CooperativeBackend final : public KokkosBackendInstance {
   bool active_{},failed_{},adaptive_{},cpu_primary_{};
   std::pair<std::size_t, std::size_t> host_profile_shards_{};
   std::array<std::array<double,2>,2> throughput_{};
+  std::vector<LeptonTransportRecord> host_radio_tracks_;
   std::unique_ptr<IndependentSubshowerPump<KokkosBackendInstance>> subshowers_;
   IndependentEndpointDriver driver_; // destroyed/drained before endpoints
 };

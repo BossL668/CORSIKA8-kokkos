@@ -56,6 +56,36 @@ foreach (selection_backend IN ITEMS CUDA_OPENMP CUDA OPENMP HIP SYCL)
 endforeach ()
 
 if (CORSIKA_ENABLE_KOKKOS)
+  add_executable(testHostRadioCollector testHostRadioCollector.cpp)
+  target_link_libraries(testHostRadioCollector PRIVATE CORSIKA8)
+  add_dependencies(testHostRadioCollector GenParticlesHeaders)
+  add_test(NAME testHostRadioCollector COMMAND testHostRadioCollector)
+
+  add_executable(testRadioTrackSpool testRadioTrackSpool.cpp)
+  target_include_directories(testRadioTrackSpool PRIVATE ${CMAKE_SOURCE_DIR})
+  target_compile_features(testRadioTrackSpool PRIVATE cxx_std_17)
+  add_test(NAME testRadioTrackSpool COMMAND testRadioTrackSpool)
+
+  add_executable(testKokkosHostRadioStaging testKokkosHostRadioStaging.cpp)
+  target_link_libraries(testKokkosHostRadioStaging PRIVATE CORSIKA8 Kokkos::kokkos)
+  add_dependencies(testKokkosHostRadioStaging GenParticlesHeaders)
+  if(CORSIKA_KOKKOS_BACKEND MATCHES "^CUDA(_OPENMP)?$")
+    set_source_files_properties(testKokkosHostRadioStaging.cpp PROPERTIES LANGUAGE CUDA)
+    target_compile_options(testKokkosHostRadioStaging PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+    if(CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
+      target_compile_options(testKokkosHostRadioStaging PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+    endif()
+    set_target_properties(testKokkosHostRadioStaging PROPERTIES CUDA_STANDARD 17
+      CUDA_ARCHITECTURES "${CORSIKA_KOKKOS_CUDA_ARCHITECTURES}")
+  elseif(CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
+    set_source_files_properties(testKokkosHostRadioStaging.cpp PROPERTIES LANGUAGE HIP)
+  endif()
+  add_test(NAME testKokkosHostRadioStaging COMMAND testKokkosHostRadioStaging)
+  set_tests_properties(testKokkosHostRadioStaging PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=4;OMP_PROC_BIND=false")
+
   add_subdirectory(${CMAKE_SOURCE_DIR}/validation/accelerator/environment_tree
     ${CMAKE_CURRENT_BINARY_DIR}/environment_tree)
   add_executable(testNativeProcessCoverage EXCLUDE_FROM_ALL testNativeProcessCoverage.cpp)

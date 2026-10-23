@@ -47,6 +47,30 @@ namespace corsika {
     // if (valid(step)) {
     auto const particleID_{step.getParticlePre().getPID()};
     if ((particleID_ == Code::Electron) || (particleID_ == Code::Positron)) {
+      if (trackSink_) {
+        if (captureTrack_) {
+          radio::RadioTrackSegment segment{};
+          segment.pdg = particleID_ == Code::Electron ? 11 : -11;
+          segment.weight = step.getParticlePre().getWeight();
+          segment.start_time_s = step.getTimePre() / 1_s;
+          segment.end_time_s = step.getTimePost() / 1_s;
+          segment.start_kinetic_energy_GeV = step.getEkinPre() / 1_GeV;
+          segment.end_kinetic_energy_GeV = step.getEkinPost() / 1_GeV;
+          auto const start = step.getPositionPre().getCoordinates(trackSinkCoordinates_);
+          auto const end = step.getPositionPost().getCoordinates(trackSinkCoordinates_);
+          auto const before = step.getDirectionPre().getComponents(trackSinkCoordinates_);
+          auto const after = step.getDirectionPost().getComponents(trackSinkCoordinates_);
+          for (int axis = 0; axis < 3; ++axis) {
+            segment.start_position_m[axis] = start[axis] / 1_m;
+            segment.end_position_m[axis] = end[axis] / 1_m;
+            segment.start_direction[axis] = before[axis].magnitude();
+            segment.end_direction[axis] = after[axis].magnitude();
+          }
+          trackSink_->append(segment);
+        }
+        ++offloadedSegmentCount_;
+        return ProcessReturn::Ok;
+      }
       auto const length_m =
           (step.getPositionPost() - step.getPositionPre()).getNorm() / 1_m;
       auto const duration_s =
@@ -223,6 +247,7 @@ namespace corsika {
 
     output_.flushStreamer();
     auto shower = diagnosticSummary_.event(showerId_);
+    shower["offloaded_segment_count"] = offloadedSegmentCount_;
     shower["segment_count"] = diagnosticSegmentCount_;
     shower["weighted_segment_count"] = diagnosticWeightedSegmentCount_;
     shower["track_length_m"] = diagnosticTrackLengthM_;
@@ -267,6 +292,7 @@ namespace corsika {
     diagnosticSummary_.flush();
 
     diagnosticSegmentCount_ = 0;
+    offloadedSegmentCount_ = 0;
     diagnosticWeightedSegmentCount_ = 0.;
     diagnosticTrackLengthM_ = 0.;
     diagnosticWeightedTrackLengthM_ = 0.;

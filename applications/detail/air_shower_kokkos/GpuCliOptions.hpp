@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace corsika::applications::air_shower {
 
@@ -43,6 +44,9 @@ namespace corsika::applications::air_shower {
     bool kokkos_require_tuning{false};
 
     std::string radio_backend{"cpu"};
+    // Internal single-event handoff from CPU prefix processes. Public radio
+    // selection remains cpu/kokkos; these files contain transported segments.
+    std::vector<std::string> radio_track_inputs;
     double gpu_radio_field_limit{1.};
     bool gpu_radio_track_diagnostics{false};
     double radio_sampling_rate_GHz{1.};

@@ -143,6 +143,10 @@ namespace corsika::accelerator::radio::kokkos_detail {
     using memory_space = typename ExecutionSpace::memory_space;
     using TrackInputView =
         Kokkos::View<gpu::em::LeptonTransportRecord*, memory_space>;
+    using HostTrackInputView = typename TrackInputView::HostMirror;
+    // Independent of the EM dispatch threshold: even a small particle batch
+    // can create substantial radio work when many observers are configured.
+    static constexpr std::size_t HostTrackBatchCapacity = 4096;
     using TrackView = Kokkos::View<detail::RadioTrackKinematics*, memory_space>;
     using ObserverView = Kokkos::View<detail::DeviceObserver*, memory_space>;
     using FixedWaveformView = Kokkos::View<long long*, memory_space>;
@@ -198,6 +202,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
       append_waveforms(requested.coreas_observers);
       append_waveforms(requested.zhs_observers);
       total = checkedMemoryAdd(total, sizeof(detail::DeviceRadioCounters));
+      total = checkedMemoryAdd(
+          total, checkedMemoryMultiply(HostTrackBatchCapacity,
+                                       sizeof(gpu::em::LeptonTransportRecord)));
       if constexpr (IsOpenMP) {
       if (requested.deterministic) {
         auto const thread_slots = static_cast<std::size_t>(
@@ -376,6 +383,11 @@ namespace corsika::accelerator::radio::kokkos_detail {
       }
       }
       counters_ = CounterView("c8_kokkos_radio_counters", 1);
+      host_track_input_device_ = TrackInputView(
+          Kokkos::view_alloc(execution, Kokkos::WithoutInitializing,
+                             "c8_kokkos_host_radio_input"),
+          HostTrackBatchCapacity);
+      host_track_input_ = Kokkos::create_mirror_view(host_track_input_device_);
       fuse_coreas_zhs_ =
           requested.coreas_enabled && requested.zhs_enabled &&
           observersCanShareTrackKinematics(coreas_observers_host_,
@@ -388,6 +400,8 @@ namespace corsika::accelerator::radio::kokkos_detail {
 
     void reset(ExecutionSpace const& execution = {}) {
       if (!enabled()) return;
+      if (host_track_count_ != 0)
+        throw std::logic_error("cannot reset radio with uncommitted host tracks");
       if (coreas_fixed_.extent(0)) Kokkos::deep_copy(execution, coreas_fixed_, 0LL);
       if (zhs_fixed_.extent(0)) Kokkos::deep_copy(execution, zhs_fixed_, 0LL);
       if (coreas_floating_.extent(0))
@@ -413,6 +427,46 @@ namespace corsika::accelerator::radio::kokkos_detail {
       statistics_.track_diagnostics_enabled = config_.track_diagnostics;
       downloaded_ = false;
       fixed_snapshot_sealed_ = false;
+    }
+
+    // Copy ownership immediately; scalar transport may reuse its record as
+    // soon as this method returns. No allocation or fence occurs per track.
+    void enqueueHostLeptonTracks(
+        gpu::em::LeptonTransportRecord const* records, std::size_t count,
+        ExecutionSpace const& execution = {}) {
+      if (!enabled())
+        throw std::logic_error("host radio tracks requested while radio is disabled");
+      if (downloaded_ || fixed_snapshot_sealed_)
+        throw std::logic_error("radio already downloaded; reset before host tracks");
+      if (count != 0 && records == nullptr)
+        throw std::invalid_argument("null host radio track input");
+      while (count != 0) {
+        auto const copied = std::min(count, HostTrackBatchCapacity - host_track_count_);
+        for (std::size_t index = 0; index < copied; ++index)
+          host_track_input_(host_track_count_ + index) = records[index];
+        host_track_count_ += copied;
+        statistics_.host_tracks_enqueued += copied;
+        records += copied;
+        count -= copied;
+        if (host_track_count_ == HostTrackBatchCapacity)
+          flushHostLeptonTracks(execution);
+      }
+    }
+
+    void flushHostLeptonTracks(ExecutionSpace const& execution = {}) {
+      if (host_track_count_ == 0) return;
+      auto const range = std::make_pair(std::size_t{0}, host_track_count_);
+      Kokkos::deep_copy(execution, Kokkos::subview(host_track_input_device_, range),
+                        Kokkos::subview(host_track_input_, range));
+      // The reusable host mirror may be filled again while projection runs.
+      // Complete its upload first; all projection/device reuse stays ordered
+      // on this same execution stream, without a per-track synchronization.
+      execution.fence("upload batched host radio tracks");
+      accumulateLeptonTracks(host_track_input_device_, host_track_count_, execution);
+      statistics_.host_to_device_bytes +=
+          host_track_count_ * sizeof(gpu::em::LeptonTransportRecord);
+      ++statistics_.host_track_batches;
+      host_track_count_ = 0;
     }
 
     void accumulateLeptonTracks(
@@ -496,6 +550,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
         ExecutionSpace const& execution = {}) {
       if (!enabled() || !config_.deterministic || downloaded_ || fixed_snapshot_sealed_)
         throw std::logic_error("fixed radio snapshot unavailable/already committed");
+      flushHostLeptonTracks(execution);
       detail::FixedRadioSnapshot result;
       result.shower_identity = shower_identity;
       result.endpoint = endpoint;
@@ -538,6 +593,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
       if (!enabled()) return {};
       if (downloaded_ || fixed_snapshot_sealed_)
         throw std::logic_error("Kokkos radio waveforms downloaded twice");
+      flushHostLeptonTracks(execution);
       // CUDA/HIP/SYCL parallel dispatch is asynchronous.  Keep projection
       // work queued until the waveform download instead of fencing every
       // lepton wavefront.  All kernels use the same execution-space instance,
@@ -582,6 +638,7 @@ namespace corsika::accelerator::radio::kokkos_detail {
              coreas_thread_fixed_.span() * sizeof(long long) +
              zhs_thread_fixed_.span() * sizeof(long long) +
              thread_counters_.span() * sizeof(detail::DeviceRadioCounters) +
+             host_track_input_device_.span() * sizeof(gpu::em::LeptonTransportRecord) +
              tracks_.span() * sizeof(detail::RadioTrackKinematics) +
              counters_.span() * sizeof(detail::DeviceRadioCounters);
     }
@@ -1152,6 +1209,9 @@ namespace corsika::accelerator::radio::kokkos_detail {
     detail::DevicePropagation propagation_{};
     CounterView counters_{};
     TrackView tracks_{};
+    TrackInputView host_track_input_device_{};
+    HostTrackInputView host_track_input_{};
+    std::size_t host_track_count_{};
     gpu::radio::GpuRadioStatistics statistics_{};
     std::size_t coreas_bins_{};
     std::size_t zhs_bins_{};
