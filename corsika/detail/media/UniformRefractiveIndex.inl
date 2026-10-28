@@ -27,4 +27,11 @@ namespace corsika {
     n_ = n;
   }
 
+  template <typename T>
+  inline RefractivityModelParameters UniformRefractiveIndex<T>::exportRefractivity()
+      const {
+    return {RefractivityModelParameters::Kind::Uniform, n_,
+            InverseMassDensityType::zero()};
+  }
+
 } // namespace corsika

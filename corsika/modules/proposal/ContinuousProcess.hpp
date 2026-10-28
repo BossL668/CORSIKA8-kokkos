@@ -52,9 +52,9 @@ namespace corsika::proposal {
     void buildCalculator(Code, size_t const&) final;
 
   public:
-    /** Read-only views of the displacement calculators used by scalar CORSIKA. */
-    std::vector<NativeContinuousCalculatorView>
-    nativeCalculatorViews() const;
+    /** Borrow the existing calculators without rebuilding or evaluating them. */
+    [[nodiscard]] std::vector<NativeContinuousCalculatorView> nativeCalculatorViews()
+        const;
 
     //!
     //! Produces the continuous loss calculator for leptons based on nuclear

@@ -78,26 +78,24 @@ namespace corsika {
 
   template <typename TOutput>
   inline void LongitudinalWriter<TOutput>::writeProjected(
-      GrammageType const grammageStart, GrammageType const grammageEnd,
-      Code const pid, double const weight) {
+      GrammageType const grammageStart, GrammageType const grammageEnd, Code const pid,
+      double const weight) {
 
-    auto const crossings = detail::longitudinalProfileBins(
+    auto const crossings = longitudinal_profile_bins(
         grammageStart / dX_, grammageEnd / dX_, profile_.size(), crossingMode_);
 
-    CORSIKA_LOGGER_TRACE(TOutput::getLogger(),
-                         "grammageStart={} End={} binStart={}, end(exclusive)={}",
-                         grammageStart / 1_g * square(1_cm),
-                         grammageEnd / 1_g * square(1_cm), crossings.begin,
-                         crossings.end);
+    CORSIKA_LOGGER_TRACE(
+        TOutput::getLogger(), "grammageStart={} End={} binStart={}, end(exclusive)={}",
+        grammageStart / 1_g * square(1_cm), grammageEnd / 1_g * square(1_cm),
+        crossings.begin_, crossings.end_);
 
-    for (size_t bin = crossings.begin; bin < crossings.end; ++bin) {
+    for (size_t bin = crossings.begin_; bin < crossings.end_; ++bin) {
       addBin(bin, pid, weight);
     }
   }
 
   template <typename TOutput>
-  inline void LongitudinalWriter<TOutput>::addBin(
-      size_t bin, Code pid, double weight) {
+  inline void LongitudinalWriter<TOutput>::addBin(size_t bin, Code pid, double weight) {
     auto& row = profile_.at(bin);
     if (pid == Code::Photon) {
       row[static_cast<int>(number_profile::ProfileIndex::Photon)] += weight;
@@ -178,4 +176,23 @@ namespace corsika {
     return summary;
   }
 
+} // namespace corsika
+
+namespace corsika {
+  template <typename TOutput>
+  inline size_t LongitudinalWriter<TOutput>::getNBins() const noexcept {
+    return nBins_;
+  }
+
+  template <typename TOutput>
+  inline ProfileCrossingMode LongitudinalWriter<TOutput>::getCrossingMode() const
+      noexcept {
+    return crossingMode_;
+  }
+
+  template <typename TOutput>
+  inline number_profile::ProfileData const& LongitudinalWriter<TOutput>::getProfile(
+      number_profile::ProfileIndex index) const {
+    return profile_.at(static_cast<int>(index));
+  }
 } // namespace corsika

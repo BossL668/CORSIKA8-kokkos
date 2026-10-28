@@ -18,9 +18,9 @@ namespace corsika {
 
   /** Lightweight, output-format-independent secondary at one interaction. */
   struct InteractionSecondarySnapshot {
-    Code pid;
-    HEPEnergyType total_energy;
-    DirectionVector direction;
+    Code pid_;
+    HEPEnergyType totalEnergy_;
+    DirectionVector direction_;
   };
 
   /**
@@ -28,12 +28,12 @@ namespace corsika {
    * views and accelerator output adapters.
    */
   struct FirstInteractionSnapshot {
-    Code parent_pid;
-    HEPEnergyType parent_kinetic_energy;
-    Point position;
-    DirectionVector direction;
-    TimeType time;
-    std::vector<InteractionSecondarySnapshot> secondaries;
+    Code parentPid_;
+    HEPEnergyType parentKineticEnergy_;
+    Point position_;
+    DirectionVector direction_;
+    TimeType time_;
+    std::vector<InteractionSecondarySnapshot> secondaries_;
   };
 
 } // namespace corsika

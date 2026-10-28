@@ -46,8 +46,8 @@ namespace corsika {
     }
 
     writeParticle(step.getParticlePre().getPID(), step.getEkinPost(),
-                  step.getPositionPost(), step.getDirectionPost(),
-                  step.getTimePost(), step.getParticlePre().getWeight());
+                  step.getPositionPost(), step.getDirectionPost(), step.getTimePost(),
+                  step.getParticlePre().getWeight());
 
     CORSIKA_LOG_TRACE("Particle detected absorbed={}", deleteOnHit_);
 
@@ -77,14 +77,13 @@ namespace corsika {
   inline void ObservationPlane<TTracking, TOutput>::writeParticle(
       Code const pid, HEPEnergyType const kineticEnergy, Point const& position,
       DirectionVector const& direction, TimeType const time, double const weight) {
-    ++statistics_.particles;
-    statistics_.weighted_total_energy_GeV +=
+    ++statistics_.particles_;
+    statistics_.weightedTotalEnergyGeV_ +=
         weight * (kineticEnergy + get_mass(pid)) / 1_GeV;
     Vector const displacement = position - plane_.getCenter();
-    this->write(pid, kineticEnergy, displacement.dot(xAxis_),
-                displacement.dot(yAxis_), 0_m, direction.dot(xAxis_),
-                direction.dot(yAxis_), direction.dot(plane_.getNormal()), time,
-                weight);
+    this->write(pid, kineticEnergy, displacement.dot(xAxis_), displacement.dot(yAxis_),
+                0_m, direction.dot(xAxis_), direction.dot(yAxis_),
+                direction.dot(plane_.getNormal()), time, weight);
   }
 
   template <typename TTracking, typename TOutput>
@@ -158,4 +157,30 @@ namespace corsika {
     return node;
   }
 
+} // namespace corsika
+
+namespace corsika {
+  template <typename TTracking, typename TOutput>
+  inline ObservationPlane<TTracking, TOutput>::~ObservationPlane() {}
+
+  template <typename TTracking, typename TOutput>
+  inline Plane ObservationPlane<TTracking, TOutput>::getPlane() const {
+    return plane_;
+  }
+
+  template <typename TTracking, typename TOutput>
+  inline DirectionVector ObservationPlane<TTracking, TOutput>::getXAxis() const {
+    return xAxis_;
+  }
+
+  template <typename TTracking, typename TOutput>
+  inline DirectionVector ObservationPlane<TTracking, TOutput>::getYAxis() const {
+    return yAxis_;
+  }
+
+  template <typename TTracking, typename TOutput>
+  inline ObservationPlaneStatistics const&
+  ObservationPlane<TTracking, TOutput>::statistics() const noexcept {
+    return statistics_;
+  }
 } // namespace corsika

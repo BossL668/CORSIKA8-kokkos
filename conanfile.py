@@ -5,14 +5,16 @@ class Pkg(ConanFile):
     generators = "CMakeDeps", #"CMakeToolchain",
     settings = "os", "arch", "compiler", "build_type"
     options = {
+        "with_proposal_export": [True, False],
         "with_kokkos": [True, False],
         "kokkos_backend": ["openmp", "cuda", "cuda_openmp", "hip", "sycl"],
         "kokkos_architecture": ["ANY"],
     }
     default_options = {
-		'with_kokkos': True,
-		'kokkos_backend': 'openmp',
-		'kokkos_architecture': 'NONE',
+        "with_proposal_export": False,
+        "with_kokkos": False,
+        "kokkos_backend": "openmp",
+        "kokkos_architecture": "NONE",
 		'readline*:shared': 'True',
 		'arrow*:shared': 'False',
 		'arrow*:parquet': 'True',
@@ -58,13 +60,13 @@ class Pkg(ConanFile):
 }
 
     def configure(self):
-        self.options['arrow'].with_boost = True
-        self.options['arrow'].parquet = True
-        self.options['arrow'].with_thrift = True
         if self.options.with_kokkos:
             self.options['kokkos'].backend = self.options.kokkos_backend
             self.options['kokkos'].architecture = self.options.kokkos_architecture
-        
+        self.options['arrow'].with_boost = True
+        self.options['arrow'].parquet = True
+        self.options['arrow'].with_thrift = True
+
     def requirements(self):
         self.requires("spdlog/1.14.1", force=True)
         self.requires("catch2/3.6.0")
@@ -75,60 +77,44 @@ class Pkg(ConanFile):
         self.requires("yaml-cpp/0.8.0")
         self.requires("cli11/1.9.1")
         self.requires("arrow/16.1.0")
-        if self.options.with_kokkos and str(self.options.kokkos_backend) in ("cuda", "cuda_openmp"):
+        if self.options.with_kokkos or self.options.with_proposal_export:
             self.requires("nlohmann_json/3.11.3")
             self.requires("openssl/3.5.2")
-        # Version-locked, read-only export API for --gpu-physics-source
-        # proposal-native. The patch does not change the scalar PROPOSAL path.
-        self.requires("proposal/7.6.2@c8gpu/stable")
         if self.options.with_kokkos:
             self.requires("kokkos/4.7.03@c8gpu/stable")
+        if self.options.with_proposal_export:
+            # These read-only export extensions change the dependency ABI.
+            # All consumers must use this isolated, revision-locked graph.
+            self.requires(
+                "proposal/7.6.2@c8gpu/stable#de991fa019e37dc07f04543cb2d626eb"
+            )
+            self.requires(
+                "cubicinterpolation/0.1.5@c8gpu/stable#b5aca7d283bcf748b9c2a9fc7ec09b63",
+                override=True,
+            )
+        else:
+            self.requires("proposal/7.6.2")
 
     def build_requirements(self):
         self.tool_requires("readline/8.0")
         self.tool_requires("bison/[>1.0]")
-        
+
     def generate(self):
         tc = CMakeToolchain(self)
         tc.absolute_paths = True
+        tc.variables["CONAN_CMAKE_DIR"] = self.generators_folder
+        tc.variables["CORSIKA_ENABLE_PROPOSAL_EXPORT"] = bool(
+            self.options.with_proposal_export
+        )
         if self.options.with_kokkos:
-            backend = str(self.options.kokkos_backend).upper()
-            tc.cache_variables["CORSIKA_KOKKOS_BACKEND"] = backend
-            architecture = str(self.options.kokkos_architecture).upper()
-            tc.cache_variables["CORSIKA_KOKKOS_ARCHITECTURE"] = architecture
-            # cache_variables only reach CMake through presets / the Conan
-            # CMake helper. Our shell helpers load conan_toolchain.cmake
-            # directly, so also export the package identity in that file.
-            # CMake checks it against explicit options before updating its cache.
-            tc.variables["C8_CONAN_KOKKOS_BACKEND"] = backend
-            tc.variables["C8_CONAN_KOKKOS_ARCHITECTURE"] = architecture
-            cuda_architectures = {
-                "KEPLER35": "35",
-                "MAXWELL50": "50",
-                "MAXWELL52": "52",
-                "MAXWELL53": "53",
-                "PASCAL60": "60",
-                "PASCAL61": "61",
-                "VOLTA70": "70",
-                "VOLTA72": "72",
-                "TURING75": "75",
-                "AMPERE80": "80",
-                "AMPERE86": "86",
-                "ADA89": "89",
-                "HOPPER90": "90",
-                "BLACKWELL120": "120",
-            }
+            tc.variables["CORSIKA_ENABLE_KOKKOS"] = True
+            tc.variables["CORSIKA_KOKKOS_BACKEND"] = str(self.options.kokkos_backend).upper()
             if str(self.options.kokkos_backend) in ("cuda", "cuda_openmp"):
-                if architecture not in cuda_architectures:
-                    raise ValueError(
-                        "Kokkos CUDA requires a supported explicit "
-                        "kokkos_architecture (for example ADA89)"
-                    )
-                tc.cache_variables["CORSIKA_KOKKOS_CUDA_ARCHITECTURES"] = (
-                    cuda_architectures[architecture]
-                )
-                tc.variables["C8_CONAN_KOKKOS_CUDA_ARCHITECTURES"] = (
-                    cuda_architectures[architecture]
-                )
+                architectures = {"VOLTA70": "70", "VOLTA72": "72", "TURING75": "75",
+                                 "AMPERE80": "80", "AMPERE86": "86", "ADA89": "89",
+                                 "HOPPER90": "90", "BLACKWELL120": "120"}
+                architecture = str(self.options.kokkos_architecture).upper()
+                if architecture not in architectures:
+                    raise ValueError("Select an explicit supported CUDA architecture")
+                tc.variables["CMAKE_CUDA_ARCHITECTURES"] = architectures[architecture]
         tc.generate()
-        

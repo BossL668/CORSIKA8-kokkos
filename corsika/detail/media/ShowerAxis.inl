@@ -112,8 +112,6 @@ namespace corsika {
 
   inline LengthType ShowerAxis::getSteplength() const { return steplength_; }
 
-  inline LengthType ShowerAxis::getMaximumLength() const { return max_length_; }
-
   inline GrammageType ShowerAxis::getMaximumX() const { return *X_.rbegin(); }
 
   inline GrammageType ShowerAxis::getMinimumX() const { return GrammageType::zero(); }

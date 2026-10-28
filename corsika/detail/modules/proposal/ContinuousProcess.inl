@@ -15,6 +15,8 @@
 #include <corsika/framework/utility/COMBoost.hpp>
 #include <corsika/framework/core/Logging.hpp>
 
+#include <stdexcept>
+
 namespace corsika::proposal {
 
   template <typename TOutput>
@@ -29,13 +31,10 @@ namespace corsika::proposal {
         throw std::logic_error(
             "PROPOSAL continuous calculator view contains a null displacement");
       }
-      result.push_back(
-          {projectile,
-           medium_hash,
-           &media.at(medium_hash),
-           entry.second.disp.get(),
-           proposal_energycutsettings.at(projectile),
-           particle.at(projectile).mass});
+      result.push_back({projectile, medium_hash, std::cref(media.at(medium_hash)),
+                        std::cref(*entry.second.disp),
+                        proposal_energycutsettings.at(projectile),
+                        particle.at(projectile).mass});
     }
     return result;
   }

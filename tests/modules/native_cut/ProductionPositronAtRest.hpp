@@ -1,0 +1,32 @@
+/*
+ * (c) Copyright 2026 CORSIKA Project, corsika-project@lists.kit.edu
+ *
+ * This software is distributed under the terms of the 3-clause BSD license.
+ * See file LICENSE for a full version of the license.
+ */
+
+#pragma once
+#include <cmath>
+#include <corsika/framework/core/HostDevice.hpp>
+
+namespace corsika::production_cut_reference {
+  // Match original C8's energy-cut policy on both scalar and device paths.
+  // This controls only the extra photons from a positron removed at the cut;
+  // stochastic in-flight annihilation is a separate, unchanged process.
+  inline constexpr bool EnableStoppedPositronAnnihilation = false;
+
+  // Free, unpolarized e+ e- at rest: two photons of mass-energy m_e,
+  // back-to-back on an isotropic axis. The cut-endpoint approximation first
+  // deposits the untracked positron kinetic energy locally. The target
+  // electron contributes a separate m_e medium source, NOT deposited heat.
+  // No positronium lifetime, binding correction or three-photon branch.
+  CORSIKA_HOST_DEVICE inline void positronAtRestDirection(double u, double azimuth_u,
+                                                          double* direction) {
+    auto const cosine = 2. * u - 1.;
+    auto const sine = ::sqrt((1. - cosine) * (1. + cosine));
+    auto const phi = 6.283185307179586476925286766559 * azimuth_u;
+    direction[0] = sine * ::cos(phi);
+    direction[1] = sine * ::sin(phi);
+    direction[2] = cosine;
+  }
+} // namespace corsika::production_cut_reference

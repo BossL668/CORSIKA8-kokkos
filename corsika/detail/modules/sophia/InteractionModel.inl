@@ -43,20 +43,16 @@ namespace corsika::sophia {
     CORSIKA_LOG_DEBUG("Sophia::Model n={}", count_);
   }
 
-  inline bool InteractionModel::isValid(
-      Code const projectileId, Code const targetId,
-      HEPEnergyType const sqrtSnn) const {
+  inline bool InteractionModel::isValid(Code const projectileId, Code const targetId,
+                                        HEPEnergyType const sqrtSnn) const {
     if (!(targetId == Code::Proton || targetId == Code::Neutron ||
           targetId == Code::Hydrogen))
       return false;
 
     if (projectileId != Code::Photon) return false;
 
-    auto const internal_sqrt_s =
-        internalComEnergy(targetId, sqrtSnn);
-    return internal_sqrt_s >=
-               sqrt(InternalPhotopionThresholdSGeV2) *
-                   1_GeV &&
+    auto const internal_sqrt_s = internal_com_energy(targetId, sqrtSnn);
+    return internal_sqrt_s >= sqrt(InternalPhotopionThresholdSGeV2) * 1_GeV &&
            internal_sqrt_s <= maxEnergyCoM_;
   }
 
@@ -89,10 +85,8 @@ namespace corsika::sophia {
 
     COMBoost const boost(projectileP4, targetP4);
 
-    auto const internal_target =
-        internalNucleonCode(targetId);
-    int nucleonSophiaCode =
-        convertToSophiaRaw(internal_target);
+    auto const internal_target = internal_nucleon_code(targetId);
+    int nucleonSophiaCode = convertToSophiaRaw(internal_target);
     // initialize resonance spectrum
     initial_(nucleonSophiaCode);
     // Sophia does sqrt(1 - mass_sophia / mass_c8), so we need to make sure that E0 >=
@@ -142,12 +136,10 @@ namespace corsika::sophia {
       auto const P4com = boostInternal.toCoM(FourVector{energySophia, momentumSophia});
       SophiaCode const pidSophia = psop.getPID();
       Code const pid = convertFromSophia(pidSophia);
-      on_shell_candidates.emplace_back(
-          pid, P4com.getSpaceLikeComponents());
+      on_shell_candidates.emplace_back(pid, P4com.getSpaceLikeComponents());
 
       CORSIKA_LOGGER_TRACE(logger_, "SOPHIA: pid={}, p={} GeV", pidSophia,
                            momentumSophia.getComponents() / 1_GeV);
-
     }
 
     // Remove the small legacy-generator COM momentum residual with the
@@ -155,17 +147,14 @@ namespace corsika::sophia {
     // prevents near-threshold scale factors from amplifying an O(MeV)
     // imbalance while preserving relative momenta as closely as possible.
     if (on_shell_candidates.empty()) {
-      throw std::runtime_error(
-          "SOPHIA returned no undecayed final-state particles");
+      throw std::runtime_error("SOPHIA returned no undecayed final-state particles");
     }
-    MomentumVector mean_com_momentum(
-        csPrime, {0.0_GeV, 0.0_GeV, 0.0_GeV});
+    MomentumVector mean_com_momentum(csPrime, {0.0_GeV, 0.0_GeV, 0.0_GeV});
     for (auto const& [pid, momentum] : on_shell_candidates) {
       static_cast<void>(pid);
       mean_com_momentum += momentum;
     }
-    mean_com_momentum *=
-        1. / static_cast<double>(on_shell_candidates.size());
+    mean_com_momentum *= 1. / static_cast<double>(on_shell_candidates.size());
     for (auto& [pid, momentum] : on_shell_candidates) {
       static_cast<void>(pid);
       momentum -= mean_com_momentum;
@@ -188,16 +177,13 @@ namespace corsika::sophia {
     auto const total_com_energy = [&](double const scale) {
       HEPEnergyType total = 0_GeV;
       for (auto const& [pid, momentum] : on_shell_candidates) {
-        total += calculate_total_energy(
-            momentum.getNorm() * scale, get_mass(pid));
+        total += calculate_total_energy(momentum.getNorm() * scale, get_mass(pid));
       }
       return total;
     };
     double lower_scale = 0.;
     double upper_scale = 1.;
-    while (total_com_energy(upper_scale) < sqrtS) {
-      upper_scale *= 2.;
-    }
+    while (total_com_energy(upper_scale) < sqrtS) { upper_scale *= 2.; }
     for (int iteration = 0; iteration < 80; ++iteration) {
       auto const middle = 0.5 * (lower_scale + upper_scale);
       if (total_com_energy(middle) < sqrtS) {
@@ -206,28 +192,23 @@ namespace corsika::sophia {
         upper_scale = middle;
       }
     }
-    auto const on_shell_scale =
-        0.5 * (lower_scale + upper_scale);
+    auto const on_shell_scale = 0.5 * (lower_scale + upper_scale);
 
     MomentumVector P_final(originalCS, {0.0_GeV, 0.0_GeV, 0.0_GeV});
     HEPEnergyType E_final = 0_GeV;
-    for (auto const& [pid, raw_com_momentum] :
-         on_shell_candidates) {
-      auto const com_momentum =
-          raw_com_momentum * on_shell_scale;
-      auto const com_energy = calculate_total_energy(
-          com_momentum.getNorm(), get_mass(pid));
-      auto const P4lab = boost.fromCoM(
-          FourVector{com_energy, com_momentum});
+    for (auto const& [pid, raw_com_momentum] : on_shell_candidates) {
+      auto const com_momentum = raw_com_momentum * on_shell_scale;
+      auto const com_energy =
+          calculate_total_energy(com_momentum.getNorm(), get_mass(pid));
+      auto const P4lab = boost.fromCoM(FourVector{com_energy, com_momentum});
       auto momentum = P4lab.getSpaceLikeComponents();
       momentum.rebase(originalCS);
       HEPEnergyType const Ekin =
-          calculate_kinetic_energy(
-              momentum.getNorm(), get_mass(pid));
+          calculate_kinetic_energy(momentum.getNorm(), get_mass(pid));
       CORSIKA_LOGGER_TRACE(logger_, "CORSIKA: pid={}, p={} GeV", pid,
                            momentum.getComponents() / 1_GeV);
-      auto pnew = secondaries.addSecondary(
-          std::make_tuple(pid, Ekin, momentum.normalized()));
+      auto pnew =
+          secondaries.addSecondary(std::make_tuple(pid, Ekin, momentum.normalized()));
       P_final += pnew.getMomentum();
       E_final += pnew.getEnergy();
     }

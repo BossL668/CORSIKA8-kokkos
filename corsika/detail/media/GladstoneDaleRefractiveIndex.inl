@@ -26,4 +26,11 @@ namespace corsika {
            1.;
   }
 
+  template <typename T>
+  inline RefractivityModelParameters GladstoneDaleRefractiveIndex<T>::exportRefractivity()
+      const {
+    return {RefractivityModelParameters::Kind::GladstoneDale, referenceRefractivity_,
+            referenceInvDensity_};
+  }
+
 } // namespace corsika

@@ -50,7 +50,9 @@ namespace corsika {
 
   template <size_t NColumns>
   inline void LongitudinalProfileWriterParquet<NColumns>::endOfShower(
-      unsigned int const) { output_.flushStreamer(); }
+      unsigned int const) {
+    output_.flushStreamer();
+  }
 
   template <size_t NColumns>
   inline void LongitudinalProfileWriterParquet<NColumns>::endOfLibrary() {

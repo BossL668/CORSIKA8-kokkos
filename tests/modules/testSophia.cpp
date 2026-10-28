@@ -124,35 +124,21 @@ TEST_CASE("SophiaInterface", "modules") {
     // eventgen.f applies s >= 1.1646 GeV^2 after replacing the CORSIKA
     // target mass by SOPHIA's internal AM table. The C++ capability check
     // must use that same calculation, not only CORSIKA's four-vector norm.
-    for (auto const target :
-         {Code::Proton, Code::Neutron}) {
-      auto const threshold =
-          minimumCorsikaComEnergy(target);
-      CHECK_FALSE(model.isValid(
-          Code::Photon, target, threshold - 1_eV));
-      CHECK(model.isValid(
-          Code::Photon, target, threshold + 1_eV));
-      CHECK(
-          internalComEnergy(target, threshold) / 1_GeV ==
-          Approx(
-              std::sqrt(
-                  InternalPhotopionThresholdSGeV2))
-              .epsilon(2.e-13));
+    for (auto const target : {Code::Proton, Code::Neutron}) {
+      auto const threshold = minimum_corsika_com_energy(target);
+      CHECK_FALSE(model.isValid(Code::Photon, target, threshold - 1_eV));
+      CHECK(model.isValid(Code::Photon, target, threshold + 1_eV));
+      CHECK(internal_com_energy(target, threshold) / 1_GeV ==
+            Approx(std::sqrt(InternalPhotopionThresholdSGeV2)).epsilon(2.e-13));
 
       auto const targetMass = get_mass(target);
       auto const acceptedSqrtS = threshold + 1_keV;
       auto const eGamma =
-          (acceptedSqrtS * acceptedSqrtS -
-           targetMass * targetMass) /
-          (2. * targetMass);
-      FourMomentum const photonP4(
-          eGamma, {cs, eGamma, 0_GeV, 0_GeV});
-      FourMomentum const targetP4(
-          targetMass, {cs, 0_GeV, 0_GeV, 0_GeV});
+          (acceptedSqrtS * acceptedSqrtS - targetMass * targetMass) / (2. * targetMass);
+      FourMomentum const photonP4(eGamma, {cs, eGamma, 0_GeV, 0_GeV});
+      FourMomentum const targetP4(targetMass, {cs, 0_GeV, 0_GeV, 0_GeV});
       view.clear();
-      model.doInteraction(
-          view, Code::Photon, target,
-          photonP4, targetP4);
+      model.doInteraction(view, Code::Photon, target, photonP4, targetP4);
       CHECK(view.getSize() > 0);
     }
   }

@@ -14,8 +14,8 @@
 #include <corsika/framework/random/RNGManager.hpp>
 #include <corsika/media/NuclearComposition.hpp>
 #include <corsika/framework/geometry/BaseTrajectory.hpp>
-#include <corsika/media/EnvironmentModelExport.hpp>
 #include <corsika/media/BaseExponential.hpp>
+#include <corsika/media/IDensityModelExport.hpp>
 
 namespace corsika {
 
@@ -33,7 +33,8 @@ namespace corsika {
 
   template <typename T>
   class SlidingPlanarExponential : public BaseExponential<SlidingPlanarExponential<T>>,
-                                   public T, public IDensityExport {
+                                   public T,
+                                   public IDensityModelExport {
 
     using Base = BaseExponential<SlidingPlanarExponential<T>>;
 
@@ -42,11 +43,13 @@ namespace corsika {
                              LengthType const lambda, NuclearComposition const& nuclComp,
                              LengthType const referenceHeight = LengthType::zero());
 
-    ExportDensity exportDensity() const override {
-      return {ExportDensityKind::SlidingPlanarExponential,Base::getReferenceDensity(),
-              Base::getScaleLength(),Base::getReferenceHeight(),Base::getAnchorPoint(),
-              DirectionVector(Base::getAnchorPoint().getCoordinateSystem(),{0.,0.,1.})};
-    }
+    /**
+     * Copy the stored radial-exponential parameters for host-side export.
+     *
+     * The axis is an unused positive-z placeholder in the anchor's coordinate
+     * system, not the position-dependent axis for grammage conversion.
+     */
+    [[nodiscard]] DensityModelParameters exportDensity() const override;
 
     MassDensityType getMassDensity(Point const& point) const override;
 

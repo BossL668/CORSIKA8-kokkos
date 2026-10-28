@@ -14,11 +14,9 @@ set (test_framework_sources
   testFunctionTimer.cpp
   testSecondaryView.cpp
   testGeometry.cpp
-  testConvexPolyhedron.cpp
   testCombinedStack.cpp
   testUnits.cpp
   testCascade.cpp 
-  testHadronicWorkQueue.cpp
   testRandom.cpp
   testNullModel.cpp  
   testHelix.cpp
@@ -35,3 +33,18 @@ target_compile_definitions (
   PRIVATE
   REFDATADIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+CORSIKA_ADD_TEST (testNextEnvironmentBoundary
+  SOURCES geometry/testNextEnvironmentBoundary.cpp
+    geometry/NextEnvironmentBoundaryHeader.cpp
+)
+set_tests_properties (testNextEnvironmentBoundary PROPERTIES
+  LABELS "geometry;boundary"
+  TIMEOUT 60
+)
+
+# The default counter remains available without the optional Kokkos headers.
+CORSIKA_ADD_TEST (testNativeCounterDefault
+  SOURCES process/testNativeCounterDefault.cpp process/NativeCounterHeader.cpp)
+set_tests_properties (testNativeCounterDefault PROPERTIES
+  LABELS "process;counter;native" RUN_SERIAL TRUE TIMEOUT 180)

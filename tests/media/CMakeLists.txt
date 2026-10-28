@@ -18,3 +18,15 @@ target_compile_definitions (
   PRIVATE
   REFDATADIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+# Native model export is independent of the optional Kokkos backend.
+CORSIKA_ADD_TEST (testModelExport SOURCES
+  TestMain.cpp
+  testModelExport.cpp
+  DensityModelParametersHeader.cpp
+  RefractivityModelParametersHeader.cpp
+  IDensityModelExportHeader.cpp
+  IRefractivityModelExportHeader.cpp
+  IUniformMagneticFieldExportHeader.cpp
+)
+target_link_libraries (testModelExport PRIVATE Boost::boost)

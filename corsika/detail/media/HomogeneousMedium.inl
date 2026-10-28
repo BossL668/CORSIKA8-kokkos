@@ -41,4 +41,16 @@ namespace corsika {
       BaseTrajectory const&, GrammageType grammage) const {
     return grammage / density_;
   }
+
+  template <typename T>
+  inline DensityModelParameters HomogeneousMedium<T>::exportDensity() const {
+    auto const coordinateSystem = get_root_CoordinateSystem();
+    return {DensityModelParameters::Kind::Homogeneous,
+            density_,
+            0_m,
+            0_m,
+            Point(coordinateSystem, 0_m, 0_m, 0_m),
+            DirectionVector(coordinateSystem, {0., 0., 1.})};
+  }
+
 } // namespace corsika

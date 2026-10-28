@@ -13,7 +13,7 @@
 #include <corsika/framework/core/Step.hpp>
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/setup/SetupTrajectory.hpp>
-#include <corsika/modules/radio/RadioTrack.hpp>
+#include <corsika/modules/radio/RadioTrackSink.hpp>
 
 #include <algorithm>
 #include <array>
@@ -72,8 +72,7 @@ namespace corsika {
     double diagnosticWeightedBetaDeficitTrackLengthM_{0.};
     double diagnosticWeightedTimeResidualS_{0.};
     double diagnosticMaximumDirectionChangeRad_{0.};
-    std::array<double, 3>
-        diagnosticSignedChargeWeightedDirectionChange_{};
+    std::array<double, 3> diagnosticSignedChargeWeightedDirectionChange_{};
     std::array<double, 15> diagnosticEnergyBinnedTrackLengthM_{};
     ShowerSummary diagnosticSummary_;
     radio::RadioTrackSink* trackSink_{nullptr};
@@ -81,11 +80,10 @@ namespace corsika {
     bool captureTrack_{true};
     std::uint64_t offloadedSegmentCount_{0};
 
-    inline static constexpr std::array<double, 15>
-        diagnosticEnergyUpperEdgesGeV_{
-            1.e-3, 2.e-3, 5.e-3, 1.e-2, 2.e-2,
-            5.e-2, 1.e-1, 2.e-1, 5.e-1, 1.,
-            2., 5., 10., 100., std::numeric_limits<double>::infinity()};
+    inline static constexpr std::array<double, 15> diagnosticEnergyUpperEdgesGeV_{
+        1.e-3, 2.e-3, 5.e-3, 1.e-2, 2.e-2,
+        5.e-2, 1.e-1, 2.e-1, 5.e-1, 1.,
+        2.,    5.,    10.,   100.,  std::numeric_limits<double>::infinity()};
 
   public:
     using axistype = std::vector<long double>;
@@ -112,21 +110,12 @@ namespace corsika {
      * their native projection. The sink computes the enabled radio models.
      * A null sink restores the original scalar path.
      */
-    void setTrackSink(radio::RadioTrackSink* sink,
-                      CoordinateSystemPtr coordinates, bool capture = true) {
-      if (sink && (!coordinates || trackSink_)) {
-        throw std::logic_error("radio track sink needs a frame and exclusive ownership");
-      }
-      trackSink_ = sink;
-      trackSinkCoordinates_ = std::move(coordinates);
-      captureTrack_ = capture;
-    }
+    void setTrackSink(radio::RadioTrackSink* sink, CoordinateSystemPtr coordinates,
+                      bool capture = true);
 
-    bool hasTrackSink() const noexcept { return trackSink_ != nullptr; }
+    bool hasTrackSink() const noexcept;
 
-    std::uint64_t offloadedSegmentCount() const noexcept {
-      return offloadedSegmentCount_;
-    }
+    std::uint64_t offloadedSegmentCount() const noexcept;
 
     /**
      * Return the maximum step length for this particle and track.
@@ -157,13 +146,9 @@ namespace corsika {
      */
     void endOfLibrary() final override;
 
-    TObserverCollection& observerCollection() noexcept {
-      return observers_;
-    }
+    TObserverCollection& observerCollection() noexcept;
 
-    TObserverCollection const& observerCollection() const noexcept {
-      return observers_;
-    }
+    TObserverCollection const& observerCollection() const noexcept;
 
     /**
      * Get the configuration of this output.
@@ -176,9 +161,7 @@ namespace corsika {
      */
     YAML::Node getSummary() const final;
 
-    void writeSummary(boost::filesystem::path const& path) const final {
-      diagnosticSummary_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const final;
 
   }; // END: class RadioProcess
 

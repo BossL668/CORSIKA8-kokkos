@@ -36,14 +36,10 @@ namespace corsika {
     auto const ny = direction.dot(obsPlane_.getYAxis());
     auto const nz = direction.dot(obsPlane_.getPlane().getNormal());
 
-    output_.event(showerId_)["pdg"] =
-        static_cast<int>(get_PDG(pID));
-    output_.event(showerId_)["name"] =
-        static_cast<std::string>(get_name(pID));
-    output_.event(showerId_)["total_energy"] =
-        (kineticEnergy + get_mass(pID)) / 1_GeV;
-    output_.event(showerId_)["kinetic_energy"] =
-        kineticEnergy / 1_GeV;
+    output_.event(showerId_)["pdg"] = static_cast<int>(get_PDG(pID));
+    output_.event(showerId_)["name"] = static_cast<std::string>(get_name(pID));
+    output_.event(showerId_)["total_energy"] = (kineticEnergy + get_mass(pID)) / 1_GeV;
+    output_.event(showerId_)["kinetic_energy"] = kineticEnergy / 1_GeV;
     output_.event(showerId_)["x"] = x / 1_m;
     output_.event(showerId_)["y"] = y / 1_m;
     output_.event(showerId_)["z"] = z / 1_m;
@@ -111,6 +107,12 @@ namespace corsika {
   template <typename TTracking, typename TOutput>
   inline YAML::Node PrimaryWriter<TTracking, TOutput>::getSummary() const {
     return output_.snapshot();
+  }
+
+  template <typename TTracking, typename TOutput>
+  inline void PrimaryWriter<TTracking, TOutput>::writeSummary(
+      boost::filesystem::path const& path) const {
+    output_.writeSummary(path);
   }
 
 } // namespace corsika

@@ -12,7 +12,7 @@
 #include <corsika/framework/geometry/Point.hpp>
 #include <corsika/media/NuclearComposition.hpp>
 #include <corsika/framework/geometry/BaseTrajectory.hpp>
-#include <corsika/media/EnvironmentModelExport.hpp>
+#include <corsika/media/IDensityModelExport.hpp>
 
 namespace corsika {
 
@@ -21,16 +21,17 @@ namespace corsika {
    */
 
   template <typename T>
-  class HomogeneousMedium : public T, public IDensityExport {
+  class HomogeneousMedium : public T, public IDensityModelExport {
 
   public:
     HomogeneousMedium(MassDensityType density, NuclearComposition const& nuclComp);
 
-    ExportDensity exportDensity() const override {
-      auto cs=get_root_CoordinateSystem();
-      return {ExportDensityKind::Homogeneous,density_,0_m,0_m,
-              Point(cs,0_m,0_m,0_m),DirectionVector(cs,{0.,0.,1.})};
-    }
+    /**
+     * Copy the constant density into a host-side parameter value.
+     *
+     * The unused anchor and axis are the root origin and its positive z direction.
+     */
+    [[nodiscard]] DensityModelParameters exportDensity() const override;
 
     MassDensityType getMassDensity(Point const&) const override;
 

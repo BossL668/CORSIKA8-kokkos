@@ -20,6 +20,15 @@ namespace corsika {
 
   template <typename StackData, template <typename> typename MParticleInterface,
             template <typename T1, template <class> class T2> class MSecondaryProducer>
+  template <typename U>
+  inline auto Stack<StackData, MParticleInterface,
+                    MSecondaryProducer>::reserveTransportHistoryIds(std::uint64_t count)
+      -> decltype(std::declval<U&>().reserveHistoryIds(count)) {
+    return data_.reserveHistoryIds(count);
+  }
+
+  template <typename StackData, template <typename> typename MParticleInterface,
+            template <typename T1, template <class> class T2> class MSecondaryProducer>
   template <typename... TArgs>
   inline void Stack<StackData, MParticleInterface, MSecondaryProducer>::clear(
       TArgs... args) {

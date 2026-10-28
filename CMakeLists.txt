@@ -7,7 +7,7 @@
 # See file LICENSE for a full version of the license.
 #
 
-cmake_minimum_required (VERSION 3.24)
+cmake_minimum_required (VERSION 3.9)
 
 #+++++++++++++++++++++++++++++
 # project name
@@ -20,111 +20,9 @@ set (c8_version 8.0.0.0)
 project (
   corsika
   VERSION ${c8_version}
-  DESCRIPTION "CORSIKA8-kokkos: portable EM and radio backends"
+  DESCRIPTION "CORSIKA C++ project (alpha status)"
   LANGUAGES CXX
   )
-
-# Record the exact source revision in accelerator tuning keys.  A source tree
-# without Git metadata remains buildable, but such a binary deliberately uses
-# the explicit "unknown" key and cannot consume a cache made by a tagged
-# production build unless the cache carries the same value.
-execute_process (
-  COMMAND git rev-parse --verify HEAD
-  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-  OUTPUT_VARIABLE CORSIKA8_PROJECT_REVISION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_QUIET
-  RESULT_VARIABLE CORSIKA8_GIT_REVISION_RESULT)
-if (NOT CORSIKA8_GIT_REVISION_RESULT EQUAL 0 OR
-    CORSIKA8_PROJECT_REVISION STREQUAL "")
-  set (CORSIKA8_PROJECT_REVISION "unknown")
-else ()
-  # A tuning record is only reusable for the source that produced it.  During
-  # development HEAD alone is insufficient because tracked edits do not alter
-  # the commit id.  Add a stable digest of the tracked diff; production builds
-  # made from a clean commit retain the compact commit-only key.  Untracked
-  # files are intentionally excluded because committed release builds must not
-  # depend on them.
-  execute_process (
-    COMMAND git diff --binary --no-ext-diff HEAD --
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    OUTPUT_VARIABLE CORSIKA8_TRACKED_SOURCE_DIFF
-    ERROR_QUIET
-    RESULT_VARIABLE CORSIKA8_TRACKED_SOURCE_DIFF_RESULT)
-  if (CORSIKA8_TRACKED_SOURCE_DIFF_RESULT EQUAL 0 AND
-      NOT CORSIKA8_TRACKED_SOURCE_DIFF STREQUAL "")
-    string (SHA256 CORSIKA8_TRACKED_SOURCE_DIFF_SHA256
-            "${CORSIKA8_TRACKED_SOURCE_DIFF}")
-    string (SUBSTRING "${CORSIKA8_TRACKED_SOURCE_DIFF_SHA256}" 0 16
-            CORSIKA8_TRACKED_SOURCE_DIFF_SHORT)
-    string (APPEND CORSIKA8_PROJECT_REVISION
-            "-dirty-${CORSIKA8_TRACKED_SOURCE_DIFF_SHORT}")
-  endif ()
-endif ()
-
-
-option (
-  CORSIKA_ENABLE_KOKKOS
-  "Build one mutually exclusive Kokkos EM/radio execution backend"
-  ON
-  )
-if (CORSIKA_ENABLE_KOKKOS)
-  include (cmake/CorsikaConanKokkos.cmake)
-endif ()
-set (
-  CORSIKA_KOKKOS_BACKEND "OPENMP" CACHE STRING
-  "Kokkos backend: OPENMP, CUDA, HIP, SYCL, or experimental CUDA_OPENMP"
-  )
-set_property (
-  CACHE CORSIKA_KOKKOS_BACKEND PROPERTY STRINGS OPENMP CUDA HIP SYCL CUDA_OPENMP)
-set (
-  CORSIKA_KOKKOS_CUDA_ARCHITECTURES "native" CACHE STRING
-  "CUDA architectures for Kokkos CUDA translation units; must match the Kokkos package"
-  )
-set (
-  CORSIKA_KOKKOS_ARCHITECTURE "NONE" CACHE STRING
-  "Kokkos architecture token used to build the selected Conan package"
-  )
-
-if (CORSIKA_ENABLE_CUDA)
-  message (
-    FATAL_ERROR
-    "| CORSIKA8 > Native CUDA and Kokkos are separate build products. "
-    "Select CORSIKA_KOKKOS_BACKEND=CUDA for the current CUDA implementation."
-    )
-endif ()
-
-if (CORSIKA_ENABLE_KOKKOS AND
-    ${CMAKE_VERSION} VERSION_LESS "3.24")
-  message (
-    FATAL_ERROR
-    "| CORSIKA8 > CORSIKA_ENABLE_KOKKOS requires CMake 3.24 or newer."
-    )
-endif ()
-
-if (CORSIKA_ENABLE_KOKKOS)
-  string (TOUPPER "${CORSIKA_KOKKOS_BACKEND}"
-          CORSIKA_KOKKOS_BACKEND)
-  if (CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA" OR
-      CORSIKA_KOKKOS_BACKEND STREQUAL "CUDA_OPENMP")
-    enable_language (CUDA)
-    set (CMAKE_CUDA_STANDARD 17)
-    set (CMAKE_CUDA_STANDARD_REQUIRED ON)
-    set (CMAKE_CUDA_EXTENSIONS OFF)
-    find_package (CUDAToolkit 12 REQUIRED)
-    if (CORSIKA_KOKKOS_ARCHITECTURE STREQUAL "BLACKWELL120" AND
-        CUDAToolkit_VERSION VERSION_LESS "12.8")
-      message (FATAL_ERROR "BLACKWELL120 / sm_120 requires CUDA Toolkit 12.8 or newer.")
-    endif ()
-  elseif (CORSIKA_KOKKOS_BACKEND STREQUAL "HIP")
-    enable_language (HIP)
-    set (CMAKE_HIP_STANDARD 17)
-    set (CMAKE_HIP_STANDARD_REQUIRED ON)
-    set (CMAKE_HIP_EXTENSIONS OFF)
-  endif ()
-endif ()
-
-
 
 #+++++++++++++++++++++++++++++
 # for pre-defined standard path
@@ -188,6 +86,13 @@ include (corsikaUtilities) # extra cmake functions
 # Setup hardware and infrastructure dependent defines, and general settings
 #
 include (corsikaDefines)
+
+# Optional execution runtime; the default build has no Kokkos dependency.
+option (CORSIKA_ENABLE_KOKKOS "Build the optional Kokkos runtime" OFF)
+option (CORSIKA_ENABLE_PROPOSAL_EXPORT "Build the native PROPOSAL table export bridge" OFF)
+if (CORSIKA_ENABLE_PROPOSAL_EXPORT AND NOT CORSIKA_ENABLE_KOKKOS)
+  message (FATAL_ERROR "The PROPOSAL export bridge requires CORSIKA_ENABLE_KOKKOS=ON.")
+endif ()
 
 #+++++++++++++++++++++++++++++
 # check if compiler is C++17 compliant
@@ -371,47 +276,11 @@ find_package(Arrow REQUIRED)
 find_package(PROPOSAL REQUIRED)
 find_package(Catch2 REQUIRED)
 
-if (CORSIKA_ENABLE_KOKKOS)
-  string (TOUPPER "${CORSIKA_KOKKOS_BACKEND}"
-          CORSIKA_KOKKOS_BACKEND)
-  if (NOT CORSIKA_KOKKOS_BACKEND MATCHES
-      "^(OPENMP|CUDA|HIP|SYCL|CUDA_OPENMP)$")
-    message (
-      FATAL_ERROR
-      "| CORSIKA8 > CORSIKA_KOKKOS_BACKEND must be OPENMP, CUDA, HIP, SYCL, or CUDA_OPENMP."
-      )
-  endif ()
-
-  find_package (Kokkos 4.7.3 CONFIG REQUIRED)
-  get_target_property (
-    _c8_kokkos_package_definitions Kokkos::kokkos
-    INTERFACE_COMPILE_DEFINITIONS)
-  string (JOIN ";" _c8_kokkos_package_definitions_text
-          ${_c8_kokkos_package_definitions})
-  set (_c8_expected_kokkos_package_definition
-       "C8_KOKKOS_PACKAGE_BACKEND_${CORSIKA_KOKKOS_BACKEND}")
-  if (NOT _c8_kokkos_package_definitions_text MATCHES
-      "${_c8_expected_kokkos_package_definition}")
-    message (
-      FATAL_ERROR
-      "| CORSIKA8 > Requested ${CORSIKA_KOKKOS_BACKEND}, but the selected "
-      "Kokkos Conan package has a different backend. Re-run conan install "
-      "with &:kokkos_backend=${CORSIKA_KOKKOS_BACKEND}."
-      )
-  endif ()
-  if (NOT CORSIKA_KOKKOS_ARCHITECTURE STREQUAL "NONE")
-    set (_c8_expected_kokkos_arch_definition
-         "C8_KOKKOS_PACKAGE_ARCH_${CORSIKA_KOKKOS_ARCHITECTURE}")
-    if (NOT _c8_kokkos_package_definitions_text MATCHES
-        "${_c8_expected_kokkos_arch_definition}")
-      message (
-        FATAL_ERROR
-        "| CORSIKA8 > Kokkos architecture mismatch: CMake requested "
-        "${CORSIKA_KOKKOS_ARCHITECTURE}, but the selected Conan package "
-        "was built for another architecture."
-        )
-    endif ()
-  endif ()
+if (CORSIKA_ENABLE_PROPOSAL_EXPORT)
+  include (corsikaCheckProposalExport)
+  corsika_check_proposal_export (
+    "${CORSIKA8_CMAKE_DIR}" CORSIKA_PROPOSAL_EXPORT_HEADER_DIGEST ""
+  )
 endif ()
 
 target_link_libraries (
@@ -429,22 +298,22 @@ target_link_libraries (
   )
 
 # "src" is needed, since some headers (namely GeneratedParticleProperties.inc ec.) are produced by python script from e.g. ParticleData.xml
-add_subdirectory (src)
-add_subdirectory (src/accelerator/em/tables)
-list (APPEND public_CORSIKA8_targets CORSIKA8ProposalNative)
-
+# Device languages must be enabled above both the libraries and their tests.
+# Keep the selected backend visible when generating the installed package config.
 if (CORSIKA_ENABLE_KOKKOS)
-  add_subdirectory (src/accelerator/em/kokkos)
-  add_subdirectory (src/transport)
-  add_subdirectory (src/radio/interface)
-  list (APPEND public_CORSIKA8_targets CORSIKA8KokkosEm)
+  find_package (Kokkos 4.7 CONFIG REQUIRED)
+  include ("${PROJECT_SOURCE_DIR}/cmake/BackendRuntimeSelection.cmake")
+  if (Kokkos_DEVICES MATCHES "CUDA")
+    enable_language (CUDA)
+    find_package (CUDAToolkit REQUIRED)
+    set (CMAKE_CUDA_STANDARD 17)
+    set (CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set (CMAKE_CUDA_EXTENSIONS OFF)
+    set (CMAKE_CUDA_RUNTIME_LIBRARY Shared)
+  endif ()
 endif ()
-option(CORSIKA_ENABLE_EGS4 "Enable native C++ EGS4 in the standard air application" OFF)
-option(CORSIKA_EGS4_BUILD_TESTS "Build the EGS4 embedded-table regression test" OFF)
-if (CORSIKA_ENABLE_EGS4)
-  add_subdirectory (src/modules/egs4)
-  list (APPEND public_CORSIKA8_targets CORSIKA8NativeEgs4)
-endif ()
+
+add_subdirectory (src)
 add_subdirectory (documentation)
 
 #+++++++++++++++++++++++++++++
@@ -468,27 +337,6 @@ add_subdirectory (modules/epos-lhc)
 add_subdirectory (modules/tauola)
 add_subdirectory (modules/fluka)
 
-# Some Conda compiler toolchains retain sysroot libm/librt linker scripts that
-# refer to library paths unavailable on Debian/Ubuntu multiarch systems.
-# Applications and tests are defined below, so put the matching native host
-# directory first for all of them.  This is derived at configure time and does
-# not embed a user- or machine-specific project path.
-set (_c8_host_multiarch_libdir "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-if (NOT EXISTS "${_c8_host_multiarch_libdir}/libm.so")
-  file (GLOB _c8_host_libm_candidates "/usr/lib/*-linux-gnu/libm.so")
-  list (LENGTH _c8_host_libm_candidates _c8_host_libm_count)
-  if (_c8_host_libm_count GREATER 0)
-    list (GET _c8_host_libm_candidates 0 _c8_host_libm)
-    get_filename_component (_c8_host_multiarch_libdir
-                            "${_c8_host_libm}" DIRECTORY)
-  endif ()
-endif ()
-if ((CMAKE_Fortran_COMPILER_SYSROOT OR MATH_LIBRARY MATCHES "/sysroot/" OR
-     CMAKE_CXX_COMPILER MATCHES "/(conda|mambaforge|miniconda)[^/]*/") AND
-    EXISTS "${_c8_host_multiarch_libdir}/libm.so")
-  add_link_options ("-L${_c8_host_multiarch_libdir}")
-endif ()
-
 #
 #+++++++++++++++++++++++++++++++
 # standard applications
@@ -509,36 +357,10 @@ install (
   EXPORT CORSIKA8PublicTargets
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}
   )
-install (
-  TARGETS CORSIKA8ProposalNative
-  EXPORT CORSIKA8PublicTargets
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  )
-
-if (CORSIKA_ENABLE_KOKKOS)
-  install (
-    TARGETS CORSIKA8KokkosEm
-    EXPORT CORSIKA8PublicTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-endif ()
 #
 # header only part, just copy entire directory tree
 #
-if (CORSIKA_ENABLE_EGS4)
-  install (
-    TARGETS CORSIKA8NativeEgs4
-    EXPORT CORSIKA8PublicTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-endif ()
-install (DIRECTORY corsika DESTINATION include)
+install (DIRECTORY corsika DESTINATION include PATTERN "kokkos" EXCLUDE)
 #
 # generate cmake config package version (for find_package)
 #
@@ -564,12 +386,12 @@ install (
   NAMESPACE CORSIKA8::
   DESTINATION lib/cmake/corsika
   )
- if(DEFINED CONAN_CMAKE_DIR)
- install (
+if (DEFINED CONAN_CMAKE_DIR)
+  install (
   DIRECTORY "${CONAN_CMAKE_DIR}/"
   DESTINATION lib/cmake/dependencies
   )
- endif(DEFINED CONAN_CMAKE_DIR)
+endif ()
 #
 # config for build tree (for find_package)
 #
@@ -624,6 +446,15 @@ install (
   ${CMAKE_BINARY_DIR}/corsikaConfigVersion.cmake
   DESTINATION lib/cmake/corsika
   )
+if (CORSIKA_ENABLE_PROPOSAL_EXPORT)
+  configure_file (cmake/corsikaCheckProposalExport.cmake
+    ${PROJECT_BINARY_DIR}/corsikaCheckProposalExport.cmake COPYONLY)
+  configure_file (cmake/CheckProposalExport.cpp
+    ${PROJECT_BINARY_DIR}/CheckProposalExport.cpp COPYONLY)
+  install (FILES cmake/corsikaCheckProposalExport.cmake cmake/CheckProposalExport.cpp
+    DESTINATION lib/cmake/corsika
+  )
+endif ()
 #
 # install and rename install-level corsikaConfig.cmake
 #

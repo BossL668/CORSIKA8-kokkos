@@ -10,13 +10,11 @@
 
 namespace corsika {
 
-  inline TimeDomainObserver::TimeDomainObserver(std::string const& name,
-                                                Point const& location,
-                                                CoordinateSystemPtr coordinateSystem,
-                                                TimeType const& start_time,
-                                                TimeType const& duration,
-                                                InverseTimeType const& sample_rate,
-                                                TimeType const ground_hit_time)
+  inline TimeDomainObserver::TimeDomainObserver(
+      std::string const& name, Point const& location,
+      CoordinateSystemPtr coordinateSystem, TimeType const& start_time,
+      TimeType const& duration, InverseTimeType const& sample_rate,
+      TimeType const ground_hit_time, VectorPotentialWindowMode vectorPotentialWindowMode)
       : Observer(name, location, coordinateSystem)
       , start_time_(start_time)
       , duration_(std::abs(duration / 1_s) * 1_s)
@@ -26,7 +24,8 @@ namespace corsika {
       , waveformEX_(num_bins_, 0)
       , waveformEY_(num_bins_, 0)
       , waveformEZ_(num_bins_, 0)
-      , time_axis_(createTimeAxis()) {
+      , time_axis_(createTimeAxis())
+      , vectorPotentialWindowMode_(vectorPotentialWindowMode) {
     if (0_s == duration_) {
       CORSIKA_LOG_WARN(
           "Observer: \"{}\" has a duration of zero. Nothing will be injected into it",
@@ -103,6 +102,13 @@ namespace corsika {
   inline void TimeDomainObserver::receive(const TimeType time, SignalPath const& path,
                                           const VectorPotential& vectorP) {
 
+    // Keep the official API's time-window behavior unless the caller selects
+    // the production policy for bin-integrated ZHS potentials explicitly.
+    if (vectorPotentialWindowMode_ == VectorPotentialWindowMode::TimeWindow &&
+        (time < start_time_ || time > (start_time_ + duration_))) {
+      return;
+    }
+
     // ZHS contributes bin-integrated potentials, not instantaneous fields.
     // A label just outside the nominal time window can still round into its
     // first/last potential bin. Discarding it before binning leaves those bins
@@ -110,7 +116,8 @@ namespace corsika {
     // E[i] = -(A[i+1] - A[i]) / dt. Clip the bin, not the contribution label;
     // keep the existing array length, output time axis and CoREAS semantics.
     auto const bin = std::floor((time - start_time_) * sample_rate_ + 0.5l);
-    if (!(bin >= 0 && bin < num_bins_)) {
+    if (vectorPotentialWindowMode_ == VectorPotentialWindowMode::RoundedBins &&
+        !(bin >= 0 && bin < num_bins_)) {
       return;
     } else {
       auto const timebin = static_cast<std::size_t>(bin);
@@ -200,24 +207,7 @@ namespace corsika {
 
   inline TimeType const& TimeDomainObserver::getStartTime() const { return start_time_; }
 
-  inline TimeType const& TimeDomainObserver::getDuration() const {
-    return duration_;
-  }
-
-  inline void TimeDomainObserver::addWaveform(
-      std::vector<double> const& x, std::vector<double> const& y,
-      std::vector<double> const& z) {
-    if (x.size() != num_bins_ || y.size() != num_bins_ ||
-        z.size() != num_bins_) {
-      throw std::invalid_argument(
-          "radio waveform size does not match observer");
-    }
-    for (std::size_t index = 0; index < num_bins_; ++index) {
-      waveformEX_[index] += x[index];
-      waveformEY_[index] += y[index];
-      waveformEZ_[index] += z[index];
-    }
-  }
+  inline TimeType const& TimeDomainObserver::getDuration() const { return duration_; }
 
   inline void TimeDomainObserver::reset() {
     std::fill(waveformEX_.begin(), waveformEX_.end(), 0);
@@ -239,4 +229,19 @@ namespace corsika {
     return config;
   }
 
+} // namespace corsika
+
+namespace corsika {
+  inline void TimeDomainObserver::addWaveform(std::vector<double> const& x,
+                                              std::vector<double> const& y,
+                                              std::vector<double> const& z) {
+    if (x.size() != num_bins_ || y.size() != num_bins_ || z.size() != num_bins_) {
+      throw std::invalid_argument("radio waveform size does not match observer");
+    }
+    for (std::size_t index = 0; index < num_bins_; ++index) {
+      waveformEX_[index] += x[index];
+      waveformEY_[index] += y[index];
+      waveformEZ_[index] += z[index];
+    }
+  }
 } // namespace corsika

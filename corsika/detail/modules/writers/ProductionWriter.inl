@@ -32,8 +32,7 @@ namespace corsika {
       , showerAxis_(axis)
       , dX_(dX)
       , nBins_(nbins)
-      , profile_{nbins} {
-  }
+      , profile_{nbins} {}
 
   template <typename TOutput>
   inline void ProductionWriter<TOutput>::startOfLibrary(
@@ -107,9 +106,9 @@ namespace corsika {
   }
 
   template <typename TOutput>
-  inline void ProductionWriter<TOutput>::writeProjected(
-      GrammageType const grammage, Code const projectile_pid,
-      double const weight) {
+  inline void ProductionWriter<TOutput>::writeProjected(GrammageType const grammage,
+                                                        Code const projectile_pid,
+                                                        double const weight) {
 
     size_t const bin1 = std::floor(grammage / dX_);
     size_t const bin = std::min(bin1, profile_.size() - 1);
@@ -120,14 +119,13 @@ namespace corsika {
   }
 
   template <typename TOutput>
-  inline void ProductionWriter<TOutput>::addBin(
-      size_t const bin, Code const projectile_pid,
-      double const weight) {
+  inline void ProductionWriter<TOutput>::addBin(size_t const bin,
+                                                Code const projectile_pid,
+                                                double const weight) {
     if (bin >= profile_.size()) {
-      CORSIKA_LOGGER_WARN(
-          TOutput::getLogger(),
-          "Production grammage bin {} outside of profile {}. skipping.",
-          bin, profile_.size());
+      CORSIKA_LOGGER_WARN(TOutput::getLogger(),
+                          "Production grammage bin {} outside of profile {}. skipping.",
+                          bin, profile_.size());
       return;
     }
     if (projectile_pid == Code::Photon) {
@@ -176,4 +174,29 @@ namespace corsika {
     return summary_.snapshot();
   }
 
+} // namespace corsika
+
+namespace corsika {
+  template <typename TOutput>
+  inline size_t ProductionWriter<TOutput>::getNBins() const noexcept {
+    return nBins_;
+  }
+
+  template <typename TOutput>
+  inline void ProductionWriter<TOutput>::writeSummary(
+      boost::filesystem::path const& path) const {
+    summary_.writeSummary(path);
+  }
+
+  template <typename TOutput>
+  inline production_profile::ProfileData const& ProductionWriter<TOutput>::getProfile(
+      production_profile::ProjectileIndex index) const {
+    return profile_.at(static_cast<int>(index));
+  }
+
+  template <typename TOutput>
+  inline production_profile::ProfileData const& ProductionWriter<TOutput>::getBin(
+      size_t bin) const {
+    return profile_.at(bin);
+  }
 } // namespace corsika

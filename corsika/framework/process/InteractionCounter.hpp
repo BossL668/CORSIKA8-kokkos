@@ -8,7 +8,6 @@
 #pragma once
 
 #include <corsika/framework/process/InteractionHistogram.hpp>
-#include <corsika/framework/core/HadronicInteractionDeferral.hpp>
 #include <corsika/framework/process/InteractionProcess.hpp>
 #include <corsika/framework/geometry/FourVector.hpp>
 
@@ -21,33 +20,38 @@
 
 namespace corsika {
 
+  /** Default execution policy: keep final-state generation synchronous.
+   * An explicitly selected policy may capture an interaction after histogram
+   * accounting. Distinct policies produce distinct counter types; merely
+   * including an optional adapter cannot change a native counter's behavior.
+   */
+  struct NoInteractionDeferral {
+    static bool tryPrepare(Code const, Code const, FourMomentum const&,
+                           FourMomentum const&) noexcept;
+  };
+
   namespace interaction_counter_detail {
     template <typename T, typename = void>
     struct CanAuditEnergy : std::false_type {};
 
     template <typename T>
     struct CanAuditEnergy<
-        T, std::void_t<
-               decltype(std::declval<T&>()
-                            .getProjectile()
-                            .getWeight()),
-               decltype(std::begin(std::declval<T&>())),
-               decltype(std::end(std::declval<T&>())),
-               decltype((*std::begin(std::declval<T&>()))
-                            .getEnergy()),
-               decltype((*std::begin(std::declval<T&>()))
-                            .getPID()),
-               decltype((*std::begin(std::declval<T&>()))
-                            .getWeight())>> : std::true_type {};
+        T, std::void_t<decltype(std::declval<T&>().getProjectile().getWeight()),
+                       decltype(std::begin(std::declval<T&>())),
+                       decltype(std::end(std::declval<T&>())),
+                       decltype((*std::begin(std::declval<T&>())).getEnergy()),
+                       decltype((*std::begin(std::declval<T&>())).getPID()),
+                       decltype((*std::begin(std::declval<T&>())).getWeight())>>
+        : std::true_type {};
   } // namespace interaction_counter_detail
 
   struct InteractionTimingSample {
-    std::uint64_t sequence_id{};
-    Code projectile{Code::Unknown};
-    Code target{Code::Unknown};
-    HEPEnergyType kinetic_energy{};
-    double final_state_time_ms{};
-    bool deferred{};
+    std::uint64_t sequenceId_{};
+    Code projectile_{Code::Unknown};
+    Code target_{Code::Unknown};
+    HEPEnergyType kineticEnergy_{};
+    double finalStateTimeMs_{};
+    bool deferred_{};
   };
 
   /**
@@ -60,44 +64,44 @@ namespace corsika {
    * the projectile alone creates an apparent energy source.
    */
   struct InteractionEnergyLedgerStatistics {
-    std::uint64_t audited_interactions{};
-    std::uint64_t deferred_interactions{};
-    double weighted_projectile_total_energy_GeV{};
-    double weighted_target_total_energy_GeV{};
-    double weighted_effective_target_total_energy_GeV{};
-    double weighted_target_isotope_correction_GeV{};
-    std::uint64_t target_isotope_adjusted_interactions{};
-    double weighted_secondary_total_energy_GeV{};
-    double weighted_energy_residual_GeV{};
-    double weighted_absolute_energy_residual_GeV{};
-    double maximum_absolute_residual_GeV{};
-    double weighted_isotope_corrected_energy_residual_GeV{};
-    double weighted_absolute_isotope_corrected_energy_residual_GeV{};
-    double maximum_absolute_isotope_corrected_residual_GeV{};
-    std::uint64_t negative_isotope_corrected_residual_interactions{};
-    double maximum_negative_isotope_corrected_residual_GeV{};
-    std::uint64_t spacelike_isotope_corrected_residual_interactions{};
-    double maximum_isotope_corrected_spacelike_excess_GeV{};
-    double minimum_isotope_corrected_residual_mass_squared_GeV2{};
-    double maximum_target_total_energy_GeV{};
-    double weighted_momentum_residual_norm_GeV{};
-    double maximum_momentum_residual_norm_GeV{};
-    std::uint64_t negative_energy_residual_interactions{};
-    std::uint64_t spacelike_residual_interactions{};
-    double maximum_negative_energy_residual_GeV{};
-    int maximum_negative_projectile_pdg{};
-    int maximum_negative_target_pdg{};
-    double maximum_negative_projectile_total_energy_GeV{};
-    double maximum_negative_target_total_energy_GeV{};
-    double maximum_negative_secondary_total_energy_GeV{};
-    std::uint64_t maximum_negative_secondary_count{};
-    double maximum_negative_baryon_number_residual{};
-    double maximum_negative_charge_number_residual{};
-    std::vector<int> maximum_negative_secondary_pdgs{};
-    double maximum_spacelike_excess_GeV{};
-    double minimum_residual_mass_squared_GeV2{};
-    double maximum_timelike_residual_mass_GeV{};
-    double maximum_positive_residual_beta{};
+    std::uint64_t auditedInteractions_{};
+    std::uint64_t deferredInteractions_{};
+    double weightedProjectileTotalEnergyGeV_{};
+    double weightedTargetTotalEnergyGeV_{};
+    double weightedEffectiveTargetTotalEnergyGeV_{};
+    double weightedTargetIsotopeCorrectionGeV_{};
+    std::uint64_t targetIsotopeAdjustedInteractions_{};
+    double weightedSecondaryTotalEnergyGeV_{};
+    double weightedEnergyResidualGeV_{};
+    double weightedAbsoluteEnergyResidualGeV_{};
+    double maximumAbsoluteResidualGeV_{};
+    double weightedIsotopeCorrectedEnergyResidualGeV_{};
+    double weightedAbsoluteIsotopeCorrectedEnergyResidualGeV_{};
+    double maximumAbsoluteIsotopeCorrectedResidualGeV_{};
+    std::uint64_t negativeIsotopeCorrectedResidualInteractions_{};
+    double maximumNegativeIsotopeCorrectedResidualGeV_{};
+    std::uint64_t spacelikeIsotopeCorrectedResidualInteractions_{};
+    double maximumIsotopeCorrectedSpacelikeExcessGeV_{};
+    double minimumIsotopeCorrectedResidualMassSquaredGeV2_{};
+    double maximumTargetTotalEnergyGeV_{};
+    double weightedMomentumResidualNormGeV_{};
+    double maximumMomentumResidualNormGeV_{};
+    std::uint64_t negativeEnergyResidualInteractions_{};
+    std::uint64_t spacelikeResidualInteractions_{};
+    double maximumNegativeEnergyResidualGeV_{};
+    int maximumNegativeProjectilePdg_{};
+    int maximumNegativeTargetPdg_{};
+    double maximumNegativeProjectileTotalEnergyGeV_{};
+    double maximumNegativeTargetTotalEnergyGeV_{};
+    double maximumNegativeSecondaryTotalEnergyGeV_{};
+    std::uint64_t maximumNegativeSecondaryCount_{};
+    double maximumNegativeBaryonNumberResidual_{};
+    double maximumNegativeChargeNumberResidual_{};
+    std::vector<int> maximumNegativeSecondaryPdgs_{};
+    double maximumSpacelikeExcessGeV_{};
+    double minimumResidualMassSquaredGeV2_{};
+    double maximumTimelikeResidualMassGeV_{};
+    double maximumPositiveResidualBeta_{};
   };
 
   /**
@@ -115,9 +119,9 @@ namespace corsika {
    * @endcode
    */
 
-  template <class TCountedProcess>
+  template <class TCountedProcess, typename TDeferral = NoInteractionDeferral>
   class InteractionCounter
-      : public InteractionProcess<InteractionCounter<TCountedProcess>> {
+      : public InteractionProcess<InteractionCounter<TCountedProcess, TDeferral>> {
 
   public:
     InteractionCounter(TCountedProcess& process);
@@ -160,20 +164,21 @@ namespace corsika {
     std::vector<InteractionTimingSample> const& getTimingSamples() const;
 
     /** Release consumed samples only; retain cumulative counts and ledgers. */
-    void releaseTimingSamples() { std::vector<InteractionTimingSample>{}.swap(timing_samples_); }
+    void releaseTimingSamples() {
+      std::vector<InteractionTimingSample>{}.swap(timingSamples_);
+    }
 
     double getTotalFinalStateTimeMs() const;
 
-    InteractionEnergyLedgerStatistics const&
-    getEnergyLedgerStatistics() const;
+    InteractionEnergyLedgerStatistics const& getEnergyLedgerStatistics() const;
 
   private:
     TCountedProcess& process_;
     InteractionHistogram histogram_;
     std::uint64_t count_{};
-    double total_final_state_time_ms_{};
-    std::vector<InteractionTimingSample> timing_samples_;
-    InteractionEnergyLedgerStatistics energy_ledger_statistics_{};
+    double totalFinalStateTimeMs_{};
+    std::vector<InteractionTimingSample> timingSamples_;
+    InteractionEnergyLedgerStatistics energyLedgerStatistics_{};
   };
 
   //! @}

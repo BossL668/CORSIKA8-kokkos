@@ -19,8 +19,8 @@
 namespace corsika {
 
   struct ObservationPlaneStatistics {
-    std::uint64_t particles{};
-    double weighted_total_energy_GeV{};
+    std::uint64_t particles_{};
+    double weightedTotalEnergyGeV_{};
   };
 
   /**
@@ -61,7 +61,7 @@ namespace corsika {
     ObservationPlane(Plane const& plane, DirectionVector const& x_dir,
                      bool const absorbing = true, TArgs&&... outputArgs);
 
-    ~ObservationPlane() {}
+    ~ObservationPlane();
 
     template <typename TParticle>
     ProcessReturn doContinuous(Step<TParticle>&, bool const stepLimit);
@@ -82,13 +82,11 @@ namespace corsika {
     template <typename TParticle, typename TTrajectory>
     LengthType getMaxStepLength(TParticle const&, TTrajectory const& vTrajectory);
 
-    Plane getPlane() const { return plane_; }
-    DirectionVector getXAxis() const { return xAxis_; }
-    DirectionVector getYAxis() const { return yAxis_; }
+    Plane getPlane() const;
+    DirectionVector getXAxis() const;
+    DirectionVector getYAxis() const;
 
-    ObservationPlaneStatistics const& statistics() const noexcept {
-      return statistics_;
-    }
+    ObservationPlaneStatistics const& statistics() const noexcept;
 
     YAML::Node getConfig() const;
 

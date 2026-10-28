@@ -31,10 +31,10 @@ namespace corsika::transport {
    * advances already started for this history.
    */
   struct TransportIdentity {
-    HistoryId history_id = NoParentHistoryId;
-    HistoryId parent_history_id = NoParentHistoryId;
-    Generation generation = 0;
-    StepId step_id = 0;
+    HistoryId historyId_ = NoParentHistoryId;
+    HistoryId parentHistoryId_ = NoParentHistoryId;
+    Generation generation_ = 0;
+    StepId stepId_ = 0;
   };
 
   static_assert(std::is_standard_layout_v<TransportIdentity>);
@@ -58,13 +58,13 @@ namespace corsika::transport {
     HistoryId reserveHistoryIds(std::uint64_t count);
     void importIdentity(int index, TransportIdentity const& identity);
     TransportIdentity const& getTransportIdentity(int index) const;
-    void setStepId(int index, StepId step_id);
+    void setStepId(int index, StepId stepId);
 
   private:
     HistoryId allocateHistoryId();
 
     std::vector<TransportIdentity> identities_;
-    HistoryId next_history_id_ = 1;
+    HistoryId nextHistoryId_ = 1;
   };
 
   /**
@@ -107,11 +107,10 @@ namespace corsika::transport {
 
   template <typename TParticle>
   struct HasTransportIdentity<
-      TParticle,
-      std::void_t<decltype(std::declval<TParticle const&>().getHistoryId()),
-                  decltype(std::declval<TParticle const&>().getGeneration()),
-                  decltype(std::declval<TParticle const&>().getStepId()),
-                  decltype(std::declval<TParticle&>().beginTransportStep())>>
+      TParticle, std::void_t<decltype(std::declval<TParticle const&>().getHistoryId()),
+                             decltype(std::declval<TParticle const&>().getGeneration()),
+                             decltype(std::declval<TParticle const&>().getStepId()),
+                             decltype(std::declval<TParticle&>().beginTransportStep())>>
       : std::true_type {};
 
   template <typename TParticle>

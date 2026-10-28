@@ -59,9 +59,7 @@ namespace corsika {
      */
     YAML::Node getSummary() const final override;
 
-    void writeSummary(boost::filesystem::path const& path) const final {
-      summary_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const final override;
 
     /**
      * If plane is absorbing particles: return the total energy absorbed.

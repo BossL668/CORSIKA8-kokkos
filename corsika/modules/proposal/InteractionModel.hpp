@@ -55,23 +55,20 @@ namespace corsika::proposal {
     std::unordered_map<calc_key_t, calculator_t, hash>
         calc_; //!< Stores the secondaries and interaction calculators.
 
-    using specified_calc_key_t =
-        std::tuple<size_t, Code, size_t>;
-    std::map<specified_calc_key_t, calculator_t>
-        specified_calc_;
+    using specified_calculator_key_type = std::tuple<size_t, Code, size_t>;
+    std::map<specified_calculator_key_type, calculator_t> specifiedCalc_;
 
-    ProposalRateProvider rate_provider_;
-    ProposalFinalStateGenerator final_state_generator_;
-    std::uint64_t atomic_electron_target_interactions_{};
-    double weighted_atomic_electron_rest_mass_input_GeV_{};
+    ProposalRateProvider rateProvider_;
+    ProposalFinalStateGenerator finalStateGenerator_;
+    std::uint64_t atomicElectronTargetInteractions_{};
+    double weightedAtomicElectronRestMassInputGeV_{};
 
     //!
     //! Build the secondaries and interaction calculators and add it to calc.
     //!
     void buildCalculator(Code, size_t const&) final;
 
-    calculator_t makeCalculator(
-        Code, size_t const&, HEPEnergyType);
+    calculator_t makeCalculator(Code, size_t const&, HEPEnergyType);
 
     inline static auto logger_{get_logger("corsika_proposal_InteractionModel")};
 
@@ -117,8 +114,7 @@ namespace corsika::proposal {
     calculator_t& getCalculatorForRecord(ProposalInteractionRecord const&);
 
     template <typename TParticle>
-    ProposalInteractionContext makeInteractionContext(
-        TParticle const&, Code) const;
+    ProposalInteractionContext makeInteractionContext(TParticle const&, Code) const;
 
   public:
     /**
@@ -126,8 +122,7 @@ namespace corsika::proposal {
      * model.  Exporting native interpolation data through these views neither
      * builds a second calculator nor advances any PROPOSAL random stream.
      */
-    std::vector<NativeInteractionCalculatorView>
-    nativeCalculatorViews() const;
+    std::vector<NativeInteractionCalculatorView> nativeCalculatorViews() const;
 
     //!
     //! Produces the stoachastic loss calculator for leptons based on nuclear
@@ -177,30 +172,24 @@ namespace corsika::proposal {
     template <typename TParticle>
     ProposalInteractionRecord sampleInteraction(
         TParticle&, Code const projectileId, ProposalRateTable const&,
-        double selection_uniform,
-        std::optional<ProposalRandomKey> random_key = std::nullopt);
+        double selectionUniform,
+        std::optional<ProposalRandomKey> randomKey = std::nullopt);
 
-    std::size_t requiredFinalStateRandomNumbers(
-        ProposalInteractionRecord const&);
+    std::size_t requiredFinalStateRandomNumbers(ProposalInteractionRecord const&);
 
-    ProposalFinalState generateFinalState(
-        ProposalInteractionRecord const&, std::vector<double> random_numbers);
+    ProposalFinalState generateFinalState(ProposalInteractionRecord const&,
+                                          std::vector<double> randomNumbers);
 
-    std::uint64_t atomicElectronTargetInteractions() const noexcept {
-      return atomic_electron_target_interactions_;
-    }
+    std::uint64_t atomicElectronTargetInteractions() const noexcept;
 
-    double weightedAtomicElectronRestMassInputGeV() const noexcept {
-      return weighted_atomic_electron_rest_mass_input_GeV_;
-    }
+    double weightedAtomicElectronRestMassInputGeV() const noexcept;
 
     /**
      * Resolve v for a GPU-selected process/component whose inverse-CDF query
      * was outside the device table capability. The process and target are
      * never resampled.
      */
-    void completeSelectedLoss(
-        ProposalInteractionRecord&, double loss_quantile);
+    void completeSelectedLoss(ProposalInteractionRecord&, double lossQuantile);
 
     /**
      * Replay the original PROPOSAL SampleLoss uniform on the scalar
@@ -219,8 +208,8 @@ namespace corsika::proposal {
      * hash. This cache is separate from calc_, so preparing a fallback never
      * changes scalar CPU rates or random-number behaviour.
      */
-    void prepareSpecifiedInteractionCalculator(
-        ProposalInteractionRecord const&, HEPEnergyType);
+    void prepareSpecifiedInteractionCalculator(ProposalInteractionRecord const&,
+                                               HEPEnergyType);
 
     /**
      * Deploy an already selected interaction onto a CORSIKA SecondaryView.
@@ -230,9 +219,9 @@ namespace corsika::proposal {
      * legacy doInteraction() path after its selection stage.
      */
     template <typename TSecondaryView>
-    ProcessReturn doSpecifiedInteraction(
-        TSecondaryView&, ProposalInteractionRecord const&,
-        std::vector<double> random_numbers);
+    ProcessReturn doSpecifiedInteraction(TSecondaryView&,
+                                         ProposalInteractionRecord const&,
+                                         std::vector<double> randomNumbers);
 
     //!
     //! Calculates and returns the cross section.

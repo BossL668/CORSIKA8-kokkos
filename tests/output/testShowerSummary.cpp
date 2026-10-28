@@ -1,23 +1,24 @@
 /*
  * (c) Copyright 2026 CORSIKA Project, corsika-project@lists.kit.edu
+ *
  * This software is distributed under the terms of the 3-clause BSD license.
  * See file LICENSE for a full version of the license.
  */
 #include <catch2/catch_all.hpp>
 #include <corsika/output/ShowerSummary.hpp>
-#include <corsika/accelerator/em/common/GpuEmRunOutput.hpp>
 #include <corsika/output/OutputManager.hpp>
 
 namespace {
   struct SummaryDirectory {
-    boost::filesystem::path path = boost::filesystem::unique_path("summary-test-%%%%-%%%%");
+    boost::filesystem::path path =
+        boost::filesystem::unique_path("summary-test-%%%%-%%%%");
     SummaryDirectory() { boost::filesystem::create_directory(path); }
     ~SummaryDirectory() {
       boost::system::error_code ignored;
       boost::filesystem::remove_all(path, ignored);
     }
   };
-}
+} // namespace
 
 TEST_CASE("ShowerSummary streams ordered records with bounded resident state") {
   SummaryDirectory directory;
@@ -81,42 +82,25 @@ TEST_CASE("ShowerSummary fails closed on journal failure") {
   CHECK(summary.hasResidentRecord());
 }
 
-TEST_CASE("GpuEmRunOutput streamed status supports failure after completion") {
-  SummaryDirectory directory;
-  corsika::gpu::em::GpuEmRunOutput output{YAML::Node()};
-  output.startOfLibrary(directory.path);
-  output.startOfShower(0);
-  output.endOfShower(0);
-  YAML::Node metadata;
-  metadata["count"] = 123;
-  output.recordComplete(0, metadata);
-  output.recordIncomplete(0, "injected failure");
-  output.writeSummary(directory.path / "summary.yaml");
-  auto result = YAML::LoadFile((directory.path / "summary.yaml").string());
-  REQUIRE(result.size() == 1);
-  CHECK_FALSE(result["shower_0"]["complete"].as<bool>());
-  CHECK(result["shower_0"]["statistics"]["count"].as<int>() == 123);
-  output.startOfShower(1);
-  output.endOfShower(1);
-  // OutputManager serializes before endOfLibrary: missing completion must
-  // already be marked incomplete in the file, not fixed only in memory.
-  output.writeSummary(directory.path / "summary.yaml");
-  output.endOfLibrary();
-  result = YAML::LoadFile((directory.path / "summary.yaml").string());
-  CHECK(result["shower_1"]["status"].as<std::string>() == "incomplete");
-}
-
 TEST_CASE("OutputManager dispatches streaming summary without materializing it") {
   SummaryDirectory directory;
   struct StreamingOutput : corsika::BaseOutput {
     mutable unsigned snapshots = 0;
     corsika::ShowerSummary data;
     void startOfLibrary(boost::filesystem::path const& path) override { data.open(path); }
-    void endOfShower(unsigned id) override { data.event(id)["value"] = id; data.flush(); }
+    void endOfShower(unsigned id) override {
+      data.event(id)["value"] = id;
+      data.flush();
+    }
     void endOfLibrary() override {}
     YAML::Node getConfig() const override { return YAML::Node(); }
-    YAML::Node getSummary() const override { ++snapshots; return data.snapshot(); }
-    void writeSummary(boost::filesystem::path const& path) const override { data.writeSummary(path); }
+    YAML::Node getSummary() const override {
+      ++snapshots;
+      return data.snapshot();
+    }
+    void writeSummary(boost::filesystem::path const& path) const override {
+      data.writeSummary(path);
+    }
   } participant;
   corsika::OutputManager manager((directory.path / "run").string());
   manager.add("stream", participant);
@@ -125,5 +109,6 @@ TEST_CASE("OutputManager dispatches streaming summary without materializing it")
   manager.endOfShower();
   manager.endOfLibrary();
   CHECK(participant.snapshots == 0);
-  CHECK(YAML::LoadFile((directory.path / "run/stream/summary.yaml").string()).size() == 1);
+  CHECK(YAML::LoadFile((directory.path / "run/stream/summary.yaml").string()).size() ==
+        1);
 }

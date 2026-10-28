@@ -65,10 +65,7 @@ namespace corsika {
     virtual YAML::Node getSummary() const { return YAML::Node(); }
 
     /** Serialize summaries without requiring a whole-library YAML graph. */
-    virtual void writeSummary(boost::filesystem::path const& path) const {
-      auto const summary = getSummary();
-      if (!summary.IsNull()) YAMLStreamer{}.writeYAML(summary, path);
-    }
+    virtual void writeSummary(boost::filesystem::path const& path) const;
 
   protected:
     /**
@@ -82,3 +79,5 @@ namespace corsika {
   };
 
 } // namespace corsika
+
+#include <corsika/detail/output/BaseOutput.inl>

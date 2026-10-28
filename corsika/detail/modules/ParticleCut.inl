@@ -23,11 +23,11 @@ namespace corsika {
                                            HEPEnergyType const eTauCut, bool const inv,
                                            TArgs&&... outputArgs)
       : TOutput(std::forward<TArgs>(outputArgs)...)
-      , cut_electrons_(eEleCut)
-      , cut_photons_(ePhoCut)
-      , cut_hadrons_(eHadCut)
-      , cut_muons_(eMuCut)
-      , cut_tau_(eTauCut)
+      , cutElectrons_(eEleCut)
+      , cutPhotons_(ePhoCut)
+      , cutHadrons_(eHadCut)
+      , cutMuons_(eMuCut)
+      , cutTau_(eTauCut)
       , doCutInv_(inv) {
     for (auto const p : get_all_particles()) {
       if (is_hadron(p)) // nuclei are also hadrons
@@ -117,36 +117,31 @@ namespace corsika {
   }
 
   template <typename TOutput>
-  inline void ParticleCut<TOutput>::recordCut(
-      Code const pid, HEPEnergyType const kinetic_energy,
-      double const weight, bool const rest_mass_converted) {
-    auto const weighted_kinetic_GeV =
-        weight * kinetic_energy / 1_GeV;
-    auto const weighted_rest_GeV =
-        rest_mass_converted ? 0. : weight * get_mass(pid) / 1_GeV;
-    ++statistics_.particles;
-    statistics_.weighted_kinetic_energy_GeV +=
-        weighted_kinetic_GeV;
-    statistics_.weighted_rest_mass_energy_GeV +=
-        weighted_rest_GeV;
+  inline void ParticleCut<TOutput>::recordCut(Code const pid,
+                                              HEPEnergyType const kineticEnergy,
+                                              double const weight,
+                                              bool const restMassConverted) {
+    auto const weightedKineticGeV = weight * kineticEnergy / 1_GeV;
+    auto const weightedRestGeV = restMassConverted ? 0. : weight * get_mass(pid) / 1_GeV;
+    ++statistics_.particles_;
+    statistics_.weightedKineticEnergyGeV_ += weightedKineticGeV;
+    statistics_.weightedRestMassEnergyGeV_ += weightedRestGeV;
     if (is_neutrino(pid)) {
-      ++statistics_.invisible_particles;
-      statistics_.weighted_invisible_kinetic_energy_GeV +=
-          weighted_kinetic_GeV;
+      ++statistics_.invisibleParticles_;
+      statistics_.weightedInvisibleKineticEnergyGeV_ += weightedKineticGeV;
     }
-    auto& species = statistics_.by_pdg[
-        static_cast<std::int32_t>(get_PDG(pid))];
-    ++species.particles;
-    species.weighted_kinetic_energy_GeV +=
-        weighted_kinetic_GeV;
-    species.weighted_rest_mass_energy_GeV +=
-        weighted_rest_GeV;
+    auto& species = statistics_.byPdg_[static_cast<std::int32_t>(get_PDG(pid))];
+    ++species.particles_;
+    species.weightedKineticEnergyGeV_ += weightedKineticGeV;
+    species.weightedRestMassEnergyGeV_ += weightedRestGeV;
   }
 
   template <typename TOutput>
   template <typename TParticle>
-  inline bool ParticleCut<TOutput>::annihilateStoppedPositron(
-      TParticle parent, HEPEnergyType kinetic, Point const& position, TimeType time) {
+  inline bool ParticleCut<TOutput>::annihilateStoppedPositron(TParticle parent,
+                                                              HEPEnergyType kinetic,
+                                                              Point const& position,
+                                                              TimeType time) {
     if constexpr (!EnableStoppedPositronAnnihilation) {
       return false;
     } else {
@@ -155,11 +150,12 @@ namespace corsika {
       // Time/geometry termination is not stopping physics. In particular, a
       // late positron must not start another cascade after the time limit.
       if (parent.getPID() != Code::Positron || time > 10_ms ||
-          !isBelowEnergyCut(Code::Positron, kinetic)) return false;
+          !isBelowEnergyCut(Code::Positron, kinetic))
+        return false;
       auto const mass = get_mass(Code::Electron);
       auto const weight = parent.getWeight();
-      ++statistics_.stopped_positron_annihilations;
-      statistics_.weighted_medium_rest_mass_input_GeV += weight * mass / 1_GeV;
+      ++statistics_.stoppedPositronAnnihilations_;
+      statistics_.weightedMediumRestMassInputGeV_ += weight * mass / 1_GeV;
       if (isBelowEnergyCut(Code::Photon, mass)) {
         for (int i = 0; i < 2; ++i) {
           recordCut(Code::Photon, mass, weight);
@@ -173,12 +169,14 @@ namespace corsika {
       auto const u = uniform(rng);
       auto const phi = uniform(rng);
       double d[3];
-      positronAtRestDirection(u, phi, d);
+      positron_at_rest_direction(u, phi, d);
       // Copy all endpoint data before append: underlying SoA storage may grow.
       auto const endpoint = position;
       for (double sign : {1., -1.}) {
-        auto photon = parent.addSecondary(std::make_tuple(Code::Photon, mass,
-            DirectionVector(endpoint.getCoordinateSystem(), {sign*d[0], sign*d[1], sign*d[2]})));
+        auto photon = parent.addSecondary(
+            std::make_tuple(Code::Photon, mass,
+                            DirectionVector(endpoint.getCoordinateSystem(),
+                                            {sign * d[0], sign * d[1], sign * d[2]})));
         photon.setPosition(endpoint);
         photon.setTime(time);
         photon.setWeight(weight); // no second thinning of a stopped parent
@@ -213,11 +211,11 @@ namespace corsika {
                                                           bool const) {
     if (checkCutParticle(step.getParticlePre().getPID(), step.getEkinPost(),
                          step.getTimePost())) {
-      auto const annihilated = annihilateStoppedPositron(
-          step.getParticlePre(), step.getEkinPost(), step.getPositionPost(), step.getTimePost());
-      recordCut(
-          step.getParticlePre().getPID(), step.getEkinPost(),
-          step.getParticlePre().getWeight(), annihilated);
+      auto const annihilated =
+          annihilateStoppedPositron(step.getParticlePre(), step.getEkinPost(),
+                                    step.getPositionPost(), step.getTimePost());
+      recordCut(step.getParticlePre().getPID(), step.getEkinPost(),
+                step.getParticlePre().getWeight(), annihilated);
       this->write(
           step.getPositionPost(), step.getParticlePre().getPID(),
           step.getParticlePre().getWeight() *
@@ -234,13 +232,13 @@ namespace corsika {
   inline void ParticleCut<TOutput>::printThresholds() const {
 
     CORSIKA_LOG_DEBUG("kinetic energy threshold for electrons is {} GeV",
-                      cut_electrons_ / 1_GeV);
+                      cutElectrons_ / 1_GeV);
     CORSIKA_LOG_DEBUG("kinetic energy threshold for photons is {} GeV",
-                      cut_photons_ / 1_GeV);
-    CORSIKA_LOG_DEBUG("kinetic energy threshold for muons is {} GeV", cut_muons_ / 1_GeV);
-    CORSIKA_LOG_DEBUG("kinetic energy threshold for tau is {} GeV", cut_tau_ / 1_GeV);
+                      cutPhotons_ / 1_GeV);
+    CORSIKA_LOG_DEBUG("kinetic energy threshold for muons is {} GeV", cutMuons_ / 1_GeV);
+    CORSIKA_LOG_DEBUG("kinetic energy threshold for tau is {} GeV", cutTau_ / 1_GeV);
     CORSIKA_LOG_DEBUG("kinetic energy threshold for hadrons is {} GeV",
-                      cut_hadrons_ / 1_GeV);
+                      cutHadrons_ / 1_GeV);
 
     for (auto const& cut : cuts_) {
       CORSIKA_LOG_DEBUG("kinetic energy threshold for particle {} is {} GeV", cut.first,
@@ -254,18 +252,56 @@ namespace corsika {
     YAML::Node node;
     node["type"] = "ParticleCut";
     node["units"]["energy"] = "GeV";
-    node["cut_electrons"] = cut_electrons_ / 1_GeV;
-    node["cut_photons"] = cut_photons_ / 1_GeV;
-    node["cut_muons"] = cut_muons_ / 1_GeV;
-    node["cut_hadrons"] = cut_hadrons_ / 1_GeV;
-    node["cut_tau"] = cut_tau_ / 1_GeV;
+    node["cut_electrons"] = cutElectrons_ / 1_GeV;
+    node["cut_photons"] = cutPhotons_ / 1_GeV;
+    node["cut_muons"] = cutMuons_ / 1_GeV;
+    node["cut_hadrons"] = cutHadrons_ / 1_GeV;
+    node["cut_tau"] = cutTau_ / 1_GeV;
     node["cut_invisibles"] = doCutInv_;
     node["stopped_positron_annihilation"] = EnableStoppedPositronAnnihilation
-        ? "two_photon_at_rest_v1" : "disabled_original_c8_cut";
+                                                ? "two_photon_at_rest_v1"
+                                                : "disabled_original_c8_cut";
     for (auto const& cut : cuts_) {
       node[fmt::format("cut_{}", cut.first)] = cut.second / 1_GeV;
     }
     return node;
+  }
+
+  template <typename TOutput>
+  template <typename TParticle, typename TTrajectory>
+  inline LengthType ParticleCut<TOutput>::getMaxStepLength(TParticle const&,
+                                                           TTrajectory const&) {
+    return meter * std::numeric_limits<double>::infinity();
+  }
+
+  template <typename TOutput>
+  inline HEPEnergyType ParticleCut<TOutput>::getElectronKineticECut() const {
+    return cutElectrons_;
+  }
+
+  template <typename TOutput>
+  inline HEPEnergyType ParticleCut<TOutput>::getPhotonKineticECut() const {
+    return cutPhotons_;
+  }
+
+  template <typename TOutput>
+  inline HEPEnergyType ParticleCut<TOutput>::getMuonKineticECut() const {
+    return cutMuons_;
+  }
+
+  template <typename TOutput>
+  inline HEPEnergyType ParticleCut<TOutput>::getTauKineticECut() const {
+    return cutTau_;
+  }
+
+  template <typename TOutput>
+  inline HEPEnergyType ParticleCut<TOutput>::getHadronKineticECut() const {
+    return cutHadrons_;
+  }
+
+  template <typename TOutput>
+  inline ParticleCutStatistics const& ParticleCut<TOutput>::statistics() const noexcept {
+    return statistics_;
   }
 
 } // namespace corsika

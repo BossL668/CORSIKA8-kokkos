@@ -11,11 +11,12 @@
 #include <utility>
 #include <memory>
 #include <tuple>
+#include <set>
 
 #include <corsika/media/Environment.hpp>
 #include <corsika/media/NuclearComposition.hpp>
 #include <corsika/framework/geometry/FourVector.hpp>
-#include <corsika/framework/core/HadronicBatchProtocol.hpp>
+#include <corsika/framework/geometry/Vector.hpp>
 #include <corsika/framework/utility/COMBoost.hpp>
 #include <corsika/framework/core/Logging.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
@@ -30,10 +31,6 @@ namespace corsika::fluka {
    */
   class InteractionModel {
   public:
-    static constexpr HadronicWorkerModel
-        hadronic_worker_model =
-            HadronicWorkerModel::Fluka;
-
     /**
      * One FLUKA final-state particle in the original CORSIKA frame.
      *
@@ -42,8 +39,7 @@ namespace corsika::fluka {
      * existing addSecondary() input, so the legacy scalar path does not need a second
      * kinematic conversion.
      */
-    using FinalStateParticle =
-        std::tuple<Code, HEPEnergyType, DirectionVector>;
+    using FinalStateParticle = std::tuple<Code, HEPEnergyType, DirectionVector>;
     using FinalState = std::vector<FinalStateParticle>;
 
     /**
@@ -72,10 +68,9 @@ namespace corsika::fluka {
      * deterministic SecondaryView commit, allowing future workers to return a complete
      * final state to the owner of the main stack.
      */
-    FinalState generateFinalState(
-        Code projectileId, Code targetId,
-        FourMomentum const& projectileP4,
-        FourMomentum const& targetP4);
+    FinalState generateFinalState(Code projectileId, Code targetId,
+                                  FourMomentum const& projectileP4,
+                                  FourMomentum const& targetP4);
 
     /**
      * Perform an interaction. Since FLUKA expects a fixed-target configuration, we

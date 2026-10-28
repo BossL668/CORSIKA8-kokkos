@@ -114,16 +114,12 @@ namespace corsika::fluka {
                                               Code const targetId,
                                               FourMomentum const& projectileP4,
                                               FourMomentum const& targetP4) {
-    auto finalState =
-        generateFinalState(projectileId, targetId, projectileP4, targetP4);
-    for (auto& secondary : finalState) {
-      view.addSecondary(std::move(secondary));
-    }
+    auto finalState = generateFinalState(projectileId, targetId, projectileP4, targetP4);
+    for (auto& secondary : finalState) { view.addSecondary(std::move(secondary)); }
   }
 
   inline InteractionModel::FinalState InteractionModel::generateFinalState(
-      Code const projectileId, Code const targetId,
-      FourMomentum const& projectileP4,
+      Code const projectileId, Code const targetId, FourMomentum const& projectileP4,
       FourMomentum const& targetP4) {
     auto const flukaCodeProj =
         static_cast<FLUKACodeIntType>(convertToFluka(projectileId));
@@ -176,9 +172,8 @@ namespace corsika::fluka {
       auto const momOrigFrame = fourMomOrigFrame.getSpaceLikeComponents();
       auto const p = momOrigFrame.getNorm();
 
-      finalState.emplace_back(
-          c8code, corsika::calculate_kinetic_energy(p, c8mass),
-          momOrigFrame / p);
+      finalState.emplace_back(c8code, corsika::calculate_kinetic_energy(p, c8mass),
+                              momOrigFrame / p);
     }
     return finalState;
   }
@@ -222,7 +217,7 @@ namespace corsika::fluka {
                      &size);
     // Historical libfluka can lack __wrap_fpenab_. Do not assume the library
     // provides the signal-safety guard: confirm the policy at the interface.
-    disableDiagnosticTimerAfterInitialization();
+    disable_diagnostic_timer_after_initialization();
 
     // now create & fill vector of (C8 Code, FLUKA mat. no.) pairs
     std::vector<std::pair<Code, int>> mapping;

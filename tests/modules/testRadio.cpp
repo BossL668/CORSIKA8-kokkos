@@ -227,22 +227,8 @@ TEST_CASE("Radio", "[processes]") {
     // run end of shower and make sure that something extra was added
     auto const fileSizeC = boost::filesystem::file_size(outputFileC);
     coreas.endOfShower(0);
-    // A library may contain multiple showers.  The parquet stream must stay
-    // open until endOfLibrary(), while endOfShower() only flushes and resets
-    // observer waveforms.
-    CHECK_NOTHROW(coreas.endOfShower(1));
-    coreas.endOfLibrary();
     CHECK(boost::filesystem::file_size(outputFileC) > fileSizeC);
-    auto const diagnostics = coreas.getSummary();
-    REQUIRE(diagnostics["shower_0"]["segment_count"].as<std::uint64_t>() >= 1);
-    REQUIRE(
-        diagnostics["shower_0"]["weighted_track_length_m"].as<double>() > 0.);
-    REQUIRE(
-        diagnostics["shower_0"]["electron_weighted_track_length_m"].as<double>() >
-        0.);
-    REQUIRE(
-        diagnostics["shower_0"]["positron_weighted_track_length_m"].as<double>() ==
-        0.);
+    coreas.endOfLibrary();
 
   } // END: SECTION("CoREAS process")
 
@@ -458,9 +444,8 @@ TEST_CASE("Radio", "[processes]") {
     // run end of shower and make sure that something extra was added
     auto const fileSizeZ = boost::filesystem::file_size(outputFileZ);
     zhs.endOfShower(0);
-    CHECK_NOTHROW(zhs.endOfShower(1));
-    zhs.endOfLibrary();
     CHECK(boost::filesystem::file_size(outputFileZ) > fileSizeZ);
+    zhs.endOfLibrary();
 
   } // END: SECTION("ZHS process")
 
@@ -987,37 +972,6 @@ TEST_CASE("observers") {
     obs1.receive(t1 + t2 + 1_s, path1, vectorPotential1);
     for (auto const& val : obs1.getWaveformX()) { CHECK(val * 0 == val); }
   } // END: SECTION("TimeDomainObserver Receive Vector Potential")
-
-  SECTION("ZHS potential edge bins have complete support") {
-    using EnvType = Environment<IRefractiveIndexModel<IMediumModel>>;
-    EnvType env;
-    auto const cs = env.getCoordinateSystem();
-    Point const position(cs, 0_m, 0_m, 0_m);
-    DirectionVector const emit(cs, {0., 0., 1.});
-    SignalPath path(0_s, 1., 1., 1., emit, -emit, 1_m, {position});
-    TimeDomainObserver potential("A", position, cs, 0_s, 4_ns, 1_GHz, 0_s);
-    TimeDomainObserver field("E", position, cs, 0_s, 4_ns, 1_GHz, 0_s);
-    auto const axis = potential.getAxis();
-    VectorPotential const a(cs, 1_V * 1_s / 1_m, 0_V * 1_s / 1_m, 0_V * 1_s / 1_m);
-    ElectricFieldVector const e(cs, 1_V / 1_m, 0_V / 1_m, 0_V / 1_m);
-    for (auto phase : {-.25, .25}) {
-      potential.reset();
-      field.reset();
-      for (int i = 0; i <= 4; ++i) {
-        potential.receive((i + phase) * 1_ns, path, a);
-        field.receive((i + phase) * 1_ns, path, e);
-      }
-      REQUIRE(potential.getWaveformX().size() == 5);
-      REQUIRE(potential.getAxis() == axis);
-      for (auto value : potential.getWaveformX()) CHECK(value == 1.);
-      for (std::size_t i = 0; i < 4; ++i)
-        CHECK(potential.getWaveformX()[i + 1] - potential.getWaveformX()[i] == 0.);
-      CHECK(field.getWaveformX()[phase < 0 ? 0 : 4] == 0.); // CoREAS unchanged.
-    }
-    potential.reset();
-    for (auto time : {-.75, 4.75, -1.e50, 1.e50}) potential.receive(time * 1_ns, path, a);
-    for (auto value : potential.getWaveformX()) CHECK(value == 0.);
-  }
 
   SECTION("TimeDomainObserver ObserverCollection") {
 

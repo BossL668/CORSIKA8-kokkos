@@ -20,21 +20,24 @@ namespace corsika {
   template <typename TOutput>
   inline EnergyLossWriter<TOutput>::EnergyLossWriter(ShowerAxis const& axis,
                                                      GrammageType dX,
-                                                     GrammageType dX_threshold)
+                                                     GrammageType dX_threshold,
+                                                     ShortTrackDepositMode shortTrackMode)
       : EnergyLossWriter<TOutput>{axis,
                                   static_cast<unsigned int>(axis.getMaximumX() / dX) + 1,
-                                  dX, dX_threshold} {}
+                                  dX, dX_threshold, shortTrackMode} {}
 
   template <typename TOutput>
   inline EnergyLossWriter<TOutput>::EnergyLossWriter(ShowerAxis const& axis,
                                                      unsigned int const nBins,
                                                      GrammageType dX,
-                                                     GrammageType dX_threshold)
+                                                     GrammageType dX_threshold,
+                                                     ShortTrackDepositMode shortTrackMode)
       : TOutput(dEdX_output::ProfileIndexNames)
       , showerAxis_(axis)
       , dX_(dX)
       , nBins_(nBins)
-      , dX_threshold_(dX_threshold) {}
+      , dX_threshold_(dX_threshold)
+      , shortTrackMode_(shortTrackMode) {}
 
   template <typename TOutput>
   inline void EnergyLossWriter<TOutput>::startOfLibrary(
@@ -87,8 +90,7 @@ namespace corsika {
             1_GeV);
 
     summary_.event(showerId)["sum_dEdX"] = getEnergyLost() / 1_GeV;
-    summary_.event(showerId)["sum_dEdX_em"] =
-        electromagneticEnergyLost_ / 1_GeV;
+    summary_.event(showerId)["sum_dEdX_em"] = electromagneticEnergyLost_ / 1_GeV;
     summary_.event(showerId)["Xmax"] = Xmax;
     summary_.event(showerId)["dEdXmax"] = dEdXmax;
 
@@ -109,13 +111,19 @@ namespace corsika {
 
     GrammageType grammageStart = showerAxis_.getProjectedX(p0);
     GrammageType grammageEnd = showerAxis_.getProjectedX(p1);
+    if (shortTrackMode_ == ShortTrackDepositMode::StartPoint &&
+        abs(grammageEnd - grammageStart) < dX_threshold_) {
+      write(p0, PID, dE);
+      return;
+    }
     writeProjected(grammageStart, grammageEnd, PID, dE);
   }
 
   template <typename TOutput>
-  inline void EnergyLossWriter<TOutput>::writeProjected(
-      GrammageType grammageStart, GrammageType grammageEnd,
-      Code const PID, HEPEnergyType const dE) {
+  inline void EnergyLossWriter<TOutput>::writeProjected(GrammageType grammageStart,
+                                                        GrammageType grammageEnd,
+                                                        Code const PID,
+                                                        HEPEnergyType const dE) {
 
     if (grammageStart > grammageEnd) { // particle going upstream
       std::swap(grammageStart, grammageEnd);
@@ -179,15 +187,13 @@ namespace corsika {
   }
 
   template <typename TOutput>
-  inline void EnergyLossWriter<TOutput>::addBin(
-      size_t bin, HEPEnergyType dE) {
-    profile_.at(bin)[
-        static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
+  inline void EnergyLossWriter<TOutput>::addBin(size_t bin, HEPEnergyType dE) {
+    profile_.at(bin)[static_cast<int>(dEdX_output::ProfileIndex::Total)] += dE;
   }
 
   template <typename TOutput>
-  inline void EnergyLossWriter<TOutput>::addElectromagneticBin(
-      size_t bin, HEPEnergyType dE) {
+  inline void EnergyLossWriter<TOutput>::addElectromagneticBin(size_t bin,
+                                                               HEPEnergyType dE) {
     addBin(bin, dE);
     electromagneticEnergyLost_ += dE;
   }
@@ -270,4 +276,17 @@ namespace corsika {
     return summary_.snapshot();
   }
 
+} // namespace corsika
+
+namespace corsika {
+  template <typename TOutput>
+  inline auto EnergyLossWriter<TOutput>::GetNBins() const {
+    return nBins_;
+  }
+
+  template <typename TOutput>
+  inline void EnergyLossWriter<TOutput>::writeSummary(
+      boost::filesystem::path const& path) const {
+    summary_.writeSummary(path);
+  }
 } // namespace corsika

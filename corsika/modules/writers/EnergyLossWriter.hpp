@@ -24,6 +24,12 @@
  */
 
 namespace corsika {
+  /** Native point writers keep the starting endpoint of a very short track;
+   * production projected writers use its lower grammage. This is an output
+   * adapter policy for write(Point, Point) only; writeProjected retains the
+   * production lower-grammage convention. Production Cp8 assembly selects
+   * LowerGrammage explicitly, including its borrowed CPU fallback SubWriters. */
+  enum class ShortTrackDepositMode { StartPoint, LowerGrammage };
 
   // clang-format-off
   /**
@@ -116,15 +122,17 @@ namespace corsika {
     // Number of bins defined explicitly
     EnergyLossWriter(ShowerAxis const& axis,
                      GrammageType dX = 10_g / square(1_cm), // profile binning
-                     GrammageType dX_threshold = 0.0001_g /
-                                                 square(1_cm)); // ignore too short tracks
+                     GrammageType dX_threshold = 0.0001_g / square(1_cm),
+                     ShortTrackDepositMode shortTrackMode =
+                         ShortTrackDepositMode::StartPoint); // ignore too short tracks
 
     // Number of bins defined explicitly
     EnergyLossWriter(ShowerAxis const& axis,
                      unsigned int const nBins,              // number of bins
                      GrammageType dX = 10_g / square(1_cm), // profile binning
-                     GrammageType dX_threshold = 0.0001_g /
-                                                 square(1_cm)); // ignore too short tracks
+                     GrammageType dX_threshold = 0.0001_g / square(1_cm),
+                     ShortTrackDepositMode shortTrackMode =
+                         ShortTrackDepositMode::StartPoint); // ignore too short tracks
 
     void startOfLibrary(boost::filesystem::path const& directory) final override;
 
@@ -170,7 +178,7 @@ namespace corsika {
      */
     void addElectromagneticBin(size_t bin, HEPEnergyType dE);
 
-    auto GetNBins() const { return nBins_; }
+    auto GetNBins() const;
 
     /**
      * Get total observed energy loss.
@@ -184,9 +192,7 @@ namespace corsika {
      */
     YAML::Node getSummary() const override;
 
-    void writeSummary(boost::filesystem::path const& path) const override {
-      summary_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const override;
 
     /**
      * Return the configuration of this output.
@@ -200,6 +206,7 @@ namespace corsika {
     GrammageType dX_threshold_;    ///< too short tracks are discarded.
     std::vector<dEdX_output::Profile> profile_; // longitudinal profile
     HEPEnergyType electromagneticEnergyLost_{HEPEnergyType::zero()};
+    ShortTrackDepositMode const shortTrackMode_;
     ShowerSummary summary_;
   }; // namespace corsika
 

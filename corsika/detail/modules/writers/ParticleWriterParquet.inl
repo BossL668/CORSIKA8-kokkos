@@ -79,28 +79,20 @@ namespace corsika {
   inline void ParticleWriterParquet::endOfShower(unsigned int const) {
     output_.flushStreamer();
     summary_.event(showerId_)["hadron"]["count"] = countHadrons_;
-    summary_.event(showerId_)["hadron"]["kinetic_energy"] =
-        kineticEnergyHadrons_ / 1_GeV;
-    summary_.event(showerId_)["hadron"]["total_energy"] =
-        totalEnergyHadrons_ / 1_GeV;
+    summary_.event(showerId_)["hadron"]["kinetic_energy"] = kineticEnergyHadrons_ / 1_GeV;
+    summary_.event(showerId_)["hadron"]["total_energy"] = totalEnergyHadrons_ / 1_GeV;
 
     summary_.event(showerId_)["muon"]["count"] = countMuons_;
-    summary_.event(showerId_)["muon"]["kinetic_energy"] =
-        kineticEnergyMuons_ / 1_GeV;
-    summary_.event(showerId_)["muon"]["total_energy"] =
-        totalEnergyMuons_ / 1_GeV;
+    summary_.event(showerId_)["muon"]["kinetic_energy"] = kineticEnergyMuons_ / 1_GeV;
+    summary_.event(showerId_)["muon"]["total_energy"] = totalEnergyMuons_ / 1_GeV;
 
     summary_.event(showerId_)["em"]["count"] = countEM_;
-    summary_.event(showerId_)["em"]["kinetic_energy"] =
-        kineticEnergyEM_ / 1_GeV;
-    summary_.event(showerId_)["em"]["total_energy"] =
-        totalEnergyEM_ / 1_GeV;
+    summary_.event(showerId_)["em"]["kinetic_energy"] = kineticEnergyEM_ / 1_GeV;
+    summary_.event(showerId_)["em"]["total_energy"] = totalEnergyEM_ / 1_GeV;
 
     summary_.event(showerId_)["other"]["count"] = countOthers_;
-    summary_.event(showerId_)["other"]["kinetic_energy"] =
-        kineticEnergyOthers_ / 1_GeV;
-    summary_.event(showerId_)["other"]["total_energy"] =
-        totalEnergyOthers_ / 1_GeV;
+    summary_.event(showerId_)["other"]["kinetic_energy"] = kineticEnergyOthers_ / 1_GeV;
+    summary_.event(showerId_)["other"]["total_energy"] = totalEnergyOthers_ / 1_GeV;
     summary_.flush();
   }
 
@@ -149,6 +141,13 @@ namespace corsika {
   /**
    * Return collected library-level summary for output.
    */
-  inline YAML::Node ParticleWriterParquet::getSummary() const { return summary_.snapshot(); }
+  inline YAML::Node ParticleWriterParquet::getSummary() const {
+    return summary_.snapshot();
+  }
+
+  inline void ParticleWriterParquet::writeSummary(
+      boost::filesystem::path const& path) const {
+    summary_.writeSummary(path);
+  }
 
 } // namespace corsika

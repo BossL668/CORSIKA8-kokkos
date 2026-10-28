@@ -55,4 +55,15 @@ namespace corsika {
         traj, grammage, axis);
   }
 
+  template <typename TDerived>
+  inline DensityModelParameters SlidingPlanarExponential<TDerived>::exportDensity()
+      const {
+    return {DensityModelParameters::Kind::SlidingPlanarExponential,
+            Base::getReferenceDensity(),
+            Base::getScaleLength(),
+            Base::getReferenceHeight(),
+            Base::getAnchorPoint(),
+            DirectionVector(Base::getAnchorPoint().getCoordinateSystem(), {0., 0., 1.})};
+  }
+
 } // namespace corsika

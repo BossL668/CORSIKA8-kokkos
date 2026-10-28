@@ -35,9 +35,14 @@ namespace corsika {
 
     Point const& getAnchorPoint() const { return point_; }
 
-    MassDensityType getReferenceDensity() const { return rho0_; }
-    LengthType getScaleLength() const { return lambda_; }
-    LengthType getReferenceHeight() const { return referenceHeight_; }
+    /// Return the stored reference density without evaluating the density law.
+    [[nodiscard]] MassDensityType getReferenceDensity() const;
+
+    /// Return the signed exponential scale length with its original units.
+    [[nodiscard]] LengthType getScaleLength() const;
+
+    /// Return the stored height at which the reference density is defined.
+    [[nodiscard]] LengthType getReferenceHeight() const;
 
   protected:
     auto const& getImplementation() const;

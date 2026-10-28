@@ -6,3 +6,10 @@ add_subdirectory (modules/qgsjetII)
 add_subdirectory (modules/qgsjetIII)
 add_subdirectory (modules/epos)
 add_subdirectory (modules/fluka)
+
+if (CORSIKA_ENABLE_KOKKOS)
+  add_subdirectory (kokkos)
+endif ()
+
+include (${PROJECT_SOURCE_DIR}/cmake/CascadeApplicationTargets.cmake)
+corsika_add_cascade_application ("${PROJECT_SOURCE_DIR}" CORSIKA8)

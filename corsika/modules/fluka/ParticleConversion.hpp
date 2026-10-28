@@ -42,7 +42,7 @@ namespace corsika::fluka {
     return static_cast<FLUKACodeIntType>(convertToFluka(code));
   }
 
-  bool const canInteract(Code const code) {
+  inline bool const canInteract(Code const code) {
     if (is_nucleus(code)) return false; // nuclei support not yet implemented
     return flukaCanInteract[static_cast<CodeIntType>(code)];
   }

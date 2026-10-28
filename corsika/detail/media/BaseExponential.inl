@@ -75,4 +75,19 @@ namespace corsika {
     }
   }
 
+  template <typename TDerived>
+  inline MassDensityType BaseExponential<TDerived>::getReferenceDensity() const {
+    return rho0_;
+  }
+
+  template <typename TDerived>
+  inline LengthType BaseExponential<TDerived>::getScaleLength() const {
+    return lambda_;
+  }
+
+  template <typename TDerived>
+  inline LengthType BaseExponential<TDerived>::getReferenceHeight() const {
+    return referenceHeight_;
+  }
+
 } // namespace corsika

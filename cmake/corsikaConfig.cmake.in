@@ -25,32 +25,6 @@ option (WITH_HISTORY "Flag to switch on/off HISTORY" ON)
 # General config and flags
 #
 set (CMAKE_CXX_STANDARD @CMAKE_CXX_STANDARD@)
-
-set (CORSIKA8_WITH_CUDA @CORSIKA_ENABLE_CUDA@)
-if (CORSIKA8_WITH_CUDA)
-  include (CMakeFindDependencyMacro)
-  find_dependency (CUDAToolkit 12)
-  # CORSIKA8GpuEm is a static library. Its private Moliere interpolation
-  # implementation therefore remains a link-time dependency of downstream
-  # executables and must be materialized before corsikaTargets.cmake is read.
-  find_dependency (CubicInterpolation REQUIRED)
-endif ()
-
-# A Kokkos build exports the compiled CORSIKA8KokkosEm static target.  Restore
-# the exact execution-space dependency before corsikaTargets.cmake is read;
-# otherwise an installed tree works for its applications but cannot be
-# consumed by a downstream find_package(corsika) project.  Kokkos-CUDA also
-# exposes CUDA runtime targets from the static backend archive even though the
-# mutually exclusive native-CUDA option is disabled for that build.
-set (CORSIKA8_WITH_KOKKOS @CORSIKA_ENABLE_KOKKOS@)
-set (CORSIKA8_KOKKOS_BACKEND "@CORSIKA_KOKKOS_BACKEND@")
-if (CORSIKA8_WITH_KOKKOS)
-  include (CMakeFindDependencyMacro)
-  find_dependency (Kokkos 4.7.3 CONFIG REQUIRED)
-  if (CORSIKA8_KOKKOS_BACKEND MATCHES "^CUDA")
-    find_dependency (CUDAToolkit 12 REQUIRED)
-  endif ()
-endif ()
 set (CMAKE_CXX_EXTENSIONS @CMAKE_CXX_EXTENSIONS@)
 set (COMPILE_OPTIONS @COMPILE_OPTIONS@)
 set (CMAKE_VERBOSE_MAKEFILE  @CMAKE_VERBOSE_MAKEFILE@) 
@@ -66,6 +40,28 @@ find_package(spdlog REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Arrow REQUIRED)
 find_package(PROPOSAL REQUIRED)
+
+# This is a property of the installed binary, not a consumer-selectable option.
+set (CORSIKA8_PROPOSAL_EXPORT_ENABLED @CORSIKA_ENABLE_PROPOSAL_EXPORT@)
+if (CORSIKA8_PROPOSAL_EXPORT_ENABLED)
+  include ("${CMAKE_CURRENT_LIST_DIR}/corsikaCheckProposalExport.cmake")
+  corsika_check_proposal_export (
+    "${CMAKE_CURRENT_LIST_DIR}" CORSIKA8_PROPOSAL_EXPORT_HEADER_DIGEST
+    "@CORSIKA_PROPOSAL_EXPORT_HEADER_DIGEST@"
+  )
+endif ()
+
+if (@CORSIKA_ENABLE_KOKKOS@)
+  include (CMakeFindDependencyMacro)
+  find_dependency (Kokkos 4.7 CONFIG)
+  find_dependency (Threads)
+  find_dependency (CubicInterpolation CONFIG)
+  find_dependency (OpenSSL)
+  find_dependency (nlohmann_json CONFIG)
+  if ("@CORSIKA_KOKKOS_RESOLVED_BACKEND@" MATCHES "^CUDA")
+    find_dependency (CUDAToolkit)
+  endif ()
+endif ()
 
 #+++++++++++++++++++++++++++++
 # Import Pythia8

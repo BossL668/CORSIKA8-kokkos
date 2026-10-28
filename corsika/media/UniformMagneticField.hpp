@@ -10,7 +10,7 @@
 #include <corsika/media/IMagneticFieldModel.hpp>
 #include <corsika/framework/geometry/Vector.hpp>
 #include <corsika/framework/geometry/PhysicalGeometry.hpp>
-#include <corsika/media/EnvironmentModelExport.hpp>
+#include <corsika/media/IUniformMagneticFieldExport.hpp>
 
 namespace corsika {
 
@@ -21,7 +21,7 @@ namespace corsika {
    * for all evaluated locations.
    */
   template <typename T>
-  class UniformMagneticField : public T, public IUniformFieldExport {
+  class UniformMagneticField : public T, public IUniformMagneticFieldExport {
 
   public:
     /**
@@ -55,7 +55,8 @@ namespace corsika {
      */
     void setMagneticField(MagneticFieldVector const& Bfield) { B_ = Bfield; }
 
-    MagneticFieldVector exportUniformField() const override { return B_; }
+    /// Copy the current field with its original units and coordinate system.
+    [[nodiscard]] MagneticFieldVector exportUniformField() const override;
 
   private:
     MagneticFieldVector B_; ///< The constant magnetic field we use.
@@ -63,3 +64,5 @@ namespace corsika {
   }; // END: class MagneticField
 
 } // namespace corsika
+
+#include <corsika/detail/media/UniformMagneticField.inl>

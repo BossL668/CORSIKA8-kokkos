@@ -1,8 +1,0 @@
-{
-  "schema": 1,
-  "backend": "@_c8_manifest_backend@",
-  "kokkos_version": "@Kokkos_VERSION@",
-  "architecture": "@CORSIKA_KOKKOS_ARCHITECTURE@",
-  "physics_source": "proposal-native",
-  "host_execution": "@_c8_manifest_host@"
-}

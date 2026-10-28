@@ -63,6 +63,9 @@ namespace corsika {
 
     auto const& getVolume() const { return *geoVolume_; }
 
+    /** Whether this node owns a volume that can be read with getVolume(). */
+    bool hasVolume() const { return geoVolume_ != nullptr; }
+
     auto const& getModelProperties() const { return *modelProperties_; }
 
     bool hasModelProperties() const { return modelProperties_.get() != nullptr; }

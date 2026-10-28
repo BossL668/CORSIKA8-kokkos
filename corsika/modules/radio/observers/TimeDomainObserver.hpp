@@ -5,6 +5,8 @@
  * See file LICENSE for a full version of the license.
  */
 #pragma once
+#include <stdexcept>
+#include <cstddef>
 
 #include <corsika/modules/radio/observers/Observer.hpp>
 #include <corsika/modules/radio/propagators/SignalPath.hpp>
@@ -12,6 +14,9 @@
 #include <vector>
 
 namespace corsika {
+
+  /** Choose how integrated vector-potential contributions enter the time window. */
+  enum class VectorPotentialWindowMode { TimeWindow, RoundedBins };
 
   /**
    * An implementation of a time-domain observer that has a customized
@@ -30,6 +35,7 @@ namespace corsika {
     std::vector<double> waveformEZ_; ///< EZ polarization.
     std::vector<long double> const
         time_axis_; ///< The time axis corresponding to the electric field.
+    VectorPotentialWindowMode const vectorPotentialWindowMode_;
 
   public:
     // import the methods from the observer
@@ -47,12 +53,15 @@ namespace corsika {
      * @param sample_rate        The sample rate of this waveform.
      * @param ground_hit_time    The time the primary particle hits the ground on a
      * straight vertical line.
+     * @param vectorPotentialWindowMode Clip ZHS labels by time or by rounded bin.
      *
      */
     TimeDomainObserver(std::string const& name, Point const& location,
                        CoordinateSystemPtr coordinateSystem, TimeType const& start_time,
                        TimeType const& duration, InverseTimeType const& sample_rate,
-                       TimeType const ground_hit_time);
+                       TimeType const ground_hit_time,
+                       VectorPotentialWindowMode vectorPotentialWindowMode =
+                           VectorPotentialWindowMode::TimeWindow);
 
     /**
      * Receive an electric field at this observer.
@@ -129,15 +138,8 @@ namespace corsika {
      */
     TimeType const& getDuration() const;
 
-    /**
-     * Add an externally accumulated waveform to this observer.
-     *
-     * The CUDA radio backend uses this once per shower to merge device
-     * CoREAS electric fields or ZHS vector potentials before the normal
-     * RadioProcess::endOfShower output path runs.
-     */
-    void addWaveform(std::vector<double> const& x,
-                     std::vector<double> const& y,
+    /** Merge production CoREAS fields or ZHS potentials before native output. */
+    void addWaveform(std::vector<double> const& x, std::vector<double> const& y,
                      std::vector<double> const& z);
 
     /**

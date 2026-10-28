@@ -12,8 +12,8 @@
 #include <corsika/framework/stack/DefaultSecondaryProducer.hpp>
 #include <corsika/framework/stack/SecondaryView.hpp>
 
-#include <stdexcept>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <utility>
@@ -167,19 +167,13 @@ namespace corsika {
     template <typename... TArgs>
     void clear(TArgs... args);
 
-    /**
-     * Reserve a globally unique contiguous transport-history range when the
-     * selected stack data provides TransportIdentityData.
-     *
-     * The dependent return type keeps this method absent for ordinary stacks.
-     * Hybrid device schedulers use it immediately before a branching kernel so
-     * CPU and GPU secondary IDs cannot overlap.
+    /** Reserve the production transport-history ID range through the stack data.
+     * The dependent return type excludes ordinary stacks without transport identities.
      */
     template <typename U = value_type>
     auto reserveTransportHistoryIds(std::uint64_t count)
-        -> decltype(std::declval<U&>().reserveHistoryIds(count)) {
-      return data_.reserveHistoryIds(count);
-    }
+        -> decltype(std::declval<U&>().reserveHistoryIds(count));
+
     ///@}
 
     /**

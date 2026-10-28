@@ -13,7 +13,7 @@
 #include <corsika/media/BaseExponential.hpp>
 #include <corsika/media/NuclearComposition.hpp>
 #include <corsika/framework/geometry/BaseTrajectory.hpp>
-#include <corsika/media/EnvironmentModelExport.hpp>
+#include <corsika/media/IDensityModelExport.hpp>
 
 namespace corsika {
 
@@ -32,7 +32,9 @@ namespace corsika {
    */
   // clang-format on
   template <typename T>
-  class FlatExponential : public BaseExponential<FlatExponential<T>>, public T, public IDensityExport {
+  class FlatExponential : public BaseExponential<FlatExponential<T>>,
+                          public T,
+                          public IDensityModelExport {
     using base_type = BaseExponential<FlatExponential<T>>;
 
   public:
@@ -40,11 +42,8 @@ namespace corsika {
                     MassDensityType const rho, LengthType const lambda,
                     NuclearComposition const& nuclComp);
 
-    ExportDensity exportDensity() const override {
-      return {ExportDensityKind::FlatExponential,base_type::getReferenceDensity(),
-              base_type::getScaleLength(),base_type::getReferenceHeight(),
-              base_type::getAnchorPoint(),axis_};
-    }
+    /// Copy the stored parameters and axis without normalizing or evaluating them.
+    [[nodiscard]] DensityModelParameters exportDensity() const override;
 
     MassDensityType getMassDensity(Point const& point) const override;
 

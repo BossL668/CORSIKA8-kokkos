@@ -49,6 +49,16 @@ namespace corsika {
                                                                          axis_);
   }
 
+  template <typename T>
+  inline DensityModelParameters FlatExponential<T>::exportDensity() const {
+    return {DensityModelParameters::Kind::FlatExponential,
+            base_type::getReferenceDensity(),
+            base_type::getScaleLength(),
+            base_type::getReferenceHeight(),
+            base_type::getAnchorPoint(),
+            axis_};
+  }
+
 } // namespace corsika
 
 #include <corsika/detail/media/BaseExponential.inl>

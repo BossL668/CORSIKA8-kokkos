@@ -8,7 +8,7 @@
 #pragma once
 
 #include <corsika/media/IRefractiveIndexModel.hpp>
-#include <corsika/media/EnvironmentModelExport.hpp>
+#include <corsika/media/IRefractivityModelExport.hpp>
 
 namespace corsika {
 
@@ -19,7 +19,7 @@ namespace corsika {
    * for all evaluated locations.
    */
   template <typename T>
-  class UniformRefractiveIndex : public T, public IRefractivityExport {
+  class UniformRefractiveIndex : public T, public IRefractivityModelExport {
 
     double n_; ///< The constant refractive index that we use.
 
@@ -51,9 +51,8 @@ namespace corsika {
      */
     void setRefractiveIndex(double const n);
 
-    ExportRefractivity exportRefractivity() const override {
-      return {ExportRefractivity::Kind::Uniform,n_,InverseMassDensityType::zero()};
-    }
+    /// Copy the current uniform index without querying a spatial point.
+    [[nodiscard]] RefractivityModelParameters exportRefractivity() const override;
 
   }; // END: class RefractiveIndex
 

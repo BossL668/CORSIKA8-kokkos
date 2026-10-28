@@ -94,13 +94,12 @@ namespace corsika {
     /**
      * Construct a new writer.
      */
-    LongitudinalWriter(ShowerAxis const& axis,
-                       GrammageType dX = 10_g / square(1_cm),
-                       ProfileCrossingMode mode = ProfileCrossingMode::Both);
+    LongitudinalWriter(ShowerAxis const& axis, GrammageType dX = 10_g / square(1_cm),
+                       ProfileCrossingMode mode = ProfileCrossingMode::OriginalC8);
 
     LongitudinalWriter(ShowerAxis const& axis, size_t nbins,
                        GrammageType dX = 10_g / square(1_cm),
-                       ProfileCrossingMode mode = ProfileCrossingMode::Both);
+                       ProfileCrossingMode mode = ProfileCrossingMode::OriginalC8);
 
     void startOfLibrary(boost::filesystem::path const& directory) final override;
 
@@ -119,8 +118,8 @@ namespace corsika {
      * Add a track whose endpoints have already been projected onto the
      * configured ShowerAxis.
      * The immutable constructor policy chooses direction and endpoint ownership.
-     * The low-level default remains Both for existing callers (e.g. terrain);
-     * the air application explicitly defaults to OriginalC8. Counts are never
+     * The default preserves the native C8 endpoint convention. Migrated
+     * production callers explicitly select their existing mode. Counts are never
      * signed flux or unique particle identities. Transport is unaffected.
      */
     void writeProjected(GrammageType const Xstart, GrammageType const Xend,
@@ -138,8 +137,8 @@ namespace corsika {
      */
     void addBin(size_t bin, Code pid, double weight);
 
-    size_t getNBins() const noexcept { return nBins_; }
-    ProfileCrossingMode getCrossingMode() const noexcept { return crossingMode_; }
+    size_t getNBins() const noexcept;
+    ProfileCrossingMode getCrossingMode() const noexcept;
 
     /**
      * Return a summary.
@@ -152,14 +151,12 @@ namespace corsika {
     YAML::Node getConfig() const override;
 
     number_profile::ProfileData const& getProfile(
-        number_profile::ProfileIndex index) const {
-      return profile_.at(static_cast<int>(index));
-    }
+        number_profile::ProfileIndex index) const;
 
   private:
-    ShowerAxis const& showerAxis_; ///< conversion between geometry and grammage
-    GrammageType const dX_;        ///< binning of profile.
-    size_t const nBins_;           ///< number of profile bins.
+    ShowerAxis const& showerAxis_;           ///< conversion between geometry and grammage
+    GrammageType const dX_;                  ///< binning of profile.
+    size_t const nBins_;                     ///< number of profile bins.
     ProfileCrossingMode const crossingMode_; ///< immutable observer convention
     std::vector<number_profile::ProfileData> profile_; // longitudinal profile
   };

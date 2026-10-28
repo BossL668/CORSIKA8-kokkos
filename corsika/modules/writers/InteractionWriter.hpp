@@ -58,11 +58,9 @@ namespace corsika {
     YAML::Node getConfig() const override;
     YAML::Node getSummary() const override;
 
-    void writeSummary(boost::filesystem::path const& path) const override {
-      summary_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const override;
 
-    auto getInteractionCounter() { return interactionCounter_; }
+    auto getInteractionCounter();
 
   private:
     void writeFirstInteraction(FirstInteractionSnapshot const&);

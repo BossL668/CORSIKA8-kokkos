@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <unordered_map>
 
@@ -22,20 +23,20 @@
 namespace corsika {
 
   struct ParticleCutSpeciesStatistics {
-    std::uint64_t particles{};
-    double weighted_kinetic_energy_GeV{};
-    double weighted_rest_mass_energy_GeV{};
+    std::uint64_t particles_{};
+    double weightedKineticEnergyGeV_{};
+    double weightedRestMassEnergyGeV_{};
   };
 
   struct ParticleCutStatistics {
-    std::uint64_t particles{};
-    std::uint64_t invisible_particles{};
-    double weighted_kinetic_energy_GeV{};
-    double weighted_rest_mass_energy_GeV{};
-    double weighted_invisible_kinetic_energy_GeV{};
-    std::uint64_t stopped_positron_annihilations{};
-    double weighted_medium_rest_mass_input_GeV{};
-    std::map<std::int32_t, ParticleCutSpeciesStatistics> by_pdg{};
+    std::uint64_t particles_{};
+    std::uint64_t invisibleParticles_{};
+    double weightedKineticEnergyGeV_{};
+    double weightedRestMassEnergyGeV_{};
+    double weightedInvisibleKineticEnergyGeV_{};
+    std::uint64_t stoppedPositronAnnihilations_{};
+    double weightedMediumRestMassInputGeV_{};
+    std::map<std::int32_t, ParticleCutSpeciesStatistics> byPdg_{};
   };
   /**
    * ParticleCut process to kill particles.
@@ -112,21 +113,17 @@ namespace corsika {
      * @return LengthType
      */
     template <typename TParticle, typename TTrajectory>
-    LengthType getMaxStepLength(TParticle const&, TTrajectory const&) {
-      return meter * std::numeric_limits<double>::infinity();
-    }
+    LengthType getMaxStepLength(TParticle const&, TTrajectory const&);
 
     void printThresholds() const;
 
-    HEPEnergyType getElectronKineticECut() const { return cut_electrons_; }
-    HEPEnergyType getPhotonKineticECut() const { return cut_photons_; }
-    HEPEnergyType getMuonKineticECut() const { return cut_muons_; }
-    HEPEnergyType getTauKineticECut() const { return cut_tau_; }
-    HEPEnergyType getHadronKineticECut() const { return cut_hadrons_; }
+    HEPEnergyType getElectronKineticECut() const;
+    HEPEnergyType getPhotonKineticECut() const;
+    HEPEnergyType getMuonKineticECut() const;
+    HEPEnergyType getTauKineticECut() const;
+    HEPEnergyType getHadronKineticECut() const;
 
-    ParticleCutStatistics const& statistics() const noexcept {
-      return statistics_;
-    }
+    ParticleCutStatistics const& statistics() const noexcept;
 
     //! get configuration of this node, for output
     YAML::Node getConfig() const override;
@@ -136,16 +133,16 @@ namespace corsika {
 
     bool isBelowEnergyCut(Code const, HEPEnergyType const) const;
 
-    void recordCut(Code, HEPEnergyType, double, bool rest_mass_converted = false);
+    void recordCut(Code, HEPEnergyType, double, bool restMassConverted = false);
     template <typename TParticle>
     bool annihilateStoppedPositron(TParticle, HEPEnergyType, Point const&, TimeType);
 
   private:
-    HEPEnergyType cut_electrons_;
-    HEPEnergyType cut_photons_;
-    HEPEnergyType cut_hadrons_;
-    HEPEnergyType cut_muons_;
-    HEPEnergyType cut_tau_;
+    HEPEnergyType cutElectrons_;
+    HEPEnergyType cutPhotons_;
+    HEPEnergyType cutHadrons_;
+    HEPEnergyType cutMuons_;
+    HEPEnergyType cutTau_;
     bool doCutInv_;
     std::unordered_map<Code const, HEPEnergyType const> cuts_;
     ParticleCutStatistics statistics_{};

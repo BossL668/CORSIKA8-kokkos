@@ -108,8 +108,10 @@ check-python-quality:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -d
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8
   rules:
     - if: $CI_MERGE_REQUEST_ID
     - if: $CI_COMMIT_TAG
@@ -150,8 +152,10 @@ config-clang-14:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -d
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8
     - cmake --build . -- -j4
     - set -o pipefail
     - ctest -j4 
@@ -207,8 +211,10 @@ build_test-clang-14:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -d
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8
     - cmake --build . -- VERBOSE=1 -j4
     - set -o pipefail
     - ctest -j4
@@ -284,8 +290,10 @@ build_test_example-clang-14:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -r
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8
     - cmake --build . -- -j4
     - set -o pipefail
     - ctest -j4
@@ -358,8 +366,10 @@ coverage:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -d
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DCOVERAGE_BUILD=True -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE_BUILD=True -DUSE_Pythia8_C8=C8
     - cmake --build . -- -j4
     - ctest -j4 
     - cmake --build . --target coverage
@@ -404,8 +414,10 @@ sanity:
     - pip3 install numpy
     - mkdir -p ${CI_PROJECT_DIR}/build
     - cd ${CI_PROJECT_DIR}/build
+    - conan profile path default >/dev/null 2>&1 || conan profile detect
+    - bash ${CI_PROJECT_DIR}/tools/prepare_data.sh
     - ${CI_PROJECT_DIR}/conan-install.sh -s .. -d
-    - ${CI_PROJECT_DIR}/corsika-cmake.sh -c "-DWITH_CORSIKA_SANITIZERS_ENABLED=ON -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8"
+    - cmake -S ${CI_PROJECT_DIR} -B . -DCMAKE_TOOLCHAIN_FILE="$PWD/conan_cmake/conan_toolchain.cmake" -DCONAN_CMAKE_DIR="$PWD/conan_cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Debug -DWITH_CORSIKA_SANITIZERS_ENABLED=ON -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/build/install -DUSE_Pythia8_C8=C8
     - cmake --build . -- -j4
   rules:
     - if: '$CI_MERGE_REQUEST_LABELS =~ /Ready for Code Review/' # run on merge requests, if label 'Ready for Code Review' is set

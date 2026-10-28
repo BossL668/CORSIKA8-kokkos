@@ -43,9 +43,7 @@ namespace corsika {
     YAML::Node getConfig() const final override;
     YAML::Node getSummary() const final override;
 
-    void writeSummary(boost::filesystem::path const& path) const final {
-      output_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const final override;
 
   private:
     ObservationPlane<TTracking, TOutput> const obsPlane_;

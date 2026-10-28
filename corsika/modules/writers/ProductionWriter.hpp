@@ -135,16 +135,14 @@ namespace corsika {
      */
     void addBin(size_t bin, Code pid, double weight);
 
-    size_t getNBins() const noexcept { return nBins_; }
+    size_t getNBins() const noexcept;
 
     /**
      * Return a summary.
      */
     YAML::Node getSummary() const override;
 
-    void writeSummary(boost::filesystem::path const& path) const override {
-      summary_.writeSummary(path);
-    }
+    void writeSummary(boost::filesystem::path const& path) const override;
 
     /**
      * Return the configuration of this output.
@@ -152,13 +150,9 @@ namespace corsika {
     YAML::Node getConfig() const override;
 
     production_profile::ProfileData const& getProfile(
-        production_profile::ProjectileIndex index) const {
-      return profile_.at(static_cast<int>(index));
-    }
+        production_profile::ProjectileIndex index) const;
 
-    production_profile::ProfileData const& getBin(size_t bin) const {
-      return profile_.at(bin);
-    }
+    production_profile::ProfileData const& getBin(size_t bin) const;
 
   private:
     ShowerAxis const& showerAxis_; ///< conversion between geometry and grammage

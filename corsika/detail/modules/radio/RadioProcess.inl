@@ -50,21 +50,21 @@ namespace corsika {
       if (trackSink_) {
         if (captureTrack_) {
           radio::RadioTrackSegment segment{};
-          segment.pdg = particleID_ == Code::Electron ? 11 : -11;
-          segment.weight = step.getParticlePre().getWeight();
-          segment.start_time_s = step.getTimePre() / 1_s;
-          segment.end_time_s = step.getTimePost() / 1_s;
-          segment.start_kinetic_energy_GeV = step.getEkinPre() / 1_GeV;
-          segment.end_kinetic_energy_GeV = step.getEkinPost() / 1_GeV;
+          segment.pdg_ = particleID_ == Code::Electron ? 11 : -11;
+          segment.weight_ = step.getParticlePre().getWeight();
+          segment.startTimeS_ = step.getTimePre() / 1_s;
+          segment.endTimeS_ = step.getTimePost() / 1_s;
+          segment.startKineticEnergyGeV_ = step.getEkinPre() / 1_GeV;
+          segment.endKineticEnergyGeV_ = step.getEkinPost() / 1_GeV;
           auto const start = step.getPositionPre().getCoordinates(trackSinkCoordinates_);
           auto const end = step.getPositionPost().getCoordinates(trackSinkCoordinates_);
           auto const before = step.getDirectionPre().getComponents(trackSinkCoordinates_);
           auto const after = step.getDirectionPost().getComponents(trackSinkCoordinates_);
           for (int axis = 0; axis < 3; ++axis) {
-            segment.start_position_m[axis] = start[axis] / 1_m;
-            segment.end_position_m[axis] = end[axis] / 1_m;
-            segment.start_direction[axis] = before[axis].magnitude();
-            segment.end_direction[axis] = after[axis].magnitude();
+            segment.startPositionM_[axis] = start[axis] / 1_m;
+            segment.endPositionM_[axis] = end[axis] / 1_m;
+            segment.startDirection_[axis] = before[axis].magnitude();
+            segment.endDirection_[axis] = after[axis].magnitude();
           }
           trackSink_->append(segment);
         }
@@ -73,13 +73,11 @@ namespace corsika {
       }
       auto const length_m =
           (step.getPositionPost() - step.getPositionPre()).getNorm() / 1_m;
-      auto const duration_s =
-          (step.getTimePost() - step.getTimePre()) / 1_s;
+      auto const duration_s = (step.getTimePost() - step.getTimePre()) / 1_s;
       auto const weight = step.getParticlePre().getWeight();
       auto const kinetic_energy_GeV = step.getEkinPre() / 1_GeV;
-      if (std::isfinite(length_m) && length_m > 0. &&
-          std::isfinite(duration_s) && duration_s != 0. &&
-          std::isfinite(weight) && weight >= 0. &&
+      if (std::isfinite(length_m) && length_m > 0. && std::isfinite(duration_s) &&
+          duration_s != 0. && std::isfinite(weight) && weight >= 0. &&
           std::isfinite(kinetic_energy_GeV) && kinetic_energy_GeV >= 0.) {
         ++diagnosticSegmentCount_;
         diagnosticWeightedSegmentCount_ += weight;
@@ -96,19 +94,16 @@ namespace corsika {
           diagnosticPositronWeightedTrackLengthM_ += weight * length_m;
           diagnosticSignedChargeTrackLengthM_ += weight * length_m;
         }
-        auto const bin = std::lower_bound(
-            diagnosticEnergyUpperEdgesGeV_.begin(),
-            diagnosticEnergyUpperEdgesGeV_.end(), kinetic_energy_GeV);
+        auto const bin =
+            std::lower_bound(diagnosticEnergyUpperEdgesGeV_.begin(),
+                             diagnosticEnergyUpperEdgesGeV_.end(), kinetic_energy_GeV);
         auto const index = static_cast<std::size_t>(
             std::distance(diagnosticEnergyUpperEdgesGeV_.begin(), bin));
-        diagnosticEnergyBinnedTrackLengthM_.at(
-            std::min(index, diagnosticEnergyBinnedTrackLengthM_.size() - 1)) +=
-            weight * length_m;
+        diagnosticEnergyBinnedTrackLengthM_.at(std::min(
+            index, diagnosticEnergyBinnedTrackLengthM_.size() - 1)) += weight * length_m;
 
-        auto const direction_pre =
-            step.getDirectionPre().getComponents();
-        auto const direction_post =
-            step.getDirectionPost().getComponents();
+        auto const direction_pre = step.getDirectionPre().getComponents();
+        auto const direction_post = step.getDirectionPost().getComponents();
         double direction_dot = 0.;
         std::array<double, 3> direction_delta{};
         for (int axis = 0; axis < 3; ++axis) {
@@ -117,27 +112,19 @@ namespace corsika {
           direction_dot += pre * post;
           direction_delta[axis] = post - pre;
         }
-        auto const direction_change_rad =
-            std::acos(std::clamp(direction_dot, -1., 1.));
+        auto const direction_change_rad = std::acos(std::clamp(direction_dot, -1., 1.));
         auto constexpr speed_of_light_m_per_s = 299792458.;
-        auto const beta_module =
-            length_m / (speed_of_light_m_per_s * duration_s);
-        auto const time_residual_s =
-            duration_s -
-            length_m / speed_of_light_m_per_s;
-        diagnosticWeightedDirectionChangeRad_ +=
-            weight * direction_change_rad;
+        auto const beta_module = length_m / (speed_of_light_m_per_s * duration_s);
+        auto const time_residual_s = duration_s - length_m / speed_of_light_m_per_s;
+        diagnosticWeightedDirectionChangeRad_ += weight * direction_change_rad;
         diagnosticWeightedDirectionChangeSquaredRad2_ +=
             weight * direction_change_rad * direction_change_rad;
         diagnosticWeightedBetaDeficitTrackLengthM_ +=
             weight * length_m * (1. - beta_module);
-        diagnosticWeightedTimeResidualS_ +=
-            weight * time_residual_s;
-        diagnosticMaximumDirectionChangeRad_ = std::max(
-            diagnosticMaximumDirectionChangeRad_,
-            direction_change_rad);
-        auto const charge_sign =
-            particleID_ == Code::Electron ? -1. : 1.;
+        diagnosticWeightedTimeResidualS_ += weight * time_residual_s;
+        diagnosticMaximumDirectionChangeRad_ =
+            std::max(diagnosticMaximumDirectionChangeRad_, direction_change_rad);
+        auto const charge_sign = particleID_ == Code::Electron ? -1. : 1.;
         for (int axis = 0; axis < 3; ++axis) {
           diagnosticSignedChargeWeightedDirectionChange_[axis] +=
               charge_sign * weight * direction_delta[axis];
@@ -252,25 +239,19 @@ namespace corsika {
     shower["weighted_segment_count"] = diagnosticWeightedSegmentCount_;
     shower["track_length_m"] = diagnosticTrackLengthM_;
     shower["weighted_track_length_m"] = diagnosticWeightedTrackLengthM_;
-    shower["electron_weighted_track_length_m"] =
-        diagnosticElectronWeightedTrackLengthM_;
-    shower["positron_weighted_track_length_m"] =
-        diagnosticPositronWeightedTrackLengthM_;
-    shower["signed_charge_weighted_track_length_m"] =
-        diagnosticSignedChargeTrackLengthM_;
+    shower["electron_weighted_track_length_m"] = diagnosticElectronWeightedTrackLengthM_;
+    shower["positron_weighted_track_length_m"] = diagnosticPositronWeightedTrackLengthM_;
+    shower["signed_charge_weighted_track_length_m"] = diagnosticSignedChargeTrackLengthM_;
     shower["energy_weighted_track_length_GeV_m"] =
         diagnosticEnergyWeightedTrackLengthGeVM_;
     shower["maximum_segment_length_m"] = diagnosticMaximumSegmentLengthM_;
-    shower["weighted_direction_change_rad"] =
-        diagnosticWeightedDirectionChangeRad_;
+    shower["weighted_direction_change_rad"] = diagnosticWeightedDirectionChangeRad_;
     shower["weighted_direction_change_squared_rad2"] =
         diagnosticWeightedDirectionChangeSquaredRad2_;
     shower["weighted_beta_deficit_track_length_m"] =
         diagnosticWeightedBetaDeficitTrackLengthM_;
-    shower["weighted_time_residual_s"] =
-        diagnosticWeightedTimeResidualS_;
-    shower["maximum_direction_change_rad"] =
-        diagnosticMaximumDirectionChangeRad_;
+    shower["weighted_time_residual_s"] = diagnosticWeightedTimeResidualS_;
+    shower["maximum_direction_change_rad"] = diagnosticMaximumDirectionChangeRad_;
     shower["signed_charge_weighted_direction_change"]["x"] =
         diagnosticSignedChargeWeightedDirectionChange_[0];
     shower["signed_charge_weighted_direction_change"]["y"] =
@@ -280,11 +261,10 @@ namespace corsika {
     auto energy_bins = shower["weighted_track_length_by_kinetic_energy"];
     energy_bins["units"]["upper_edge"] = "GeV";
     energy_bins["units"]["weighted_track_length"] = "m";
-    for (std::size_t index = 0;
-         index < diagnosticEnergyUpperEdgesGeV_.size(); ++index) {
+    for (std::size_t index = 0; index < diagnosticEnergyUpperEdgesGeV_.size(); ++index) {
       auto const upper = diagnosticEnergyUpperEdgesGeV_[index];
-      energy_bins["upper_edge_GeV"].push_back(
-          std::isfinite(upper) ? YAML::Node(upper) : YAML::Node("inf"));
+      energy_bins["upper_edge_GeV"].push_back(std::isfinite(upper) ? YAML::Node(upper)
+                                                                   : YAML::Node("inf"));
       energy_bins["weighted_track_length_m"].push_back(
           diagnosticEnergyBinnedTrackLengthM_[index]);
     }
@@ -314,8 +294,7 @@ namespace corsika {
   }
 
   template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
-  inline void
-  RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::endOfLibrary() {
+  inline void RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::endOfLibrary() {
     // One parquet stream stores all showers and uses the mandatory shower
     // column to separate them.  Closing here, rather than after each shower,
     // keeps the streamer valid for multi-event libraries and matches the
@@ -359,6 +338,48 @@ namespace corsika {
   inline YAML::Node
   RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::getSummary() const {
     return diagnosticSummary_.snapshot();
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline void RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::setTrackSink(
+      radio::RadioTrackSink* sink, CoordinateSystemPtr coordinates, bool capture) {
+    if (sink && (!coordinates || trackSink_)) {
+      throw std::logic_error("radio track sink needs a frame and exclusive ownership");
+    }
+    trackSink_ = sink;
+    trackSinkCoordinates_ = std::move(coordinates);
+    captureTrack_ = capture;
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline bool RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::hasTrackSink()
+      const noexcept {
+    return trackSink_ != nullptr;
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline std::uint64_t RadioProcess<TObserverCollection, TRadioImpl,
+                                    TPropagator>::offloadedSegmentCount() const noexcept {
+    return offloadedSegmentCount_;
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline TObserverCollection& RadioProcess<TObserverCollection, TRadioImpl,
+                                           TPropagator>::observerCollection() noexcept {
+    return observers_;
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline TObserverCollection const&
+  RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::observerCollection() const
+      noexcept {
+    return observers_;
+  }
+
+  template <typename TObserverCollection, typename TRadioImpl, typename TPropagator>
+  inline void RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::writeSummary(
+      boost::filesystem::path const& path) const {
+    diagnosticSummary_.writeSummary(path);
   }
 
 } // namespace corsika

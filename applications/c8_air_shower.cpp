@@ -12,7 +12,6 @@
 #include <corsika/framework/process/InteractionCounter.hpp>
 /* clang-format on */
 #include <corsika/framework/core/Cascade.hpp>
-#include <corsika/framework/core/HadronicProcessPool.hpp>
 #include <corsika/framework/core/EnergyMomentumOperations.hpp>
 #include <corsika/framework/core/Logging.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
@@ -34,7 +33,6 @@
 #include <corsika/modules/writers/PrimaryWriter.hpp>
 #include <corsika/modules/writers/SubWriter.hpp>
 #include <corsika/output/OutputManager.hpp>
-#include <corsika/output/SimulationTiming.hpp>
 
 #include <corsika/media/CORSIKA7Atmospheres.hpp>
 #include <corsika/media/Environment.hpp>
@@ -52,7 +50,6 @@
 #include <corsika/modules/Epos.hpp>
 #include <corsika/modules/ObservationPlane.hpp>
 #include <corsika/modules/PROPOSAL.hpp>
-#include <corsika/modules/proposal/ThresholdPhotoproductionModel.hpp>
 #include <corsika/modules/ParticleCut.hpp>
 #include <corsika/modules/Pythia8.hpp>
 #include <corsika/modules/QGSJetII.hpp>
@@ -83,8 +80,6 @@
 #include <corsika/setup/SetupStack.hpp>
 #include <corsika/setup/SetupTrajectory.hpp>
 #include <corsika/setup/SetupC7trackedParticles.hpp>
-#include <corsika/validation/CudaDecisionReplayTape.hpp>
-#include <corsika/validation/CudaReplayTrace.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -92,43 +87,20 @@
 #include <CLI/Config.hpp>
 #include <CLI/Formatter.hpp>
 
-#include <csignal>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include <memory>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include <unistd.h>
-
-#include "detail/air_shower_kokkos/GpuCliOptions.hpp"
-#include "detail/air_shower_kokkos/Egs4CliOptions.hpp"
-#include "detail/air_shower_kokkos/DeviceCliOptions.hpp"
-#ifdef C8_NATIVE_MULTIGPU
-#include "detail/air_shower_multigpu/NativeCoordinator.hpp"
-#ifndef C8_EXPERIMENTAL_STATIC_MULTIGPU
-#define C8_EXPERIMENTAL_STATIC_MULTIGPU 1
-#endif
-#endif
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-#include "detail/air_shower_multigpu/Frontier.hpp"
-#include "detail/air_shower_multigpu/CpuFrontier.hpp"
-#endif
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-#include <corsika/accelerator/radio/common/HostRadioCollector.hpp>
-#include <corsika/accelerator/radio/common/RadioTrackSpool.hpp>
-#include "detail/air_shower_kokkos/KokkosRunSession.hpp"
-#include "detail/air_shower_kokkos/KokkosAirShowerApplication.hpp"
-#endif
+#include <corsika/kokkos/application/cascade/CascadeExtension.hpp>
 
 using namespace corsika;
 using namespace std;
+namespace air = corsika::kokkos::application;
 
 using EnvironmentInterface =
     IRefractiveIndexModel<IMediumPropertyModel<IMagneticFieldModel<IMediumModel>>>;
@@ -138,7 +110,7 @@ using TrackingType = setup::Tracking;
 using Particle = StackType::particle_type;
 
 //
-// This is the main example script which runs EAS with fairly standard settings
+// This is the main example application which runs EAS with fairly standard settings
 // w.r.t. what was implemented in CORSIKA 7. Users may want to change some of the
 // specifics (observation altitude, magnetic field, energy cuts, etc.), but this
 // example is the most physics-complete one and should be used for full simulations
@@ -176,6 +148,7 @@ using MyExtraEnv =
 std::vector<std::tuple<double, double, double>> read_antenna_positions(
     std::string const& filename) {
   std::vector<std::tuple<double, double, double>> antennas;
+  if (filename.empty()) return antennas;
   std::ifstream input(filename);
   if (!input.is_open()) {
     CORSIKA_LOG_WARN("Cannot open antenna coordinate file: {}", filename);
@@ -197,276 +170,20 @@ std::vector<std::tuple<double, double, double>> read_antenna_positions(
   return antennas;
 }
 
-namespace {
-
-  using corsika::applications::air_shower::GpuCliOptions;
-
-  void addGpuCliOptions(CLI::App& app, GpuCliOptions& options) {
-    app.add_option("--em-backend", options.em_backend,
-                   "Electromagnetic transport backend: proposal (native CPU), kokkos-proposal, or kokkos-egs4")
-        ->check(CLI::IsMember({"proposal", "kokkos-proposal", "kokkos-egs4"}))
-        ->group("GPU EM");
-    corsika::applications::air_shower::addEgs4CliOptions(app, options);
-    app.add_option("--gpu-min-batch", options.gpu_min_batch,
-                   "Minimum Kokkos execution batch; smaller fronts take one "
-                   "scalar expansion step")
-        ->check(CLI::PositiveNumber)->group("GPU EM");
-    app.add_option(
-           "--gpu-resident-batch-limit",
-           options.gpu_resident_batch_limit,
-           "Optional common resident-wavefront checkpoint for deterministic "
-           "replay; zero selects the memory-budgeted automatic limit")
-        ->check(CLI::NonNegativeNumber)->group("GPU EM");
-    app.add_option(
-           "--gpu-memory-fraction", options.gpu_memory_fraction,
-           "Fraction of currently free device memory available to the Kokkos backend")
-        ->check(CLI::Range(0.01, 1.0))->group("GPU EM");
-    app.add_option("--gpu-physics-source", options.gpu_physics_source,
-                   "PROPOSAL backend physics source: proposal-native")
-        ->check(CLI::IsMember({"proposal-native"}))
-        ->group("GPU EM");
-    app.add_option(
-           "--gpu-aux-cache-dir", options.gpu_aux_cache_dir,
-           "XDG-compatible .c8emaux cache directory for proposal-native")
-        ->group("GPU EM");
-    app.add_option("--gpu-deterministic", options.gpu_deterministic,
-                   "Use history-keyed deterministic random numbers")
-        ->group("GPU EM");
-    app.add_flag(
-           "--gpu-detailed-stage-timing", options.gpu_detailed_stage_timing,
-           "Record per-stage CUDA event timings for the fused lepton "
-           "pipeline (profiling only)")
-        ->group("GPU EM");
-    app.add_flag("--gpu-full-step-records", options.gpu_full_step_records,
-                 "Disable compact GPU profile projection and return full "
-                 "transport records (validation/debug only)")
-        ->group("GPU EM");
-    app.add_option(
-           "--gpu-resident-cross-species", options.gpu_resident_cross_species,
-           "Keep photon-to-lepton and lepton-to-photon secondaries in "
-           "persistent device queues")
-        ->group("GPU EM");
-    app.add_option("--kokkos-execution", options.kokkos_execution,
-                   "Execution space in this binary: cuda, openmp, cuda-openmp (GPU primary) or openmp-cuda (CPU primary) for the "
-                   "experimental dual build; empty selects the build default")
-        ->check(CLI::IsMember({"cuda", "openmp", "hip", "sycl", "cuda-openmp", "openmp-cuda"}))
-        ->group("GPU EM");
-    app.add_option("--kokkos-cooperative-policy", options.kokkos_cooperative_policy,
-                   "Cooperative queue scheduling: legacy or experimental adaptive")
-        ->check(CLI::IsMember({"legacy", "adaptive"}))->group("Kokkos");
-    app.add_option("--kokkos-num-threads", options.kokkos_num_threads,
-                   "OpenMP thread count for an OpenMP-only Kokkos build; zero uses the runtime default")
-        ->check(CLI::NonNegativeNumber)->group("Kokkos");
-    corsika::applications::air_shower::addDeviceCliOptions(app, options);
-    app.add_option("--kokkos-tuning-cache", options.kokkos_tuning_cache,
-                   "Device-specific Kokkos tuning cache")
-        ->group("Kokkos");
-    app.add_flag("--kokkos-require-tuning", options.kokkos_require_tuning,
-                 "Fail unless an exactly matching Kokkos tuning cache exists")
-        ->group("Kokkos");
-    app.add_option("--radio-backend", options.radio_backend,
-                   "Radio projection backend: cpu or kokkos")
-        ->check(CLI::IsMember({"cpu", "kokkos"}))->group("Radio");
-    app.add_option(
-           "--gpu-radio-field-limit", options.gpu_radio_field_limit,
-           "Checked fixed-point waveform range in V/m for deterministic "
-           "CUDA CoREAS/ZHS accumulation")
-        ->check(CLI::PositiveNumber)->group("Radio");
-    app.add_flag(
-           "--gpu-radio-track-diagnostics",
-           options.gpu_radio_track_diagnostics,
-           "Collect scalar-compatible electron/positron track diagnostics "
-           "on the GPU (validation only; adds reduction overhead)")
-        ->group("Radio");
-    app.add_option(
-           "--radio-sampling-rate-ghz", options.radio_sampling_rate_GHz,
-           "Time-domain radio sampling rate in GHz. Use at least 10 GHz "
-           "(0.1 ns bins) for a 50--350 MHz CoREAS/ZHS comparison")
-        ->check(CLI::Range(0.1, 1000.))->group("Radio");
-    app.add_option("--radio-window-duration-ns",
-                   options.radio_window_duration_ns,
-                   "Time-domain radio observer window duration in ns")
-        ->check(CLI::Range(1., 1.e6))->group("Radio");
-    app.add_option(
-           "--radio-pretrigger-ns", options.radio_pretrigger_ns,
-           "Start antenna-file radio windows this many ns before the "
-           "geometrical direct-arrival time")
-        ->check(CLI::Range(0., 1.e6))->group("Radio");
-    app.add_option(
-           "--cuda-replay-trace", options.cuda_replay_trace,
-           "Write a process-level CSV trace for scalar/CUDA replay comparison")
-        ->group("GPU EM");
-    app.add_option(
-           "--cuda-replay-tape-out", options.cuda_replay_tape_out,
-           "Record every scalar transport segment and the exact radio "
-           "observer snapshot for offline CUDA decision replay")
-        ->group("GPU EM");
-    app.add_option(
-           "--hadronic-plan-workers", options.hadronic_plan_workers,
-           "Worker count used for the retrospective hadronic final-state "
-           "batch oracle (does not enable parallel execution)")
-        ->check(CLI::Range(1, 256))->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-plan-target-ms", options.hadronic_plan_target_ms,
-           "Target measured final-state cost per retrospective hadronic batch")
-        ->check(CLI::Range(1.e-6, 1.e6))->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-plan-max-batch", options.hadronic_plan_max_batch,
-           "Maximum interactions per retrospective homogeneous hadronic batch")
-        ->check(CLI::PositiveNumber)->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-backend", options.hadronic_backend,
-           "Low-energy hadronic final-state backend: scalar or fluka-process")
-        ->check(CLI::IsMember({"scalar"}))
-        ->group("Hadronic scheduling");
-    app.add_option("--hadronic-workers", options.hadronic_workers,
-                   "Persistent FLUKA worker process count")
-        ->check(CLI::Range(1, 256))->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-min-batch", options.hadronic_min_batch,
-           "Minimum parked FLUKA vertices before the predicted-cost flush test")
-        ->check(CLI::PositiveNumber)->group("Hadronic scheduling");
-    app.add_option("--hadronic-target-batch-ms",
-                   options.hadronic_target_batch_ms,
-                   "Online estimated FLUKA time per homogeneous worker batch")
-        ->check(CLI::Range(1.e-6, 1.e6))->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-max-batch", options.hadronic_max_batch,
-           "Maximum FLUKA requests in one homogeneous process-worker batch")
-        ->check(CLI::PositiveNumber)->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-initial-cost-ms", options.hadronic_initial_cost_ms,
-           "Initial per-interaction cost before a class has worker timing samples")
-        ->check(CLI::Range(1.e-6, 1.e6))->group("Hadronic scheduling");
-    app.add_option(
-           "--hadronic-worker-executable",
-           options.hadronic_worker_executable,
-           "Path to fluka_batch_worker; empty selects the executable beside c8_air_shower")
-        ->group("Hadronic scheduling");
-    app.add_flag(
-           "--cpu-detailed-step-timing", options.cpu_detailed_step_timing,
-           "Record scalar cross-section/tracking/continuous/discrete phase times")
-        ->group("Hadronic scheduling");
-  }
-
-  bool validateGpuCliOptions(GpuCliOptions& options,
-                             std::filesystem::path const& executable) {
-    if (!options.kokkos_execution.empty() && options.em_backend != "kokkos-proposal" && options.em_backend != "kokkos-egs4") {
-      CORSIKA_LOG_CRITICAL("--kokkos-execution requires --em-backend kokkos-proposal or kokkos-egs4");
-      return false;
-    }
-    if (!options.cuda_replay_trace.empty()) {
-      options.gpu_full_step_records = true;
-      validation::CudaReplayTrace::instance().open(
-          options.cuda_replay_trace,
-          options.em_backend == "proposal" ? "refactor_proposal"
-                                           : options.em_backend);
-    }
-    if (!options.cuda_replay_tape_out.empty() &&
-        options.em_backend != "proposal") {
-      CORSIKA_LOG_CRITICAL(
-          "--cuda-replay-tape-out records the scalar decision oracle and "
-          "therefore requires --em-backend proposal");
-      return false;
-    }
-    
-    if (options.kokkos_cooperative_policy != "legacy" &&
-        (options.em_backend != "kokkos-proposal" || options.kokkos_execution != "cuda-openmp")) {
-      CORSIKA_LOG_CRITICAL("Adaptive scheduling requires Kokkos cuda-openmp execution");
-      return false;
-    }
-    if (!corsika::applications::air_shower::validateEgs4Execution(options)) return false;
-    if (options.em_backend == "kokkos-proposal") {
-#ifndef CORSIKA8_WITH_KOKKOS_EM
-      CORSIKA_LOG_CRITICAL(
-          "--em-backend kokkos-proposal was requested, but this c8_air_shower binary "
-          "was built without CORSIKA_ENABLE_KOKKOS");
-      return false;
-#else
-      if (options.gpu_physics_source != "proposal-native") {
-        CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos-proposal requires --gpu-physics-source proposal-native");
-        return false;
-      }
-      if (options.radio_backend != "kokkos") {
-        CORSIKA_LOG_CRITICAL(
-            "--em-backend kokkos-proposal requires --radio-backend kokkos; portable "
-            "EM and radio execution spaces cannot be mixed");
-        return false;
-      }
-      if (options.hadronic_backend != "scalar") {
-        CORSIKA_LOG_CRITICAL(
-            "Kokkos EM is mutually exclusive with the shower-internal "
-            "hadronic worker pool; use --hadronic-backend scalar");
-        return false;
-      }
-      std::string selected_execution;
-      try {
-        selected_execution = accelerator::em::resolveKokkosExecutionBackend(
-            options.kokkos_execution);
-      } catch (std::exception const& error) {
-        CORSIKA_LOG_CRITICAL("{}", error.what());
-        return false;
-      }
-      if ((selected_execution == "cuda-openmp" || selected_execution == "openmp-cuda") && options.hadronic_workers != 1) {
-        CORSIKA_LOG_CRITICAL(
-            "Cooperative EM requires scalar hadrons: --hadronic-workers must be 1");
-        return false;
-      }
-      if (selected_execution != "openmp" && selected_execution != "cuda-openmp" && selected_execution != "openmp-cuda" &&
-          options.kokkos_num_threads > 1) {
-        CORSIKA_LOG_CRITICAL(
-            "A GPU Kokkos build uses Serial host scheduling and rejects "
-            "--kokkos-num-threads > 1");
-        return false;
-      }
-#endif
-    }
-    
-    if (options.radio_backend == "kokkos") {
-      if (options.em_backend != "kokkos-proposal" && options.em_backend != "kokkos-egs4") {
-        CORSIKA_LOG_CRITICAL(
-            "--radio-backend kokkos requires --em-backend kokkos-proposal or kokkos-egs4");
-        return false;
-      }
-#ifndef CORSIKA8_WITH_KOKKOS_EM
-      CORSIKA_LOG_CRITICAL(
-          "--radio-backend kokkos was requested, but Kokkos support is unavailable");
-      return false;
-#endif
-    }
-    
-    return true;
-  }
-
-} // namespace
-
 // Keep the coordinator out of the large shower/Fortran stack frame. In
 // particular, explicit-loader deployments have little heap/stack headroom.
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((noinline))
 #endif
 int runAirShower(int argc, char** argv,
-                corsika::applications::gpu_cli::DeviceSelection const& selected_devices);
+                corsika::kokkos::application::DeviceSelection const& selected_devices);
 
 int main(int argc, char** argv) {
-  corsika::applications::gpu_cli::DeviceSelection selected_devices;
-  try {
-    selected_devices = corsika::applications::gpu_cli::parseDevices(argc, argv);
-  } catch (std::exception const& error) {
-    std::cerr << "GPU selection: " << error.what() << '\n';
-    return EXIT_FAILURE;
-  }
-#ifdef C8_NATIVE_MULTIGPU
-  // Dispatch before initializing Kokkos or any shower/Fortran model state.
-  if (c8::multigpu::requested(argc, argv))
-    return c8::multigpu::mainEntry(argc, argv);
-#endif
-  return runAirShower(argc, argv, selected_devices);
+  return kokkos::application::dispatch_cascade(argc, argv, runAirShower);
 }
 
 int runAirShower(int argc, char** argv,
-                corsika::applications::gpu_cli::DeviceSelection const& selected_devices) {
+                 corsika::kokkos::application::DeviceSelection const& selected_devices) {
   // the main command line description
   CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
 
@@ -554,11 +271,11 @@ int runAirShower(int argc, char** argv,
       ->default_val(0.2)
       ->check(CLI::Range(1.e-8, 1.))
       ->group("Config");
-  std::string geomagnetic_model{"IGRF14"};
+  std::string geomagnetic_model{"constant"};
   double geomagnetic_year{2027.};
   app.add_option("--geomagnetic-model", geomagnetic_model,
-                 "IGRF coefficient model used for the 21CMA magnetic field")
-      ->check(CLI::IsMember({"IGRF13", "IGRF14"}))
+                 "Magnetic field: original constant field, or an explicit IGRF scene")
+      ->check(CLI::IsMember({"constant", "IGRF13", "IGRF14"}))
       ->group("Config");
   app.add_option("--geomagnetic-year", geomagnetic_year,
                  "Decimal year used to evaluate the selected IGRF model")
@@ -568,8 +285,7 @@ int runAirShower(int argc, char** argv,
   app.add_flag("--track-neutrinos", track_neutrinos, "switch on tracking of neutrinos")
       ->group("Config");
 
-  corsika::applications::air_shower::GpuCliOptions gpu_cli;
-  addGpuCliOptions(app, gpu_cli);
+  air::CascadeExtension backend{app};
 
   //////// Misc options ////////
 
@@ -580,7 +296,7 @@ int runAirShower(int argc, char** argv,
       ->group("Misc.");
   app.add_option("--observation-level",
                  "Height above earth radius of the observation level (in m)")
-      ->default_val(2680.444195)
+      ->default_val(0.)
       ->check(CLI::Range(-1.e3, 1.e5))
       ->group("Config");
   app.add_option("--injection-height",
@@ -588,12 +304,10 @@ int runAirShower(int argc, char** argv,
       ->default_val(112.75e3)
       ->check(CLI::Range(-1.e3, 1.e6))
       ->group("Config");
-  app.add_option("--shower-core-x",
-                 "X coordinate of the shower core position (in m)")
+  app.add_option("--shower-core-x", "X coordinate of the shower core position (in m)")
       ->default_val(0.)
       ->group("Config");
-  app.add_option("--shower-core-y",
-                 "Y coordinate of the shower core position (in m)")
+  app.add_option("--shower-core-y", "Y coordinate of the shower core position (in m)")
       ->default_val(0.)
       ->group("Config");
   app.add_option("-N,--nevent", nevent, "The number of events/showers to run.")
@@ -659,96 +373,12 @@ int runAirShower(int argc, char** argv,
       ->default_val(0)
       ->check(CLI::Range(0, 20))
       ->group("Radio");
-  app.add_option("--antenna-file",
-                 "Path to antenna positions in NWU coordinates (m)")
-      ->default_val("antennas.txt")
+  app.add_option("--antenna-file", "Path to antenna positions in NWU coordinates (m)")
+      ->default_val("")
       ->group("Radio");
-  // These hooks exist only in the separate experimental worker executable.
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-  std::string frontier_out, frontier_in;
-  double frontier_max_energy = 0.;
-  unsigned frontier_worker_id = 0;
-  bool frontier_legacy_import = false;
-  std::string cpu_frontier_in, cpu_frontier_out;
-  std::string radio_track_out;
-  double cpu_frontier_max_energy = std::numeric_limits<double>::infinity();
-  std::uint64_t frontier_history_limit = applications::multigpu::historyStride;
-  app.add_option("--prefix-cpu-in", cpu_frontier_in, "Import one statically assigned CPU subshower shard");
-  app.add_option("--prefix-cpu-out", cpu_frontier_out, "Capture all secondary species for static CPU splitting");
-  app.add_option("--prefix-cpu-max-energy", cpu_frontier_max_energy, "CPU split energy cap, not a physics cut")->check(CLI::PositiveNumber);
-  app.add_option("--frontier-history-limit", frontier_history_limit, "Exclusive input-history namespace ceiling");
-  app.add_flag("--frontier-legacy-import", frontier_legacy_import,
-               "Diagnostic control: import the entire frontier into the scalar stack");
-  app.add_option("--frontier-out", frontier_out, "Capture independent EM subshower roots");
-  app.add_option("--frontier-in", frontier_in, "Import roots of the SAME global primary");
-  app.add_option("--frontier-max-energy", frontier_max_energy, "Root scheduling cap in GeV (not a cut)");
-  app.add_option("--frontier-worker-id", frontier_worker_id, "Exclusive child history namespace [1,255]");
-  app.add_option("--radio-track-out", radio_track_out,
-                 "Internal CPU-prefix radio track output")->group("");
-  app.add_option("--radio-track-in", gpu_cli.radio_track_inputs,
-                 "Internal GPU-worker radio track inputs")->group("");
-#endif
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
-  if (!corsika::applications::air_shower::prepareDeviceCli(app, gpu_cli, selected_devices)) return EXIT_FAILURE;
-  if (!corsika::applications::air_shower::prepareEgs4Cli(app, gpu_cli)) return EXIT_FAILURE;
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-  if ((!radio_track_out.empty() &&
-       (nevent != 1 || gpu_cli.em_backend != "proposal" || gpu_cli.radio_backend != "cpu" ||
-        (frontier_out.empty() && cpu_frontier_out.empty()) ||
-        !gpu_cli.radio_track_inputs.empty())) ||
-      (!gpu_cli.radio_track_inputs.empty() &&
-       (nevent != 1 || gpu_cli.em_backend != "kokkos-proposal" ||
-        gpu_cli.radio_backend != "kokkos" || frontier_in.empty()))) {
-    CORSIKA_LOG_CRITICAL("Radio track handoff requires a single CPU prefix or a Kokkos PROPOSAL frontier worker");
-    return EXIT_FAILURE;
-  }
-#ifndef CORSIKA8_WITH_KOKKOS_EM
-  if (!radio_track_out.empty() || !gpu_cli.radio_track_inputs.empty()) {
-    CORSIKA_LOG_CRITICAL("Radio track handoff requires a Kokkos-enabled worker build");
-    return EXIT_FAILURE;
-  }
-#endif
-  std::vector<std::filesystem::path> radio_input_paths;
-  for (auto const& path : gpu_cli.radio_track_inputs) {
-    auto const canonical = std::filesystem::canonical(path);
-    if (std::find(radio_input_paths.begin(), radio_input_paths.end(), canonical) !=
-        radio_input_paths.end()) {
-      CORSIKA_LOG_CRITICAL("Duplicate radio track handoff input: {}", path);
-      return EXIT_FAILURE;
-    }
-    radio_input_paths.push_back(canonical);
-  }
-  if ((!cpu_frontier_in.empty() || !cpu_frontier_out.empty()) &&
-      (nevent != 1 || !cli_energy_range.empty() || gpu_cli.em_backend != "proposal" ||
-       force_interaction || force_decay || !frontier_in.empty() || frontier_legacy_import ||
-       (!cpu_frontier_out.empty() && (!cpu_frontier_in.empty() || !frontier_out.empty())) ||
-       (!cpu_frontier_in.empty() && (frontier_out.empty() || frontier_worker_id == 0 ||
-          frontier_history_limit <= (frontier_worker_id + 1ULL) * applications::multigpu::historyStride - 1)))) {
-    CORSIKA_LOG_CRITICAL("CPU prefix splitting requires N=1, scalar PROPOSAL, no forced vertex, and disjoint history namespaces");
-    return EXIT_FAILURE;
-  }
-  if ((!frontier_in.empty() && !frontier_legacy_import && gpu_cli.em_backend != "kokkos-proposal" && gpu_cli.em_backend != "kokkos-egs4") ||
-      (frontier_legacy_import && frontier_in.empty())) {
-    CORSIKA_LOG_CRITICAL("Buffered frontier input requires the Kokkos worker; legacy control requires --frontier-in");
-    return EXIT_FAILURE;
-  }
-  if ((!frontier_out.empty() || !frontier_in.empty()) &&
-      (nevent != 1 || (!frontier_out.empty() && !frontier_in.empty()) ||
-       !cli_energy_range.empty() ||
-       (!frontier_out.empty() && ((gpu_cli.em_backend != "proposal" && gpu_cli.em_backend != "kokkos-egs4") || frontier_max_energy <= 0.)) ||
-       (!frontier_in.empty() && (force_interaction || force_decay || frontier_worker_id == 0)))) {
-    CORSIKA_LOG_CRITICAL("Static handoff requires N=1, fixed energy, exclusive input/output; capture uses PROPOSAL and a positive cap; workers must not force the primary again");
-    return EXIT_FAILURE;
-  }
-#endif
-  if ((gpu_cli.kokkos_execution == "cuda-openmp" || gpu_cli.kokkos_execution == "openmp-cuda") &&
-      app.count("--hadronic-workers") == 0)
-    gpu_cli.hadronic_workers = 1;
-
-  if (!validateGpuCliOptions(gpu_cli, argv[0])) {
-    return EXIT_FAILURE;
-  }
+  if (!backend.prepare(selected_devices, argv[0])) return EXIT_FAILURE;
 
   if (app.count("--verbosity")) {
     auto const loglevel = app["--verbosity"]->as<std::string>();
@@ -780,13 +410,6 @@ int runAirShower(int argc, char** argv,
   // initialize random number sequence(s)
   auto seed = registerRandomStreams(app["--seed"]->as<long>());
 
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-  // fork/exec the process-isolated FLUKA workers before the parent touches the
-  // CUDA runtime. Forking after CUDA context creation is unsupported.
-  std::unique_ptr<HadronicProcessPool>
-      hadronic_process_pool;
-#endif
-
   /* === START: SETUP ENVIRONMENT AND ROOT COORDINATE SYSTEM === */
   EnvType env;
   CoordinateSystemPtr const& rootCS = env.getCoordinateSystem();
@@ -797,28 +420,18 @@ int runAirShower(int argc, char** argv,
   double constexpr cma21_latitude_deg = 42.5527;
   double constexpr cma21_longitude_deg = 86.4153816422;
   double constexpr cma21_altitude_m = 2680.444195;
-  auto const geomagnetic_data =
-      std::string{"GeoMag/"} + geomagnetic_model + ".COF";
-  auto geomagnetic_path = corsika_data(geomagnetic_data);
-#ifdef CORSIKA8_BUNDLED_IGRF14_FILE
-  if (geomagnetic_model == "IGRF14" &&
-      !boost::filesystem::exists(geomagnetic_path)) {
-    geomagnetic_path = CORSIKA8_BUNDLED_IGRF14_FILE;
-    CORSIKA_LOG_INFO(
-        "Using the bundled IGRF14 coefficient file: {}",
-        geomagnetic_path.string());
+  MagneticFieldVector cma21_field{rootCS, 50_uT, 0_T, 0_T};
+  if (geomagnetic_model != "constant") {
+    auto const geomagnetic_path = corsika_data("GeoMag/" + geomagnetic_model + ".COF");
+    if (!boost::filesystem::exists(geomagnetic_path)) {
+      CORSIKA_LOG_CRITICAL("Geomagnetic coefficient file does not exist: {}",
+                           geomagnetic_path.string());
+      return EXIT_FAILURE;
+    }
+    GeomagneticModel igrf(center, geomagnetic_path);
+    cma21_field = igrf.getField(geomagnetic_year, cma21_altitude_m * 1_m,
+                                cma21_latitude_deg, cma21_longitude_deg);
   }
-#endif
-  if (!boost::filesystem::exists(geomagnetic_path)) {
-    CORSIKA_LOG_CRITICAL(
-        "Geomagnetic coefficient file does not exist: {}",
-        geomagnetic_path.string());
-    return EXIT_FAILURE;
-  }
-  GeomagneticModel igrf(center, geomagnetic_path);
-  MagneticFieldVector const cma21_field = igrf.getField(
-      geomagnetic_year, cma21_altitude_m * 1_m, cma21_latitude_deg,
-      cma21_longitude_deg);
 
   // build an atmosphere with Keilhauer's parametrization of the
   // US standard atmosphere into `env`
@@ -886,12 +499,9 @@ int runAirShower(int argc, char** argv,
   auto const t = -observationHeight * cos(thetaRad) +
                  sqrt(-static_pow<2>(sin(thetaRad) * observationHeight) +
                       static_pow<2>(injectionHeight));
-  auto const showerCoreX =
-      app["--shower-core-x"]->as<double>() * 1_m;
-  auto const showerCoreY =
-      app["--shower-core-y"]->as<double>() * 1_m;
-  Point const showerCore{
-      rootCS, showerCoreX, showerCoreY, observationHeight};
+  auto const showerCoreX = app["--shower-core-x"]->as<double>() * 1_m;
+  auto const showerCoreY = app["--shower-core-y"]->as<double>() * 1_m;
+  Point const showerCore{rootCS, showerCoreX, showerCoreY, observationHeight};
   Point const injectionPos =
       showerCore + DirectionVector{rootCS,
                                    {-sin(thetaRad) * cos(phiRad),
@@ -907,39 +517,27 @@ int runAirShower(int argc, char** argv,
   std::stringstream args;
   for (int i = 0; i < argc; ++i) { args << argv[i] << " "; }
 
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-  corsika::applications::air_shower::AcceleratedRunEnvironmentConfig
-      accelerated_run_environment{
-          geomagnetic_model,
-          geomagnetic_year,
-          cma21_latitude_deg,
-          cma21_longitude_deg,
-          cma21_altitude_m,
-          {cma21_field.getX(rootCS) / 1_T,
-           cma21_field.getY(rootCS) / 1_T,
-           cma21_field.getZ(rootCS) / 1_T},
-          app["--max-deflection-angle"]->as<double>(),
-          {showerCoreX / 1_m, showerCoreY / 1_m,
-           observationHeight / 1_m},
-          app["--antenna-file"]->as<std::string>()};
-  using AcceleratedRunSession =
-      corsika::applications::air_shower::KokkosRunSession;
-  AcceleratedRunSession accelerated_session{
-      gpu_cli, accelerated_run_environment};
-#endif
+  air::RunEnvironmentConfig run_environment{
+      geomagnetic_model,
+      geomagnetic_year,
+      cma21_latitude_deg,
+      cma21_longitude_deg,
+      cma21_altitude_m,
+      {cma21_field.getX(rootCS) / 1_T, cma21_field.getY(rootCS) / 1_T,
+       cma21_field.getZ(rootCS) / 1_T},
+      app["--max-deflection-angle"]->as<double>(),
+      {showerCoreX / 1_m, showerCoreY / 1_m, observationHeight / 1_m},
+      app["--antenna-file"]->as<std::string>()};
+  backend.configure(run_environment);
 
   // create the output manager that we then register outputs with
   OutputManager output(app["--filename"]->as<std::string>(), seed, args.str(),
                        compressOutput);
 
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-  if (accelerated_session.runOutput()) {
-    output.add("gpu_em", *accelerated_session.runOutput());
-  }
-#endif
+  backend.registerOutput(output);
 
   // register energy losses as output
-  EnergyLossWriter dEdX{showerAxis, dX};
+  auto dEdX = backend.energyLossWriter(showerAxis, dX);
   output.add("energyloss", dEdX);
 
   DynamicInteractionProcess<StackType> heModel;
@@ -1003,24 +601,6 @@ int runAirShower(int argc, char** argv,
 
   // hadronic photon interactions in resonance region
   corsika::sophia::InteractionModel sophia;
-  // PROPOSAL's real-photon cross section opens slightly below SOPHIA's hard
-  // lower limit. Preserve those selected vertices with an explicitly counted,
-  // exact two-body gamma+N->pi0+N threshold final state.
-  corsika::proposal::ThresholdPhotoproductionModel
-      photoHadronicThresholdFallback;
-  corsika::proposal::HadronicInteractionModelFallback
-      photoHadronicLowEnergy{
-          sophia, photoHadronicThresholdFallback};
-  // Preserve SIBYLL for supported rho0-nucleus final states, but never discard
-  // a PROPOSAL photoproduction vertex merely because SIBYLL cannot represent
-  // atmospheric argon. QGSJet-II covers that target and every use is counted.
-  corsika::proposal::LazyHadronicInteractionModel<
-      corsika::qgsjetII::InteractionModel>
-      photoHadronicQgsjetFallback;
-  corsika::proposal::HadronicInteractionModelFallback
-      photoHadronicHighEnergy{
-          sibyll->getHadronInteractionModel(),
-          photoHadronicQgsjetFallback};
 
   HEPEnergyType const emcut = 1_GeV * app["--emcut"]->as<double>();
   HEPEnergyType const hadcut = 1_GeV * app["--hadcut"]->as<double>();
@@ -1044,10 +624,8 @@ int runAirShower(int argc, char** argv,
   HEPEnergyType const heHadronModelThreshold =
       1_GeV * app["--hadronModelTransitionEnergy"]->as<double>();
 
-  corsika::proposal::Interaction emCascade(
-      env, photoHadronicLowEnergy,
-      photoHadronicHighEnergy,
-      heHadronModelThreshold);
+  auto emCascade = backend.interaction(env, sophia, sibyll->getHadronInteractionModel(),
+                                       heHadronModelThreshold);
 
   // use BetheBlochPDG for hadronic continuous losses, and proposal otherwise
   corsika::proposal::ContinuousProcess<SubWriter<decltype(dEdX)>> emContinuousProposal(
@@ -1060,11 +638,7 @@ int runAirShower(int argc, char** argv,
   auto emContinuous =
       make_select(EMHadronSwitch(), emContinuousBethe, emContinuousProposal);
 
-  auto const profile_mode = profile_crossings == "original-c8"
-      ? ProfileCrossingMode::OriginalC8
-      : profile_crossings == "forward" ? ProfileCrossingMode::Forward
-                                       : ProfileCrossingMode::Both;
-  LongitudinalWriter profile{showerAxis, dX, profile_mode};
+  auto profile = backend.longitudinalWriter(showerAxis, dX);
   output.add("profile", profile);
   LongitudinalProfile<SubWriter<decltype(profile)>> longprof{profile};
 
@@ -1075,12 +649,10 @@ int runAirShower(int argc, char** argv,
 // for ICRC2023
 #ifdef WITH_FLUKA
   corsika::fluka::Interaction leIntModel{all_elements};
-  // libfluka guards the diagnostic SIGALRM at initialization for every backend,
-  // including the single-worker case. No physics/RNG or worker policy changes.
 #else
   corsika::urqmd::UrQMD leIntModel{};
 #endif
-  InteractionCounter leIntCounted{leIntModel};
+  auto leIntCounted = backend.interactionCounter(leIntModel);
 
   // assemble all processes into an ordered process list
   struct EnergySwitch {
@@ -1112,8 +684,8 @@ int runAirShower(int argc, char** argv,
 
   // Radio observers and relevant information
   // the observer time variables
-  const TimeType duration_{gpu_cli.radio_window_duration_ns * 1_ns};
-  const InverseTimeType sampleRate_{gpu_cli.radio_sampling_rate_GHz * 1_GHz};
+  const TimeType duration_{backend.radioWindowDurationNs() * 1_ns};
+  const InverseTimeType sampleRate_{backend.radioSamplingRateGHz() * 1_GHz};
 
   // the observer collection for CoREAS and ZHS
   ObserverCollection<TimeDomainObserver> detectorCoREAS;
@@ -1131,21 +703,19 @@ int runAirShower(int argc, char** argv,
   if (!antenna_positions.empty()) {
     for (std::size_t index = 0; index < antenna_positions.size(); ++index) {
       auto const [north_m, west_m, up_m] = antenna_positions[index];
-      auto const point{Point(rootCS, centerX_ + north_m * 1_m,
-                             centerY_ + west_m * 1_m,
+      auto const point{Point(rootCS, centerX_ + north_m * 1_m, centerY_ + west_m * 1_m,
                              constants::EarthRadius::Mean + up_m * 1_m)};
-      auto const trigger_time =
-          (triggerpoint_ - point).getNorm() / constants::c -
-          gpu_cli.radio_pretrigger_ns * 1_ns;
+      auto const trigger_time = (triggerpoint_ - point).getNorm() / constants::c -
+                                backend.radioPretriggerNs() * 1_ns;
 
-      TimeDomainObserver coreas_observer(
-          "CoREAS_Antenna_" + std::to_string(index), point, rootCS,
-          trigger_time, duration_, sampleRate_, trigger_time);
+      TimeDomainObserver coreas_observer("CoREAS_Antenna_" + std::to_string(index), point,
+                                         rootCS, trigger_time, duration_, sampleRate_,
+                                         trigger_time);
       detectorCoREAS.addObserver(coreas_observer);
 
       TimeDomainObserver zhs_observer(
-          "ZHS_Antenna_" + std::to_string(index), point, rootCS,
-          trigger_time, duration_, sampleRate_, trigger_time);
+          "ZHS_Antenna_" + std::to_string(index), point, rootCS, trigger_time, duration_,
+          sampleRate_, trigger_time, VectorPotentialWindowMode::RoundedBins);
       detectorZHS.addObserver(zhs_observer);
     }
   } else if (ring_number != 0) {
@@ -1175,7 +745,8 @@ int runAirShower(int argc, char** argv,
       std::string name_ =
           "ZHS_R=" + std::to_string(rr_) + "_m--Phi=" + std::to_string(phi_) + "degrees";
       TimeDomainObserver observer_2(name_, point_, rootCS, triggertime_, duration_,
-                                    sampleRate_, triggertime_);
+                                    sampleRate_, triggertime_,
+                                    VectorPotentialWindowMode::RoundedBins);
       detectorZHS.addObserver(observer_2);
     }
   }
@@ -1204,53 +775,13 @@ int runAirShower(int argc, char** argv,
       showerAxis, observationLevel);
   output.add("interactions", inter_writer);
 
-  YAML::Node timing_configuration;
-  timing_configuration["em_backend"] = gpu_cli.em_backend;
-  timing_configuration["gpu_physics_source"] = gpu_cli.em_backend == "kokkos-egs4"
-      ? "c7-egs4-embedded" : gpu_cli.gpu_physics_source;
-  timing_configuration["radio_backend"] = gpu_cli.radio_backend;
-  timing_configuration["clock"] = "steady_clock";
-  timing_configuration["scope"] =
-      "OutputManager startOfShower through endOfShower";
-  SimulationTiming simulation_timing{
-      std::move(timing_configuration)};
-  // OutputManager iterates its ordered name map. "simulation_timing" sorts
-  // after the current physics writer keys, so this includes their shower-end
-  // flushes on both scalar and hybrid paths.
-  output.add("simulation_timing", simulation_timing);
-
-  /* === END: SETUP PROCESS LIST === */
-
-  if (!gpu_cli.cuda_replay_tape_out.empty()) {
-    auto const replay_radio_snapshot =
-        validation::makeReplayRadioSnapshot(
-            env, injectionPos, surface_, step,
-            detectorCoREAS, detectorZHS);
-    validation::CudaDecisionReplayTape::instance().open(
-        gpu_cli.cuda_replay_tape_out, replay_radio_snapshot,
-        static_cast<std::uint64_t>(seed),
-        static_cast<std::uint64_t>(nevent));
-  }
-
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-  namespace air = corsika::applications::air_shower;
-  // Bind run-lifetime roles once; event objects are supplied to cascade() below.
-  air::KokkosAirShowerApplication accelerated_application{
-      accelerated_session, gpu_cli,
-      air::makeKokkosAirShowerDefaults(app, static_cast<std::uint64_t>(seed),
-          eMax, beamCode, cut, prod_threshold, heHadronModelThreshold, multithin),
-      air::makeKokkosAirShowerGeometry(env, rootCS, injectionPos, surface_, step,
-          showerAxis, dX, accelerated_run_environment),
-      air::KokkosAirShowerOutputs{dEdX, profile, prod_profile, observationLevel,
-          inter_writer, detectorCoREAS, detectorZHS},
-      air::KokkosAirShowerModels{coreas, zhs, emCascade, emContinuousProposal,
-          neutrinoPrimaryPythia, hadronSequence, decaySequence, emContinuous,
-          longprof, prodprof, cut},
-      air::KokkosAirShowerMonitors{photoHadronicHighEnergy, photoHadronicLowEnergy,
-          heCounted, leIntCounted, hadronic_process_pool.get(),
-          photoHadronicQgsjetFallback}};
-  accelerated_application.registerBackendOutput(output);
-#endif
+  // Attach the optional backend to the native objects; all ownership remains here.
+  auto application = backend.bind(
+      env, rootCS, injectionPos, surface_, step, showerAxis, dX, seed, eMax, beamCode,
+      prod_threshold, heHadronModelThreshold, multithin, dEdX, profile, prod_profile,
+      observationLevel, inter_writer, detectorCoREAS, detectorZHS, coreas, zhs, emCascade,
+      emContinuousProposal, neutrinoPrimaryPythia, hadronSequence, decaySequence,
+      emContinuous, longprof, prodprof, cut, heCounted, leIntCounted, output);
 
   // trigger the output manager to open the library for writing
   output.startOfLibrary();
@@ -1258,31 +789,7 @@ int runAirShower(int argc, char** argv,
   // loop over each shower
   for (int i_shower = 1; i_shower < nevent + 1; i_shower++) {
 
-#if defined(C8_EXPERIMENTAL_STATIC_MULTIGPU) && defined(CORSIKA8_WITH_KOKKOS_EM)
-    // Prefixes transport on the CPU without initializing a GPU. Each segment
-    // is captured once; both native radio implementations skip projection.
-    // Closed files are assigned once to final workers by the coordinator.
-    std::unique_ptr<accelerator::radio::RadioTrackSpoolWriter> radio_spool;
-    std::optional<accelerator::radio::ScopedRadioTrackSink<decltype(coreas), decltype(zhs)>>
-        prefix_radio_sink;
-    if (!radio_track_out.empty()) {
-      radio_spool = std::make_unique<accelerator::radio::RadioTrackSpoolWriter>(radio_track_out);
-      prefix_radio_sink.emplace(coreas, zhs, *radio_spool, rootCS);
-    }
-#endif
-
-    CORSIKA_LOG_INFO("Shower {} / {} ", i_shower, nevent);
-    validation::CudaReplayTrace::instance().beginShower(i_shower - 1);
-    validation::CudaDecisionReplayTape::instance().beginShower(
-        static_cast<std::uint64_t>(i_shower - 1));
-    auto const photo_hadronic_le_before =
-        photoHadronicLowEnergy.statistics();
-    auto const photo_hadronic_before =
-        photoHadronicHighEnergy.statistics();
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-    auto const diagnostics_before = accelerated_application.captureDiagnostics(
-        photo_hadronic_before, photo_hadronic_le_before);
-#endif
+    auto event = application.shower(i_shower);
 
     // randomize the primary energy
     double const eSlope = app["--eslope"]->as<double>();
@@ -1296,28 +803,13 @@ int runAirShower(int argc, char** argv,
 
     // set up thinning based on primary parameters
     double const emthinfrac = app["--emthin"]->as<double>();
-    double const configuredMaxWeight =
-        app["--max-weight"]->as<double>();
+    double const configuredMaxWeight = app["--max-weight"]->as<double>();
     double const maxWeight = std::invoke([&]() {
       if (configuredMaxWeight > 0.)
         return configuredMaxWeight;
       else
         return 0.5 * emthinfrac * primaryTotalEnergy / 1_GeV;
     });
-    bool const thinningCanActivateFromUnitWeight =
-        emthinfrac > 0. && maxWeight > 1.;
-    if (emthinfrac > 0. &&
-        !thinningCanActivateFromUnitWeight) {
-      CORSIKA_LOG_WARN(
-          "EM thinning is configured with threshold={} GeV, but "
-          "maximum weight={} is not above the unit initial particle "
-          "weight. EMThinning's parentWeight >= maxWeight guard "
-          "prevents thinning from starting. Specify --max-weight > 1 "
-          "or use a larger emthin*primary-energy product if thinning "
-          "is intended.",
-          emthinfrac * primaryTotalEnergy / 1_GeV,
-          maxWeight);
-    }
     EMThinning thinning{emthinfrac * primaryTotalEnergy, maxWeight, !multithin};
 
     // set up the stack inspector
@@ -1355,123 +847,22 @@ int runAirShower(int argc, char** argv,
     // add the desired particle to the stack
     auto const primaryProperties =
         std::make_tuple(beamCode, eKin, propDir.normalized(), injectionPos, 0_ns);
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    std::unique_ptr<applications::multigpu::FrontierInput> frontier_source;
-    std::unique_ptr<gpu::em::environment_tree::SnapshotStorage> frontier_environment;
-    gpu::em::environment_tree::FullView frontier_tree{};
-    if ((!frontier_in.empty() || !frontier_out.empty() ||
-         !cpu_frontier_in.empty() || !cpu_frontier_out.empty()) &&
-        gpu_cli.em_backend != "kokkos-egs4") {
-      auto exported = gpu::em::environment_tree::exportFullEnvironmentTree(*env.getUniverse(), rootCS);
-      frontier_environment = std::make_unique<gpu::em::environment_tree::SnapshotStorage>(exported);
-      frontier_tree = frontier_environment->view();
-    }
-    if (!cpu_frontier_in.empty()) {
-      applications::multigpu::importCpuFrontier(stack, rootCS, cpu_frontier_in,
-                                               frontier_worker_id, frontier_tree);
-    } else if (!frontier_in.empty()) {
-      if (frontier_legacy_import) {
-        applications::multigpu::importFrontier(stack, rootCS, frontier_in, frontier_worker_id, frontier_tree);
-      } else {
-        frontier_source = std::make_unique<applications::multigpu::FrontierInput>(frontier_in);
-        frontier_source->setEnvironmentTree(frontier_tree);
-        frontier_source->reserveNamespace(stack, frontier_worker_id);
-      }
-    } else
-#endif
-      stack.addParticle(primaryProperties);
-
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    applications::multigpu::ScopedFrontierInput frontier_context(frontier_source.get(), frontier_out);
-#endif
+    event.addPrimary(stack, primaryProperties);
 
     primaryWriter.recordPrimary(primaryProperties);
 
-    auto configure_forced_primary = [&](auto& cascade) {
-      if (force_interaction) {
-        CORSIKA_LOG_INFO("Fixing first interaction at injection point.");
-        cascade.forceInteraction();
-      }
-      if (force_decay) {
-        CORSIKA_LOG_INFO("Forcing the primary to decay");
-        cascade.forceDecay();
-      }
-    };
-
-    auto const output_shower_id =
-        static_cast<unsigned int>(
-            output.getEventId());
-#ifdef C8_EXPERIMENTAL_STATIC_MULTIGPU
-    if (!cpu_frontier_out.empty()) {
-      applications::multigpu::CpuBootstrapRouter router(cpu_frontier_out, rootCS, frontier_tree,
-                                                       cpu_frontier_max_energy);
-      HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
-                    applications::multigpu::CpuBootstrapRouter> cascade(
-          env, tracking, sequence, output, stack, router);
-      cascade.run();
-    } else if (!frontier_out.empty() && gpu_cli.em_backend != "kokkos-egs4") {
-      applications::multigpu::CaptureRouter router(frontier_out, rootCS, frontier_max_energy,
-                                                  frontier_tree, frontier_history_limit);
-      HybridCascade<TrackingType, decltype(sequence), decltype(output), StackType,
-                    applications::multigpu::CaptureRouter> cascade(
-          env, tracking, sequence, output, stack, router);
-      configure_forced_primary(cascade);
-      cascade.run();
-    } else
-#endif
-    if (gpu_cli.em_backend == "proposal") {
-      Cascade EAS(env, tracking, sequence, output, stack);
-      configure_forced_primary(EAS);
-      EAS.run();
-      auto const photo_hadronic_after =
-          photoHadronicHighEnergy.statistics();
-      auto const photo_hadronic_le_after =
-          photoHadronicLowEnergy.statistics();
-      CORSIKA_LOG_INFO(
-          "PROPOSAL photo-hadronic generators: SOPHIA={}, threshold fallback={}, "
-          "HE preferred={}, HE fallback={}, QGSJet-II initialized={}",
-          photo_hadronic_le_after.preferred_interactions -
-              photo_hadronic_le_before.preferred_interactions,
-          photo_hadronic_le_after.fallback_interactions -
-              photo_hadronic_le_before.fallback_interactions,
-          photo_hadronic_after.preferred_interactions -
-              photo_hadronic_before.preferred_interactions,
-          photo_hadronic_after.fallback_interactions -
-              photo_hadronic_before.fallback_interactions,
-          photoHadronicQgsjetFallback.initialized());
-    } else {
-#if defined(CORSIKA8_WITH_KOKKOS_EM)
-      try {
-        auto EAS = accelerated_application.cascade(
-            tracking, sequence, output, stack, stackInspect, thinning,
-            static_cast<std::uint64_t>(i_shower), primaryTotalEnergy, maxWeight,
-            diagnostics_before);
-        configure_forced_primary(EAS);
-        EAS.run();
-      } catch (std::exception const& error) {
-        if (accelerated_session.runOutput()) {
-          accelerated_session.runOutput()->recordIncomplete(
-              output_shower_id, error.what());
-        }
-        if (output.showerInProgress()) {
-          output.endOfShower();
-        }
-        output.endOfLibrary();
-        CORSIKA_LOG_CRITICAL(
-            "Accelerated EM shower {} aborted; output is marked incomplete: {}",
-            i_shower, error.what());
-        return EXIT_FAILURE;
-      }
-#endif
+    auto EAS = event.cascade(tracking, sequence, output, stack, stackInspect, thinning,
+                             primaryTotalEnergy, maxWeight);
+    if (force_interaction) {
+      CORSIKA_LOG_INFO("Fixing first interaction at injection point.");
+      EAS.forceInteraction();
     }
-
-#if defined(C8_EXPERIMENTAL_STATIC_MULTIGPU) && defined(CORSIKA8_WITH_KOKKOS_EM)
-    if (radio_spool) {
-      radio_spool->complete();
-      prefix_radio_sink.reset();
-      CORSIKA_LOG_INFO("Deferred {} CPU-prefix radio segments to GPU workers", radio_spool->count());
+    if (force_decay) {
+      CORSIKA_LOG_INFO("Forcing the primary to decay");
+      EAS.forceDecay();
     }
-#endif
+    EAS.run();
+
     HEPEnergyType const Efinal =
         dEdX.getEnergyLost() + observationLevel.getEnergyGround();
 
@@ -1495,17 +886,10 @@ int runAirShower(int argc, char** argv,
       save_hist(hists.labHist(), labHist_file, true);
       save_hist(hists.CMSHist(), cMSHist_file, true);
     }
-
-    // Reports above have consumed this shower's samples. Do not retain one
-    // entry per hadronic interaction over the entire multi-shower library.
-    leIntCounted.releaseTimingSamples();
-    heCounted.releaseTimingSamples();
   }
 
   // and finalize the output on disk
   output.endOfLibrary();
-  validation::CudaReplayTrace::instance().close();
-  validation::CudaDecisionReplayTape::instance().close();
 
   return EXIT_SUCCESS;
 }
