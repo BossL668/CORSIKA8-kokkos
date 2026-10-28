@@ -2,17 +2,16 @@
 
 [中文说明](README_CN.md) · [Application and backend guide](documentation/kokkos.rst)
 
-CORSIKA 8 particle-cascade simulations with optional Kokkos electromagnetic
-transport and radio calculation. The native `c8_air_shower`, `c8_ice_cascade`
-and `c8_firn_cascade` applications share library interfaces for execution,
-particle scheduling, environment conversion and output. This is an independent
+CORSIKA 8 air-shower simulations with optional Kokkos electromagnetic
+transport and radio calculation. The native `c8_air_shower` application uses
+library interfaces for execution, particle scheduling, environment conversion
+and output. This is an independent
 research repository, not an official CORSIKA release.
 
 ## Latest changes (2026-10-28)
 
 - Reorganize the code into shared Kokkos library modules, with public headers,
   inline implementations and compiled sources in their respective directories.
-  Atmosphere, ice and firn scene adapters use the same directory structure.
 - Simplify application connections through shared adapters while retaining the
   native process sequence and `EAS.run()` entry. Update the installation helpers
   for this layout and the native application binaries.
@@ -20,12 +19,10 @@ research repository, not an official CORSIKA release.
 ## Source layout
 
 ```text
-applications/                  native air, ice and firn entry points
+applications/c8_air_shower.cpp  native air-shower entry point
 corsika/kokkos/                 public library headers
   application/cascade/         shared application adapters and runner
     atmosphere/                air scene policy
-    ice/                       homogeneous ice scene policy
-    firn/                      firn scene policy
   environment/                 C8 environment export and geometry search
   em/                          electromagnetic models and native table queries
   radio/                       shared radio support and medium-specific propagation
@@ -68,7 +65,7 @@ cd CORSIKA8-kokkos
 Run `conan profile detect` only when creating a new profile; retain an existing
 configured compiler profile. `C8_BUILD_JOBS` defaults to **1** to limit memory use.
 The helpers export the supplied dependency recipes, prepare the normal C8 data
-directory (including IGRF14), and build/install all three application binaries.
+directory (including IGRF14), and build/install the native application binaries.
 Each backend has independent dependency descriptors, build and install paths.
 IGRF14 coefficients are included in `resources/GeoMag/IGRF14.COF` and installed
 automatically in the normal `GeoMag` data directory; no separate download is needed.
@@ -110,8 +107,6 @@ corsika8-workspace/
 ├── build/{openmp,cuda}/deps/        independent dependency descriptors
 └── install/{openmp,cuda}/
     ├── bin/c8_air_shower
-    ├── bin/c8_ice_cascade
-    ├── bin/c8_firn_cascade
     └── share/corsika/data/
 ```
 
@@ -153,8 +148,8 @@ For atmospheric showers, `--device 0,1,2,3` distributes one shower across four
 GPUs. `--prefix-workers 16` enables the independent CPU prefix stage.
 `--gpu-min-batch` and `C8_STATIC_FRONTIER_IMPORT_BATCH` control dispatch and
 static import granularity. These scheduling settings do not change the physics
-cuts. See the [backend and scene guide](documentation/kokkos.rst) for supported
-combinations, ice/firn propagation, and limitations.
+cuts. See the [backend guide](documentation/kokkos.rst) for supported
+combinations and limitations.
 
 ## Checks and updates
 

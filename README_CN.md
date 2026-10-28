@@ -2,23 +2,21 @@
 
 [English installation guide](README.md) · [后端与场景说明](documentation/kokkos.rst)
 
-基于 CORSIKA 8 的粒子级联与射电模拟程序，可选择 Kokkos CPU/GPU 后端。
-空气、均匀冰和 firn 应用共用库中的输运、调度、环境转换和输出接口。
+基于 CORSIKA 8 的大气簇射与射电模拟程序，可选择 Kokkos CPU/GPU 后端。
+`c8_air_shower` 应用通过库接口接入输运、调度、环境转换和输出。
 本仓库是独立研究项目，不是 CORSIKA 官方发行版。
 
 ## 最新更新（2026-10-28）
 
-- 重新组织代码：公共头文件、内联实现和编译源文件分开存放；大气、冰和 firn 场景使用平级目录，共用 Kokkos 库模块。
+- 重新组织代码：公共头文件、内联实现和编译源文件分开存放，应用接入与计算模块统一整理到 Kokkos 库中。
 - 调整应用接入方式：通过统一适配接口选择后端，保留原生过程序列及 `EAS.run()`；安装脚本同步适配新的目录和原生二进制入口。
 
 ## 目录与应用
 
 ```text
-applications/                         三个应用入口
+applications/c8_air_shower.cpp         大气簇射入口
 corsika/kokkos/application/cascade/    共享应用接入
   atmosphere/                         大气场景
-  ice/                                均匀冰场景
-  firn/                               firn 场景
 corsika/kokkos/{environment,em,radio,scheduling}/  公共库模块
 corsika/detail/kokkos/                对应的 .inl 实现
 src/kokkos/                           编译源文件
@@ -49,7 +47,7 @@ IGRF14 系数已随源码提供在 `resources/GeoMag/IGRF14.COF`，会自动安�
 `GeoMag` 数据目录，不需要另行下载或单独安装。
 
 脚本会导出本仓库的依赖配方，准备标准 C8 数据目录（含 IGRF14），并安装
-`c8_air_shower`、`c8_ice_cascade`、`c8_firn_cascade` 三个二进制。
+`c8_air_shower` 等原生二进制程序。
 现有 Conan 编译器配置不会被脚本覆盖。`C8_WORKSPACE` 可指定 `build/` 与
 `install/` 的父目录；默认使用源码的父目录。多个后端顺序安装可用 `openmp,cuda`。
 需要 FLUKA 时先设置合法安装的 `FLUPRO`，再在构建命令末尾加 `-DWITH_FLUKA=ON`。
@@ -70,7 +68,7 @@ install/cuda/bin/c8_air_shower --pdg 2212 --energy 1e4 --nevent 1 \
 原生物理表由程序自动准备和复用。cut 处正电子额外湮灭光子默认关闭，飞行中
 正电子湮灭仍保留。空气应用可用 `--device 0,1,2,3` 和 `--prefix-workers 16`
 分别选择四卡输运和 CPU 并行前缀；调度参数与物理 cut 分开。
-冰和 firn 的介质、天线、射电模式及支持范围见 [后端说明](documentation/kokkos.rst)。
+后端选项及支持范围见 [后端说明](documentation/kokkos.rst)。
 
 ```bash
 ctest --test-dir ../build/openmp --output-on-failure -j1
