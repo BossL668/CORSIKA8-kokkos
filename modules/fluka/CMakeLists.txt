@@ -1,3 +1,9 @@
+if (DEFINED WITH_FLUKA AND NOT WITH_FLUKA)
+    message (STATUS "FLUKA explicitly disabled (WITH_FLUKA=OFF)")
+    set (C8_FLUKA_ENABLED "" CACHE INTERNAL "" FORCE)
+    return ()
+endif ()
+
 set(C8_FLUKALIB CACHE FILEPATH "path to libflukahp.a")
 
 set(C8_FLUKALIB_ "")

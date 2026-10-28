@@ -23,6 +23,12 @@ the matching dependency graph and install all native applications::
    bash tools/build_kokkos.sh openmp
    bash tools/build_kokkos.sh cuda
 
+The helpers enable FLUKA by default. Prepare a compatible licensed installation
+and set ``FLUPRO`` first; ``-DWITH_FLUKA=OFF`` explicitly selects a different
+low-energy model. Use ``bash tools/build_kokkos.sh cuda --check`` to check the
+toolchain and automatically selected GPU profile without building. Full Conda
+and venv setup instructions are in the root README.
+
 Set ``C8_BUILD_JOBS`` to control build concurrency (default 1). For V100/V100S,
 ``C8_KOKKOS_PROFILE=cuda-volta70`` selects the target explicitly. The commands
 below are the manual alternative for an existing external Kokkos installation.
