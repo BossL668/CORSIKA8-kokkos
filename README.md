@@ -8,7 +8,14 @@ library interfaces for execution, particle scheduling, environment conversion
 and output. This is an independent
 research repository, not an official CORSIKA release.
 
-## Latest changes (2026-10-28)
+## Latest changes (2026-10-29)
+
+- Scale the automatic CPU-prefix splitting threshold with `--prefix-workers`,
+  independently of the GPU count. A positive `--prefix-split-energy` still
+  overrides the automatic value; serial-prefix behavior is unchanged.
+- Record the resolved CPU splitting and GPU handoff energies in `CONFIG.json`.
+
+## Changes (2026-10-28)
 
 - Reorganize the code into shared Kokkos library modules, with public headers,
   inline implementations and compiled sources in their respective directories.
@@ -361,6 +368,10 @@ in-flight annihilation is retained. Use `--help` for physical settings and outpu
 
 For atmospheric showers, `--device 0,1,2,3` distributes one shower across four
 GPUs. `--prefix-workers 16` enables the independent CPU prefix stage.
+For `P` prefix workers, the automatic CPU splitting energy is
+`primary_energy / (96 * P)`; use `--prefix-split-energy <GeV>` to override it.
+This threshold is independent of the GPU handoff threshold. Changing it can
+change subshower grouping and subsequent random histories.
 `--gpu-min-batch` and `C8_STATIC_FRONTIER_IMPORT_BATCH` control dispatch and
 static import granularity. These scheduling settings do not change physics cuts.
 See the [backend guide](documentation/kokkos.rst) for combinations and limitations.

@@ -233,20 +233,24 @@ namespace corsika::kokkos::coordinator {
         return p.launch(args, root / name, environment);
       };
       try {
-        save(root / "CONFIG.json", {{"command", {o.worker_.string()}},
-                                    {"physics_args", physics},
-                                    {"seed", seed},
-                                    {"devices", devices},
-                                    {"gpu_memory_fraction", o.memoryFraction_},
-                                    {"em_backend", o.emBackend_},
-                                    {"egs4_stepfc", o.egs4Stepfc_},
-                                    {"cpu_prefix_workers", o.prefixWorkers_},
-                                    {"cpu_prefix_split_energy_GeV", o.prefixSplitEnergy_},
-                                    {"coordinator", "C++"},
-                                    {"output", root.string()}});
-        auto frontier = root / "frontier.txt";
-        auto cap =
+        auto const cap =
             o.frontierEnergy_ > 0 ? o.frontierEnergy_ : o.energy_ / (8 * devices.size());
+        auto const cpuSplitEnergy = cpu_split_energy(o);
+        save(root / "CONFIG.json",
+             {{"command", {o.worker_.string()}},
+              {"physics_args", physics},
+              {"seed", seed},
+              {"devices", devices},
+              {"gpu_memory_fraction", o.memoryFraction_},
+              {"em_backend", o.emBackend_},
+              {"egs4_stepfc", o.egs4Stepfc_},
+              {"cpu_prefix_workers", o.prefixWorkers_},
+              {"cpu_prefix_split_energy_GeV", o.prefixSplitEnergy_},
+              {"cpu_prefix_split_energy_effective_GeV", cpuSplitEnergy},
+              {"em_frontier_energy_effective_GeV", cap},
+              {"coordinator", "C++"},
+              {"output", root.string()}});
+        auto frontier = root / "frontier.txt";
         std::vector<fs::path> parts;
         std::vector<fs::path> radioSpools;
         bool const spoolPrefixRadio = o.emBackend_ == "kokkos-proposal";
@@ -287,7 +291,7 @@ namespace corsika::kokkos::coordinator {
               bootstrapOptions.end(),
               {"-s", std::to_string(seed), "--em-backend", "proposal", "--radio-backend",
                "cpu", "--prefix-cpu-out", cpuRoots.string(), "--prefix-cpu-max-energy",
-               number(o.prefixSplitEnergy_ > 0 ? o.prefixSplitEnergy_ : cap)});
+               number(cpuSplitEnergy)});
           auto bootstrap = launch("bootstrap", bootstrapOptions, cpuEnv);
           p.wait({bootstrap}, o.timeout_);
           validate_outputs(root / "bootstrap/shower");
@@ -458,6 +462,13 @@ namespace corsika::kokkos::coordinator {
       }
     }
   } // namespace
+  double cpu_split_energy(CoordinatorOptions const& options) {
+    if (options.prefixWorkers_ == 0) return 0.;
+    return options.prefixSplitEnergy_ > 0
+               ? options.prefixSplitEnergy_
+               : options.energy_ / (96. * options.prefixWorkers_);
+  }
+
   void check_interrupt() {
     if (interrupted)
       throw std::runtime_error("Interrupted by signal " + std::to_string(interrupted));
@@ -575,8 +586,9 @@ namespace corsika::kokkos::coordinator {
     app.add_option("--prefix-workers", o.prefixWorkers_,
                    "Static CPU prefix processes; 0 retains the original serial prefix")
         ->default_val(0);
-    app.add_option("--prefix-split-energy", o.prefixSplitEnergy_,
-                   "Static CPU split energy cap [GeV]; 0 uses the EM handoff cap")
+    app.add_option(
+           "--prefix-split-energy", o.prefixSplitEnergy_,
+           "CPU split energy [GeV]; 0 uses primary energy / (96 * prefix workers)")
         ->default_val(0);
     app.add_option("--multigpu-worker", worker,
                    "Optional compatible worker binary; default: this binary");

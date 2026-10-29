@@ -6,7 +6,13 @@
 `c8_air_shower` 应用通过库接口接入输运、调度、环境转换和输出。
 本仓库是独立研究项目，不是 CORSIKA 官方发行版。
 
-## 最新更新（2026-10-28）
+## 最新更新（2026-10-29）
+
+- CPU 前缀的自动拆分阈值改为按 `--prefix-workers` 缩放，与 GPU 数量独立。
+  显式指定正值 `--prefix-split-energy` 仍优先；默认串行前缀行为不变。
+- 在 `CONFIG.json` 中记录实际使用的 CPU 拆分能量与 GPU 交接能量。
+
+## 更新（2026-10-28）
 
 - 重新组织代码：公共头文件、内联实现和编译源文件分开存放，应用接入与计算模块统一整理到 Kokkos 库中。
 - 调整应用接入方式：通过统一适配接口选择后端，保留原生过程序列及 `EAS.run()`；安装脚本同步适配新的目录和原生二进制入口。
@@ -321,7 +327,10 @@ cut 处正电子额外湮灭光子默认关闭，飞行中正电子湮灭仍保�
 物理条件及输出参数见 `--help`。
 
 空气程序支持 `--device 0,1,2,3` 让四卡共同推进一个 shower，
-`--prefix-workers 16` 启用独立 CPU 并行前缀。`--gpu-min-batch` 和
+`--prefix-workers 16` 启用独立 CPU 并行前缀。对于 `P` 个前缀进程，
+自动 CPU 拆分能量为 `primary_energy / (96 * P)`，可用正值
+`--prefix-split-energy <GeV>` 覆盖。该值与 GPU 交接能量独立；
+改变阈值可能改变子簇分组及后续随机历史。`--gpu-min-batch` 和
 `C8_STATIC_FRONTIER_IMPORT_BATCH` 控制派发和静态导入粒度，不改变物理 cut。
 后端组合及限制见 [后端说明](documentation/kokkos.rst)。
 

@@ -184,6 +184,15 @@ namespace {
       return true;
     }
 #ifndef PRODUCTION_REFERENCE
+    if (operation == "cpu_split_energy") {
+      options_type options;
+      options.energy_ = input.at("energy");
+      options.prefixWorkers_ = input.at("workers");
+      options.prefixSplitEnergy_ = input.value("split_energy", 0.);
+      options.frontierEnergy_ = input.value("frontier_energy", 0.);
+      options.devices_ = input.at("devices").get<std::vector<std::string>>();
+      return tested::cpu_split_energy(options);
+    }
     if (operation == "validate_firn_replay") {
       tested::validate_radio_replay(input.at("root").get<std::string>(),
                                     input.at("expected").get<std::uint64_t>());

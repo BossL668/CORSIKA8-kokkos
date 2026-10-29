@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--candidate', type=Path, required=True)
 parser.add_argument('--production', type=Path, required=True)
 parser.add_argument('--work', type=Path, required=True)
-parser.add_argument('--mode', choices=['io', 'cli', 'process', 'firn'], required=True)
+parser.add_argument('--mode', choices=['io', 'cli', 'process', 'firn', 'prefix'], required=True)
 args = parser.parse_args()
 args.work.mkdir(parents=True, exist_ok=True)
 parent = args.work
@@ -193,6 +193,24 @@ def firn_tests():
     call(args.candidate, 'validate_firn_replay', success=False, root=str(parts[0]), expected=4)
 
 
+def prefix_tests():
+    # CPU splitting depends on CPU workers, independently of GPU handoff settings.
+    for energy in [1.e4, 1.e8]:
+        for workers in [1, 5, 16, 64]:
+            for devices in [['0'], ['0', '1', '2', '3']]:
+                for frontier in [0., 12345.]:
+                    for explicit in [0., 321.]:
+                        value = call(args.candidate, 'cpu_split_energy', energy=energy,
+                                     workers=workers, devices=devices,
+                                     frontier_energy=frontier, split_energy=explicit)
+                        expected = explicit or energy / (96 * workers)
+                        require(value == expected, ('CPU split energy', value, expected))
+    for explicit in [0., 321.]:
+        value = call(args.candidate, 'cpu_split_energy', energy=1.e8, workers=0,
+                     devices=['0', '1'], split_energy=explicit)
+        require(value == 0., 'Serial prefix does not use a CPU splitting threshold')
+
+
 def cli_tests():
     for flags, expected in [([], False), (['--device', '0'], False),
                             (['--device', '0,1'], True), (['--devices', '0', '1'], True),
@@ -213,7 +231,16 @@ def cli_tests():
             require('runtime error:' not in result.stderr and 'AddressSanitizer' not in result.stderr,
                     result.stderr)
             results.append((result.returncode, result.stdout, result.stderr))
-        require(results[0] == results[1], ('Original CLI behavior', flags, results))
+        if flags == ['--help']:
+            old_help = ' '.join(results[0][1].split())
+            new_help = ' '.join(results[1][1].split())
+            old_cap = 'Static CPU split energy cap [GeV]; 0 uses the EM handoff cap'
+            new_cap = 'CPU split energy [GeV]; 0 uses primary energy / (96 * prefix workers)'
+            require(old_cap in old_help and new_cap in new_help, 'Document CPU default')
+            require(old_help.replace(old_cap, new_cap) == new_help, 'Other help unchanged')
+            require(results[0][2] == results[1][2], 'Help stderr unchanged')
+        else:
+            require(results[0] == results[1], ('Original CLI behavior', flags, results))
     require(not (args.work / 'unused').exists(), 'Rejected CLI must not launch a shower')
 
 
@@ -246,7 +273,9 @@ def process_tests():
 
 
 try:
-    {'io': io_tests, 'cli': cli_tests, 'process': process_tests, 'firn': firn_tests}[args.mode]()
+    tests = {'io': io_tests, 'cli': cli_tests, 'process': process_tests,
+             'firn': firn_tests, 'prefix': prefix_tests}
+    tests[args.mode]()
     (args.work / 'RESULTS.json').write_text(json.dumps(dict(passed=True, checks=checks, records=records), indent=2) + '\n')
     print(f'CHECKS={checks}')
     print('evidence=' + str(args.work))

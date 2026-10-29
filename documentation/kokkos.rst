@@ -118,6 +118,19 @@ the independent CPU prefix stage; it can also be used with one GPU. The
 coordinator launches the same installed binary and merges the per-worker
 outputs. It does not require a separate application or Python runtime launcher.
 
+With ``P > 0`` CPU prefix workers, ``--prefix-split-energy 0`` resolves to
+``primary_energy / (96 * P)`` in GeV. A positive explicit value overrides it.
+This total-energy threshold controls when produced particles are saved for
+static CPU partitioning; it is independent of the number of GPUs and
+``--multigpu-frontier-energy``. The default GPU handoff threshold remains
+``primary_energy / (8 * number_of_selected_GPUs)``. No CPU splitting threshold
+is used for a serial prefix. These thresholds change task grouping, and may
+change subsequent random histories, but do not change the physics cuts.
+The resolved values are recorded as ``cpu_prefix_split_energy_effective_GeV``
+and ``em_frontier_energy_effective_GeV`` in the event's ``CONFIG.json``.
+The automatic coefficient was tuned with a high-energy atmospheric proton
+prefix; use an explicit threshold to tune other energies, primaries or hardware.
+
 ``--gpu-min-batch`` controls GPU dispatch and small-batch checkpoints.
 The ``C8_STATIC_FRONTIER_IMPORT_BATCH`` environment variable controls how many
 staged particles a worker imports at a time in the static coordinator path.

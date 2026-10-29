@@ -17,7 +17,7 @@ namespace corsika::kokkos::coordinator {
   namespace fs = std::filesystem;
   using json_type = nlohmann::json;
 
-  /** Production static coordinator configuration; CLI defaults are preserved. */
+  /** Static CPU-prefix and GPU-worker configuration. */
   struct CoordinatorOptions {
     fs::path worker_, output_;
     std::vector<std::string> devices_, physics_;
@@ -26,9 +26,13 @@ namespace corsika::kokkos::coordinator {
     std::uint64_t seed_ = 1;
     unsigned events_ = 1;
     unsigned prefixWorkers_ = 0; // 0: unchanged serial prefix; >0: static CPU subshowers
-    double prefixSplitEnergy_ = 0;
+    double prefixSplitEnergy_ = 0; // 0: scale the CPU threshold with prefixWorkers_
     double energy_ = 0, memoryFraction_ = .5, frontierEnergy_ = 0, timeout_ = 7200;
   };
+
+  /// Resolve the CPU split energy in GeV; return 0 when the CPU prefix is serial.
+  /// A positive explicit cap overrides the worker-scaled default.
+  double cpu_split_energy(CoordinatorOptions const& options);
 
   /// SHA-256 of the closed file; fails on an unreadable input.
   std::string digest(fs::path const& file);

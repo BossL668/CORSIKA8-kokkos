@@ -35,7 +35,8 @@ cd ../install/cuda-openmp/bin
 - --multigpu-timeout：每个前缀/worker 的超时秒数，默认 7200；很慢的高能模拟可调大。
 - --multigpu-frontier-energy：可选的调度根粒子能量上限（GeV），默认自动选择；它不是物理 cut。
 - --prefix-workers：静态 CPU prefix 进程数，默认 0 保留串行；正数与 GPU 数量独立。
-- --prefix-split-energy：CPU 分支拆分的能量上限（GeV），默认 0 使用 EM 前沿上限；不是物理 cut。
+- --prefix-split-energy：CPU 分支拆分的能量上限（GeV），默认 0 使用
+  `primary_energy / (96 * prefix_workers)`，与 GPU 数量独立；不是物理 cut。
 
 `--device` 自动选择 Kokkos CUDA 输运和射电。显式给出的
 --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda 也接受。
@@ -89,12 +90,18 @@ CPU worker 与 GPU worker 总数最多 255，以确保各自的 history 编号�
 
 - `--multigpu-frontier-energy`：决定哪些 EM/μ 根粒子可导出到 GPU 前沿；
   自动值为 `primary_energy / (8 * number_of_selected_GPUs)`。
-- `--prefix-split-energy`：bootstrap 捕获 CPU 分支的上限；默认 0 沿用上面的
-  EM 上限，显式正值覆盖。**两者只影响任务交接，不是 cut 或薄化参数。**
+- `--prefix-split-energy`：bootstrap 捕获 CPU 分支的总能量上限；默认 0 使用
+  `primary_energy / (96 * prefix_workers)`，显式正值覆盖。与 GPU 数量及
+  `--multigpu-frontier-energy` 独立；`--prefix-workers 0` 时不使用此阈值。
+  次级粒子降到该阈值后可被保存，随后按原有静态方法分配给 CPU 进程。
+  **两者只影响任务交接，不是 cut 或薄化参数。**
 - `C8_STATIC_FRONTIER_IMPORT_BATCH`：可选环境变量，控制 GPU worker 一次导入
   多少静态根，取值 1--65536；未设置时保留原后端最小批次对应的导入规则。
   例如在命令前加 `C8_STATIC_FRONTIER_IMPORT_BATCH=32768`，不需要重新编译。
   它不改变 `--gpu-min-batch`，也不会在本地驻留工作/CPU 回退未排空时插入新根。
+
+CPU 拆分的默认系数基于高能大气质子前缀的测时；其他能量、初级粒子和机器
+可通过显式 `--prefix-split-energy` 调优。
 
 大块减少交接次数，但不保证所有事件都更快。已经测试的高能质子配置中使用过
 32768；低能事件的进程初始化开销可能超过收益，不应自动照搬高能进程数。
@@ -112,6 +119,9 @@ CPU 根使用 `C8_CPU_FRONTIER_V1`，保存原粒子 PID（核含 A/Z）、总�
 
 启用并行后保留 `bootstrap/`、`cpu_prefix_*/`、`worker_*/`、CPU/EM 前沿、
 `CPU_PARTITION.json`、`CPU_FRONTIER_FEED.json`、`FRONTIER_JOIN.json` 和 GPU 分片审计。
+`CONFIG.json` 的 `cpu_prefix_split_energy_effective_GeV` 和
+`em_frontier_energy_effective_GeV` 分别记录实际 CPU 拆分上限和 EM 交接上限；
+原 `cpu_prefix_split_energy_GeV` 保留用户请求值（0 表示自动）。
 `TIMING.json` 增加 `cpu_prefix_workers` 和 `prefix_phase_wall_s`；后者包含
 bootstrap、CPU 分片、CPU worker 推进与前沿汇总，不只是单个 worker 的物理耗时。
 哈希、完整消费、编号冲突、输出网格和有限值检查失败时，不产生成功完成标记。
