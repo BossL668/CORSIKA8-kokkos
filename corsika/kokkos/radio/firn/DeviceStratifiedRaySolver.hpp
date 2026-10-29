@@ -70,6 +70,17 @@ namespace corsika::kokkos::radio::firn::detail::go {
     BranchList<Path> paths_{};
     Status status_{Status::Success};
   };
+  /// Closed-form path integrals and dX/dp for one exponential-profile leg.
+  struct RayIntegrals {
+    double horizontalM_;
+    double geometricLengthM_;
+    double opticalPathM_;
+    double horizontalDerivativeM_;
+  };
+  struct HorizontalRange {
+    double valueM_;
+    double derivativeM_;
+  };
   struct Profile {
     ExponentialOpticalParameters data_;
     KOKKOS_INLINE_FUNCTION double minimumSupportedZ() const { return data_.minimumZM_; }
@@ -84,12 +95,19 @@ namespace corsika::kokkos::radio::firn::detail::go {
     KOKKOS_INLINE_FUNCTION double turningLegHorizontal(double p, double endpointZM) const;
     KOKKOS_INLINE_FUNCTION double turningLegHorizontalDerivative(double p,
                                                                  double endpointZM) const;
+    KOKKOS_INLINE_FUNCTION HorizontalRange turningLegRange(double p,
+                                                           double endpointZM) const;
+    KOKKOS_INLINE_FUNCTION RayIntegrals monotonicRayData(double p, double deepZM,
+                                                         double shallowZM) const;
+    KOKKOS_INLINE_FUNCTION RayIntegrals turningLegData(double p, double endpointZM) const;
     KOKKOS_INLINE_FUNCTION ExponentialEndpointData
     endpointRayData(double q, double deepZM, double shallowZM) const;
   };
-  /** Numerical port of StratifiedRaySolver: same endpoint regularization,
-   * quadrature counts, bracketing scans and root iterations. The fixed branch
-   * storage reports overflow instead of silently discarding solutions.
+  /** Exponential-profile ray solver with closed-form path integrals.
+   * Endpoint regularization and branch bracketing follow StratifiedRaySolver.
+   * Monotonic horizontal ranges use bracketed, analytic-derivative Newton updates.
+   * No numerical quadrature runs on the device.
+   * Fixed branch storage reports overflow instead of discarding solutions.
    */
   class RaySolver {
   public:

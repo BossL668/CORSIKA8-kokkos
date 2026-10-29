@@ -134,10 +134,15 @@ namespace corsika::kokkos::coordinator {
       return out;
     }
     void configs(std::vector<fs::path> const& parts, fs::path const& rel) {
-      auto ref = yaml_value(YAML::LoadFile((parts.front() / rel).string()));
+      auto read = [&](fs::path const& part) {
+        auto value = yaml_value(YAML::LoadFile((part / rel).string()));
+        // CPU prefix capture and device replay share the physics configuration.
+        if (rel == fs::path("firn_radio/config.yaml")) value.erase("execution");
+        return value;
+      };
+      auto ref = read(parts.front());
       for (auto const& p : parts)
-        require(yaml_value(YAML::LoadFile((p / rel).string())) == ref,
-                "Configuration mismatch: " + (p / rel).string());
+        require(read(p) == ref, "Configuration mismatch: " + (p / rel).string());
     }
   } // namespace
   void save(fs::path const& file, json_type const& value) {
@@ -345,8 +350,15 @@ namespace corsika::kokkos::coordinator {
             {"sources", assignments}};
   }
   void validate_outputs(fs::path const& folder) {
-    for (auto rel :
-         {"profile/profile.parquet", "CoREAS/observers.parquet", "ZHS/observers.parquet"})
+    std::vector<std::string> required{"profile/profile.parquet"};
+    if (fs::exists(folder / "firn_radio")) {
+      required.insert(required.end(), {"firn_radio/radio_waveforms.parquet",
+                                       "firn_radio/radio_spectra.parquet"});
+    } else {
+      required.insert(required.end(),
+                      {"CoREAS/observers.parquet", "ZHS/observers.parquet"});
+    }
+    for (auto const& rel : required)
       require(reader(folder / rel)->parquet_reader()->metadata()->num_rows() > 0,
               "Empty required output (select --ring 1 or an antenna file): " +
                   std::string(rel));
@@ -381,27 +393,63 @@ namespace corsika::kokkos::coordinator {
               "Incomplete/invalid native EGS4 output");
     }
   }
+  void validate_radio_replay(fs::path const& folder, std::uint64_t expected) {
+    if (!fs::exists(folder / "firn_radio")) return;
+    auto const path = folder / "firn_radio/summary.yaml";
+    require(fs::exists(path), "Missing firn radio replay summary: " + folder.string());
+    auto const summary = YAML::LoadFile(path.string())["shower_0"];
+    require(summary["replayed_prefix_segments"].as<std::uint64_t>() == expected,
+            "Firn prefix radio tracks were not completely replayed: " + folder.string());
+  }
+
   json_type merge(std::vector<fs::path> const& parts, fs::path const& destination) {
     require(!parts.empty(), "Cannot merge no parts");
     require(fs::create_directory(destination), "Merge destination exists");
     json_type products = json_type::object();
-    for (auto name : {"profile/profile.parquet", "production_profile/profile.parquet",
-                      "energyloss/dEdX.parquet", "CoREAS/observers.parquet",
-                      "ZHS/observers.parquet"}) {
+    std::vector<std::string> productsToSum{"profile/profile.parquet",
+                                           "production_profile/profile.parquet",
+                                           "energyloss/dEdX.parquet"};
+    bool const firn = fs::exists(parts.front() / "firn_radio");
+    for (auto const& part : parts)
+      require(fs::exists(part / "firn_radio") == firn, "Different radio output models");
+    if (firn) {
+      productsToSum.insert(productsToSum.end(), {"firn_radio/radio_waveforms.parquet",
+                                                 "firn_radio/radio_spectra.parquet"});
+      for (auto const* name :
+           {"radio_branch_waveforms.parquet", "radio_branch_spectra.parquet"}) {
+        if (fs::exists(parts.front() / "firn_radio" / name))
+          productsToSum.push_back(std::string("firn_radio/") + name);
+      }
+    } else {
+      productsToSum.insert(productsToSum.end(),
+                           {"CoREAS/observers.parquet", "ZHS/observers.parquet"});
+    }
+    for (auto const& name : productsToSum) {
       check_interrupt();
       fs::path rel(name), target = destination / rel;
-      bool radio = rel.begin()->string() == "CoREAS" || rel.begin()->string() == "ZHS";
-      auto grid = radio ? "Time" : "X";
+      bool const firnRadio = rel.begin()->string() == "firn_radio";
+      bool radio = firnRadio || rel.begin()->string() == "CoREAS" ||
+                   rel.begin()->string() == "ZHS";
+      auto const grid =
+          firnRadio
+              ? (name.find("spectra") != std::string::npos ? "frequency_hz" : "time_s")
+              : (radio ? "Time" : "X");
+      auto isCoordinate = [&](std::string const& key) {
+        return key == "shower" || key == grid ||
+               (firnRadio && (key == "observer" || key == "branch"));
+      };
       auto ref = table(parts.front() / rel);
       require(ref->GetColumnByName("shower") && ref->GetColumnByName(grid),
               "Missing grid columns");
+      require(!firnRadio || ref->GetColumnByName("observer"),
+              "Missing firn observer column");
       configs(parts, rel.parent_path() / "config.yaml");
       std::vector<std::vector<double>> sum(ref->num_columns()),
           correction(ref->num_columns());
       for (int k = 0; k < ref->num_columns(); ++k) {
         auto key = ref->field(k)->name();
         for (auto const& a : ref->column(k)->chunks()) validate_array(a);
-        if (key == "shower" || key == grid) continue;
+        if (isCoordinate(key)) continue;
         sum[k] = values(ref->column(k));
         correction[k].resize(sum[k].size(), 0);
       }
@@ -415,7 +463,11 @@ namespace corsika::kokkos::coordinator {
                 "Grid mismatch: " + rel.string());
         for (int k = 0; k < ref->num_columns(); ++k) {
           auto key = ref->field(k)->name();
-          if (key == "shower" || key == grid) continue;
+          if (isCoordinate(key)) {
+            require(t->column(k)->Equals(ref->column(k)),
+                    "Radio coordinate mismatch: " + key);
+            continue;
+          }
           auto v = values(t->column(k));
           for (std::size_t j = 0; j < v.size(); ++j) {
             auto y = v[j] - correction[k][j], total = sum[k][j] + y;
@@ -430,7 +482,7 @@ namespace corsika::kokkos::coordinator {
       double maximum = 0;
       for (int k = 0; k < ref->num_columns(); ++k) {
         auto key = ref->field(k)->name();
-        if (key == "shower" || key == grid) {
+        if (isCoordinate(key)) {
           fields.push_back(ref->field(k));
           arrays.push_back(ref->column(k));
         } else {
@@ -450,8 +502,19 @@ namespace corsika::kokkos::coordinator {
       auto t = arrow::Table::Make(arrow::schema(fields), arrays);
       check(parquet::arrow::WriteTable(*t, arrow::default_memory_pool(), out, 65536));
       check(out->Close());
-      fs::copy_file(parts.front() / rel.parent_path() / "config.yaml",
-                    target.parent_path() / "config.yaml");
+      auto const configPath = target.parent_path() / "config.yaml";
+      if (!fs::exists(configPath)) {
+        if (firnRadio) {
+          auto configuration = YAML::LoadFile(
+              (parts.front() / rel.parent_path() / "config.yaml").string());
+          configuration["execution"] = "coherent sum of worker fields";
+          std::ofstream configOutput(configPath);
+          configOutput << configuration;
+          require(bool(configOutput), "Cannot write merged firn configuration");
+        } else {
+          fs::copy_file(parts.front() / rel.parent_path() / "config.yaml", configPath);
+        }
+      }
       products[name] = {{"rows", t->num_rows()}, {"sha256", digest(target)}};
       if (radio) {
         products[name]["nonzero_field_entries"] = nonzero;

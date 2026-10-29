@@ -9,6 +9,13 @@
 
 namespace corsika::kokkos::application {
 
+  template <typename TRadio>
+  void replay_prefix_radio(TRadio&, std::vector<std::string> const& paths,
+                           CoordinateSystemPtr const&) {
+    if (!paths.empty())
+      throw std::invalid_argument("prefix radio tracks require a replay-capable backend");
+  }
+
   template <typename TRunSession, typename TEnvironment, typename TInjectionPosition,
             typename TSurface, typename TPropagationStep, typename TDetectorCoREAS,
             typename TDetectorZHS, typename TShowerAxis, typename TDepthStep,
@@ -157,8 +164,8 @@ namespace corsika::kokkos::application {
             throw std::runtime_error("prefix radio track input was not fully consumed");
           }
         }
-      } else if (!gpu_cli.radioTrackInputs_.empty()) {
-        throw std::invalid_argument("prefix radio tracks require accelerated radio");
+      } else {
+        replay_prefix_radio(coreas, gpu_cli.radioTrackInputs_, rootCS);
       }
       return *session_begin.backend_;
     };

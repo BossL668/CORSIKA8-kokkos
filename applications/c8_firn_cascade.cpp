@@ -268,6 +268,7 @@ int run_firn_cascade(
   double firn_half_width_m = 10000.;
   double firn_attenuation_per_m = 0.;
   std::string firn_radio_model = "coherent-go";
+  bool firn_surface_reflection = true;
   std::string firn_radio_table;
   std::size_t firn_samples = 4096;
   double firn_time_origin_ns = 0.;
@@ -303,6 +304,9 @@ int run_firn_cascade(
       ->check(CLI::IsMember({"coherent-go", "full-wave", "hybrid-full-wave"}));
   app.add_option("--firn-radio-table", firn_radio_table,
                  "Validated full-wave response manifest");
+  app.add_option("--firn-surface-reflection", firn_surface_reflection,
+                 "Include the surface-reflected GO ray (true/false)")
+      ->capture_default_str();
   app.add_option("--firn-attenuation-per-m", firn_attenuation_per_m,
                  "Field attenuation coefficient (1/m)")
       ->capture_default_str()
@@ -730,14 +734,20 @@ int run_firn_cascade(
   firn_radio::OnlineRadioConfig radio_config;
   radio_config.grid_ = {1.e-9 / backend.radioSamplingRateGHz(), firn_samples};
   radio_config.timeOriginS_ = firn_time_origin_ns * 1.e-9;
+  radio_config.includeSurfaceReflection_ = firn_surface_reflection;
   radio_config.maximumRefractiveIndex_ = firn_profile.deepRefractiveIndex_;
   radio_config.validate();
   auto optical_profile = std::make_shared<firn_radio::ExponentialProfile const>(
       firn_profile.deepRefractiveIndex_, firn_profile.refractiveIndexDeficit_,
       firn_scale_depth, 0., firn_attenuation_per_m, -firn_depth_m);
   std::shared_ptr<firn_radio::GreenResponseBackend const> response =
-      std::make_shared<firn_radio::CoherentStratifiedGOBackend>(optical_profile, 1.);
+      std::make_shared<firn_radio::CoherentStratifiedGOBackend>(optical_profile, 1.,
+                                                                firn_surface_reflection);
   if (firn_radio_model != "coherent-go") {
+    if (!firn_surface_reflection)
+      throw std::invalid_argument(
+          "--firn-surface-reflection=false requires coherent-go; full-wave tables "
+          "already contain the surface response");
     if (firn_radio_table.empty())
       throw std::invalid_argument("full-wave mode requires --firn-radio-table");
     auto table = std::make_shared<firn_radio::TabulatedCoherentFullWaveBackend const>(
@@ -792,7 +802,8 @@ int run_firn_cascade(
         std::move(radio_positions), device_radio_config);
     firn_emission = std::make_unique<firn_radio::CascadeRadioAdapter::process_type>(
         observers, firn_radio::AnyGreenBackend(response), radio_config,
-        surface_coordinates, std::move(accumulator), std::move(go_accumulator));
+        surface_coordinates, std::move(accumulator), std::move(go_accumulator),
+        optical_profile->profileFingerprint());
     output.add("firn_radio", *firn_emission);
   }
   auto firn_radio_process =

@@ -167,10 +167,6 @@ namespace corsika::kokkos::application {
     }
 #ifdef CORSIKA_KOKKOS_COORDINATOR
     // Dispatch before initializing Kokkos or any shower/Fortran model state.
-    if (scene == CascadeScene::Firn && kokkos::coordinator::requested(argc, argv)) {
-      CORSIKA_LOG_ERROR("firn multi-process radio merging is not yet connected");
-      return EXIT_FAILURE;
-    }
     if (kokkos::coordinator::requested(argc, argv))
       return kokkos::coordinator::main_entry(argc, argv);
 #endif

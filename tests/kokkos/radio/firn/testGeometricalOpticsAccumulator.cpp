@@ -10,6 +10,7 @@
 #include <corsika/kokkos/radio/firn/ExponentialProfile.hpp>
 #include <corsika/kokkos/runtime/Runtime.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 #include <iostream>
 #include <optional>
 
@@ -139,11 +140,13 @@ namespace {
               count == 1 ? mid[o] : backend.evaluate(center, observers[o], config.grid_);
           for (auto const& b : response.branches_) {
             auto const& p = b.path_;
-            int family = p.topology_ == "direct"              ? 0
-                         : p.topology_ == "surface_reflected" ? 1
-                         : p.topology_ == "turning_short"     ? 2
-                         : p.topology_ == "turning_long"      ? 3
-                                                              : 6;
+            int family = p.topology_ == "direct"
+                             ? 0
+                             : p.topology_ == "surface_reflected"
+                                   ? 1
+                                   : p.topology_ == "turning_short"
+                                         ? 2
+                                         : p.topology_ == "turning_long" ? 3 : 6;
             double retarded = duration / count - p.sourceRefractiveIndex_ *
                                                      dot(p.emitDirection_, delta) /
                                                      c_m_per_s;
@@ -229,6 +232,87 @@ namespace {
   }
 } // namespace
 
+namespace {
+  void check_analytic_integrals() {
+    ExponentialProfile profile(1.78, .423, 77., 0., .001);
+    GeometricalOpticsConfig config;
+    config.radio_.grid_ = {1.e-9, 64};
+    // Independent 70-digit CPU quadrature. Test the complete device path,
+    // including its root, without including CUDA implementation in this host test.
+    double const monotonic[][7] = {
+        {-335, -100, 0, 0, 235, 409.83194628730945, 134.79002030519106},
+        {-335, -100, 9.9999999999999998e-13, 1.3479002030519107e-10, 235,
+         409.83194628730945, 134.79002030519106},
+        {-335, -100, 0.69999999999999996, 103.03217184172475, 256.6017261747055,
+         447.47894354703368, 175.51898287043983},
+        {-335, -100, 1.6000000000000001, 553.62425875004567, 602.06230369283105,
+         1047.928112023671, 2381.3649258457622},
+        {-200.00000000099999, -200, 1, 6.9719044308496063e-10, 1.2190378842511467e-09,
+         2.1314884304264901e-09, 1.03608411665829e-09},
+        {-5000, -4999, 1, 0.67909463693783312, 1.208788453749343, 2.1516434476738304,
+         0.99227238870772472},
+        {-335, 0, 1.3, 431.9631511594651, 550.23766057036482, 916.38091582454376,
+         1052.4947634920156},
+        {-335, 0, 1.3569998643000001, 532.74452373857071, 639.89089815380316,
+         1051.0041928076762, 407721.90030952467},
+    };
+    for (auto const& row : monotonic) {
+      auto device = make_geometrical_optics_accumulator(profile.parameters(),
+                                                        {{row[3], 0., row[1]}}, config);
+      auto const paths = device->paths({{0., 0., row[0]}});
+      auto found = std::find_if(paths[0].begin(), paths[0].end(), [](auto const& path) {
+        return path.topology_ == "direct";
+      });
+      INFO("monotonic p=" << row[2] << ", source z=" << row[0]);
+      REQUIRE(found != paths[0].end());
+      CHECK(std::abs(found->invariantP_ - row[2]) < 1.e-10);
+      CHECK(std::abs(found->geometricLengthM_ / row[4] - 1.) < 1.e-9);
+      CHECK(std::abs(found->opticalPathM_ / row[5] - 1.) < 1.e-9);
+    }
+    double const reflected[][5] = {
+        {0, 0, 435, 718.46628351685683, 0.0021970917018277174},
+        {0.29999999999999999, 80.832534626058518, 442.49154685295991, 730.69598417383622,
+         0.00215556664071926},
+        {1, 336.94515736152442, 551.29751478300511, 907.23180590897391,
+         0.0016627518483684949},
+        {1.3, 600.60754029463794, 747.47271053288057, 1217.3749338542914,
+         0.001023054081181581},
+        {1.3569998643000001, 773.61616970230546, 904.97052089663316, 1448.6628083255894,
+         4.4189312947674089e-05},
+    };
+    std::vector<vector_type> observers;
+    for (auto const& row : reflected) observers.push_back({row[1], 0., -100.});
+    auto device =
+        make_geometrical_optics_accumulator(profile.parameters(), observers, config);
+    auto const paths = device->paths({{0., 0., -335.}});
+    for (std::size_t i = 0; i < observers.size(); ++i) {
+      auto const& row = reflected[i];
+      auto found = std::find_if(paths[i].begin(), paths[i].end(), [](auto const& path) {
+        return path.topology_ == "surface_reflected";
+      });
+      REQUIRE(found != paths[i].end());
+      INFO("reflected p=" << row[0]);
+      CHECK(std::abs(found->invariantP_ - row[0]) < 1.e-12);
+      CHECK(std::abs(found->geometricLengthM_ / row[2] - 1.) < 1.e-10);
+      CHECK(std::abs(found->opticalPathM_ / row[3] - 1.) < 1.e-10);
+      CHECK(std::abs(found->geometricSpreadingPerM_ / row[4] - 1.) < 1.e-8);
+      CHECK(std::abs(found->attenuationExponent_ / (.001 * row[2]) - 1.) < 1.e-10);
+    }
+    double const turning[]{903.46329253573026, 990.4582995812832, 1634.4398066861568};
+    auto curved = make_geometrical_optics_accumulator(profile.parameters(),
+                                                      {{turning[0], 0., -100.}}, config);
+    auto const curvedPaths = curved->paths({{0., 0., -335.}});
+    auto found =
+        std::find_if(curvedPaths[0].begin(), curvedPaths[0].end(), [](auto const& path) {
+          return path.topology_.find("turning_") == 0 &&
+                 std::abs(path.invariantP_ - 1.5) < 1.e-10;
+        });
+    REQUIRE(found != curvedPaths[0].end());
+    CHECK(std::abs(found->geometricLengthM_ / turning[1] - 1.) < 1.e-10);
+    CHECK(std::abs(found->opticalPathM_ / turning[2] - 1.) < 1.e-10);
+  }
+} // namespace
+
 TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
           "[kokkos][firn][radio][go]") {
   std::optional<corsika::kokkos::Runtime> runtime;
@@ -247,6 +331,7 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
   CHECK(empty.total_.size() == observers.size());
   runtime.emplace();
   CHECK(runtime->ownsInitialization());
+  check_analytic_integrals();
   check_endpoint_continuity();
   check_branch_completeness();
   std::vector<vector_type> sources{{0., 0., -200.}, {.1, -.2, -201.}};
@@ -263,6 +348,13 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
         auto const& e = r.branches_[b].path_;
         ++pathCount;
         CHECK(a.topology_ == e.topology_);
+        if (s == 0 && o == 2 && a.topology_ == "surface_reflected") {
+          // Independent 70-digit quadrature, including the ray-tube derivative.
+          // A finite p stencil biased this grazing-reflection amplitude.
+          double const spreading = .0003606446697898538;
+          CHECK(std::abs(a.geometricSpreadingPerM_ / spreading - 1.) < 1.e-10);
+          CHECK(std::abs(e.geometricSpreadingPerM_ / spreading - 1.) < 1.e-7);
+        }
         maxTime = std::max(maxTime, std::abs(a.travelTimeS_ - e.travelTimeS_));
         maxAngle = std::max(maxAngle, norm(subtract(a.emitDirection_, e.emitDirection_)));
         maxAngle =
@@ -297,6 +389,39 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
   CHECK(device->statistics().inputSegments_ == tracks.size());
   CHECK(device->statistics().subdividedSegments_ == childCount);
   CHECK(device->statistics().failedQueries_ == 0);
+  // Surface reflection is optional; turning rays and the direct field stay enabled.
+  auto noReflectionConfig = config;
+  noReflectionConfig.includeSurfaceReflection_ = false;
+  auto noReflection = make_geometrical_optics_accumulator(profile->parameters(),
+                                                          observers, noReflectionConfig);
+  for (auto const& t : tracks) noReflection->append(t);
+  auto directAndTurning = noReflection->download();
+  auto expectedWithoutReflection = first.total_;
+  for (std::size_t o = 0; o < observers.size(); ++o)
+    for (int c = 0; c < 3; ++c)
+      for (std::size_t f = 0; f < config.radio_.grid_.frequencyCount(); ++f)
+        expectedWithoutReflection[o][c][f] -= first.branches_[o][1][c][f];
+  CHECK(l2(directAndTurning.total_, expectedWithoutReflection) < 1.e-12);
+  CHECK(noReflection->statistics().branchCounts_[1] == 0);
+  CHECK(noReflection->statistics().branchCounts_[2] > 0);
+
+  // Independent worker fields must add coherently, including their absolute phases.
+  std::vector<spectra_type::components_type> joined;
+  for (int worker = 0; worker < 2; ++worker) {
+    auto shard =
+        make_geometrical_optics_accumulator(profile->parameters(), observers, config);
+    for (std::size_t i = worker; i < tracks.size(); i += 2) shard->append(tracks[i]);
+    auto partial = shard->download().total_;
+    if (worker == 0) {
+      joined = std::move(partial);
+    } else {
+      for (std::size_t o = 0; o < joined.size(); ++o)
+        for (int c = 0; c < 3; ++c)
+          for (std::size_t f = 0; f < joined[o][c].size(); ++f)
+            joined[o][c][f] += partial[o][c][f];
+    }
+  }
+  CHECK(l2(joined, first.total_) < 1.e-12);
   config.batchSegments_ = 1;
   auto single =
       make_geometrical_optics_accumulator(profile->parameters(), observers, config);
@@ -365,4 +490,27 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
   CHECK_THROWS(limit->download());
   limit->reset();
   CHECK(limit->statistics().inputSegments_ == 0);
+
+  // A finite event budget must fail explicitly and preserve its first error
+  // during output finalization. Reset starts a clean, reproducible event.
+  GeometricalOpticsConfig budgetConfig;
+  budgetConfig.radio_.grid_ = {1.e-9, 64};
+  budgetConfig.radio_.maximumResponseQueries_ = 1;
+  budgetConfig.batchSegments_ = 1;
+  auto budget = make_geometrical_optics_accumulator(profile->parameters(),
+                                                    {{400., 0., -100.}}, budgetConfig);
+  GeometricalOpticsTrack const shortTrack{
+      {0., 0., -200.}, {0., 0., -200.001}, 0., 1.e-11, -1.};
+  budget->append(shortTrack);
+  auto const firstEvent = budget->download();
+  CHECK(budget->statistics().responseQueries_ == 1);
+  CHECK_THROWS_WITH(budget->append(shortTrack), "radio response-query budget exceeded");
+  CHECK_THROWS_WITH(budget->download(), "radio response-query budget exceeded");
+  CHECK_THROWS_WITH(budget->flush(), "radio response-query budget exceeded");
+  CHECK_THROWS_WITH(budget->append(shortTrack), "radio response-query budget exceeded");
+  CHECK(budget->statistics().inputSegments_ == 1);
+  budget->reset();
+  CHECK(budget->statistics().responseQueries_ == 0);
+  budget->append(shortTrack);
+  CHECK(budget->download().total_ == firstEvent.total_);
 }

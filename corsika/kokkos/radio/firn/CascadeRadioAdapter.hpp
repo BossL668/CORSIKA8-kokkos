@@ -34,10 +34,17 @@ namespace corsika::kokkos::radio::firn {
     bool hasTrackSink() const;
     void setTrackSink(corsika::radio::RadioTrackSink* sink, CoordinateSystemPtr const&,
                       bool = true);
+    void replayTracks(std::vector<std::string> const&, CoordinateSystemPtr const&);
 
   private:
     observers_type& observers_;
     process_type* process_{};
+    corsika::radio::RadioTrackSink* sink_{};
+    CoordinateSystemPtr sinkCoordinates_;
+    bool captureTrack_{true};
   };
+  /// Found by argument-dependent lookup in the common cascade runner.
+  void replay_prefix_radio(CascadeRadioAdapter&, std::vector<std::string> const&,
+                           CoordinateSystemPtr const&);
 } // namespace corsika::kokkos::radio::firn
 #include <corsika/detail/kokkos/radio/firn/CascadeRadioAdapter.inl>

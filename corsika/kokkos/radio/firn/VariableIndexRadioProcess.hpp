@@ -14,6 +14,8 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 #include <corsika/framework/core/PhysicalUnits.hpp>
 #include <corsika/framework/core/Step.hpp>
+#include <corsika/modules/radio/RadioTrackSegment.hpp>
+#include <corsika/kokkos/radio/RadioTrackSpoolReader.hpp>
 #include <corsika/framework/process/ContinuousProcess.hpp>
 #include <corsika/output/BaseOutput.hpp>
 #include <corsika/output/ParquetStreamer.hpp>
@@ -23,6 +25,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <corsika/kokkos/radio/firn/RadioObserver.hpp>
 #include <corsika/kokkos/radio/firn/OnlineRadioConfig.hpp>
@@ -40,10 +43,17 @@ namespace corsika::kokkos::radio::firn {
         std::vector<RadioObserver> observers, TBackend backend, OnlineRadioConfig config,
         CoordinateSystemPtr radioCoordinates,
         std::shared_ptr<IFullWaveAccumulator> accumulator = nullptr,
-        std::shared_ptr<IGeometricalOpticsAccumulator> goAccumulator = nullptr);
+        std::shared_ptr<IGeometricalOpticsAccumulator> goAccumulator = nullptr,
+        std::string profileFingerprint = {});
 
     template <typename TParticle>
     ProcessReturn doContinuous(Step<TParticle> const& step, bool const);
+
+    /// Replay one prefix track, converting its saved frame to the local radio frame.
+    void appendTrack(corsika::radio::RadioTrackSegment const&,
+                     CoordinateSystemPtr const&);
+    /// Read closed prefix spools after the next event reset, before its first track.
+    void prepareReplay(std::vector<std::string> const&, CoordinateSystemPtr const&);
 
     template <typename TParticle, typename TTrack>
     LengthType getMaxStepLength(TParticle const&, TTrack const&) const;
@@ -63,6 +73,9 @@ namespace corsika::kokkos::radio::firn {
     std::size_t residentSpectrumBytes() const;
 
   private:
+    ProcessReturn accumulateTrack(vector_type const& start, vector_type const& end,
+                                  double startTimeS, double endTimeS, double weight,
+                                  Code pid);
     template <typename TPoint>
     vector_type pointCoordinates(TPoint const& point) const;
 
@@ -89,6 +102,9 @@ namespace corsika::kokkos::radio::firn {
     TBackend backend_;
     CoordinateSystemPtr radioCoordinates_;
     OnlineRadioConfig config_;
+    std::string profileFingerprint_;
+    std::vector<std::string> replayInputs_;
+    CoordinateSystemPtr replayCoordinates_;
     std::vector<std::array<std::vector<std::complex<double>>, 3>> spectra_;
     std::vector<
         std::array<std::array<std::vector<std::complex<double>>, 3>, branchFamilyCount_>>
@@ -97,6 +113,7 @@ namespace corsika::kokkos::radio::firn {
     ParquetStreamer branchWaveformOutput_, branchSpectrumOutput_;
     unsigned int showerId_{0};
     std::uint64_t inputSegments_{0}, subdividedSegments_{0};
+    std::uint64_t replayedSegments_{0};
     std::uint64_t skippedDegenerateSegments_{0}, responseQueries_{0};
     std::uint64_t branchContributionCount_{0};
     std::size_t maximumSubdivisionsSeen_{0};

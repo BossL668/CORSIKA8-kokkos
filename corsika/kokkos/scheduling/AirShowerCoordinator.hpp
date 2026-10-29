@@ -44,6 +44,8 @@ namespace corsika::kokkos::coordinator {
                                    std::vector<unsigned> const& workers);
   /// Check required outputs, finite arrays and recorded overflow counters.
   void validate_outputs(fs::path const& folder);
+  /// For firn, require every assigned prefix segment to survive event initialization.
+  void validate_radio_replay(fs::path const& folder, std::uint64_t expected);
   /** Merge closed outputs in input order; sum fields, concatenate ground records. */
   json_type merge(std::vector<fs::path> const& parts, fs::path const& destination);
   /// Publish closed JSON metadata without replacing an existing marker.

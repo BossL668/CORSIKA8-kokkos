@@ -33,11 +33,6 @@ namespace corsika::kokkos::application {
           "ice/firn currently support PROPOSAL transport and standard output; "
           "the EGS4 and atmospheric diagnostic replay adapters are not enabled");
     }
-    if (environment.scene_ == CascadeScene::Firn &&
-        (!options_.radioTrackInputs_.empty() || !workers_.radioOutput_.empty())) {
-      throw std::invalid_argument(
-          "firn deferred track replay and multi-process radio merging are not connected");
-    }
     environment_ = environment;
     runtime_.configure(options_, environment_);
   }
@@ -71,6 +66,7 @@ namespace corsika::kokkos::application {
     if (options_.radioBackend_ == "cpu" || model != "coherent-go") return nullptr;
     radio::firn::GeometricalOpticsConfig deviceConfig;
     deviceConfig.radio_ = config;
+    deviceConfig.includeSurfaceReflection_ = config.includeSurfaceReflection_;
     return radio::firn::make_geometrical_optics_accumulator(
         profile, std::move(observers), deviceConfig, options_.kokkosNumThreads_);
   }

@@ -526,11 +526,11 @@ namespace corsika::kokkos::radio::firn {
     double const optical = sumLegs([](double, double n) { return n * n; });
     double const attenuation = sumLegs(
         [&](double z, double n) { return profile_.attenuationAtZ(z, frequencyHz) * n; });
-    double const dp = std::max(1.0e-8, p * 1.0e-5);
-    double const pMinus = std::max(0.0, p - dp);
-    double const pPlus = std::min(nTop * (1.0 - 1.0e-11), p + dp);
+    // Differentiate the integrand instead of a finite p stencil, whose
+    // truncation error grows near surface-grazing reflection. This host
+    // quadrature also provides an independent check of the device primitive.
     double const dHorizontalDp =
-        (horizontalAt(pPlus) - horizontalAt(pMinus)) / (pPlus - pMinus);
+        sumLegs([p](double, double n) { return n * n / ((n - p) * (n + p)); });
     double const sinSource = p / nSource;
     double const sinObserver = p / nObserver;
     double const cosSource = std::sqrt(std::max(0.0, 1.0 - sinSource * sinSource));

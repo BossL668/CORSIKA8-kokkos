@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--candidate', type=Path, required=True)
 parser.add_argument('--production', type=Path, required=True)
 parser.add_argument('--work', type=Path, required=True)
-parser.add_argument('--mode', choices=['io', 'cli', 'process'], required=True)
+parser.add_argument('--mode', choices=['io', 'cli', 'process', 'firn'], required=True)
 args = parser.parse_args()
 args.work.mkdir(parents=True, exist_ok=True)
 parent = args.work
@@ -168,6 +168,31 @@ def io_tests():
              destination=str(args.work / f'config-error-{tag}'))
 
 
+def firn_tests():
+    parts = [args.work / 'prefix', args.work / 'worker']
+    for part, value, execution in zip(parts, [2., -1.], ['CPU', 'Cuda']):
+        call(args.candidate, 'fixture', root=str(part), value=value, firn=True, execution=execution)
+        call(args.candidate, 'validate', root=str(part))
+    target = args.work / 'merged'
+    call(args.candidate, 'merge', parts=list(map(str, parts)), destination=str(target))
+    for filename in ['radio_waveforms.parquet', 'radio_spectra.parquet']:
+        result = call(args.candidate, 'read', path=str(target / 'firn_radio' / filename))
+        require(result['field'] == [1., 2., -1., -2.], 'Sum signed fields, not powers')
+        require(result['observer'] == [0., 0., 1., 1.], 'Preserve observer IDs')
+    for label, options in [('observer', dict(observer_shift=.5)),
+                           ('reflection', dict(reflection=False))]:
+        bad = args.work / ('bad-' + label)
+        call(args.candidate, 'fixture', root=str(bad), value=1., firn=True, **options)
+        call(args.candidate, 'merge', success=False, parts=[str(parts[0]), str(bad)],
+             destination=str(args.work / ('rejected-' + label)))
+
+    replay = parts[0] / 'firn_radio' / 'summary.yaml'
+    call(args.candidate, 'validate_firn_replay', success=False, root=str(parts[0]), expected=3)
+    replay.write_text('shower_0:\n  replayed_prefix_segments: 3\n')
+    call(args.candidate, 'validate_firn_replay', root=str(parts[0]), expected=3)
+    call(args.candidate, 'validate_firn_replay', success=False, root=str(parts[0]), expected=4)
+
+
 def cli_tests():
     for flags, expected in [([], False), (['--device', '0'], False),
                             (['--device', '0,1'], True), (['--devices', '0', '1'], True),
@@ -221,7 +246,7 @@ def process_tests():
 
 
 try:
-    {'io': io_tests, 'cli': cli_tests, 'process': process_tests}[args.mode]()
+    {'io': io_tests, 'cli': cli_tests, 'process': process_tests, 'firn': firn_tests}[args.mode]()
     (args.work / 'RESULTS.json').write_text(json.dumps(dict(passed=True, checks=checks, records=records), indent=2) + '\n')
     print(f'CHECKS={checks}')
     print('evidence=' + str(args.work))

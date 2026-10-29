@@ -14,13 +14,15 @@ namespace corsika::kokkos::radio::firn {
       std::vector<RadioObserver> observers, TBackend backend, OnlineRadioConfig config,
       CoordinateSystemPtr radioCoordinates,
       std::shared_ptr<IFullWaveAccumulator> accumulator,
-      std::shared_ptr<IGeometricalOpticsAccumulator> goAccumulator)
+      std::shared_ptr<IGeometricalOpticsAccumulator> goAccumulator,
+      std::string profileFingerprint)
       : accumulator_(std::move(accumulator))
       , goAccumulator_(std::move(goAccumulator))
       , observers_(std::move(observers))
       , backend_(std::move(backend))
       , radioCoordinates_(std::move(radioCoordinates))
-      , config_(std::move(config)) {
+      , config_(std::move(config))
+      , profileFingerprint_(std::move(profileFingerprint)) {
     if (!radioCoordinates_)
       throw std::invalid_argument("firn radio needs explicit local coordinates");
     config_.validate();
@@ -62,10 +64,34 @@ namespace corsika::kokkos::radio::firn {
     vector_type const end = pointCoordinates(step.getPositionPost());
     double const startTimeS = step.getTimePre() / 1_s;
     double const endTimeS = step.getTimePost() / 1_s;
+    return accumulateTrack(start, end, startTimeS, endTimeS,
+                           step.getParticlePre().getWeight(), pid);
+  }
+
+  template <typename TBackend>
+  inline void VariableIndexRadioProcess<TBackend>::appendTrack(
+      corsika::radio::RadioTrackSegment const& track,
+      CoordinateSystemPtr const& coordinates) {
+    if (!coordinates || (track.pdg_ != 11 && track.pdg_ != -11))
+      throw std::invalid_argument(
+          "firn replay requires an electron/positron track and frame");
+    Point const start(coordinates, track.startPositionM_[0] * 1_m,
+                      track.startPositionM_[1] * 1_m, track.startPositionM_[2] * 1_m);
+    Point const end(coordinates, track.endPositionM_[0] * 1_m,
+                    track.endPositionM_[1] * 1_m, track.endPositionM_[2] * 1_m);
+    accumulateTrack(pointCoordinates(start), pointCoordinates(end), track.startTimeS_,
+                    track.endTimeS_, track.weight_,
+                    track.pdg_ == 11 ? Code::Electron : Code::Positron);
+    ++replayedSegments_;
+  }
+
+  template <typename TBackend>
+  inline ProcessReturn VariableIndexRadioProcess<TBackend>::accumulateTrack(
+      vector_type const& start, vector_type const& end, double startTimeS,
+      double endTimeS, double weight, Code pid) {
     double const durationS = endTimeS - startTimeS;
     vector_type const displacement = subtract(end, start);
     double const lengthM = norm(displacement);
-    double const weight = step.getParticlePre().getWeight();
     if (!finite(start) || !finite(end) || !std::isfinite(startTimeS) ||
         !std::isfinite(endTimeS) || !std::isfinite(weight) || weight < 0.0) {
       throw std::runtime_error("non-finite charged step reached radio process");
@@ -317,9 +343,33 @@ namespace corsika::kokkos::radio::firn {
   }
 
   template <typename TBackend>
+  inline void VariableIndexRadioProcess<TBackend>::prepareReplay(
+      std::vector<std::string> const& paths, CoordinateSystemPtr const& coordinates) {
+    if (!replayInputs_.empty() || !coordinates)
+      throw std::logic_error(
+          "firn replay is already pending or has no coordinate system");
+    std::set<std::filesystem::path> inputs;
+    for (auto const& path : paths)
+      if (!inputs.insert(std::filesystem::canonical(path)).second)
+        throw std::invalid_argument("duplicate prefix radio track input");
+    replayInputs_ = paths;
+    replayCoordinates_ = coordinates;
+  }
+
+  template <typename TBackend>
   inline void VariableIndexRadioProcess<TBackend>::startOfShower(unsigned int showerId) {
     showerId_ = showerId;
     resetEvent();
+    for (auto const& path : replayInputs_) {
+      corsika::kokkos::radio::RadioTrackSpoolReader reader(path);
+      std::vector<corsika::radio::RadioTrackSegment> tracks;
+      while (reader.readBatch(tracks, 4096))
+        for (auto const& track : tracks) appendTrack(track, replayCoordinates_);
+      if (reader.consumed() != reader.count())
+        throw std::runtime_error("prefix firn radio spool was not fully consumed");
+    }
+    replayInputs_.clear();
+    replayCoordinates_.reset();
   }
 
   template <typename TBackend>
@@ -358,6 +408,7 @@ namespace corsika::kokkos::radio::firn {
       device["transfer_ms"] = statistics.transferMs_;
     }
     event["input_segments"] = inputSegments_;
+    event["replayed_prefix_segments"] = replayedSegments_;
     event["subdivided_segments"] = subdividedSegments_;
     event["skipped_degenerate_segments"] = skippedDegenerateSegments_;
     event["response_queries"] = responseQueries_;
@@ -474,6 +525,14 @@ namespace corsika::kokkos::radio::firn {
                             : (accumulator_ ? accumulator_->executionSpaceName() : "CPU");
     node["source_model"] = "finite_track_point_current_phase_bounded";
     node["propagation_backend"] = backend_.name();
+    node["include_surface_reflection"] = config_.includeSurfaceReflection_;
+    node["profile_fingerprint"] = profileFingerprint_;
+    for (auto const& observer : observers_) {
+      YAML::Node entry;
+      entry["name"] = observer.name_;
+      for (double value : observer.positionM_) entry["position_m"].push_back(value);
+      node["observers"].push_back(entry);
+    }
     node["sample_interval_ns"] = config_.grid_.sampleIntervalS_ / 1.0e-9;
     node["sample_count"] = config_.grid_.sampleCount_;
     node["nyquist_hz"] = config_.grid_.nyquistHz();
@@ -531,6 +590,7 @@ namespace corsika::kokkos::radio::firn {
       }
     }
     inputSegments_ = 0;
+    replayedSegments_ = 0;
     subdividedSegments_ = 0;
     skippedDegenerateSegments_ = 0;
     responseQueries_ = 0;

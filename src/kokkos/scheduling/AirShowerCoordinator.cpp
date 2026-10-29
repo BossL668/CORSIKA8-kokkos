@@ -400,6 +400,12 @@ namespace corsika::kokkos::coordinator {
           if (scheduledWorkers.count(i)) {
             auto folder = root / ("worker_" + std::to_string(i));
             validate_outputs(folder / "shower");
+            std::uint64_t expectedRadioTracks = 0;
+            for (auto const& spool : radioAudit.at("sources"))
+              if (!spool.at("worker").is_null() &&
+                  spool.at("worker").get<unsigned>() == i)
+                expectedRadioTracks += spool.at("records").get<std::uint64_t>();
+            validate_radio_replay(folder / "shower", expectedRadioTracks);
             check_frontier_feed(folder, audit["counts"][i].get<std::size_t>());
           }
         require(digest(frontier) == audit["frontier_sha256"],

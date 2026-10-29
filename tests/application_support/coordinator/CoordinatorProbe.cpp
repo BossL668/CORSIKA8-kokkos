@@ -88,6 +88,32 @@ namespace {
     std::ofstream(root / "primary/config.yaml") << "fixture: protocol-only\n";
     std::ofstream(root / "primary/summary.yaml") << "primary: fixed\n";
     std::ofstream(root / "interactions/summary.yaml") << "first_interaction: fixed\n";
+    if (input.value("firn", false)) {
+      fs::remove_all(root / "CoREAS");
+      fs::remove_all(root / "ZHS");
+      fs::create_directory(root / "firn_radio");
+      for (auto const* name : {"radio_waveforms.parquet", "radio_spectra.parquet"}) {
+        std::string const grid = std::string(name).find("spectra") != std::string::npos
+                                     ? "frequency_hz"
+                                     : "time_s";
+        auto schema = arrow::schema({arrow::field("shower", arrow::float64()),
+                                     arrow::field("observer", arrow::float64()),
+                                     arrow::field(grid, arrow::float64()),
+                                     arrow::field("field", arrow::float64())});
+        double const observerShift = input.value("observer_shift", 0.);
+        auto data = arrow::Table::Make(
+            schema, {array({0, 0, 0, 0}), array({observerShift, observerShift, 1, 1}),
+                     array({0, 1, 0, 1}), array({value, 2 * value, -value, -2 * value})});
+        auto stream = take(
+            arrow::io::FileOutputStream::Open((root / "firn_radio" / name).string()));
+        check(
+            parquet::arrow::WriteTable(*data, arrow::default_memory_pool(), stream, 64));
+        check(stream->Close());
+      }
+      std::ofstream(root / "firn_radio/config.yaml")
+          << "profile_fingerprint: fixed\nexecution: " << input.value("execution", "CPU")
+          << "\ninclude_surface_reflection: " << input.value("reflection", true) << '\n';
+    }
   }
   json_type read_table(fs::path const& path) {
     auto input = take(arrow::io::ReadableFile::Open(path.string()));
@@ -157,6 +183,13 @@ namespace {
       tested::VALIDATE_OUTPUTS(input.at("root").get<std::string>());
       return true;
     }
+#ifndef PRODUCTION_REFERENCE
+    if (operation == "validate_firn_replay") {
+      tested::validate_radio_replay(input.at("root").get<std::string>(),
+                                    input.at("expected").get<std::uint64_t>());
+      return true;
+    }
+#endif
     if (operation == "merge")
       return tested::merge(paths(input.at("parts")),
                            input.at("destination").get<std::string>());

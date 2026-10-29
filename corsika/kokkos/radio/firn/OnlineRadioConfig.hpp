@@ -23,6 +23,7 @@ namespace corsika::kokkos::radio::firn {
     std::size_t maximumResponseQueries_{500000000};
     bool writeReplayTape_{false};
     bool writeBranchComponents_{false};
+    bool includeSurfaceReflection_{true};
     double maximumPointCurrentPhaseIndicator_{0.02};
 
     void validate() const;

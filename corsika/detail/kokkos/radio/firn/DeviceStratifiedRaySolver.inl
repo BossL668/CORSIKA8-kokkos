@@ -12,6 +12,51 @@ namespace corsika::kokkos::radio::firn::detail::go {
   KOKKOS_INLINE_FUNCTION double maximum(double a, double b) { return a < b ? b : a; }
   constexpr double lightSpeed = 299792458.;
   constexpr double pi = 3.141592653589793238462643383279502884;
+
+  /** Invert the monotone horizontal range using its analytic derivative.
+   * Keep the physical bracket when Newton leaves the domain. Stop at floating-point
+   * resolution instead of repeating bisection after the endpoints become adjacent.
+   * The path integrals and the ray families are unchanged.
+   */
+  template <typename TEvaluate>
+  KOKKOS_INLINE_FUNCTION double solve_horizontal_range(TEvaluate const& evaluate,
+                                                       double target, double upper) {
+    if (target == 0.) return 0.;
+    double lower = 0.;
+    double p = .5 * upper;
+    double best = p, error = INFINITY;
+    for (int iteration = 0; iteration < 100; ++iteration) {
+      auto const data = evaluate(p);
+      double const residual = data.horizontalM_ - target;
+      if (std::abs(residual) < error) {
+        best = p;
+        error = std::abs(residual);
+      }
+      if (residual == 0.) break;
+      if (residual < 0.)
+        lower = p;
+      else
+        upper = p;
+      double const middle = lower + .5 * (upper - lower);
+      if (middle == lower || middle == upper) break;
+      double const next = p - residual / data.horizontalDerivativeM_;
+      if (next == p) break;
+      p = std::isfinite(next) && next > lower && next < upper ? next : middle;
+    }
+    // Check the neighbouring representable roots when a Newton update rounds away.
+    for (int direction = 0; direction < 2; ++direction) {
+      double const neighbour =
+          std::nextafter(best, direction ? static_cast<double>(INFINITY)
+                                         : -static_cast<double>(INFINITY));
+      if (neighbour < lower || neighbour > upper) continue;
+      double const residual = std::abs(evaluate(neighbour).horizontalM_ - target);
+      if (residual < error) {
+        best = neighbour;
+        error = residual;
+      }
+    }
+    return best;
+  }
   KOKKOS_INLINE_FUNCTION ExponentialEndpointData
   Profile::endpointRayData(double q, double deepZM, double shallowZM) const {
     double const a = data_.deepIndex_;
@@ -78,6 +123,72 @@ namespace corsika::kokkos::radio::firn::detail::go {
            (2.0 * data_.deepIndex_ * data_.deepIndex_ / std::sqrt(g2) * t -
             (data_.deepIndex_ * n + p * p) / root);
   }
+  KOKKOS_INLINE_FUNCTION HorizontalRange
+  Profile::turningLegRange(double p, double endpointZM) const {
+    double const a = data_.deepIndex_, h = data_.scaleDepthM_;
+    double const deficit =
+        data_.deltaIndex_ * std::exp((endpointZM - data_.surfaceZM_) / h);
+    double const n = a - deficit, gap = a - p, g2 = gap * (a + p);
+    double const g = std::sqrt(g2);
+    double const t =
+        std::log((std::sqrt(gap * (n + p)) + std::sqrt((a + p) * (gap - deficit))) /
+                 std::sqrt(2. * p * deficit));
+    double const derivative =
+        (!(p > 0.) || !(deficit > 0.) || !(gap > deficit))
+            ? NAN
+            : h / g2 *
+                  (2. * a * a / g * t -
+                   (a * n + p * p) / std::sqrt((gap - deficit) * (n + p)));
+    return {2. * h * p * t / g, derivative};
+  }
+
+  KOKKOS_INLINE_FUNCTION RayIntegrals Profile::monotonicRayData(double p, double deepZM,
+                                                                double shallowZM) const {
+    double const dz = shallowZM - deepZM;
+    if (dz == 0.) return {};
+    double const a = data_.deepIndex_, h = data_.scaleDepthM_;
+    double const shallowDeficit =
+        data_.deltaIndex_ * std::exp((shallowZM - data_.surfaceZM_) / h);
+    double const deepDeficit =
+        data_.deltaIndex_ * std::exp((deepZM - data_.surfaceZM_) / h);
+    double const ns = a - shallowDeficit, nd = a - deepDeficit;
+    // Form differences before subtracting the nearly equal refractive indices.
+    double const deltaN = -shallowDeficit * std::expm1(-dz / h);
+    double const rs = std::sqrt(maximum(0., (ns - p) * (ns + p)));
+    double const rd = std::sqrt(maximum(0., (nd - p) * (nd + p)));
+    double const g2 = (a - p) * (a + p), g = std::sqrt(g2);
+    double const as = std::sqrt((a - p) * (ns + p));
+    double const ad = std::sqrt((a - p) * (nd + p));
+    double const bs = std::sqrt(maximum(0., (a + p) * (ns - p)));
+    double const bd = std::sqrt(maximum(0., (a + p) * (nd - p)));
+    double const deltaK = deltaN * ((a - p) / (ad + as) + (a + p) / (bd + bs));
+    // J = integral_{ns}^{nd} dn / ((a-n) sqrt(n*n-p*p)).
+    // log1p and dz/h avoid cancellation and an underflowing deficit ratio.
+    double const j = (dz / h + 2. * std::log1p(deltaK / (as + bs))) / g;
+    double const deltaR = deltaN * (nd + ns) / (rd + rs);
+    double const deltaT = std::log1p((deltaN + deltaR) / (ns + rs));
+    double derivative = static_cast<double>(INFINITY);
+    if (rs > 0. && rd > 0.) {
+      double const difference = p * p * deltaN * (nd + ns) / (rs * rd) *
+                                (a / (ns * rd + nd * rs) + 1. / (rd + rs));
+      derivative = h / g2 * (a * a * j + difference);
+    }
+    return {p * h * j, h * (a * j - deltaT), h * (a * a * j - a * deltaT - deltaR),
+            derivative};
+  }
+
+  KOKKOS_INLINE_FUNCTION RayIntegrals Profile::turningLegData(double p,
+                                                              double endpointZM) const {
+    double const n = refractiveIndexAtZ(endpointZM);
+    double const root = std::sqrt(maximum(0., (n - p) * (n + p)));
+    double const horizontal = turningLegHorizontal(p, endpointZM);
+    double const j = horizontal / (p * data_.scaleDepthM_);
+    double const t = std::log1p((n - p + root) / p);
+    double const a = data_.deepIndex_, h = data_.scaleDepthM_;
+    return {horizontal, h * (a * j - t), h * (a * a * j - a * t - root),
+            turningLegHorizontalDerivative(p, endpointZM)};
+  }
+
   KOKKOS_INLINE_FUNCTION Vector add(Vector a, Vector b) {
     return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
   }
@@ -105,18 +216,6 @@ namespace corsika::kokkos::radio::firn::detail::go {
   KOKKOS_INLINE_FUNCTION Vector horizontal_unit(Vector a, Vector b) {
     double const d = horizontal_distance(a, b);
     return d > 0. ? Vector{(b[0] - a[0]) / d, (b[1] - a[1]) / d, 0.} : Vector{1., 0., 0.};
-  }
-  template <typename F>
-  KOKKOS_INLINE_FUNCTION double simpson(F const& f, double a, double b,
-                                        std::size_t intervals = 2048) {
-    if (a == b) return 0.;
-    double const sign = b > a ? 1. : -1.;
-    double const lower = minimum(a, b), upper = maximum(a, b);
-    double const h = (upper - lower) / static_cast<double>(intervals);
-    double sum = f(lower) + f(upper);
-    for (std::size_t i = 1; i < intervals; ++i)
-      sum += (i % 2 ? 4. : 2.) * f(lower + h * i);
-    return sign * sum * h / 3.;
   }
   KOKKOS_INLINE_FUNCTION Path RaySolver::nearEndpoint(Vector const& source,
                                                       Vector const& observer,
@@ -232,27 +331,10 @@ namespace corsika::kokkos::radio::firn::detail::go {
     auto const endpoint = nearEndpoint(source, observer, false);
     if (endpoint.valid_) return endpoint;
     double const highZ = maximum(source[2], observer[2]);
-    double const maximumU = std::sqrt(highZ - lowZ);
-    auto regularizedIntegral = [&](double p, auto const& numerator) {
-      // z=highZ-u^2 removes the integrable square-root endpoint
-      // singularity of grazing monotonic rays.  Direct fixed-z Simpson
-      // quadrature creates a spurious large horizontal range and hence
-      // false direct roots in the turning region.
-      return simpson(
-          [&](double u) {
-            if (u == 0.0) return 0.0;
-            double const z = highZ - u * u;
-            double const n = profile_.refractiveIndexAtZ(z);
-            double const radicand = maximum(n * n - p * p, 1.0e-28);
-            return 2.0 * u * numerator(z, n) / std::sqrt(radicand);
-          },
-          0.0, maximumU, 4096);
-    };
     auto horizontalIntegral = [&](double p) {
-      return regularizedIntegral(p, [p](double, double) { return p; });
+      return profile_.monotonicRayData(p, lowZ, highZ).horizontalM_;
     };
 
-    double lower = 0.0;
     // The signed-cosine endpoint calculation above covers this bracket's
     // excluded sliver without discarding any ordinary exponential-profile ray.
     double upper = minimum(nSource, nObserver) * (1.0 - 1.0e-7);
@@ -263,32 +345,14 @@ namespace corsika::kokkos::radio::firn::detail::go {
       result.horizontalResidualM_ = horizontal - maximumHorizontal;
       return result;
     }
-    for (int iteration = 0; iteration < 100; ++iteration) {
-      double const middle = 0.5 * (lower + upper);
-      if (horizontalIntegral(middle) < horizontal) {
-        lower = middle;
-      } else {
-        upper = middle;
-      }
-    }
-    double p = lower;
-    double recoveredHorizontal = horizontalIntegral(p);
-    for (int candidateIndex = 0; candidateIndex < 2; ++candidateIndex) {
-      double const candidate = candidateIndex == 0 ? upper : 0.5 * (lower + upper);
-      double const candidateHorizontal = horizontalIntegral(candidate);
-      if (std::abs(candidateHorizontal - horizontal) <
-          std::abs(recoveredHorizontal - horizontal)) {
-        p = candidate;
-        recoveredHorizontal = candidateHorizontal;
-      }
-    }
-    auto integral = [&](auto const& integrand) {
-      return regularizedIntegral(p, integrand);
-    };
-    double const geometricLength = integral([](double, double n) { return n; });
-    double const opticalPath = integral([](double, double n) { return n * n; });
-    double const attenuation = integral(
-        [&](double z, double n) { return profile_.attenuationAtZ(z, frequencyHz) * n; });
+    double const p = solve_horizontal_range(
+        [&](double value) { return profile_.monotonicRayData(value, lowZ, highZ); },
+        horizontal, upper);
+    auto const integrals = profile_.monotonicRayData(p, lowZ, highZ);
+    double const recoveredHorizontal = integrals.horizontalM_;
+    double const geometricLength = integrals.geometricLengthM_;
+    double const opticalPath = integrals.opticalPathM_;
+    double const attenuation = profile_.data_.attenuationPerM_ * geometricLength;
 
     double const signZ = dz > 0.0 ? 1.0 : -1.0;
     Vector const horizontal_unit = go::horizontal_unit(source, observer);
@@ -302,23 +366,14 @@ namespace corsika::kokkos::radio::firn::detail::go {
     double const sinSource = p / nSource;
     double const cosSource = std::abs(emit[2]);
     double const cosObserver = std::abs(receive[2]);
-    double const dHorizontalDp = simpson(
-        [&](double u) {
-          if (u == 0.0) return 0.0;
-          double const z = highZ - u * u;
-          double const n = profile_.refractiveIndexAtZ(z);
-          double const denominator = std::pow(maximum(n * n - p * p, 1.0e-28), 1.5);
-          return 2.0 * u * n * n / denominator;
-        },
-        0.0, maximumU, 4096);
+    double const dHorizontalDp = integrals.horizontalDerivativeM_;
     double rayTubeJacobian = 0.0;
     if (horizontal > 1.0e-12 && p > 1.0e-12 && sinSource > 0.0) {
       double const dHorizontalDThetaSource = dHorizontalDp * nSource * cosSource;
       rayTubeJacobian = horizontal * cosObserver * dHorizontalDThetaSource / sinSource;
     } else {
       double const inverseIndexIntegral =
-          std::abs(simpson([&](double z) { return 1.0 / profile_.refractiveIndexAtZ(z); },
-                           source[2], observer[2]));
+          profile_.monotonicRayData(0., lowZ, highZ).horizontalDerivativeM_;
       rayTubeJacobian = std::pow(nSource * inverseIndexIntegral, 2.0);
     }
     if (!(rayTubeJacobian > 0.0) || !std::isfinite(rayTubeJacobian)) {
@@ -351,7 +406,7 @@ namespace corsika::kokkos::radio::firn::detail::go {
   }
 
   KOKKOS_INLINE_FUNCTION BranchList<Path> RaySolver::turningBranches(
-      Vector const& source, Vector const& observer, double frequencyHz) const {
+      Vector const& source, Vector const& observer, double) const {
     if (!finite(source) || !finite(observer)) { return {}; }
     double const horizontal = horizontal_distance(source, observer);
     if (!(horizontal > 0.0)) return {};
@@ -364,53 +419,9 @@ namespace corsika::kokkos::radio::firn::detail::go {
     double const nUpper = minimum(nSource, nObserver);
     if (!(nUpper > nTop * (1.0 + 1.0e-12))) return {};
 
-    auto turningZ = [&](double p) {
-      double low = shallowEndpointZ;
-      double high = topZ;
-      if (!(profile_.refractiveIndexAtZ(low) >= p) ||
-          !(profile_.refractiveIndexAtZ(high) <= p)) {
-        return static_cast<double>(NAN);
-      }
-      for (int iteration = 0; iteration < 100; ++iteration) {
-        double const middle = 0.5 * (low + high);
-        if (profile_.refractiveIndexAtZ(middle) > p)
-          low = middle;
-        else
-          high = middle;
-      }
-      return 0.5 * (low + high);
-    };
-    auto legIntegral = [&](double endpointZ, double turnZ, double p, auto const& f) {
-      double const upperU = std::sqrt(maximum(0.0, turnZ - endpointZ));
-      if (!(upperU > 0.0)) return 0.0;
-      double const derivativeStep = minimum(1.0e-4, 0.25 * (topZ - shallowEndpointZ));
-      double const derivativeLow = turnZ - derivativeStep;
-      double const derivativeHigh = minimum(topZ, turnZ + derivativeStep);
-      double const nDerivative = (profile_.refractiveIndexAtZ(derivativeHigh) -
-                                  profile_.refractiveIndexAtZ(derivativeLow)) /
-                                 (derivativeHigh - derivativeLow);
-      double const endpointLimit =
-          2.0 * f(turnZ, p) /
-          std::sqrt(maximum(2.0 * p * std::abs(nDerivative), 1.0e-30));
-      return simpson(
-          [&](double u) {
-            if (u == 0.0) return endpointLimit;
-            double const z = turnZ - u * u;
-            double const n = profile_.refractiveIndexAtZ(z);
-            return 2.0 * u * f(z, n) / std::sqrt(maximum(n * n - p * p, 1.0e-30));
-          },
-          0.0, upperU, 2048);
-    };
-    auto const* exponential = &profile_;
     auto horizontalAt = [&](double p) {
-      if (exponential) {
-        return exponential->turningLegHorizontal(p, source[2]) +
-               exponential->turningLegHorizontal(p, observer[2]);
-      }
-      double const zt = turningZ(p);
-      auto integrand = [p](double, double) { return p; };
-      return legIntegral(source[2], zt, p, integrand) +
-             legIntegral(observer[2], zt, p, integrand);
+      return profile_.turningLegHorizontal(p, source[2]) +
+             profile_.turningLegHorizontal(p, observer[2]);
     };
 
     double const pLow = nTop * (1.0 + 1.0e-10);
@@ -420,12 +431,16 @@ namespace corsika::kokkos::radio::firn::detail::go {
     // A fixed sampling grid can miss two roots on opposite sides of a
     // maximum within one cell. Bracket that stationary point first.
     auto derivativeAt = [&](double p) {
-      return exponential->turningLegHorizontalDerivative(p, source[2]) +
-             exponential->turningLegHorizontalDerivative(p, observer[2]);
+      return profile_.turningLegHorizontalDerivative(p, source[2]) +
+             profile_.turningLegHorizontalDerivative(p, observer[2]);
     };
-    auto addRoot = [&](double low, double high) {
-      double lowValue = horizontalAt(low) - horizontal;
-      double highValue = horizontalAt(high) - horizontal;
+    auto rangeAt = [&](double p) {
+      auto const first = profile_.turningLegRange(p, source[2]);
+      auto const second = profile_.turningLegRange(p, observer[2]);
+      return HorizontalRange{first.valueM_ + second.valueM_ - horizontal,
+                             first.derivativeM_ + second.derivativeM_};
+    };
+    auto addRoot = [&](double low, double high, double lowValue, double highValue) {
       if (lowValue * highValue > 0.0) return;
       if (lowValue == 0.0)
         high = low;
@@ -446,11 +461,11 @@ namespace corsika::kokkos::radio::firn::detail::go {
       if (roots.empty() || std::abs(root - roots.back()) > 1.0e-14) roots.push_back(root);
     };
     double previousP = pLow;
-    double previousDerivative = exponential ? derivativeAt(previousP) : 0.0;
+    auto previousRange = rangeAt(previousP);
     for (std::size_t index = 1; index <= samples; ++index) {
       double const p = pLow + (static_cast<double>(index) / samples) * (pHigh - pLow);
-      double const derivative = exponential ? derivativeAt(p) : 0.0;
-      if (previousDerivative > 0.0 && derivative < 0.0) {
+      auto const range = rangeAt(p);
+      if (previousRange.derivativeM_ > 0.0 && range.derivativeM_ < 0.0) {
         double low = previousP, high = p;
         for (int iteration = 0; iteration < 70; ++iteration) {
           double const middle = 0.5 * (low + high);
@@ -461,16 +476,15 @@ namespace corsika::kokkos::radio::firn::detail::go {
             high = middle;
         }
         double const peak = 0.5 * (low + high);
-        if (std::abs(horizontalAt(peak) - horizontal) <= 1.0e-11 * horizontal) {
-          roots.invalid_ = true;
-        }
-        addRoot(previousP, peak);
-        addRoot(peak, p);
+        double const peakValue = horizontalAt(peak) - horizontal;
+        if (std::abs(peakValue) <= 1.0e-11 * horizontal) { roots.invalid_ = true; }
+        addRoot(previousP, peak, previousRange.valueM_, peakValue);
+        addRoot(peak, p, peakValue, range.valueM_);
       } else {
-        addRoot(previousP, p);
+        addRoot(previousP, p, previousRange.valueM_, range.valueM_);
       }
       previousP = p;
-      previousDerivative = derivative;
+      previousRange = range;
     }
 
     Vector const horizontal_unit = go::horizontal_unit(source, observer);
@@ -483,18 +497,14 @@ namespace corsika::kokkos::radio::firn::detail::go {
           p >= nUpper * std::sqrt(1.0 - ExponentialEndpointData::cosineLimit_ *
                                             ExponentialEndpointData::cosineLimit_))
         continue;
-      double const zt = turningZ(p);
-      auto sumLegs = [&](auto const& f) {
-        return legIntegral(source[2], zt, p, f) + legIntegral(observer[2], zt, p, f);
-      };
-      double const geometric = sumLegs([](double, double n) { return n; });
-      double const optical = sumLegs([](double, double n) { return n * n; });
-      double const attenuation = sumLegs([&](double z, double n) {
-        return profile_.attenuationAtZ(z, frequencyHz) * n;
-      });
+      auto const sourceLeg = profile_.turningLegData(p, source[2]);
+      auto const observerLeg = profile_.turningLegData(p, observer[2]);
+      double const geometric =
+          sourceLeg.geometricLengthM_ + observerLeg.geometricLengthM_;
+      double const optical = sourceLeg.opticalPathM_ + observerLeg.opticalPathM_;
+      double const attenuation = profile_.data_.attenuationPerM_ * geometric;
       double const dHorizontalDp =
-          profile_.turningLegHorizontalDerivative(p, source[2]) +
-          profile_.turningLegHorizontalDerivative(p, observer[2]);
+          sourceLeg.horizontalDerivativeM_ + observerLeg.horizontalDerivativeM_;
       double const sinSource = p / nSource;
       double const sinObserver = p / nObserver;
       double const cosSource = std::sqrt(maximum(0.0, 1.0 - sinSource * sinSource));
@@ -536,7 +546,7 @@ namespace corsika::kokkos::radio::firn::detail::go {
 
   KOKKOS_INLINE_FUNCTION Path RaySolver::surfaceReflected(Vector const& source,
                                                           Vector const& observer,
-                                                          double frequencyHz) const {
+                                                          double) const {
     Path invalid;
     invalid.topology_ = 6;
     if (!finite(source) || !finite(observer)) { return {}; }
@@ -547,65 +557,44 @@ namespace corsika::kokkos::radio::firn::detail::go {
     double const nSource = profile_.refractiveIndexAtZ(source[2]);
     double const nObserver = profile_.refractiveIndexAtZ(observer[2]);
     if (horizontal == 0.0) {
-      auto sumVertical = [&](auto const& f) {
-        return simpson(f, source[2], topZ) + simpson(f, observer[2], topZ);
-      };
+      auto const sourceLeg = profile_.monotonicRayData(0., source[2], topZ);
+      auto const observerLeg = profile_.monotonicRayData(0., observer[2], topZ);
       double const inverseIndexIntegral =
-          sumVertical([&](double z) { return 1.0 / profile_.refractiveIndexAtZ(z); });
+          sourceLeg.horizontalDerivativeM_ + observerLeg.horizontalDerivativeM_;
       Path path;
       path.valid_ = true;
       path.topology_ = 1;
       path.sourceRefractiveIndex_ = nSource;
       path.observerRefractiveIndex_ = nObserver;
       path.geometricLengthM_ = 2.0 * topZ - source[2] - observer[2];
-      path.opticalPathM_ =
-          sumVertical([&](double z) { return profile_.refractiveIndexAtZ(z); });
+      path.opticalPathM_ = sourceLeg.opticalPathM_ + observerLeg.opticalPathM_;
       path.travelTimeS_ = path.opticalPathM_ / lightSpeed;
       path.attenuationExponent_ =
-          sumVertical([&](double z) { return profile_.attenuationAtZ(z, frequencyHz); });
+          profile_.data_.attenuationPerM_ * path.geometricLengthM_;
       path.geometricSpreadingPerM_ =
           1.0 / (std::sqrt(nSource * nObserver) * inverseIndexIntegral);
       path.emitDirection_ = {0.0, 0.0, 1.0};
       path.receiveDirection_ = {0.0, 0.0, -1.0};
       return path;
     }
-    auto legIntegral = [&](double endpointZ, double p, auto const& f) {
-      double const upperU = std::sqrt(topZ - endpointZ);
-      return simpson(
-          [&](double u) {
-            double const z = topZ - u * u;
-            double const n = profile_.refractiveIndexAtZ(z);
-            return 2.0 * u * f(z, n) / std::sqrt(maximum(n * n - p * p, 1.0e-30));
-          },
-          0.0, upperU, 2048);
+    auto rayData = [&](double p) {
+      auto const first = profile_.monotonicRayData(p, source[2], topZ);
+      auto const second = profile_.monotonicRayData(p, observer[2], topZ);
+      return RayIntegrals{first.horizontalM_ + second.horizontalM_,
+                          first.geometricLengthM_ + second.geometricLengthM_,
+                          first.opticalPathM_ + second.opticalPathM_,
+                          first.horizontalDerivativeM_ + second.horizontalDerivativeM_};
     };
-    auto horizontalAt = [&](double p) {
-      auto f = [p](double, double) { return p; };
-      return legIntegral(source[2], p, f) + legIntegral(observer[2], p, f);
-    };
-    double low = 0.0;
     double high = nTop * (1.0 - 1.0e-11);
-    if (horizontalAt(high) < horizontal) return invalid;
-    for (int iteration = 0; iteration < 100; ++iteration) {
-      double const middle = 0.5 * (low + high);
-      if (horizontalAt(middle) < horizontal)
-        low = middle;
-      else
-        high = middle;
-    }
-    double const p = 0.5 * (low + high);
-    auto sumLegs = [&](auto const& f) {
-      return legIntegral(source[2], p, f) + legIntegral(observer[2], p, f);
-    };
-    double const geometric = sumLegs([](double, double n) { return n; });
-    double const optical = sumLegs([](double, double n) { return n * n; });
-    double const attenuation = sumLegs(
-        [&](double z, double n) { return profile_.attenuationAtZ(z, frequencyHz) * n; });
-    double const dp = maximum(1.0e-8, p * 1.0e-5);
-    double const pMinus = maximum(0.0, p - dp);
-    double const pPlus = minimum(nTop * (1.0 - 1.0e-11), p + dp);
+    if (rayData(high).horizontalM_ < horizontal) return invalid;
+    double const p = solve_horizontal_range(rayData, horizontal, high);
+    auto const sourceLeg = profile_.monotonicRayData(p, source[2], topZ);
+    auto const observerLeg = profile_.monotonicRayData(p, observer[2], topZ);
+    double const geometric = sourceLeg.geometricLengthM_ + observerLeg.geometricLengthM_;
+    double const optical = sourceLeg.opticalPathM_ + observerLeg.opticalPathM_;
+    double const attenuation = profile_.data_.attenuationPerM_ * geometric;
     double const dHorizontalDp =
-        (horizontalAt(pPlus) - horizontalAt(pMinus)) / (pPlus - pMinus);
+        sourceLeg.horizontalDerivativeM_ + observerLeg.horizontalDerivativeM_;
     double const sinSource = p / nSource;
     double const sinObserver = p / nObserver;
     double const cosSource = std::sqrt(maximum(0.0, 1.0 - sinSource * sinSource));
@@ -625,7 +614,8 @@ namespace corsika::kokkos::radio::firn::detail::go {
     path.opticalPathM_ = optical;
     path.travelTimeS_ = optical / lightSpeed;
     path.attenuationExponent_ = attenuation;
-    path.horizontalResidualM_ = horizontalAt(p) - horizontal;
+    path.horizontalResidualM_ =
+        sourceLeg.horizontalM_ + observerLeg.horizontalM_ - horizontal;
     path.fermatRelativeResidual_ = std::abs(path.horizontalResidualM_) / horizontal;
     path.snellResidual_ = maximum(
         maximum(std::abs(nSource * sinSource - p), std::abs(nObserver * sinObserver - p)),

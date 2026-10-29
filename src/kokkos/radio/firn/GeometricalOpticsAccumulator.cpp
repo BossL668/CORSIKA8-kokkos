@@ -11,6 +11,7 @@
 #include <corsika/kokkos/runtime/Runtime.hpp>
 #include <Kokkos_Complex.hpp>
 #include <chrono>
+#include <exception>
 #include <optional>
 
 namespace corsika::kokkos::radio::firn {
@@ -74,10 +75,25 @@ namespace corsika::kokkos::radio::firn {
     KOKKOS_INLINE_FUNCTION complex_type polar(double magnitude, double phase) {
       return {magnitude * std::cos(phase), magnitude * std::sin(phase)};
     }
-    KOKKOS_INLINE_FUNCTION void contribution(go::Path const& path, Child const& child,
-                                             double frequency, double timeOrigin,
-                                             double surfaceIndex, double exteriorIndex,
-                                             complex_type out[3]) {
+    struct SpectrumTerm {
+      complex_type projection_[3]{};
+      double propagationScale_;
+      double travelTimeS_;
+      double phaseOffsetRad_;
+      double retardedDurationS_;
+      double emissionTimeS_;
+      double chargeWeight_;
+      int topology_;
+    };
+    using PreparedQuery = go::BranchList<SpectrumTerm>;
+
+    // The exported exponential profile has frequency-independent refraction,
+    // attenuation and Fresnel coefficients. Reuse their projection at every bin.
+    KOKKOS_INLINE_FUNCTION SpectrumTerm prepare_term(go::Path const& path,
+                                                     Child const& child,
+                                                     double timeOrigin,
+                                                     double surfaceIndex,
+                                                     double exteriorIndex) {
       auto emit = go::normalized(path.emitDirection_);
       auto receive = go::normalized(path.receiveDirection_);
       go::Vector horizontal{emit[0], emit[1], 0.};
@@ -106,27 +122,55 @@ namespace corsika::kokkos::radio::firn {
         rp = (exteriorIndex * ci - surfaceIndex * ct) /
              (exteriorIndex * ci + surfaceIndex * ct);
       }
-      auto propagation =
-          polar(path.geometricSpreadingPerM_ * std::exp(-path.attenuationExponent_),
-                -2. * pi * frequency * path.travelTimeS_ + path.phaseOffsetRad_);
-      double const retarded =
+      SpectrumTerm term;
+      term.propagationScale_ =
+          path.geometricSpreadingPerM_ * std::exp(-path.attenuationExponent_);
+      term.travelTimeS_ = path.travelTimeS_;
+      term.phaseOffsetRad_ = path.phaseOffsetRad_;
+      term.retardedDurationS_ =
           child.durationS_ - path.sourceRefractiveIndex_ *
                                  go::dot(path.emitDirection_, child.displacement_) /
                                  c_m_per_s;
-      double const argument = pi * frequency * retarded;
+      term.emissionTimeS_ = child.midpointTimeS_ - timeOrigin;
+      term.chargeWeight_ = child.chargeWeight_;
+      term.topology_ = path.topology_;
+      for (int row = 0; row < 3; ++row)
+        for (int col = 0; col < 3; ++col)
+          term.projection_[row] +=
+              (rs * s[row] * s[col] + rp * po[row] * ps[col]) * child.displacement_[col];
+      return term;
+    }
+    KOKKOS_INLINE_FUNCTION void contribution(SpectrumTerm const& term, double frequency,
+                                             complex_type out[3]) {
+      auto propagation =
+          polar(term.propagationScale_,
+                -2. * pi * frequency * term.travelTimeS_ + term.phaseOffsetRad_);
+      double const argument = pi * frequency * term.retardedDurationS_;
       double const sinc = std::abs(argument) < 1.e-8 ? 1. - argument * argument / 6.
                                                      : std::sin(argument) / argument;
-      auto common = mu0_h_per_m * elementary_charge_c * child.chargeWeight_ / (4. * pi) *
+      auto common = mu0_h_per_m * elementary_charge_c * term.chargeWeight_ / (4. * pi) *
                     complex_type(0., -2. * pi * frequency) * sinc *
-                    polar(1., -2. * pi * frequency * (child.midpointTimeS_ - timeOrigin));
-      for (int row = 0; row < 3; ++row) {
-        complex_type projected{};
-        for (int col = 0; col < 3; ++col)
-          projected += propagation * (rs * s[row] * s[col] + rp * po[row] * ps[col]) *
-                       child.displacement_[col];
-        out[row] = common * projected;
-      }
+                    polar(1., -2. * pi * frequency * term.emissionTimeS_);
+      for (int row = 0; row < 3; ++row)
+        out[row] = common * (propagation * term.projection_[row]);
     }
+
+    struct PrepareSpectrum {
+      view_type<Child> children_;
+      view_type<go::Query> queries_;
+      view_type<PreparedQuery> prepared_;
+      std::size_t observerCount_;
+      double timeOriginS_, surfaceIndex_, exteriorIndex_;
+      KOKKOS_INLINE_FUNCTION void operator()(std::size_t i) const {
+        PreparedQuery result;
+        auto const& query = queries_(i);
+        auto const& child = children_(i / observerCount_);
+        for (int b = 0; b < query.paths_.size(); ++b)
+          result.push_back(prepare_term(query.paths_[b], child, timeOriginS_,
+                                        surfaceIndex_, exteriorIndex_));
+        prepared_(i) = result;
+      }
+    };
 
     struct ParentRays {
       view_type<go::Vector> sources_, observers_;
@@ -161,11 +205,9 @@ namespace corsika::kokkos::radio::firn {
     };
 
     struct CoherentSpectrum {
-      view_type<Child> children_;
-      view_type<go::Query> queries_;
+      view_type<PreparedQuery> prepared_;
       view_type<complex_type> spectra_, branches_;
       std::size_t observerCount_, frequencyCount_, childCount_, outputCount_;
-      double surfaceIndex_;
       GeometricalOpticsConfig config_;
       KOKKOS_INLINE_FUNCTION void operator()(std::size_t i) const {
         auto o = i / (frequencyCount_ - 1), f = i % (frequencyCount_ - 1) + 1;
@@ -182,12 +224,11 @@ namespace corsika::kokkos::radio::firn {
               family[b][c] = branches_(b * outputCount_ + index);
         }
         for (std::size_t child = 0; child < childCount_; ++child) {
-          auto const& q = queries_(child * observerCount_ + o);
-          for (int b = 0; b < q.paths_.size(); ++b) {
+          auto const& q = prepared_(child * observerCount_ + o);
+          for (int b = 0; b < q.size(); ++b) {
             complex_type v[3]{};
-            auto const& path = q.paths_[b];
-            contribution(path, children_(child), frequency, config_.radio_.timeOriginS_,
-                         surfaceIndex_, config_.exteriorRefractiveIndex_, v);
+            auto const& path = q[b];
+            contribution(path, frequency, v);
             for (int c = 0; c < 3; ++c) {
               total[c] += v[c];
               if (config_.radio_.writeBranchComponents_)
@@ -246,7 +287,7 @@ namespace corsika::kokkos::radio::firn {
             throw std::invalid_argument("GO allocation size overflow");
           bytes += value;
         };
-        addBytes(queryCapacity_, 2 * sizeof(go::Query));
+        addBytes(queryCapacity_, 2 * sizeof(go::Query) + sizeof(PreparedQuery));
         addBytes(config_.batchSegments_, sizeof(Child) + sizeof(go::Vector));
         addBytes(observers_.size(), sizeof(go::Vector));
         addBytes(outputCount_,
@@ -279,7 +320,7 @@ namespace corsika::kokkos::radio::firn {
         try {
           flushPending();
         } catch (...) {
-          failed_ = true;
+          failure_ = std::current_exception();
           throw;
         }
       }
@@ -347,7 +388,7 @@ namespace corsika::kokkos::radio::firn {
       }
       void reset() final {
         pending_.clear();
-        failed_ = false;
+        failure_ = nullptr;
         auto bytes = statistics_.allocatedBytes_;
         statistics_ = {};
         statistics_.allocatedBytes_ = bytes;
@@ -360,7 +401,8 @@ namespace corsika::kokkos::radio::firn {
 
     private:
       void requireHealthy() const {
-        if (failed_) throw std::runtime_error("GO event failed; reset before reuse");
+        // Output finalization must report the original failure, not hide it.
+        if (failure_) std::rethrow_exception(failure_);
       }
       std::size_t frequencies() const { return config_.radio_.grid_.frequencyCount(); }
       void ensureDevice() {
@@ -373,6 +415,7 @@ namespace corsika::kokkos::radio::firn {
         sources_ = view_type<go::Vector>("GO parent sources", config_.batchSegments_);
         parents_ = view_type<go::Query>("GO parent geometry", queryCapacity_);
         queries_ = view_type<go::Query>("GO child geometry", queryCapacity_);
+        prepared_ = view_type<PreparedQuery>("GO projected responses", queryCapacity_);
         children_ = view_type<Child>("GO children", config_.batchSegments_);
         spectra_ = view_type<complex_type>("GO spectra", outputCount_);
         if (config_.radio_.writeBranchComponents_)
@@ -535,9 +578,13 @@ namespace corsika::kokkos::radio::firn {
         double const surface =
             go::Profile{profile_}.refractiveIndexAtZ(profile_.surfaceZM_);
         start = clock_type::now();
-        Kokkos::parallel_for("firn GO coherent spectrum", n * (nf - 1),
-                             CoherentSpectrum{children, queries, spectra, branches, n, nf,
-                                              count, values, surface, config});
+        Kokkos::parallel_for(
+            "firn GO projected responses", count * n,
+            PrepareSpectrum{children, queries, prepared_, n, config.radio_.timeOriginS_,
+                            surface, config.exteriorRefractiveIndex_});
+        Kokkos::parallel_for(
+            "firn GO coherent spectrum", n * (nf - 1),
+            CoherentSpectrum{prepared_, spectra, branches, n, nf, count, values, config});
         Kokkos::fence("firn GO spectrum complete");
         statistics_.spectrumMs_ += elapsed_ms(start);
       }
@@ -547,12 +594,14 @@ namespace corsika::kokkos::radio::firn {
       std::vector<vector_type> observers_;
       GeometricalOpticsConfig config_;
       int threads_, device_;
-      bool ready_{false}, failed_{false};
+      bool ready_{false};
+      std::exception_ptr failure_;
       std::size_t queryCapacity_{}, outputCount_{};
       GeometricalOpticsStatistics statistics_{};
       std::vector<GeometricalOpticsTrack> pending_;
       view_type<go::Vector> deviceObservers_, sources_;
       view_type<go::Query> parents_, queries_;
+      view_type<PreparedQuery> prepared_;
       view_type<Child> children_;
       view_type<complex_type> spectra_, branchSpectra_;
     };

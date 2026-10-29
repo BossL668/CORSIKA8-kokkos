@@ -39,7 +39,7 @@ foreach (MODE IN ITEMS candidate production)
     message (FATAL_ERROR "Installed coordinator tests require the exported coordinator target")
   endif ()
 endforeach ()
-set (BC_COORDINATOR_CASES io cli)
+set (BC_COORDINATOR_CASES io cli firn)
 if (CORSIKA_TEST_COORDINATOR_PROCESS)
   add_executable (${BC_PREFIX}_coordinator_sleep_child "${BC_TESTS}/SleepChild.cpp")
   # The preserved Python fixture locates this basename next to its candidate binary.

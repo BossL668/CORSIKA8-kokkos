@@ -9,11 +9,57 @@
 #include <corsika/kokkos/radio/firn/Fft.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <corsika/kokkos/radio/firn/OnlineRadioConfig.hpp>
+#include <corsika/kokkos/radio/firn/VariableIndexRadioProcess.hpp>
+#include <corsika/kokkos/radio/RadioTrackSpoolWriter.hpp>
 #include <cnpy.hpp>
 #include <filesystem>
 #include <fstream>
 
 using namespace corsika::kokkos::radio::firn;
+
+TEST_CASE("Firn prefix replay survives event initialization and runs once",
+          "[kokkos][firn][radio][replay]") {
+  auto const directory = boost::filesystem::temp_directory_path() /
+                         boost::filesystem::unique_path("corsika-firn-replay-%%%%-%%%%");
+  boost::filesystem::create_directory(directory);
+  struct Cleanup {
+    boost::filesystem::path directory_;
+    ~Cleanup() { boost::filesystem::remove_all(directory_); }
+  } cleanup{directory};
+  auto const spool = (directory / "prefix.bin").string();
+  corsika::radio::RadioTrackSegment track{};
+  track.pdg_ = 11;
+  track.weight_ = 1.;
+  track.startPositionM_[2] = -100.;
+  track.endPositionM_[2] = -100.1;
+  track.startDirection_[2] = track.endDirection_[2] = -1.;
+  track.endTimeS_ = .1 / c_m_per_s;
+  track.startKineticEnergyGeV_ = track.endKineticEnergyGeV_ = 1.;
+  corsika::kokkos::radio::RadioTrackSpoolWriter writer(spool);
+  writer.append(track);
+  writer.complete();
+  auto const coordinates = corsika::get_root_CoordinateSystem();
+  OnlineRadioConfig config;
+  config.grid_ = {1.e-9, 64};
+  VariableIndexRadioProcess<UniformAnalyticBackend> process(
+      {{"observer", {100., 0., -110.}}}, UniformAnalyticBackend(UniformProfile(1.78)),
+      config, coordinates);
+  process.startOfLibrary(directory);
+  CHECK_THROWS(process.prepareReplay({spool, spool}, coordinates));
+  process.prepareReplay({spool}, coordinates);
+  process.startOfShower(0);
+  process.endOfShower(0);
+  auto summary = process.getSummary();
+  CHECK(summary["shower_0"]["input_segments"].as<std::uint64_t>() == 1);
+  CHECK(summary["shower_0"]["replayed_prefix_segments"].as<std::uint64_t>() == 1);
+  process.startOfShower(1);
+  process.endOfShower(1);
+  summary = process.getSummary();
+  CHECK(summary["shower_1"]["input_segments"].as<std::uint64_t>() == 0);
+  CHECK(summary["shower_1"]["replayed_prefix_segments"].as<std::uint64_t>() == 0);
+  process.endOfLibrary();
+}
+
 namespace {
   void require(bool condition, char const* message) {
     INFO(message);
@@ -211,7 +257,7 @@ TEST_CASE("Firn radio: physical turning and evanescent phases", "[kokkos][firn][
   CHECK(rays[0].phaseOffsetRad_ == 0.);
   auto const pair = solver.turningBranches({0., 0., -200.}, {650., 0., -100.});
   REQUIRE(pair.size() == 2);
-  CHECK(pair[0].phaseOffsetRad_ == .5 * pi);
+  CHECK(pair[0].phaseOffsetRad_ == .5 * corsika::kokkos::radio::firn::pi);
   CHECK(pair[1].phaseOffsetRad_ == 0.);
   CoherentStratifiedGOBackend coherent(profile, 1.);
   auto const response =
