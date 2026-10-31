@@ -28,7 +28,9 @@ namespace corsika::kokkos::frontier {
   template <typename TModelProperties>
   template <typename TParticle, typename TStep>
   bool CpuBootstrapRouter<TModelProperties>::canRoute(TParticle const& p, TStep) const {
-    return p.getGeneration() > 0 && p.getEnergy() / 1_GeV <= maximumEnergy_;
+    return p.getGeneration() > 0 && p.getEnergy() / 1_GeV <= maximumEnergy_ &&
+           frontier_unit_direction(p, cs_, retainedNativeDirectionSteps_,
+                                    maximumNativeDirectionError_);
   }
 
   template <typename TModelProperties>
@@ -75,6 +77,10 @@ namespace corsika::kokkos::frontier {
     out_.flush();
     out_.close();
     CORSIKA_LOG_INFO("Static CPU bootstrap closed: {} disjoint roots", count_);
+    if (retainedNativeDirectionSteps_) {
+      CORSIKA_LOG_INFO("Native direction retention: {} CPU steps; maximum norm2 error {}",
+                       retainedNativeDirectionSteps_, maximumNativeDirectionError_);
+    }
   }
 
   template <typename TStack, typename TModelProperties>

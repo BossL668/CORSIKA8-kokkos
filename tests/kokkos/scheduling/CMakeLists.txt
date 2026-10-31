@@ -31,7 +31,9 @@ set_tests_properties (testWavefrontBucketing PROPERTIES LABELS "kokkos;schedulin
 add_executable (testCpuParticleScheduler testCpuParticleScheduler.cpp CpuParticleSchedulerHeader.cpp)
 add_executable (testProcessSequenceCompatibility testProcessSequenceCompatibility.cpp ProcessSequenceCompatibilityHeader.cpp)
 add_executable (testScheduledFallback testScheduledFallback.cpp)
-foreach (TARGET testCpuParticleScheduler testProcessSequenceCompatibility testScheduledFallback)
+find_package (nlohmann_json CONFIG REQUIRED)
+add_executable (testFrontierDirections testFrontierDirections.cpp)
+foreach (TARGET testCpuParticleScheduler testProcessSequenceCompatibility testScheduledFallback testFrontierDirections)
   target_link_libraries (${TARGET} PRIVATE CORSIKA8 Catch2::Catch2WithMain)
   target_compile_features (${TARGET} PRIVATE cxx_std_17)
   if (CORSIKA_SANITIZERS_ENABLED)
@@ -45,6 +47,7 @@ foreach (TARGET testCpuParticleScheduler testProcessSequenceCompatibility testSc
     TIMEOUT 180 RUN_SERIAL TRUE PROCESSORS 1)
 endforeach ()
 target_link_libraries (testScheduledFallback PRIVATE CORSIKA8EmStochastic)
+target_link_libraries (testFrontierDirections PRIVATE nlohmann_json::nlohmann_json)
 
 # Host-side wire/capture contracts for isolated hadronic final-state workers.
 find_package (Threads REQUIRED)

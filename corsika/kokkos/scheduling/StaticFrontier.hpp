@@ -29,6 +29,7 @@
 
 namespace corsika::kokkos::frontier {
   inline constexpr std::uint64_t HistoryStride = std::uint64_t{1} << 48;
+  inline constexpr double DirectionNormSquaredTolerance = 1.e-9;
   struct FrontierHeader {
     bool logicalNodes_{};
     std::uint64_t environmentFingerprint_{};
@@ -37,6 +38,14 @@ namespace corsika::kokkos::frontier {
     void validateEnvironment(EnvironmentDataView const& tree) const;
   };
   bool is_routable(int pid);
+  /**
+   * Keep finite, non-unit native directions on the scalar path until a native
+   * step makes the particle eligible for export. Does not modify the particle.
+   * Zero or non-finite directions remain errors, as in the frontier reader.
+   */
+  template <typename TParticle>
+  bool frontier_unit_direction(TParticle const& particle, CoordinateSystemPtr const& cs,
+                               std::size_t& retained, double& maximumError);
   void validate_frontier_state(ParticleState const& s,
                                std::uint64_t history_limit = HistoryStride,
                                bool require_em = true);
@@ -137,6 +146,8 @@ namespace corsika::kokkos::frontier {
     double maximumEnergy_;
     std::ofstream file_;
     std::size_t count_{};
+    mutable std::size_t retainedNativeDirectionSteps_{};
+    mutable double maximumNativeDirectionError_{};
     EnvironmentDataView environment_{};
     std::uint64_t historyLimit_{HistoryStride};
     EnvironmentTopology<TModelProperties> const& topology_;

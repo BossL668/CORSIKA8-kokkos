@@ -35,6 +35,30 @@ namespace corsika::kokkos::frontier {
     return pid == 22 || pid == 11 || pid == -11 || pid == 13 || pid == -13;
   }
 
+  template <typename TParticle>
+  bool frontier_unit_direction(TParticle const& particle, CoordinateSystemPtr const& cs,
+                                std::size_t& retained, double& maximumError) {
+    auto const direction = particle.getDirection().getComponents(cs);
+    double norm = 0.;
+    for (int axis = 0; axis < 3; ++axis) {
+      double const value = direction[axis].magnitude();
+      norm += value * value;
+    }
+    if (!std::isfinite(norm) || norm <= 0.) {
+      throw std::runtime_error("Zero or non-finite native frontier direction");
+    }
+    double const error = std::abs(norm - 1.);
+    if (error <= DirectionNormSquaredTolerance) return true;
+    ++retained;
+    maximumError = std::max(maximumError, error);
+    if (retained <= 4) {
+      CORSIKA_LOG_WARN("Retain native CPU particle: pid={}, E={} GeV, norm2={:.17g}",
+                       static_cast<int>(particle.getPDG()), particle.getEnergy() / 1_GeV,
+                       norm);
+    }
+    return false;
+  }
+
   inline void validate_frontier_state(ParticleState const& s, std::uint64_t history_limit,
                                       bool require_em) {
     double norm = 0.;
@@ -46,7 +70,8 @@ namespace corsika::kokkos::frontier {
     if ((require_em && !is_routable(s.pid_)) || !std::isfinite(s.energyGeV_) ||
         s.energyGeV_ < get_mass(convert_from_PDG(static_cast<PDGCode>(s.pid_))) / 1_GeV ||
         !std::isfinite(s.timeS_) || !std::isfinite(s.weight_) || s.weight_ < 0. ||
-        std::abs(norm - 1.) > 1.e-9 || !s.historyId_ || s.historyId_ >= history_limit ||
+        std::abs(norm - 1.) > DirectionNormSquaredTolerance || !s.historyId_ ||
+        s.historyId_ >= history_limit ||
         s.parentHistoryId_ >= history_limit ||
         ((s.generation_ == 0) != (s.parentHistoryId_ == 0)))
       throw std::runtime_error("Invalid frontier identity, direction, energy or weight");
@@ -280,7 +305,9 @@ namespace corsika::kokkos::frontier {
   template <typename TParticle, typename TStep>
   bool CaptureRouter<TModelProperties>::canRoute(TParticle const& p, TStep) const {
     return is_routable(static_cast<int>(p.getPDG())) &&
-           p.getEnergy() / 1_GeV <= maximumEnergy_;
+           p.getEnergy() / 1_GeV <= maximumEnergy_ &&
+           frontier_unit_direction(p, cs_, retainedNativeDirectionSteps_,
+                                    maximumNativeDirectionError_);
   }
 
   template <typename TModelProperties>
@@ -318,6 +345,10 @@ namespace corsika::kokkos::frontier {
     file_.flush();
     file_.close();
     CORSIKA_LOG_INFO("Static frontier closed: {} disjoint roots", count_);
+    if (retainedNativeDirectionSteps_) {
+      CORSIKA_LOG_INFO("Native direction retention: {} CPU steps; maximum norm2 error {}",
+                       retainedNativeDirectionSteps_, maximumNativeDirectionError_);
+    }
   }
 
   template <typename TStack, typename TModelProperties>

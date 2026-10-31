@@ -8,9 +8,11 @@
 #include <corsika/kokkos/scheduling/StaticFrontier.hpp>
 #include <nlohmann/json.hpp>
 namespace corsika::kokkos::frontier {
-  /** Capture all already-created secondary species before their next step.
+  /** Capture already-created secondary species eligible for frontier export.
    * The initial primary is neither copied nor forced to interact. Borrows the
-   * snapshot/native node map until the output is closed. No physics is sampled.
+   * snapshot/native node map until the output is closed. Non-unit directions
+   * stay in the native cascade until they satisfy the export contract. This
+   * router neither renormalizes particles nor samples physics.
    */
   template <typename TModelProperties>
   class CpuBootstrapRouter {
@@ -34,6 +36,8 @@ namespace corsika::kokkos::frontier {
     EnvironmentDataView tree_;
     std::ofstream out_;
     std::size_t count_{};
+    mutable std::size_t retainedNativeDirectionSteps_{};
+    mutable double maximumNativeDirectionError_{};
     double maximumEnergy_;
     EnvironmentTopology<TModelProperties> const& topology_;
   };
