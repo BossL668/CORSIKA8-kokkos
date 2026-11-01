@@ -93,3 +93,4 @@ add_subdirectory (em/proposal)
 add_subdirectory (diagnostics)
 
 add_subdirectory (application)
+add_subdirectory (egs4)

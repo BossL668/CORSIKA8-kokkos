@@ -90,6 +90,12 @@ include (corsikaDefines)
 # Optional execution runtime; the default build has no Kokkos dependency.
 option (CORSIKA_ENABLE_KOKKOS "Build the optional Kokkos runtime" OFF)
 option (CORSIKA_ENABLE_PROPOSAL_EXPORT "Build the native PROPOSAL table export bridge" OFF)
+option (CORSIKA_ENABLE_EGS4 "Build the native C7 EGS4 air backend" OFF)
+if (CORSIKA_ENABLE_EGS4 AND
+    (NOT CORSIKA_ENABLE_KOKKOS OR NOT CORSIKA_ENABLE_PROPOSAL_EXPORT))
+  message (FATAL_ERROR
+    "EGS4 requires Kokkos and the PROPOSAL export bridge for muon transport.")
+endif ()
 if (CORSIKA_ENABLE_PROPOSAL_EXPORT AND NOT CORSIKA_ENABLE_KOKKOS)
   message (FATAL_ERROR "The PROPOSAL export bridge requires CORSIKA_ENABLE_KOKKOS=ON.")
 endif ()

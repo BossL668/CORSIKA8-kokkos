@@ -43,6 +43,7 @@ find_package(PROPOSAL REQUIRED)
 
 # This is a property of the installed binary, not a consumer-selectable option.
 set (CORSIKA8_PROPOSAL_EXPORT_ENABLED @CORSIKA_ENABLE_PROPOSAL_EXPORT@)
+set (CORSIKA8_EGS4_ENABLED @CORSIKA_ENABLE_EGS4@)
 if (CORSIKA8_PROPOSAL_EXPORT_ENABLED)
   include ("${CMAKE_CURRENT_LIST_DIR}/corsikaCheckProposalExport.cmake")
   corsika_check_proposal_export (

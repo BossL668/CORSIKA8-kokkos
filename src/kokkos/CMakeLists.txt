@@ -312,6 +312,10 @@ include ("${PROJECT_SOURCE_DIR}/cmake/BackendRuntimeTargets.cmake")
 # Complete production backend, session and host application dependencies.
 include ("${PROJECT_SOURCE_DIR}/cmake/BackendApplicationTargets.cmake")
 
+if (CORSIKA_ENABLE_EGS4)
+  add_subdirectory (egs4)
+endif ()
+
 # Schema-2 firn full-wave projection; the public interface has no Kokkos headers.
 add_library (CORSIKA8FirnRadio radio/firn/FullWaveAccumulator.cpp
   radio/firn/GeometricalOpticsAccumulator.cpp)

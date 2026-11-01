@@ -1,0 +1,20 @@
+/*
+ * (c) Copyright 2026 CORSIKA Project, corsika-project@lists.kit.edu
+ *
+ * This software is distributed under the terms of the 3-clause BSD license.
+ * See file LICENSE for a full version of the license.
+ */
+
+// Generated in the build tree from the user's licensed table; do not distribute
+// this generated source or its coefficients as repository source files.
+#include <corsika/kokkos/egs4/EmbeddedTables.hpp>
+#include <corsika/kokkos/egs4/Session.hpp>
+#include <corsika/kokkos/egs4/Tables.hpp>
+#include <sstream>
+namespace corsika::kokkos::egs4::application {
+std::unique_ptr<Session> make_embedded_session() {
+  std::istringstream input(R"C8_EGSDAT(@C8_EGSDAT_CONTENT@)C8_EGSDAT");
+  return std::make_unique<Session>(read_air_tables(input));
+}
+char const* embedded_table_sha256() { return "@C8_EGSDAT_SHA256@"; }
+}

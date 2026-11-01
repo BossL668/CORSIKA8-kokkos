@@ -16,7 +16,7 @@
 #include <utility>
 
 #ifdef CORSIKA8_WITH_NATIVE_EGS4
-#include <corsika/kokkos/application/Egs4AirShowerRunner.hpp>
+#include <corsika/kokkos/application/cascade/atmosphere/Egs4RunSession.hpp>
 #endif
 
 namespace corsika::kokkos::application {
