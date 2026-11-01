@@ -240,6 +240,7 @@ namespace corsika::kokkos::coordinator {
              {{"command", {o.worker_.string()}},
               {"physics_args", physics},
               {"seed", seed},
+              {"worker_seed_rule", workerSeedRule},
               {"devices", devices},
               {"gpu_memory_fraction", o.memoryFraction_},
               {"em_backend", o.emBackend_},

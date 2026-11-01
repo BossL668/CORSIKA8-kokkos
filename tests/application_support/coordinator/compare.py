@@ -74,9 +74,13 @@ def io_tests():
                             frontier_energy=0, timeout=7200, worker='', output='',
                             devices=[], physics=[]), defaults)
     for seed, index in [(1, 0), (1, 1), (91, 1024), (4294967299, 15), (9223372036854775806, 254)]:
-        value = compare('seed', seed=seed, index=index)
-        expected = int.from_bytes(hashlib.sha256(f'{seed}:{index}'.encode()).digest()[:4], 'little') or 1
-        require(value == expected, 'Independent little-endian SHA seed')
+        digest = hashlib.sha256(f'{seed}:{index}'.encode()).digest()
+        # Retain the frozen reference: the wider seed deliberately changes histories.
+        old = call(args.production, 'seed', seed=seed, index=index)
+        require(old == (int.from_bytes(digest[:4], 'little') or 1), 'Reference 32-bit seed')
+        value = call(args.candidate, 'seed', seed=seed, index=index)
+        expected = (int.from_bytes(digest[:8], 'little') & ((1 << 63) - 1)) or 1
+        require(value == expected, 'Independent little-endian 63-bit SHA seed')
     data = args.work / 'hash.dat'
     data.write_bytes(bytes(range(256)) * 1027)
     require(compare('digest', path=str(data)) == sha(data), 'File SHA256')

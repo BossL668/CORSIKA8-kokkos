@@ -185,14 +185,16 @@ namespace corsika::kokkos::coordinator {
     for (auto b : bytes) out << std::setw(2) << unsigned(b);
     return out.str();
   }
-  std::uint32_t worker_seed(std::uint64_t seed, unsigned index) {
-    // Same little-endian SHA256 seed derivation as the Python reference.
+  std::uint64_t worker_seed(std::uint64_t seed, unsigned index) {
+    // Keep 63 hash bits instead of 32 to avoid frequent cross-event collisions.
+    // The native application's --seed is a nonnegative signed 64-bit integer.
     Hash h;
     auto text = std::to_string(seed) + ":" + std::to_string(index);
     h.add(text.data(), text.size());
     auto b = h.finish();
-    std::uint32_t v = 0;
-    for (unsigned i = 0; i < 4; ++i) v |= std::uint32_t(b[i]) << (8 * i);
+    std::uint64_t v = 0;
+    for (unsigned i = 0; i < 8; ++i) v |= std::uint64_t(b[i]) << (8 * i);
+    v &= std::uint64_t(std::numeric_limits<std::int64_t>::max());
     return v ? v : 1;
   }
   json_type partition(fs::path const& source, std::vector<fs::path> const& destinations) {

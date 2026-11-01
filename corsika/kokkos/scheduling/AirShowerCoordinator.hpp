@@ -36,8 +36,11 @@ namespace corsika::kokkos::coordinator {
 
   /// SHA-256 of the closed file; fails on an unreadable input.
   std::string digest(fs::path const& file);
-  /// Production seed derivation, independent of worker completion order.
-  std::uint32_t worker_seed(std::uint64_t seed, unsigned index);
+  /// Recorded in CONFIG.json; changing this rule changes worker random histories.
+  inline constexpr char workerSeedRule[] = "sha256-le63-v2";
+  /// Nonzero 63-bit seed, independent of completion order and valid for signed --seed.
+  /// GPU indices are 0..254; CPU-prefix indices are 1024 + worker index.
+  std::uint64_t worker_seed(std::uint64_t seed, unsigned index);
   /** Assign each unstarted root once to a static shard, ordered by energy/history. */
   json_type partition(fs::path const& source, std::vector<fs::path> const& destinations);
   /// Join compatible closed V3 frontiers, rejecting duplicate histories.
