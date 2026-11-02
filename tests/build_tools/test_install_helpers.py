@@ -132,6 +132,9 @@ elif name == 'build-python' and os.environ.get('MISSING_PYTHON_MODULE') == '1':
                  Path(str(self.log) + '.env').read_text().splitlines()]
         builds = [entry for entry in calls if entry['command'][:2] == ['cmake', '-S']]
         self.assertEqual(len(builds), 2)
+        self.assertIn('-DCMAKE_CXX_FLAGS_INIT=--offload-arch=gfx906', builds[0]['command'])
+        self.assertIn('-DCMAKE_HIP_ARCHITECTURES=gfx906', builds[0]['command'])
+        self.assertFalse(any('offload-arch' in arg for arg in builds[1]['command']))
         self.assertEqual(builds[0]['gpu_targets'], 'gfx906')
         self.assertEqual(builds[1]['gpu_targets'], 'gfx906;gfx926')
         self.assertEqual(builds[0]['hip_compile'], '--offload-arch=gfx906')

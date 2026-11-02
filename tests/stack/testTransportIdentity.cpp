@@ -20,10 +20,10 @@ TEST_CASE("Transport identities follow native stack compaction and ancestry",
   using stack_type = test::TransportStack<DummyEnvironment>::type;
   auto [env, cs, node] = setup::testing::setup_environment(Code::Oxygen);
   stack_type stack;
-  auto add = [&] {
+  auto add = [&, coordinates = cs] {
     return stack.addParticle(std::make_tuple(Code::Electron, 1_GeV,
-                                             DirectionVector(*cs, {0., 0., 1.}),
-                                             Point(*cs, 0_m, 0_m, 0_m), 0_s));
+                                             DirectionVector(*coordinates, {0., 0., 1.}),
+                                             Point(*coordinates, 0_m, 0_m, 0_m), 0_s));
   };
   auto p = add();
   p.setNode(node);

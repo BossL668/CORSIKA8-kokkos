@@ -195,11 +195,15 @@ bash "$c8_source/tools/prepare_data.sh"
 for c8_backend in "${c8_backends[@]}"; do
   # Keep HIP compiler flags local to this backend, including dependency builds.
   (
+    c8_device_args=()
     if [[ $c8_backend == hip && -n ${c8_hip_targets[$c8_backend]:-} ]]; then
       # DTK env.sh may select several targets. Honor this backend's profile.
       export AMDGPU_TARGETS="${c8_hip_targets[$c8_backend]}"
       export HIPCC_COMPILE_FLAGS_APPEND="${HIPCC_COMPILE_FLAGS_APPEND:+$HIPCC_COMPILE_FLAGS_APPEND }--offload-arch=${c8_hip_targets[$c8_backend]}"
       export HIPCC_LINK_FLAGS_APPEND="${HIPCC_LINK_FLAGS_APPEND:+$HIPCC_LINK_FLAGS_APPEND }--offload-arch=${c8_hip_targets[$c8_backend]}"
+      # DTK's hipcc parses targets before appending environment flags.
+      c8_device_args+=("-DCMAKE_CXX_FLAGS_INIT=--offload-arch=${c8_hip_targets[$c8_backend]}"
+                       "-DCMAKE_HIP_ARCHITECTURES=${c8_hip_targets[$c8_backend]}")
     fi
     c8_build="$c8_workspace/build/$c8_backend"
     c8_install="$c8_workspace/install/$c8_backend"
@@ -218,7 +222,7 @@ for c8_backend in "${c8_backends[@]}"; do
       -DCMAKE_PREFIX_PATH="$c8_deps" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
       -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
       -DCORSIKA_ENABLE_PROPOSAL_EXPORT=ON -DCORSIKA_KOKKOS_BACKEND="${c8_runtime^^}" \
-      -DPYTHON_EXECUTABLE="$c8_python" "${c8_physics_args[@]}" \
+      -DPYTHON_EXECUTABLE="$c8_python" "${c8_physics_args[@]}" "${c8_device_args[@]}" \
       -DCMAKE_INSTALL_PREFIX="$c8_install" "${c8_cmake_args[@]}"
     cmake --build "$c8_build" --parallel "$c8_jobs"
     cmake --install "$c8_build"
