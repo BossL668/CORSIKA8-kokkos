@@ -34,6 +34,7 @@ if (CORSIKA_KOKKOS_RESOLVED_BACKEND STREQUAL "HIP")
   set_source_files_properties (application/HipDeviceQuery.cpp PROPERTIES LANGUAGE HIP)
   set_target_properties (c8_hip_devices PROPERTIES
     HIP_STANDARD 17 HIP_STANDARD_REQUIRED ON
+    INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}/corsika"
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/applications")
   add_dependencies (CORSIKA8ApplicationSupport c8_hip_devices)
   install (TARGETS c8_hip_devices RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
