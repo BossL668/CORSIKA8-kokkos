@@ -14,6 +14,8 @@ namespace corsika::kokkos::radio::firn {
         !(maximumLinearizationLengthM_ > 0.0) || !(maximumRefractiveIndex_ >= 1.0) ||
         maximumSubdivisions_ == 0 || maximumResponseQueries_ == 0 ||
         !(maximumPointCurrentPhaseIndicator_ > 0.0) ||
+        !(coreasApproximationThreshold_ > 0.0) ||
+        !std::isfinite(coreasApproximationThreshold_) ||
         !std::isfinite(maximumPhaseCycles_) ||
         !std::isfinite(maximumLinearizationLengthM_) ||
         !std::isfinite(maximumRefractiveIndex_) ||

@@ -35,7 +35,9 @@ namespace corsika::kokkos::application {
     firnGeometricalOpticsAccumulator(std::string const& model,
                                      radio::firn::ExponentialOpticalParameters profile,
                                      std::vector<radio::firn::vector_type> observers,
-                                     radio::firn::OnlineRadioConfig config);
+                                     radio::firn::OnlineRadioConfig config,
+                                     std::size_t batchSegments = 32,
+                                     std::size_t memoryLimitBytes = 512ULL * 1024 * 1024);
     double radioWindowDurationNs() const { return options_.radioWindowDurationNs_; }
     double radioSamplingRateGHz() const { return options_.radioSamplingRateGHz_; }
     double radioPretriggerNs() const { return options_.radioPretriggerNs_; }

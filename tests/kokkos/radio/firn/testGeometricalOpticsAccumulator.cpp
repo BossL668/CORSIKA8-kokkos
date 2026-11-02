@@ -428,6 +428,17 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
   for (auto const& t : tracks) single->append(t);
   auto second = single->download();
   CHECK(l2(second.total_, first.total_) < 1.e-14);
+  CHECK(single->statistics().branchCounts_ == device->statistics().branchCounts_);
+  CHECK(single->statistics().branchContributions_ ==
+        device->statistics().branchContributions_);
+  CHECK(single->statistics().minimumTravelTimeS_ ==
+        device->statistics().minimumTravelTimeS_);
+  CHECK(single->statistics().maximumTravelTimeS_ ==
+        device->statistics().maximumTravelTimeS_);
+  CHECK(single->statistics().maximumSnellResidual_ ==
+        device->statistics().maximumSnellResidual_);
+  CHECK(single->statistics().worstFermatPath_.fermatRelativeResidual_ ==
+        device->statistics().worstFermatPath_.fermatRelativeResidual_);
   device->reset();
   for (auto const& t : tracks) device->append(t);
   CHECK(l2(device->download().total_, first.total_) == 0.);
@@ -513,4 +524,84 @@ TEST_CASE("Firn GO: device rays and ordered spectra preserve CPU physics",
   CHECK(budget->statistics().responseQueries_ == 0);
   budget->append(shortTrack);
   CHECK(budget->download().total_ == firstEvent.total_);
+
+  // Compact summaries must not retain inactive entries from a partial batch,
+  // lose subdivision diagnostics, or suppress failures during finalization.
+  for (auto formalism : {EmissionFormalism::ZHS, EmissionFormalism::CoREAS}) {
+    GeometricalOpticsConfig timeConfig;
+    timeConfig.radio_.grid_ = {1.e-9, 16384};
+    timeConfig.radio_.emissionFormalism_ = formalism;
+    timeConfig.radio_.writeBranchComponents_ = true;
+    timeConfig.batchSegments_ = 3;
+    std::vector<vector_type> targets{{827., 0., -897.}, {837., 0., -882.}};
+    auto grouped =
+        make_geometrical_optics_accumulator(profile->parameters(), targets, timeConfig);
+    timeConfig.batchSegments_ = 1;
+    auto individually =
+        make_geometrical_optics_accumulator(profile->parameters(), targets, timeConfig);
+    std::vector<GeometricalOpticsTrack> timeTracks;
+    for (double distance : {.001, .6, .003, .004, .005}) {
+      double const start = timeTracks.size() * 1.e-9;
+      timeTracks.push_back({{0., 0., -335.},
+                            {0., 0., -335. - distance},
+                            start,
+                            start + distance / c_m_per_s,
+                            -1.});
+    }
+    for (auto const& track : timeTracks) {
+      grouped->append(track);
+      individually->append(track);
+    }
+    auto groupedField = grouped->download();
+    auto individualField = individually->download();
+    CHECK(l2(groupedField.total_, individualField.total_) < 1.e-11);
+    for (int b = 0; b < 7; ++b)
+      CHECK(l2(branch(groupedField, b), branch(individualField, b)) < 1.e-11);
+    auto const expectedStats = individually->statistics();
+    CHECK(grouped->statistics().inputSegments_ == 5);
+    CHECK(grouped->statistics().subdividedSegments_ == 7);
+    CHECK(grouped->statistics().branchCounts_ == expectedStats.branchCounts_);
+    CHECK(grouped->statistics().branchContributions_ ==
+          expectedStats.branchContributions_);
+    CHECK(grouped->statistics().responseQueries_ == expectedStats.responseQueries_);
+    CHECK(grouped->statistics().maximumSubdivisions_ == 3);
+    CHECK(grouped->statistics().maximumPhaseCycles_ == expectedStats.maximumPhaseCycles_);
+    CHECK(grouped->statistics().minimumTravelTimeS_ == expectedStats.minimumTravelTimeS_);
+    CHECK(grouped->statistics().maximumTravelTimeS_ == expectedStats.maximumTravelTimeS_);
+    CHECK(grouped->statistics().maximumSnellResidual_ ==
+          expectedStats.maximumSnellResidual_);
+    CHECK(grouped->statistics().worstFermatPath_.fermatRelativeResidual_ ==
+          expectedStats.worstFermatPath_.fermatRelativeResidual_);
+    grouped->reset();
+    grouped->append(timeTracks.front());
+    auto resetField = grouped->download();
+    CHECK(grouped->statistics().inputSegments_ == 1);
+    CHECK(grouped->statistics().subdividedSegments_ == 1);
+    CHECK(grouped->statistics().branchContributions_ == 4);
+    CHECK(grouped->statistics().failedQueries_ == 0);
+
+    auto noPath = make_geometrical_optics_accumulator(profile->parameters(),
+                                                      {{100000., 0., -100.}}, timeConfig);
+    CHECK_THROWS_WITH(noPath->append(timeTracks.front()),
+                      "Kokkos firn GO: no ordinary GO path; full-wave response required");
+    CHECK_THROWS_WITH(noPath->download(),
+                      "Kokkos firn GO: no ordinary GO path; full-wave response required");
+    CHECK(noPath->statistics().failedQueries_ == 1);
+    noPath->reset();
+    CHECK(noPath->statistics().failedQueries_ == 0);
+
+    if (formalism == EmissionFormalism::CoREAS) {
+      // The direct/turning transition is crossed by the two endpoints, so the
+      // midpoint query alone must not authorize emission.
+      timeConfig.foldGuardTimeS_ = 0.;
+      auto crossing = make_geometrical_optics_accumulator(
+          profile->parameters(), {{566.4481215033529, 0., -100.}}, timeConfig);
+      GeometricalOpticsTrack const across{
+          {-.01, 0., -215.}, {.01, 0., -215.}, 0., .02 / c_m_per_s, -1.};
+      CHECK_THROWS_WITH(crossing->append(across),
+                        "CoREAS endpoint ray topology is not unique");
+      CHECK_THROWS_WITH(crossing->download(),
+                        "CoREAS endpoint ray topology is not unique");
+    }
+  }
 }

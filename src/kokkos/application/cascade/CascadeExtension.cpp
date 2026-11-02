@@ -60,14 +60,22 @@ namespace corsika::kokkos::application {
   CascadeExtension::firnGeometricalOpticsAccumulator(
       std::string const& model, radio::firn::ExponentialOpticalParameters profile,
       std::vector<radio::firn::vector_type> observers,
-      radio::firn::OnlineRadioConfig config) {
+      radio::firn::OnlineRadioConfig config, std::size_t batchSegments,
+      std::size_t memoryLimitBytes) {
     if (environment_.scene_ != CascadeScene::Firn)
       throw std::invalid_argument("GO adapter requires a firn scene");
-    if (options_.radioBackend_ == "cpu" || model != "coherent-go") return nullptr;
+    if (model != "coherent-go") return nullptr;
+    bool const useHost = options_.radioBackend_ == "cpu";
+    if (useHost &&
+        config.emissionFormalism_ == radio::firn::EmissionFormalism::FiniteTrackSpectrum)
+      return nullptr;
     radio::firn::GeometricalOpticsConfig deviceConfig;
     deviceConfig.radio_ = config;
+    deviceConfig.batchSegments_ = batchSegments;
+    deviceConfig.memoryLimitBytes_ = memoryLimitBytes;
     deviceConfig.includeSurfaceReflection_ = config.includeSurfaceReflection_;
     return radio::firn::make_geometrical_optics_accumulator(
-        profile, std::move(observers), deviceConfig, options_.kokkosNumThreads_);
+        profile, std::move(observers), deviceConfig, options_.kokkosNumThreads_, -1,
+        useHost);
   }
 } // namespace corsika::kokkos::application

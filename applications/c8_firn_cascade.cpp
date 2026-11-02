@@ -268,9 +268,15 @@ int run_firn_cascade(
   double firn_half_width_m = 10000.;
   double firn_attenuation_per_m = 0.;
   std::string firn_radio_model = "coherent-go";
+  std::string firn_radio_formalism = "spectrum";
   bool firn_surface_reflection = true;
+  bool firn_radio_replay_tape = false;
+  bool firn_radio_branch_output = false;
   std::string firn_radio_table;
   std::size_t firn_samples = 4096;
+  std::size_t firn_radio_batch_segments = 32;
+  std::size_t firn_radio_memory_mib = 512;
+  std::size_t firn_radio_max_queries = 500000000;
   double firn_time_origin_ns = 0.;
   double profileBin = 10.;
   app.add_option("--surface-altitude", site.surfaceAltitudeM_,
@@ -302,8 +308,30 @@ int run_firn_cascade(
                  "Variable-index propagation model")
       ->capture_default_str()
       ->check(CLI::IsMember({"coherent-go", "full-wave", "hybrid-full-wave"}));
+  app.add_option("--firn-radio-formalism", firn_radio_formalism,
+                 "GO source calculation: finite-track spectrum, ZHS potential, or CoREAS "
+                 "endpoints")
+      ->capture_default_str()
+      ->check(CLI::IsMember({"spectrum", "zhs", "coreas"}));
+  app.add_option("--firn-radio-batch-segments", firn_radio_batch_segments,
+                 "Maximum input tracks per GO radio batch")
+      ->capture_default_str()
+      ->check(CLI::PositiveNumber);
+  app.add_option("--firn-radio-memory-mib", firn_radio_memory_mib,
+                 "GO radio memory budget in MiB; separate from the EM memory budget")
+      ->capture_default_str()
+      ->check(CLI::Range(std::size_t{1},
+                         std::numeric_limits<std::size_t>::max() / (1024 * 1024)));
+  app.add_option("--firn-radio-max-queries", firn_radio_max_queries,
+                 "Maximum GO response queries per event")
+      ->capture_default_str()
+      ->check(CLI::PositiveNumber);
   app.add_option("--firn-radio-table", firn_radio_table,
                  "Validated full-wave response manifest");
+  app.add_flag("--firn-radio-replay-tape", firn_radio_replay_tape,
+               "Record all accepted radio tracks for same-input validation");
+  app.add_flag("--firn-radio-branch-output", firn_radio_branch_output,
+               "Write separate waveforms and spectra for each ray family");
   app.add_option("--firn-surface-reflection", firn_surface_reflection,
                  "Include the surface-reflected GO ray (true/false)")
       ->capture_default_str();
@@ -732,10 +760,22 @@ int run_firn_cascade(
 
   namespace firn_radio = corsika::kokkos::radio::firn;
   firn_radio::OnlineRadioConfig radio_config;
+  radio_config.emissionFormalism_ =
+      firn_radio_formalism == "zhs"
+          ? firn_radio::EmissionFormalism::ZHS
+          : firn_radio_formalism == "coreas"
+                ? firn_radio::EmissionFormalism::CoREAS
+                : firn_radio::EmissionFormalism::FiniteTrackSpectrum;
+  if (firn_radio_model != "coherent-go" && firn_radio_formalism != "spectrum")
+    throw std::invalid_argument(
+        "ZHS/CoREAS source selection requires coherent-go propagation");
   radio_config.grid_ = {1.e-9 / backend.radioSamplingRateGHz(), firn_samples};
   radio_config.timeOriginS_ = firn_time_origin_ns * 1.e-9;
   radio_config.includeSurfaceReflection_ = firn_surface_reflection;
+  radio_config.writeReplayTape_ = firn_radio_replay_tape;
+  radio_config.writeBranchComponents_ = firn_radio_branch_output;
   radio_config.maximumRefractiveIndex_ = firn_profile.deepRefractiveIndex_;
+  radio_config.maximumResponseQueries_ = firn_radio_max_queries;
   radio_config.validate();
   auto optical_profile = std::make_shared<firn_radio::ExponentialProfile const>(
       firn_profile.deepRefractiveIndex_, firn_profile.refractiveIndexDeficit_,
@@ -796,7 +836,8 @@ int run_firn_cascade(
     device_radio_config.timeOriginS_ = radio_config.timeOriginS_;
     device_radio_config.retainBranchSpectra_ = radio_config.writeBranchComponents_;
     auto go_accumulator = backend.firnGeometricalOpticsAccumulator(
-        firn_radio_model, optical_profile->parameters(), radio_positions, radio_config);
+        firn_radio_model, optical_profile->parameters(), radio_positions, radio_config,
+        firn_radio_batch_segments, firn_radio_memory_mib * 1024 * 1024);
     auto accumulator = backend.firnRadioAccumulator(
         firn_radio_model, firn_radio_table, optical_profile->profileFingerprint(),
         std::move(radio_positions), device_radio_config);

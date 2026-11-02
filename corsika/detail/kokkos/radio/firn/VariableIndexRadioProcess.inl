@@ -404,7 +404,10 @@ namespace corsika::kokkos::radio::firn {
       device["failed_queries"] = statistics.failedQueries_;
       device["allocated_bytes"] = statistics.allocatedBytes_;
       device["geometry_kernel_ms"] = statistics.geometryMs_;
+      device["emission_kernel_ms"] = statistics.spectrumMs_;
+      // Preserve the existing key for downstream timing readers.
       device["spectrum_kernel_ms"] = statistics.spectrumMs_;
+      device["finalization_ms"] = statistics.finalizationMs_;
       device["transfer_ms"] = statistics.transferMs_;
     }
     event["input_segments"] = inputSegments_;
@@ -523,7 +526,11 @@ namespace corsika::kokkos::radio::firn {
     node["execution"] = goAccumulator_
                             ? goAccumulator_->executionSpaceName()
                             : (accumulator_ ? accumulator_->executionSpaceName() : "CPU");
-    node["source_model"] = "finite_track_point_current_phase_bounded";
+    node["source_model"] = config_.emissionFormalism_ == EmissionFormalism::ZHS
+                               ? "zhs_time_domain"
+                               : config_.emissionFormalism_ == EmissionFormalism::CoREAS
+                                     ? "coreas_time_domain"
+                                     : "finite_track_point_current_phase_bounded";
     node["propagation_backend"] = backend_.name();
     node["include_surface_reflection"] = config_.includeSurfaceReflection_;
     node["profile_fingerprint"] = profileFingerprint_;

@@ -30,6 +30,11 @@ namespace corsika::kokkos::radio::firn {
         std::complex<double> phase(1.0, 0.0);
         for (std::size_t componentIndex = 0; componentIndex < length / 2;
              ++componentIndex) {
+          // Bound phase drift for long transforms without changing the DFT.
+          if (componentIndex != 0 && componentIndex % 64 == 0) {
+            double const phaseAngle = angle * static_cast<double>(componentIndex);
+            phase = {std::cos(phaseAngle), std::sin(phaseAngle)};
+          }
           auto const even = values[offset + componentIndex];
           auto const odd = values[offset + componentIndex + length / 2] * phase;
           values[offset + componentIndex] = even + odd;
@@ -78,13 +83,21 @@ namespace corsika::kokkos::radio::firn {
         positiveSpectrumVpmS.size() != grid.frequencyCount()) {
       throw std::runtime_error("Parseval arrays have incompatible size");
     }
-    double timeEnergy = 0.0;
-    for (double value : waveform) timeEnergy += value * value;
+    auto add = [](double value, double& total, double& correction) {
+      double const corrected = value - correction;
+      double const next = total + corrected;
+      correction = (next - total) - corrected;
+      total = next;
+    };
+    double timeEnergy = 0.0, timeCorrection = 0.0;
+    for (double value : waveform) add(value * value, timeEnergy, timeCorrection);
     timeEnergy *= grid.sampleIntervalS_;
     double frequencyEnergy =
         std::norm(positiveSpectrumVpmS.front()) + std::norm(positiveSpectrumVpmS.back());
+    double frequencyCorrection = 0.0;
     for (std::size_t index = 1; index + 1 < positiveSpectrumVpmS.size(); ++index) {
-      frequencyEnergy += 2.0 * std::norm(positiveSpectrumVpmS[index]);
+      add(2.0 * std::norm(positiveSpectrumVpmS[index]), frequencyEnergy,
+          frequencyCorrection);
     }
     frequencyEnergy *= grid.spacingHz();
     double const scale = std::max({timeEnergy, frequencyEnergy, 1.0e-300});

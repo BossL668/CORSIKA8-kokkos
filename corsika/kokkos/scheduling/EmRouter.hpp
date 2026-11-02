@@ -21,6 +21,7 @@
 #include <corsika/kokkos/scheduling/SubshowerCallbacks.hpp>
 #include <corsika/framework/core/Logging.hpp>
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstddef>

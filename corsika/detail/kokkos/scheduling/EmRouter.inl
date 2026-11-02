@@ -973,8 +973,32 @@ namespace corsika::kokkos {
       }
     }
 
+    template <typename TStep>
+    static auto indexPhotonLedgerSteps(
+        std::vector<TStep> const& steps,
+        std::vector<PhotonFinalStateRecord> const& finalStates) {
+      std::unordered_map<std::uint64_t, std::array<TStep const*, 2>> index;
+      auto const needsSteps =
+          std::any_of(finalStates.begin(), finalStates.end(), [](auto const& record) {
+            return record.processId_ == ComptonProcessId ||
+                   record.processId_ == PhotoelectricProcessId;
+          });
+      if (!needsSteps) return index;
+      index.reserve(std::min(steps.size(), finalStates.size()));
+      for (auto const& step : steps) {
+        if (step.processId_ != ComptonProcessId &&
+            step.processId_ != PhotoelectricProcessId)
+          continue;
+        // Overwrite in forward order to retain the original reverse-search match.
+        auto const slot = step.processId_ == ComptonProcessId ? 0 : 1;
+        index[step.historyId_][slot] = &step;
+      }
+      return index;
+    }
+
     void recordPhotonFinalStateDeposits(
         std::vector<PhotonFinalStateRecord> const& finalStateRecords) {
+      auto const index = indexPhotonLedgerSteps(stepRecords_, finalStateRecords);
       for (auto const& record : finalStateRecords) {
         statistics_.massConventionCorrectionGeV_ +=
             record.weightedMassConventionCorrectionGeV_;
@@ -987,12 +1011,10 @@ namespace corsika::kokkos {
           throw std::runtime_error(
               "photoelectric final state has invalid deposit metadata");
         }
-        auto const step = std::find_if(
-            stepRecords_.rbegin(), stepRecords_.rend(), [&](StepRecord const& candidate) {
-              return candidate.historyId_ == record.parentHistoryId_ &&
-                     candidate.processId_ == record.processId_;
-            });
-        if (step == stepRecords_.rend()) {
+        auto const match = index.find(record.parentHistoryId_);
+        auto const slot = record.processId_ == ComptonProcessId ? 0 : 1;
+        auto const* step = match == index.end() ? nullptr : match->second[slot];
+        if (step == nullptr) {
           throw std::runtime_error(
               "atomic-electron photon final state has no matching transport step");
         }
@@ -1017,6 +1039,7 @@ namespace corsika::kokkos {
     void recordProjectedPhotonFinalStateDeposits(
         std::vector<ProjectedStepRecord>& steps,
         std::vector<PhotonFinalStateRecord> const& finalStateRecords) {
+      auto const index = indexPhotonLedgerSteps(steps, finalStateRecords);
       for (auto const& record : finalStateRecords) {
         statistics_.massConventionCorrectionGeV_ +=
             record.weightedMassConventionCorrectionGeV_;
@@ -1029,12 +1052,10 @@ namespace corsika::kokkos {
           throw std::runtime_error(
               "photoelectric final state has invalid projected deposit metadata");
         }
-        auto const step = std::find_if(
-            steps.rbegin(), steps.rend(), [&](ProjectedStepRecord const& candidate) {
-              return candidate.historyId_ == record.parentHistoryId_ &&
-                     candidate.processId_ == record.processId_;
-            });
-        if (step == steps.rend()) {
+        auto const match = index.find(record.parentHistoryId_);
+        auto const slot = record.processId_ == ComptonProcessId ? 0 : 1;
+        auto const* step = match == index.end() ? nullptr : match->second[slot];
+        if (step == nullptr) {
           throw std::runtime_error(
               "atomic-electron photon final state has no matching projected step");
         }
@@ -1129,20 +1150,28 @@ namespace corsika::kokkos {
     void recordProjectedLeptonFinalStateLedger(
         std::vector<ProjectedStepRecord> const& transports,
         std::vector<LeptonFinalStateRecord> const& finalStates) {
+      std::unordered_map<std::uint64_t, ProjectedStepRecord const*> index;
+      auto const needsSteps =
+          std::any_of(finalStates.begin(), finalStates.end(), [](auto const& record) {
+            return record.processId_ == IonizationProcessId ||
+                   record.processId_ == AnnihilationProcessId;
+          });
+      if (needsSteps) {
+        index.reserve(std::min(transports.size(), finalStates.size()));
+        // This ledger matches history only, keeping the last transport record.
+        for (auto const& transport : transports) index[transport.historyId_] = &transport;
+      }
       for (auto const& record : finalStates) {
         statistics_.massConventionCorrectionGeV_ +=
             record.weightedMassConventionCorrectionGeV_;
         if (record.processId_ != IonizationProcessId &&
             record.processId_ != AnnihilationProcessId)
           continue;
-        auto const transport =
-            std::find_if(transports.rbegin(), transports.rend(),
-                         [&](ProjectedStepRecord const& candidate) {
-                           return candidate.historyId_ == record.parentHistoryId_;
-                         });
-        if (transport == transports.rend())
+        auto const match = index.find(record.parentHistoryId_);
+        if (match == index.end())
           throw std::runtime_error(
               "atomic-electron lepton final state has no matching projected step");
+        auto const* transport = match->second;
         statistics_.mediumRestMassInputGeV_ +=
             (record.processId_ == AnnihilationProcessId &&
                      record.finalStateDrawId_ == AtRestAnnihilationPolarDrawId

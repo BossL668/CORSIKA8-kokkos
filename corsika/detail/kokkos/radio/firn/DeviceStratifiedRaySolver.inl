@@ -217,6 +217,47 @@ namespace corsika::kokkos::radio::firn::detail::go {
     double const d = horizontal_distance(a, b);
     return d > 0. ? Vector{(b[0] - a[0]) / d, (b[1] - a[1]) / d, 0.} : Vector{1., 0., 0.};
   }
+
+  /** Lower-bound every possible turning ray before the expensive branch scan.
+   * On an invariant interval [lo, hi], its turning height is at least z(hi),
+   * and dx/dz = p/sqrt(n*n-p*p) is at least lo/sqrt(a*a-lo*lo), where a is
+   * the maximum profile index. The compulsory vertical distance times this
+   * slope bounds the horizontal range from below. Only exclude the query if
+   * every interval lies strictly beyond the requested distance.
+   * Expanded intervals and downward margins keep near-boundary cases on the
+   * original search path; no monotonicity of the turning range is assumed.
+   */
+  KOKKOS_INLINE_FUNCTION bool exclude_turning_range(
+      ExponentialOpticalParameters const& profile, double sourceZ, double observerZ,
+      double horizontal, double nTop, double nUpper) {
+    double const a = profile.deepIndex_;
+    if (!(a > nTop && nTop > 0. && profile.deltaIndex_ > 0. &&
+          profile.scaleDepthM_ > 0. && nUpper > nTop && nUpper < a))
+      return false;
+    // Preserve the original solver's diagnostics if its endpoint margins
+    // collapse the search interval in an almost uniform/shallow profile.
+    if (!(nUpper - nTop > 4.e-10 * a)) return false;
+    // Cover rounding of the endpoint indices and of the interval endpoints.
+    double const padding = 64. * 2.2204460492503131e-16 * a;
+    double const indexBound = a + padding;
+    double const target = horizontal * (1. + 1.e-8) + 1.e-6;
+    constexpr int intervals = 16;
+    for (int i = 0; i < intervals; ++i) {
+      double const lo = nTop + (double(i) / intervals) * (nUpper - nTop) - padding;
+      double const hi = nTop + (double(i + 1) / intervals) * (nUpper - nTop) + padding;
+      if (!(lo > 0. && hi < a)) return false;
+      double const lowerTurningZ =
+          profile.surfaceZM_ +
+          profile.scaleDepthM_ * std::log((a - hi) / profile.deltaIndex_);
+      double const vertical =
+          maximum(0., lowerTurningZ - sourceZ) + maximum(0., lowerTurningZ - observerZ);
+      double const lowerRange =
+          vertical * lo / std::sqrt((indexBound - lo) * (indexBound + lo));
+      if (!(lowerRange > target) || !std::isfinite(lowerRange)) return false;
+    }
+    return true;
+  }
+
   KOKKOS_INLINE_FUNCTION Path RaySolver::nearEndpoint(Vector const& source,
                                                       Vector const& observer,
                                                       bool wantTurning) const {
@@ -418,6 +459,10 @@ namespace corsika::kokkos::radio::firn::detail::go {
     double const nObserver = profile_.refractiveIndexAtZ(observer[2]);
     double const nUpper = minimum(nSource, nObserver);
     if (!(nUpper > nTop * (1.0 + 1.0e-12))) return {};
+
+    if (exclude_turning_range(profile_.data_, source[2], observer[2], horizontal, nTop,
+                              nUpper))
+      return {};
 
     auto horizontalAt = [&](double p) {
       return profile_.turningLegHorizontal(p, source[2]) +

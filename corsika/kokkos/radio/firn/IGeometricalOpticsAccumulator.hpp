@@ -57,6 +57,7 @@ namespace corsika::kokkos::radio::firn {
     double geometryMs_{};
     double spectrumMs_{};
     double transferMs_{};
+    double finalizationMs_{};
   };
 
   struct GeometricalOpticsSpectra {
@@ -67,9 +68,11 @@ namespace corsika::kokkos::radio::firn {
 
   /** Batched GO with device ray solving and coherent spectra.
    * Input tracks and the unchanged subdivision controller stay on the host.
-   * Geometry and spectra run in the selected Kokkos execution space. Each
-   * observer/frequency output owns its sum and visits tracks, children and branches in
-   * the CPU order. Runtime acquisition is lazy; an EM runtime is borrowed when available
+   * Ray records remain in the execution space; compact summaries supply the
+   * host controller and diagnostics. The paths() audit API returns full records.
+   * Geometry and emission run in the selected Kokkos execution space. Frequency-domain
+   * outputs visit tracks in input order; time-domain emission retains its atomic
+   * accumulation. Runtime acquisition is lazy; an EM runtime is borrowed when available
    * and must outlive this object. Use on the coordinating host thread.
    */
   class IGeometricalOpticsAccumulator {
@@ -86,7 +89,9 @@ namespace corsika::kokkos::radio::firn {
         std::vector<vector_type> const& sources) = 0;
   };
 
+  /// Select host execution for same-track CPU/device validation or CPU radio.
   std::shared_ptr<IGeometricalOpticsAccumulator> make_geometrical_optics_accumulator(
       ExponentialOpticalParameters profile, std::vector<vector_type> observers,
-      GeometricalOpticsConfig config, int numThreads = 0, int deviceId = -1);
+      GeometricalOpticsConfig config, int numThreads = 0, int deviceId = -1,
+      bool useHostExecution = false);
 } // namespace corsika::kokkos::radio::firn

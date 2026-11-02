@@ -337,6 +337,35 @@ TEST_CASE("Firn radio: Fft", "[kokkos][firn][radio]") {
   require(parseval_relative(recovered, positive, grid) < 2.0e-13, "Parseval identity");
 }
 
+TEST_CASE("Firn radio: long FFT preserves impulse phase and energy",
+          "[kokkos][firn][radio]") {
+  FrequencyGrid const grid{1.e-10, 524288};
+  auto const source = grid.sampleCount_ / 3;
+  std::vector<std::complex<double>> values(grid.sampleCount_);
+  values[source] = 1.;
+  fft_in_place(values, false);
+  double maximumError = 0.;
+  for (std::size_t frequency = 0; frequency < values.size(); ++frequency) {
+    auto const phaseIndex = (frequency * source) % values.size();
+    double const phase = -2. * corsika::kokkos::radio::firn::pi *
+                         static_cast<double>(phaseIndex) / values.size();
+    maximumError =
+        std::max(maximumError, std::abs(values[frequency] - std::polar(1., phase)));
+  }
+  CHECK(maximumError < 5.e-13);
+  std::vector<std::complex<double>> positive(values.begin(),
+                                             values.begin() + grid.frequencyCount());
+  for (auto& value : positive) value *= grid.sampleIntervalS_;
+  auto const recovered = inverse_real_spectrum(positive, grid);
+  double squaredError = 0.;
+  for (std::size_t index = 0; index < recovered.size(); ++index) {
+    double const error = recovered[index] - (index == source ? 1. : 0.);
+    squaredError += error * error;
+  }
+  CHECK(std::sqrt(squaredError) < 5.e-13);
+  CHECK(parseval_relative(recovered, positive, grid) < 1.e-12);
+}
+
 TEST_CASE("Firn radio: FullWaveTable", "[kokkos][firn][radio]") {
 
   auto const root =

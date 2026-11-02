@@ -16,3 +16,11 @@ target_link_libraries (testFirnGeometricalOptics PRIVATE CORSIKA8FirnRadio Catch
 add_test (NAME testFirnGeometricalOptics COMMAND testFirnGeometricalOptics)
 set_tests_properties (testFirnGeometricalOptics PROPERTIES LABELS "kokkos;radio;firn"
   RUN_SERIAL TRUE TIMEOUT 600 ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false")
+
+add_executable (testFirnTimeDomain testTimeDomainEmission.cpp NativeEmissionReference.cpp)
+target_link_libraries (testFirnTimeDomain PRIVATE CORSIKA8FirnRadio Catch2::Catch2WithMain)
+add_test (NAME testFirnTimeDomain COMMAND testFirnTimeDomain)
+set_tests_properties (testFirnTimeDomain PROPERTIES LABELS "kokkos;radio;firn"
+  RUN_SERIAL TRUE TIMEOUT 180 ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false")
+
+corsika_kokkos_device_test (testFirnTimeDomain testTimeDomainEmission.cpp)

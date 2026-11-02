@@ -12,9 +12,13 @@
 #include <stdexcept>
 
 namespace corsika::kokkos::radio::firn {
+  /// The source calculation is independent of the selected propagation model.
+  enum class EmissionFormalism { FiniteTrackSpectrum, ZHS, CoREAS };
+
   /** Fourier window and the archived finite-track phase-subdivision tolerances. */
   struct OnlineRadioConfig {
     FrequencyGrid grid_{};
+    EmissionFormalism emissionFormalism_{EmissionFormalism::FiniteTrackSpectrum};
     double timeOriginS_{0.0};
     double maximumPhaseCycles_{0.01};
     double maximumLinearizationLengthM_{0.25};
@@ -25,6 +29,8 @@ namespace corsika::kokkos::radio::firn {
     bool writeBranchComponents_{false};
     bool includeSurfaceReflection_{true};
     double maximumPointCurrentPhaseIndicator_{0.02};
+    /// Use the finite-track limit when |1 - n beta.k| is below this value.
+    double coreasApproximationThreshold_{.1};
 
     void validate() const;
   };
