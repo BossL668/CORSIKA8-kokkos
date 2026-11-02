@@ -34,7 +34,7 @@ namespace corsika::kokkos {
     }
 
     KOKKOS_INLINE_FUNCTION real_type sqrt(real_type value) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
       return extended_sqrt(value);
 #else
       return std::sqrt(value);
@@ -42,7 +42,7 @@ namespace corsika::kokkos {
     }
 
     KOKKOS_INLINE_FUNCTION real_type cbrt(real_type value) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
       return extended_cbrt(value);
 #else
       return std::cbrt(value);
@@ -51,7 +51,7 @@ namespace corsika::kokkos {
 
     KOKKOS_INLINE_FUNCTION real_type fma(real_type first, real_type second,
                                          real_type third) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
       return first * second + third;
 #else
       return std::fma(first, second, third);
@@ -59,7 +59,7 @@ namespace corsika::kokkos {
     }
 
     KOKKOS_INLINE_FUNCTION real_type acos(real_type value) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
       auto angle = ::acos(value.getHigh());
       if (value.getLow() == 0.) { return ExtendedPrecision(angle); }
       if (value.getHigh() == 1.) { return extended_sqrt(2 * (real_type(1) - value)); }
@@ -75,7 +75,7 @@ namespace corsika::kokkos {
     }
 
     KOKKOS_INLINE_FUNCTION real_type cos(real_type value) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
       return ExtendedPrecision(::cos(value.getHigh())) -
              ::sin(value.getHigh()) * value.getLow();
 #else

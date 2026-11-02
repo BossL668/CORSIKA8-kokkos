@@ -13,10 +13,13 @@ namespace corsika::kokkos {
 
   namespace environment_search_detail {
 
-    // Preserve the production CUDA dot-product rounding without global flags.
+    // Preserve GPU dot-product rounding without global compiler flags.
     CORSIKA_HOST_DEVICE inline double product(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dmul_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first * second;
 #else
       return first * second;
 #endif
@@ -25,6 +28,9 @@ namespace corsika::kokkos {
     CORSIKA_HOST_DEVICE inline double sum(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dadd_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first + second;
 #else
       return first + second;
 #endif

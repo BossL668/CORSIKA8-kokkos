@@ -44,7 +44,7 @@ namespace corsika::kokkos {
   };
 
   namespace polynomial_detail {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     using real_type = ExtendedPrecision;
 #else
     using real_type = long double;

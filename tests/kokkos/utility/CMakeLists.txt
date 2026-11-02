@@ -8,6 +8,19 @@
 #
 
 # Reuse numerical geometry's compilation requirements without physics libraries.
+add_executable (testKokkosElementaryFunctionsDevice testElementaryFunctionsDevice.cpp)
+target_link_libraries (testKokkosElementaryFunctionsDevice
+  PRIVATE CORSIKA8KokkosEnvironmentSearch CORSIKA8KokkosRuntime Catch2::Catch2WithMain
+)
+corsika_kokkos_device_test (testKokkosElementaryFunctionsDevice testElementaryFunctionsDevice.cpp)
+add_test (NAME testKokkosElementaryFunctionsDevice COMMAND testKokkosElementaryFunctionsDevice)
+set_tests_properties (testKokkosElementaryFunctionsDevice PROPERTIES
+  LABELS "kokkos;utility;execution"
+  ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false"
+  RUN_SERIAL TRUE
+  TIMEOUT 60
+)
+
 add_executable (testKokkosPolynomialRoots
   testPolynomialRoots.cpp PolynomialRootsHeader.cpp
 )
@@ -21,6 +34,8 @@ target_link_libraries (testKokkosPolynomialRootsDevice
 )
 if (CORSIKA_DATA_EXPECT_BACKEND STREQUAL "CUDA")
   target_compile_definitions (testKokkosPolynomialRootsDevice PRIVATE CORSIKA_EXPECT_CUDA)
+elseif (CORSIKA_DATA_EXPECT_BACKEND STREQUAL "HIP")
+  target_compile_definitions (testKokkosPolynomialRootsDevice PRIVATE CORSIKA_EXPECT_HIP)
 elseif (CORSIKA_DATA_EXPECT_BACKEND STREQUAL "OPENMP")
   target_compile_definitions (testKokkosPolynomialRootsDevice PRIVATE CORSIKA_EXPECT_OPENMP)
 endif ()

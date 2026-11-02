@@ -117,4 +117,14 @@ class Pkg(ConanFile):
                 if architecture not in architectures:
                     raise ValueError("Select an explicit supported CUDA architecture")
                 tc.variables["CMAKE_CUDA_ARCHITECTURES"] = architectures[architecture]
+            elif str(self.options.kokkos_backend) == "hip":
+                architectures = {"VEGA906": "gfx906", "VEGA908": "gfx908",
+                                 "VEGA90A": "gfx90a", "GFX940": "gfx940",
+                                 "GFX942": "gfx942"}
+                architecture = str(self.options.kokkos_architecture).upper()
+                if architecture not in architectures:
+                    raise ValueError("Select an explicit supported HIP architecture")
+                tc.variables["CMAKE_HIP_ARCHITECTURES"] = architectures[architecture]
+                tc.variables["AMDGPU_TARGETS"] = architectures[architecture]
+                tc.variables["GPU_TARGETS"] = architectures[architecture]
         tc.generate()

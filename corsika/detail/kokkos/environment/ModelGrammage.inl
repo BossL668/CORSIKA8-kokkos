@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/kokkos/utility/ElementaryFunctions.hpp>
+
 #include <cmath>
 #include <limits>
 
@@ -56,7 +58,8 @@ namespace corsika::kokkos {
         model_grammage_detail::projected_axis(model, positionM, direction);
     if (projection == 0.) { return lengthM * localDensity * 100.; }
     return localDensity * (model.scaleLengthM_ / projection) *
-           ::expm1(projection * lengthM * model.inverseScaleLengthPerM_) * 100.;
+           exponential_minus_one(projection * lengthM * model.inverseScaleLengthPerM_) *
+           100.;
   }
 
   CORSIKA_HOST_DEVICE inline double arclength(EnvironmentModel const& model,
@@ -75,8 +78,9 @@ namespace corsika::kokkos {
     if (projection == 0.) { return grammageGPerCm2 / (localDensity * 100.); }
     auto const logArgument =
         grammageGPerCm2 * .01 * model.inverseScaleLengthPerM_ * projection / localDensity;
-    return logArgument > -1. ? model.scaleLengthM_ / projection * ::log1p(logArgument)
-                             : model_grammage_detail::infinity();
+    return logArgument > -1.
+               ? model.scaleLengthM_ / projection * logarithm_one_plus(logArgument)
+               : model_grammage_detail::infinity();
   }
 
 } // namespace corsika::kokkos

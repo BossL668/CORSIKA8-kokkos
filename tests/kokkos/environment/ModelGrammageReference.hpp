@@ -64,8 +64,10 @@ namespace model_grammage_reference {
     if (projection == 0.) { return grammageGPerCm2 / (rho * 100.); }
     auto const logArgument =
         grammageGPerCm2 * .01 * m.inverseScaleLengthPerM_ * projection / rho;
-    return logArgument > -1. ? m.scaleLengthM_ / projection * ::log1p(logArgument)
-                             : infinity();
+    // Keep this oracle independent of the implementation wrapper. The exact
+    // value log1p(+/-0) = +/-0 is required even on DTK's older device library.
+    double const logarithm = logArgument == 0. ? logArgument : ::log1p(logArgument);
+    return logArgument > -1. ? m.scaleLengthM_ / projection * logarithm : infinity();
   }
 
   struct Query {

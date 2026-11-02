@@ -30,6 +30,9 @@ namespace model_evaluation_reference {
   CORSIKA_HOST_DEVICE inline double product(double a, double b) {
 #if defined(__CUDA_ARCH__)
     return __dmul_rn(a, b);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return a * b;
 #else
     return a * b;
 #endif
@@ -38,6 +41,9 @@ namespace model_evaluation_reference {
   CORSIKA_HOST_DEVICE inline double sum(double a, double b) {
 #if defined(__CUDA_ARCH__)
     return __dadd_rn(a, b);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return a + b;
 #else
     return a + b;
 #endif

@@ -18,11 +18,14 @@ namespace corsika::kokkos {
 
   namespace polynomial_detail {
 
-    // Keep ordinary CUDA products/sums separately rounded. The explicit fma
+    // Keep GPU products/sums separately rounded. The explicit fma
     // below has a different purpose: recovering the multiplication residual.
     KOKKOS_INLINE_FUNCTION double product(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dmul_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first * second;
 #else
       return first * second;
 #endif
@@ -31,6 +34,9 @@ namespace corsika::kokkos {
     KOKKOS_INLINE_FUNCTION double sum(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dadd_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first + second;
 #else
       return first + second;
 #endif
@@ -39,6 +45,9 @@ namespace corsika::kokkos {
     KOKKOS_INLINE_FUNCTION double difference(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dsub_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first - second;
 #else
       return first - second;
 #endif

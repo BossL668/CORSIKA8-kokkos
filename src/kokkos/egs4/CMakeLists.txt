@@ -5,8 +5,8 @@
 # See file LICENSE for a full version of the license.
 #
 
-if (NOT CORSIKA_KOKKOS_RESOLVED_BACKEND MATCHES "^(OPENMP|CUDA|CUDA_OPENMP)$")
-  message (FATAL_ERROR "The native EGS4 backend currently supports OpenMP and CUDA.")
+if (NOT CORSIKA_KOKKOS_RESOLVED_BACKEND MATCHES "^(OPENMP|CUDA|CUDA_OPENMP|HIP)$")
+  message (FATAL_ERROR "The native EGS4 backend supports OpenMP, CUDA and HIP.")
 endif ()
 set (CORSIKA_EGS4_TABLE "${PROJECT_SOURCE_DIR}/resources/c7_egs4/EGSDAT6_.4"
   CACHE FILEPATH "AIR-NTP table embedded in the EGS4 backend")
@@ -35,6 +35,11 @@ if (CORSIKA_KOKKOS_RESOLVED_BACKEND MATCHES "^CUDA")
   target_compile_options (CORSIKA8NativeEgs4 PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
   target_link_libraries (CORSIKA8NativeEgs4 PUBLIC CUDA::cudart)
+elseif (CORSIKA_KOKKOS_RESOLVED_BACKEND STREQUAL "HIP")
+  set_source_files_properties (Tables.cpp Session.cpp
+    "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedTables.cpp" PROPERTIES LANGUAGE HIP)
+  set_target_properties (CORSIKA8NativeEgs4 PROPERTIES
+    HIP_STANDARD 17 HIP_STANDARD_REQUIRED ON)
 endif ()
 install (TARGETS CORSIKA8NativeEgs4 EXPORT CORSIKA8PublicTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

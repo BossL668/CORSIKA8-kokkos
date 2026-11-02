@@ -58,6 +58,11 @@ class KokkosConan(ConanFile):
         tc.cache_variables["Kokkos_ENABLE_OPENMP"] = backend in ("openmp", "cuda_openmp")
         tc.cache_variables["Kokkos_ENABLE_CUDA"] = backend in ("cuda", "cuda_openmp")
         tc.cache_variables["Kokkos_ENABLE_HIP"] = backend == "hip"
+        # Explicit launch bounds keep Kokkos' selected block size valid with
+        # older HIP compilers whose unannotated kernels default to 256 threads.
+        tc.cache_variables["Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS"] = (
+            backend == "hip"
+        )
         tc.cache_variables["Kokkos_ENABLE_SYCL"] = backend == "sycl"
         tc.cache_variables["Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE"] = (
             backend in ("cuda", "cuda_openmp", "hip")

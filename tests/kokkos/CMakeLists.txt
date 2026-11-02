@@ -21,6 +21,9 @@ function (corsika_kokkos_device_test TARGET)
     target_compile_options (${TARGET} PRIVATE
       $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
     target_link_libraries (${TARGET} PRIVATE CUDA::cudart)
+  elseif (TARGET ${TARGET} AND Kokkos_DEVICES MATCHES "HIP")
+    set_source_files_properties (${ARGN} PROPERTIES LANGUAGE HIP)
+    set_target_properties (${TARGET} PROPERTIES HIP_STANDARD 17 HIP_STANDARD_REQUIRED ON)
   endif ()
 endfunction ()
 

@@ -25,12 +25,20 @@ endfunction ()
 
 if (BC_INSTALLED)
   if (TARGET CORSIKA8::ApplicationSupport)
-    add_executable (${BC_PREFIX}_device_options "${BC_TESTS}/DeviceOptions.cpp")
+    get_target_property (BC_SUPPORT_DEFINITIONS CORSIKA8::ApplicationSupport
+      INTERFACE_COMPILE_DEFINITIONS)
+    if (BC_SUPPORT_DEFINITIONS MATCHES "CORSIKA_KOKKOS_BACKEND_HIP")
+      set (BC_DEVICE_OPTIONS_TEST HipDeviceOptions.cpp)
+    else ()
+      set (BC_DEVICE_OPTIONS_TEST DeviceOptions.cpp)
+    endif ()
+    add_executable (${BC_PREFIX}_device_options "${BC_TESTS}/${BC_DEVICE_OPTIONS_TEST}")
     bc_application_test (${BC_PREFIX}_device_options)
     target_link_libraries (${BC_PREFIX}_device_options PRIVATE CORSIKA8::ApplicationSupport)
   endif ()
 else ()
   set (BC_POLICY_UNDEFINES
+    -UCORSIKA_KOKKOS_BACKEND_HIP -UCORSIKA8_KOKKOS_BACKEND_HIP
     -UCORSIKA_KOKKOS_BACKEND_CUDA -UCORSIKA_KOKKOS_BACKEND_CUDA_OPENMP
     -UCORSIKA8_KOKKOS_BACKEND_CUDA -UCORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
   foreach (MODE IN ITEMS host cuda cuda_openmp)
@@ -49,6 +57,12 @@ else ()
         -DCORSIKA_KOKKOS_BACKEND_CUDA_OPENMP -DCORSIKA8_KOKKOS_BACKEND_CUDA_OPENMP)
     endif ()
   endforeach ()
+  add_executable (${BC_PREFIX}_device_options_hip "${BC_TESTS}/HipDeviceOptions.cpp"
+    "${PROJECT_SOURCE_DIR}/src/kokkos/application/DeviceSelection.cpp"
+    "${PROJECT_SOURCE_DIR}/src/kokkos/application/DeviceCliOptions.cpp")
+  bc_application_test (${BC_PREFIX}_device_options_hip)
+  target_compile_options (${BC_PREFIX}_device_options_hip PRIVATE
+    ${BC_POLICY_UNDEFINES} -DCORSIKA_KOKKOS_BACKEND_HIP)
 endif ()
 
 add_executable (${BC_PREFIX}_simulation_timing "${BC_TESTS}/SimulationTiming.cpp")

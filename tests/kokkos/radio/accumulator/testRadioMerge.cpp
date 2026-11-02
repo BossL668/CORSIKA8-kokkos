@@ -7,7 +7,6 @@
 
 #include "RadioAccumulatorComparison.hpp"
 #include <limits>
-#include <iostream>
 
 namespace {
   using namespace radio_accumulator_test;
@@ -183,12 +182,17 @@ TEST_CASE("Radio cooperative merge rejects overflow without a partial commit",
   }
 }
 
-TEST_CASE("Radio accumulation completes work on an explicit CUDA execution instance",
+TEST_CASE("Radio accumulation completes work on an explicit GPU execution instance",
           "[kokkos][radio][accumulator]") {
   ensure_runtime();
-#if defined(CORSIKA_RADIO_EXPECT_CUDA)
+#if defined(CORSIKA_RADIO_EXPECT_CUDA) || defined(CORSIKA_RADIO_EXPECT_HIP)
+#if defined(CORSIKA_RADIO_EXPECT_HIP)
+  hipStream_t stream{};
+  REQUIRE(hipStreamCreateWithFlags(&stream, hipStreamNonBlocking) == hipSuccess);
+#else
   cudaStream_t stream{};
   REQUIRE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) == cudaSuccess);
+#endif
   {
     execution_type ex(stream);
     auto spec = snapshot(0).first.config_;
@@ -229,8 +233,12 @@ TEST_CASE("Radio accumulation completes work on an explicit CUDA execution insta
     }
     ex.fence("explicit radio stream finished");
   }
+#if defined(CORSIKA_RADIO_EXPECT_HIP)
+  REQUIRE(hipStreamDestroy(stream) == hipSuccess);
+#else
   REQUIRE(cudaStreamDestroy(stream) == cudaSuccess);
-  std::cout << "explicit nonblocking CUDA radio stream checked\n";
+#endif
+  SUCCEED("Explicit nonblocking GPU radio stream checked");
 #else
   CHECK(std::is_same_v<execution_type, Kokkos::OpenMP>);
 #endif

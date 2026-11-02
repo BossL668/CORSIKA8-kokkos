@@ -316,6 +316,11 @@ if (CORSIKA_ENABLE_KOKKOS)
     set (CMAKE_CUDA_STANDARD_REQUIRED ON)
     set (CMAKE_CUDA_EXTENSIONS OFF)
     set (CMAKE_CUDA_RUNTIME_LIBRARY Shared)
+  elseif (Kokkos_DEVICES MATCHES "HIP")
+    enable_language (HIP)
+    set (CMAKE_HIP_STANDARD 17)
+    set (CMAKE_HIP_STANDARD_REQUIRED ON)
+    set (CMAKE_HIP_EXTENSIONS OFF)
   endif ()
 endif ()
 
@@ -330,6 +335,13 @@ add_subdirectory (documentation)
 # modules
 #
 set (CORSIKA_DATA_WITH_TEST ON) # we want to run the corsika-data unit test
+get_directory_property (CORSIKA_MODEL_PARENT_OPTIONS COMPILE_OPTIONS)
+if (CORSIKA_KOKKOS_RESOLVED_BACKEND STREQUAL "HIP" AND
+    CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # hipcc also drives C++ compilation. Native model wrappers refer to host
+  # Fortran common blocks and must not generate HIP device definitions.
+  add_compile_options ($<$<COMPILE_LANGUAGE:CXX>:--cuda-host-only>)
+endif ()
 add_subdirectory (modules/data) # this is corsika-data (submodule)
 add_subdirectory (modules/common)
 add_subdirectory (modules/pythia8)
@@ -342,6 +354,7 @@ add_subdirectory (modules/conex)
 add_subdirectory (modules/epos-lhc)
 add_subdirectory (modules/tauola)
 add_subdirectory (modules/fluka)
+set_property (DIRECTORY PROPERTY COMPILE_OPTIONS ${CORSIKA_MODEL_PARENT_OPTIONS})
 
 #
 #+++++++++++++++++++++++++++++++

@@ -18,11 +18,14 @@ namespace corsika::kokkos {
 
   namespace model_evaluation_detail {
 
-    // Keep the production dot product's rounding on CUDA. Do not replace these
+    // Keep the production dot product's rounding on GPUs. Do not replace these
     // operations with a fused multiply-add or alter global compiler flags.
     CORSIKA_HOST_DEVICE inline double product(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dmul_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first * second;
 #else
       return first * second;
 #endif
@@ -31,6 +34,9 @@ namespace corsika::kokkos {
     CORSIKA_HOST_DEVICE inline double sum(double first, double second) {
 #if defined(__CUDA_ARCH__)
       return __dadd_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return first + second;
 #else
       return first + second;
 #endif

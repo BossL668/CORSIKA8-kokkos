@@ -8,7 +8,6 @@
 #include "RadioAccumulatorChecks.hpp"
 #include <Kokkos_Core.hpp>
 
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -161,6 +160,8 @@ namespace {
     Accumulator::track_input_view_type device("queued_transport_records", 600);
     Kokkos::View<std::size_t*, typename Execution::memory_space> transportState(
         "transport_state_not_owned_by_radio", 600);
+    Kokkos::View<double*, typename Execution::memory_space> producedEndTimes(
+        "transport_time_before_radio", 600);
     std::vector<Record> all;
     for (std::size_t round = 0; round < rounds; ++round) {
       auto const gpuCount = round % 2 ? 73u : 600u;
@@ -191,7 +192,9 @@ namespace {
             Kokkos::RangePolicy<Execution>(execution, 0, device.extent(0)),
             KOKKOS_LAMBDA(std::size_t i) {
               transportState(i) = first + i;
-              device(i) = varyingRecord(first + i);
+              auto const value = varyingRecord(first + i);
+              device(i) = value;
+              producedEndTimes(i) = value.end_.timeS_;
             });
         mixed.accumulateLeptonTracks(device, count, execution);
         offset += count;
@@ -209,12 +212,17 @@ namespace {
     requireSame(expected, mixed.download(execution));
     auto state = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, transportState);
     auto retained = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, device);
+    auto produced =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, producedEndTimes);
     for (std::size_t i = 0; i < device.extent(0); ++i) {
       auto const wanted = varyingRecord(lastProducerOffset + i);
+      // Check mutation against the exact value recorded by the producer.
+      // Recomputing time on the host also tests different FMA contraction rules.
+      CAPTURE(i, lastProducerOffset, state(i), retained(i).end_.timeS_, produced(i));
       require(state(i) == lastProducerOffset + i &&
                   retained(i).start_.pid_ == wanted.start_.pid_ &&
                   retained(i).start_.weight_ == wanted.start_.weight_ &&
-                  retained(i).end_.timeS_ == wanted.end_.timeS_,
+                  retained(i).end_.timeS_ == produced(i),
               "host radio submission modified transport-owned state");
     }
     auto const hostTotal = rounds * hostCount;

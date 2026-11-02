@@ -395,11 +395,13 @@ namespace corsika::kokkos {
         throw std::runtime_error("failed to query the Kokkos HIP device");
       info_.deviceName_ = properties.name;
       info_.architecture_ = properties.gcnArchName;
+      int driver{};
       int runtime{};
-      if (hipRuntimeGetVersion(&runtime) != hipSuccess)
-        throw std::runtime_error("failed to query the HIP runtime version");
+      if (hipDriverGetVersion(&driver) != hipSuccess ||
+          hipRuntimeGetVersion(&runtime) != hipSuccess)
+        throw std::runtime_error("failed to query HIP driver/runtime versions");
       info_.runtimeVersion_ = std::to_string(runtime);
-      info_.driverVersion_ = info_.runtimeVersion_;
+      info_.driverVersion_ = std::to_string(driver);
       if (hipMemGetInfo(&info_.deviceFreeMemoryBytesAtInitialization_,
                         &info_.deviceTotalMemoryBytes_) != hipSuccess)
         throw std::runtime_error("failed to query available HIP memory");

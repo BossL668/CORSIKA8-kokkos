@@ -12,8 +12,13 @@
 namespace corsika::kokkos::application {
   void add_device_cli_options(CLI::App& app, BackendOptions& options) {
     app.add_option("--device",
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+                   "HIP GPU indices: one runs directly; several cooperate on "
+                   "each shower (0,1 or 0 1)")
+#else
                    "NVIDIA GPU index/UUID(s): one runs directly; several cooperate on "
                    "each shower (0,1 or 0 1)")
+#endif
         ->expected(1, 255)
         ->type_size(1)
         ->delimiter(',')
@@ -37,22 +42,29 @@ namespace corsika::kokkos::application {
     try {
       if (selection.hasMultipleDevices())
         throw std::invalid_argument("This build has no native multi-GPU coordinator");
-#if !defined(CORSIKA_KOKKOS_BACKEND_CUDA) && !defined(CORSIKA_KOKKOS_BACKEND_CUDA_OPENMP)
+#if !defined(CORSIKA_KOKKOS_BACKEND_CUDA) && \
+    !defined(CORSIKA_KOKKOS_BACKEND_CUDA_OPENMP) && !defined(CORSIKA_KOKKOS_BACKEND_HIP)
       throw std::invalid_argument(
           "--device requires a CUDA or CUDA/OpenMP build; omit it on CPU-only systems");
 #endif
       if (!app.count("--em-backend")) options.emBackend_ = "kokkos-proposal";
       if (!app.count("--radio-backend") && !options.hostRadioAdapter_)
         options.radioBackend_ = "kokkos";
-      if (!app.count("--kokkos-execution")) options.kokkosExecution_ = "cuda";
+      if (!app.count("--kokkos-execution")) options.kokkosExecution_ = gpu_execution();
       if ((options.emBackend_ != "kokkos-proposal" &&
            options.emBackend_ != "kokkos-egs4") ||
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+          options.kokkosExecution_ != "hip")
+        throw std::invalid_argument(
+            "--device requires HIP execution with kokkos-proposal or kokkos-egs4");
+#else
           (options.kokkosExecution_ != "cuda" &&
            options.kokkosExecution_ != "cuda-openmp" &&
            options.kokkosExecution_ != "openmp-cuda"))
         throw std::invalid_argument(
             "--device requires accelerated CUDA execution (kokkos-proposal or "
             "kokkos-egs4)");
+#endif
       select_single_gpu(selection);
       options.kokkosDevice_ = 0;
       return true;

@@ -223,7 +223,7 @@ namespace corsika::kokkos::application {
         if (!capacity_) {
           auto execution = resolve_execution_backend(options.kokkosExecution_);
           capacity_ =
-              execution == "cuda"
+              (execution == "cuda" || execution == "hip")
                   ? native_->gpuMemoryBudget(options.gpuMemoryFraction_, cfg.radio_)
                         .queueCapacity_
                   : 1048576;

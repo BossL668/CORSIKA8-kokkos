@@ -19,9 +19,11 @@
 // 41cdc543429b82a216857ad458f83deb0f210a5f.
 // The three source bodies below are copied from Git objects, not the dirty
 // production checkout. Only their include dependencies, namespace and execution
-// annotations are adapted. The default constructor uses an explicit empty body
-// to avoid NVCC's ignored-annotation warning; its hi/lo member initializers are
-// unchanged. No migrated solver or arithmetic helper is called.
+// annotations are adapted. HIP uses the same two-double GPU path and local
+// no-contraction arithmetic as CUDA; solver formulas remain frozen. The default
+// constructor uses an explicit empty body to avoid NVCC's ignored-annotation warning; its
+// hi/lo member initializers are unchanged. No migrated solver or arithmetic helper is
+// called.
 namespace polynomial_roots_reference {
   KOKKOS_INLINE_FUNCTION double infinity() {
 #if defined(__CUDA_ARCH__)
@@ -33,6 +35,9 @@ namespace polynomial_roots_reference {
   KOKKOS_INLINE_FUNCTION double product(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dmul_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first * second;
 #else
     return first * second;
 #endif
@@ -40,6 +45,9 @@ namespace polynomial_roots_reference {
   KOKKOS_INLINE_FUNCTION double sum(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dadd_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first + second;
 #else
     return first + second;
 #endif
@@ -47,6 +55,9 @@ namespace polynomial_roots_reference {
   KOKKOS_INLINE_FUNCTION double difference(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dsub_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first - second;
 #else
     return first - second;
 #endif
@@ -142,7 +153,7 @@ namespace polynomial_roots_reference {
 namespace polynomial_roots_reference {
   // Arithmetic helpers for stable sphere roots and the native plane quadratic.
   // CPU uses extended precision; CUDA uses a local two-double expansion.
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   using Real = Extended;
 #else
   using Real = long double;
@@ -157,28 +168,28 @@ namespace polynomial_roots_reference {
   };
   KOKKOS_INLINE_FUNCTION Real abs(Real x) { return x < 0 ? -x : x; }
   KOKKOS_INLINE_FUNCTION Real sqrt(Real x) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return extendedSqrt(x);
 #else
     return std::sqrt(x);
 #endif
   }
   KOKKOS_INLINE_FUNCTION Real cbrt(Real x) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return extendedCbrt(x);
 #else
     return std::cbrt(x);
 #endif
   }
   KOKKOS_INLINE_FUNCTION Real fma(Real a, Real b, Real c) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return a * b + c;
 #else
     return std::fma(a, b, c);
 #endif
   }
   KOKKOS_INLINE_FUNCTION Real acos(Real x) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     auto angle = ::acos(x.hi);
     if (x.lo == 0.) return Extended(angle);
     if (x.hi == 1.) return extendedSqrt(2 * (Real(1) - x));
@@ -190,7 +201,7 @@ namespace polynomial_roots_reference {
 #endif
   }
   KOKKOS_INLINE_FUNCTION Real cos(Real x) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return Extended(::cos(x.hi)) - ::sin(x.hi) * x.lo;
 #else
     return std::cos(x);

@@ -26,6 +26,8 @@ namespace {
   using memory_space_type = typename execution_space_type::memory_space;
 #if defined(CORSIKA_EXPECT_CUDA)
   static_assert(std::is_same_v<execution_space_type, Kokkos::Cuda>);
+#elif defined(CORSIKA_EXPECT_HIP)
+  static_assert(std::is_same_v<execution_space_type, Kokkos::HIP>);
 #elif defined(CORSIKA_EXPECT_OPENMP)
   static_assert(std::is_same_v<execution_space_type, Kokkos::OpenMP>);
 #endif
@@ -57,7 +59,7 @@ namespace {
     auto const inputs = fixture::queries();
     auto const deviceInputs = copy_to_device(inputs);
     int const count = static_cast<int>(inputs.size());
-    Kokkos::View<fixture::Result * [2], Kokkos::LayoutRight, memory_space_type> results(
+    Kokkos::View<fixture::Result* [2], Kokkos::LayoutRight, memory_space_type> results(
         "root_results", count);
     Kokkos::View<fixture::Branch*, memory_space_type> branches("resolvent_branches",
                                                                count);
@@ -187,7 +189,7 @@ namespace {
     auto const inputs = fixture::distinct_queries();
     auto const deviceInputs = copy_to_device(inputs);
     int const count = static_cast<int>(inputs.size());
-    Kokkos::View<fixture::Result * [2], Kokkos::LayoutRight, memory_space_type> results(
+    Kokkos::View<fixture::Result* [2], Kokkos::LayoutRight, memory_space_type> results(
         "distinct_root_results", count);
     Kokkos::parallel_for(
         "root_deduplication_boundary",
@@ -218,7 +220,7 @@ namespace {
     auto const inputs = fixture::extended_queries();
     auto const deviceInputs = copy_to_device(inputs);
     int const count = static_cast<int>(inputs.size());
-    Kokkos::View<fixture::ExtendedResult * [2], Kokkos::LayoutRight, memory_space_type>
+    Kokkos::View<fixture::ExtendedResult* [2], Kokkos::LayoutRight, memory_space_type>
         results("extended_results", count);
     Kokkos::parallel_for(
         "extended_production_equivalence",

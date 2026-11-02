@@ -13,6 +13,8 @@
 #include <type_traits>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cuda_runtime_api.h>
+#elif defined(KOKKOS_ENABLE_HIP)
+#include <hip/hip_runtime_api.h>
 #endif
 
 namespace corsika::kokkos::egs4::application {
@@ -56,6 +58,11 @@ namespace corsika::kokkos::egs4::application {
     static void cudaCheck(cudaError_t e) {
       if (e != cudaSuccess) throw std::runtime_error(cudaGetErrorString(e));
     }
+#elif defined(KOKKOS_ENABLE_HIP)
+    hipEvent_t start_{}, stop_{};
+    static void hipCheck(hipError_t error) {
+      if (error != hipSuccess) throw std::runtime_error(hipGetErrorString(error));
+    }
 #endif
   public:
     DeviceRadio(::corsika::kokkos::radio::RadioConfig const& config,
@@ -77,12 +84,26 @@ namespace corsika::kokkos::egs4::application {
             cudaCheck(err);
           }
         }
+#elif defined(KOKKOS_ENABLE_HIP)
+      if constexpr (std::is_same_v<TExec, Kokkos::HIP>)
+        if (enabled()) {
+          hipCheck(hipEventCreate(&start_));
+          auto error = hipEventCreate(&stop_);
+          if (error != hipSuccess) {
+            (void)hipEventDestroy(start_);
+            start_ = nullptr;
+            hipCheck(error);
+          }
+        }
 #endif
     }
     ~DeviceRadio() {
 #ifdef KOKKOS_ENABLE_CUDA
       if (stop_) cudaEventDestroy(stop_);
       if (start_) cudaEventDestroy(start_);
+#elif defined(KOKKOS_ENABLE_HIP)
+      if (stop_) (void)hipEventDestroy(stop_);
+      if (start_) (void)hipEventDestroy(start_);
 #endif
     }
     DeviceRadio(DeviceRadio const&) = delete;
@@ -106,6 +127,9 @@ namespace corsika::kokkos::egs4::application {
 #ifdef KOKKOS_ENABLE_CUDA
       if constexpr (std::is_same_v<TExec, Kokkos::Cuda>)
         cudaCheck(cudaEventRecord(start_, execution.cuda_stream()));
+#elif defined(KOKKOS_ENABLE_HIP)
+      if constexpr (std::is_same_v<TExec, Kokkos::HIP>)
+        hipCheck(hipEventRecord(start_, execution.hip_stream()));
 #endif
       Kokkos::parallel_for(
           "egs4_export_resident_radio_tracks",
@@ -119,6 +143,15 @@ namespace corsika::kokkos::egs4::application {
         cudaCheck(cudaEventSynchronize(stop_));
         float elapsed = 0.;
         cudaCheck(cudaEventElapsedTime(&elapsed, start_, stop_));
+        stats.radioKernelMs_ += elapsed;
+      } else
+        execution.fence("EGS4 radio projection");
+#elif defined(KOKKOS_ENABLE_HIP)
+      if constexpr (std::is_same_v<TExec, Kokkos::HIP>) {
+        hipCheck(hipEventRecord(stop_, execution.hip_stream()));
+        hipCheck(hipEventSynchronize(stop_));
+        float elapsed = 0.;
+        hipCheck(hipEventElapsedTime(&elapsed, start_, stop_));
         stats.radioKernelMs_ += elapsed;
       } else
         execution.fence("EGS4 radio projection");

@@ -14,7 +14,7 @@ namespace corsika::kokkos::egs4::scattering_detail {
   };
   inline constexpr double Rho = 6.1250000626955625e-09, Blcc = 4.4557811634149402e-05,
                           Xcc = 6.332845805445686e-05;
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
   static __device__ __constant__ Tables device_tables = {
       {{-0.00099139999999999992, 2.7671999999999999, -1.1544000000000001},
        {-0.00099139999999999992, 2.7671999999999999, -1.1544000000000001},
@@ -77,7 +77,7 @@ namespace corsika::kokkos::egs4::scattering_detail {
        {2.0790999999999999, 1.0649, -0.00057196999999999999}}};
 #endif
   KOKKOS_INLINE_FUNCTION Tables const& coefficients() {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return device_tables;
 #else
     static const Tables tables = {

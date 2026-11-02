@@ -57,11 +57,11 @@ namespace corsika::kokkos::application {
     }
     try {
       auto execution = kokkos::resolve_execution_backend(options.kokkosExecution_);
-      if (execution != "cuda" && execution != "openmp")
+      if (execution != "cuda" && execution != "hip" && execution != "openmp")
         throw std::invalid_argument(
-            "EGS4 supports cuda or openmp, not cooperative execution");
-      if (execution == "cuda" && options.kokkosNumThreads_ > 1)
-        throw std::invalid_argument("CUDA uses one host scheduling thread");
+            "EGS4 supports cuda, hip or openmp, not cooperative execution");
+      if ((execution == "cuda" || execution == "hip") && options.kokkosNumThreads_ > 1)
+        throw std::invalid_argument("GPU execution uses one host scheduling thread");
     } catch (std::exception const& error) {
       CORSIKA_LOG_CRITICAL("{}", error.what());
       return false;

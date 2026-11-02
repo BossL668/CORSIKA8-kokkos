@@ -28,6 +28,16 @@ if (NOT CORSIKA_KOKKOS_RESOLVED_BACKEND STREQUAL "NONE")
     CORSIKA8_KOKKOS_BACKEND_${CORSIKA_KOKKOS_RESOLVED_BACKEND}=1)
 endif ()
 list (APPEND CORSIKA_BACKEND_APPLICATION_TARGETS CORSIKA8ApplicationSupport)
+if (CORSIKA_KOKKOS_RESOLVED_BACKEND STREQUAL "HIP")
+  add_executable (c8_hip_devices application/HipDeviceQuery.cpp)
+  target_link_libraries (c8_hip_devices PRIVATE CORSIKA8)
+  set_source_files_properties (application/HipDeviceQuery.cpp PROPERTIES LANGUAGE HIP)
+  set_target_properties (c8_hip_devices PROPERTIES
+    HIP_STANDARD 17 HIP_STANDARD_REQUIRED ON
+    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/applications")
+  add_dependencies (CORSIKA8ApplicationSupport c8_hip_devices)
+  install (TARGETS c8_hip_devices RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif ()
 
 add_library (CORSIKA8AirShowerCoordinator
   scheduling/AirShowerCoordinator.cpp scheduling/StaticFrontierIO.cpp)

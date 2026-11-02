@@ -1,0 +1,16 @@
+include(default)
+
+# Hygon Z100 / DTK 22.10.1 (HIP 5.2, Clang 14). Source the vendor env.sh first.
+[settings]
+compiler=clang
+compiler.version=14
+compiler.libcxx=libstdc++11
+compiler.cppstd=17
+
+[conf]
+tools.build:compiler_executables={"c": "clang", "cpp": "hipcc"}
+
+[options]
+&:with_kokkos=True
+&:kokkos_backend=hip
+&:kokkos_architecture=VEGA906

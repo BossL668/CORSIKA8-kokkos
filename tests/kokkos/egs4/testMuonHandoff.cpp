@@ -11,8 +11,28 @@
 namespace {
   using namespace corsika::kokkos;
   using namespace corsika::kokkos::egs4::application;
-  void require(bool ok) {
-    if (!ok) throw std::runtime_error("muon handoff contract failed");
+  void check_particle(ParticleState const& actual, ParticleState const& expected) {
+    // ParticleState has tail padding. Its contract preserves named values,
+    // not the unspecified bytes between the last member and its alignment.
+    auto sameBits = [](double const& first, double const& second) {
+      return std::memcmp(&first, &second, sizeof(double)) == 0;
+    };
+    CHECK(actual.pid_ == expected.pid_);
+    CHECK(actual.mediumId_ == expected.mediumId_);
+    CHECK(actual.generation_ == expected.generation_);
+    CHECK(actual.reserved_ == expected.reserved_);
+    CHECK(sameBits(actual.energyGeV_, expected.energyGeV_));
+    CHECK(sameBits(actual.timeS_, expected.timeS_));
+    CHECK(sameBits(actual.weight_, expected.weight_));
+    CHECK(actual.historyId_ == expected.historyId_);
+    CHECK(actual.parentHistoryId_ == expected.parentHistoryId_);
+    CHECK(actual.stepId_ == expected.stepId_);
+    CHECK(actual.environmentNode_ == expected.environmentNode_);
+    for (unsigned component = 0; component < 3; ++component) {
+      CAPTURE(component);
+      CHECK(sameBits(actual.positionM_[component], expected.positionM_[component]));
+      CHECK(sameBits(actual.direction_[component], expected.direction_[component]));
+    }
   }
   template <class TFunction>
   void rejects(TFunction f) {
@@ -20,7 +40,7 @@ namespace {
     try {
       f();
     } catch (std::exception const&) { failed = true; }
-    require(failed);
+    REQUIRE((failed));
   }
   struct Fixture : IEmBackend {
     LeptonCascadeResult result_;
@@ -91,8 +111,8 @@ TEST_CASE("EGS4 receives untouched muon daughters after one wave", "[egs4]") {
   photon = electron;
   photon.pid_ = 22;
   photon.historyId_ = 102;
-  require(adapter.canTransport(mu) && !adapter.canTransport(electron) &&
-          !adapter.canTransport(photon));
+  REQUIRE((adapter.canTransport(mu) && !adapter.canTransport(electron) &&
+           !adapter.canTransport(photon)));
   backend.result_.inputParticles_ = 1;
   backend.result_.wavefronts_ = 1;
   backend.result_.transportRecords_ = 1;
@@ -103,18 +123,19 @@ TEST_CASE("EGS4 receives untouched muon daughters after one wave", "[egs4]") {
   backend.result_.decayCandidates_ = {mu};
   backend.result_.fallbackEvents_.resize(1);
   auto output = adapter.runLeptonWavefront({mu}, 100, 1024, 10000, 1);
-  require(backend.wavesSeen_ == 1 && backend.firstSeen_ == 100 &&
-          backend.limitSeen_ == 10000);
-  require(output.remainingLeptons_.size() == 1 && output.generatedPhotons_.empty() &&
-          output.cpuSpillParticles_.empty());
-  require(output.decayCandidates_.size() == 1 && output.fallbackEvents_.size() == 1 &&
-          output.secondaryHistoryIdsUsed_ == 3);
-  require(!output.completed_ && adapter.muonSteps() == 1 && adapter.emTransfers() == 3);
+  REQUIRE((backend.wavesSeen_ == 1 && backend.firstSeen_ == 100 &&
+           backend.limitSeen_ == 10000));
+  REQUIRE((output.remainingLeptons_.size() == 1 && output.generatedPhotons_.empty() &&
+           output.cpuSpillParticles_.empty()));
+  REQUIRE((output.decayCandidates_.size() == 1 && output.fallbackEvents_.size() == 1 &&
+           output.secondaryHistoryIdsUsed_ == 3));
+  REQUIRE((!output.completed_ && adapter.muonSteps() == 1 && adapter.emTransfers() == 3));
   auto em = adapter.takeElectromagnetic();
-  require(em.size() == 3 && !adapter.hasElectromagnetic());
-  require(std::memcmp(&em[0], &photon, sizeof photon) == 0 &&
-          std::memcmp(&em[1], &electron, sizeof electron) == 0 &&
-          std::memcmp(&em[2], &positron, sizeof positron) == 0);
+  REQUIRE((em.size() == 3 && !adapter.hasElectromagnetic()));
+  check_particle(output.remainingLeptons_.front(), mu);
+  check_particle(em[0], photon);
+  check_particle(em[1], electron);
+  check_particle(em[2], positron);
   rejects([&] { adapter.runLeptonWavefront({electron}, 100, 2, 10000, 1); });
   rejects([&] { adapter.runPhotonWavefront({photon}, 100, 2, 1); });
   backend.pending_ = 1;

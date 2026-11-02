@@ -5,6 +5,22 @@
  * See file LICENSE for a full version of the license.
  */
 #include "StochasticChecks.hpp"
+#include <corsika/detail/framework/random/random_iterator/detail/Engine.hpp>
+#include <random>
+
+TEST_CASE("Native host and device random streams share a translation unit",
+          "[stochastic][host_random]") {
+  // Frozen values from the unchanged native CPU engine, before HIP annotation.
+  random_iterator::detail::Engine<random_iterator_r123::Philox2x64> engine(1234567ULL, 9);
+  std::uint64_t const expected[]{1210830520816667260ULL,  12234744801967262574ULL,
+                                 13642004549288578223ULL, 10749956007276926472ULL,
+                                 12440997852746459949ULL, 4222228548948028785ULL};
+  for (auto value : expected) REQUIRE(engine() == value);
+  std::uniform_real_distribution<double> uniform(0., 1.);
+  auto const value = uniform(engine);
+  REQUIRE(value > 0.);
+  REQUIRE(value < 1.);
+}
 
 TEST_CASE("Production random identities and fallback routing survive migration",
           "[stochastic]") {
@@ -76,7 +92,7 @@ TEST_CASE("Production random identities and fallback routing survive migration",
                       index * 0x9e3779b97f4a7c15ULL, 0xffffffffffffffffULL - index,
                       domain, index % 8});
   auto deviceKeys = upload(keys);
-  Kokkos::View<Outcome * [2], Kokkos::LayoutRight, memory_space_type> randomOutput(
+  Kokkos::View<Outcome* [2], Kokkos::LayoutRight, memory_space_type> randomOutput(
       "random_results", keys.size());
   Kokkos::parallel_for(
       "production_rng", Kokkos::RangePolicy<execution_space_type>(0, keys.size()),
@@ -115,7 +131,7 @@ TEST_CASE("Production random identities and fallback routing survive migration",
            {std::nextafter(.01, 0.), .01, std::nextafter(.01, 1.), nan, inf, -inf})
         policies.push_back({11, 1000000004, reason, status, .42, time});
   auto devicePolicies = upload(policies);
-  Kokkos::View<Outcome * [2], Kokkos::LayoutRight, memory_space_type> policyOutput(
+  Kokkos::View<Outcome* [2], Kokkos::LayoutRight, memory_space_type> policyOutput(
       "policy_results", policies.size());
   Kokkos::parallel_for(
       "production_policies",

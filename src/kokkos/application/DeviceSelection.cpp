@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
+#include <filesystem>
+#include <sstream>
 #include <map>
 #include <memory>
 #include <set>
@@ -51,12 +53,19 @@ namespace corsika::kokkos::application {
           if (n > unsigned(std::numeric_limits<int>::max()))
             throw std::invalid_argument("GPU index is too large");
           id = std::to_string(n);
-        } else if (id.rfind("GPU-", 0) != 0 || id.size() <= 4 ||
-                   id.find_first_not_of("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL"
-                                        "MNOPQRSTUVWXYZ-") != std::string::npos) {
+        }
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+        else {
+          throw std::invalid_argument("--device expects nonnegative HIP GPU indices");
+        }
+#else
+        else if (id.rfind("GPU-", 0) != 0 || id.size() <= 4 ||
+                 id.find_first_not_of("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL"
+                                      "MNOPQRSTUVWXYZ-") != std::string::npos) {
           throw std::invalid_argument(
               "--device expects nonnegative NVIDIA GPU indices or full GPU UUIDs");
         }
+#endif
         if (std::find(result.ids_.begin(), result.ids_.end(), id) != result.ids_.end())
           throw std::invalid_argument("--device contains a duplicate GPU ID: " + id);
         result.ids_.push_back(id);
@@ -120,24 +129,75 @@ namespace corsika::kokkos::application {
     return result;
   }
 
+  std::string gpu_execution() {
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+    return "hip";
+#else
+    return "cuda";
+#endif
+  }
+
+  std::string gpu_visibility_variable() {
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+    return "HIP_VISIBLE_DEVICES";
+#else
+    return "CUDA_VISIBLE_DEVICES";
+#endif
+  }
+
+  std::string hip_device_query_program() {
+    return (std::filesystem::canonical("/proc/self/exe").parent_path() / "c8_hip_devices")
+        .string();
+  }
+
+  std::vector<std::string> resolve_hip_indices(std::vector<std::string> const& requested,
+                                               std::string const& listing) {
+    std::set<std::string> available, selected;
+    std::istringstream input(listing);
+    std::string line;
+    while (std::getline(input, line)) {
+      auto comma = line.find(',');
+      if (comma == std::string::npos) continue;
+      auto index = trim_device(line.substr(0, comma));
+      if (!index.empty() && index.find_first_not_of("0123456789") == std::string::npos)
+        available.insert(index);
+    }
+    for (auto const& index : requested) {
+      if (!available.count(index))
+        throw std::invalid_argument("Unknown HIP device index: " + index);
+      if (!selected.insert(index).second)
+        throw std::invalid_argument("Duplicate HIP device index: " + index);
+    }
+    return requested;
+  }
+
   void select_single_gpu(DeviceSelection const& selection) {
     if (selection.ids_.size() != 1)
       throw std::invalid_argument("Expected exactly one GPU");
-    // Resolve physical IDs exactly as the multi-GPU coordinator does. Use UUIDs
-    // to avoid CUDA ordinal/PCI-order ambiguity; do not initialize CUDA here.
+    // Query in a fresh process before initializing the worker runtime. CUDA uses
+    // UUIDs to avoid PCI-order ambiguity; HIP uses the validated runtime ordinal.
     auto closeFile = [](std::FILE* file) { std::fclose(file); };
     std::unique_ptr<std::FILE, decltype(closeFile)> log(std::tmpfile(), closeFile);
     if (!log) throw std::runtime_error("Cannot create GPU query scratch file");
     int fd = fileno(log.get());
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+    auto const query = hip_device_query_program();
+#endif
+    auto const queryName = gpu_execution() == "hip" ? "HIP" : "NVIDIA";
     auto child = fork();
-    if (child < 0) throw std::runtime_error("Cannot start NVIDIA GPU query");
+    if (child < 0)
+      throw std::runtime_error(std::string("Cannot start ") + queryName + " GPU query");
     if (child == 0) {
       if (dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO) < 0) _exit(126);
       if (fd > STDERR_FILENO) close(fd);
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+      execl(query.c_str(), query.c_str(), nullptr);
+#else
       execlp("nvidia-smi", "nvidia-smi", "--query-gpu=index,uuid",
              "--format=csv,noheader,nounits", nullptr);
       execl("/usr/lib/wsl/lib/nvidia-smi", "nvidia-smi", "--query-gpu=index,uuid",
             "--format=csv,noheader,nounits", nullptr);
+#endif
       _exit(127);
     }
     int status = 0;
@@ -146,22 +206,28 @@ namespace corsika::kokkos::application {
       auto done = waitpid(child, &status, WNOHANG);
       if (done == child) break;
       if (done < 0 && errno != EINTR)
-        throw std::runtime_error("NVIDIA GPU query wait failed");
+        throw std::runtime_error(std::string(queryName) + " GPU query wait failed");
       if (std::chrono::steady_clock::now() >= deadline) {
         kill(child, SIGKILL);
         while (waitpid(child, &status, 0) < 0 && errno == EINTR) {}
-        throw std::runtime_error("NVIDIA GPU query timed out");
+        throw std::runtime_error(std::string(queryName) + " GPU query timed out");
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-      throw std::runtime_error("Cannot query NVIDIA GPUs with nvidia-smi");
+      throw std::runtime_error(gpu_execution() == "hip"
+                                   ? "Cannot query HIP GPUs with c8_hip_devices"
+                                   : "Cannot query NVIDIA GPUs with nvidia-smi");
     std::rewind(log.get());
     std::string listing;
     char buffer[512];
     while (std::fgets(buffer, sizeof(buffer), log.get())) listing += buffer;
-    auto uuid = resolve_gpu_ids(selection.ids_, listing).front();
-    if (setenv("CUDA_VISIBLE_DEVICES", uuid.c_str(), 1) != 0)
-      throw std::runtime_error("Cannot select NVIDIA GPU");
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+    auto const selectedDevice = resolve_hip_indices(selection.ids_, listing).front();
+#else
+    auto const selectedDevice = resolve_gpu_ids(selection.ids_, listing).front();
+#endif
+    if (setenv(gpu_visibility_variable().c_str(), selectedDevice.c_str(), 1) != 0)
+      throw std::runtime_error(std::string("Cannot select ") + queryName + " GPU");
   }
 } // namespace corsika::kokkos::application

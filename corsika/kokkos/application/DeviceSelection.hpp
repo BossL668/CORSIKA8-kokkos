@@ -19,7 +19,20 @@ namespace corsika::kokkos::application {
   /** Resolve physical indices and UUID aliases without initializing CUDA. */
   std::vector<std::string> resolve_gpu_ids(std::vector<std::string> const& requested,
                                            std::string const& listing);
-  /** Query nvidia-smi and set the selected UUID visibility before runtime startup. */
+  /** Return the GPU execution-space name used by the compiled coordinator. */
+  [[nodiscard]] std::string gpu_execution();
+  /** Return the environment-variable name used to restrict each GPU worker. */
+  [[nodiscard]] std::string gpu_visibility_variable();
+  /** Path to the HIP query helper; no device runtime is started in this process. */
+  [[nodiscard]] std::string hip_device_query_program();
+  /**
+   * Validate HIP ordinals against the helper's index/PCI-address listing.
+   *
+   * Returns the requested order unchanged; rejects unknown or duplicate indices.
+   */
+  [[nodiscard]] std::vector<std::string> resolve_hip_indices(
+      std::vector<std::string> const& requested, std::string const& listing);
+  /** Select a GPU before runtime startup, querying devices in a child process. */
   void select_single_gpu(DeviceSelection const& selection);
 } // namespace corsika::kokkos::application
 #include <corsika/detail/kokkos/application/DeviceSelection.inl>

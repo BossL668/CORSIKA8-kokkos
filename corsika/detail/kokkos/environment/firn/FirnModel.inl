@@ -39,6 +39,9 @@ namespace corsika::kokkos {
       return __dadd_rn(
           __dadd_rn(__dmul_rn(left[0], right[0]), __dmul_rn(left[1], right[1])),
           __dmul_rn(left[2], right[2]));
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+      return left[0] * right[0] + left[1] * right[1] + left[2] * right[2];
 #else
       return left[0] * right[0] + left[1] * right[1] + left[2] * right[2];
 #endif

@@ -174,6 +174,7 @@ namespace corsika::kokkos::coordinator {
         return out;
       }
     };
+#ifndef CORSIKA_KOKKOS_BACKEND_HIP
     fs::path executable_on_path(std::string const& name) {
       std::istringstream path(std::getenv("PATH") ? std::getenv("PATH") : "");
       std::string folder;
@@ -185,17 +186,27 @@ namespace corsika::kokkos::coordinator {
         return "/usr/lib/wsl/lib/nvidia-smi";
       throw std::runtime_error("Executable not found: " + name);
     }
+#endif
     std::vector<std::string> resolve_devices(std::vector<std::string> const& requested,
                                              fs::path const& output) {
       Processes p;
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+      auto i = p.launch({corsika::kokkos::application::hip_device_query_program()},
+                        output / "device_query", {});
+#else
       auto i = p.launch({executable_on_path("nvidia-smi").string(),
                          "--query-gpu=index,uuid", "--format=csv,noheader,nounits"},
                         output / "device_query", {});
+#endif
       p.wait({i}, 15);
       std::ifstream in(output / "device_query/run.log");
       std::ostringstream listing;
       listing << in.rdbuf();
+#ifdef CORSIKA_KOKKOS_BACKEND_HIP
+      return corsika::kokkos::application::resolve_hip_indices(requested, listing.str());
+#else
       return corsika::kokkos::application::resolve_gpu_ids(requested, listing.str());
+#endif
     }
     void check_frontier_feed(fs::path const& folder, std::size_t expected) {
       auto feed = read_json(folder / "FRONTIER_FEED.json");
@@ -217,13 +228,14 @@ namespace corsika::kokkos::coordinator {
                                    "--hadronic-backend", "scalar"});
       if (o.emBackend_ == "kokkos-egs4")
         common.insert(common.end(), {"--egs4-stepfc", number(o.egs4Stepfc_)});
-      std::map<std::string, std::string> env{{"OMP_NUM_THREADS", "1"},
-                                             {"OMP_THREAD_LIMIT", "1"},
-                                             {"OPENBLAS_NUM_THREADS", "1"},
-                                             {"MKL_NUM_THREADS", "1"},
-                                             {"ARROW_NUM_THREADS", "1"},
-                                             {"ARROW_IO_THREADS", "1"},
-                                             {"CUDA_VISIBLE_DEVICES", devices.front()}};
+      std::map<std::string, std::string> env{
+          {"OMP_NUM_THREADS", "1"},
+          {"OMP_THREAD_LIMIT", "1"},
+          {"OPENBLAS_NUM_THREADS", "1"},
+          {"MKL_NUM_THREADS", "1"},
+          {"ARROW_NUM_THREADS", "1"},
+          {"ARROW_IO_THREADS", "1"},
+          {corsika::kokkos::application::gpu_visibility_variable(), devices.front()}};
       auto launch = [&](std::string const& name, std::vector<std::string> const& options,
                         std::map<std::string, std::string> const& environment) {
         std::vector<std::string> args{o.worker_.string()};
@@ -275,7 +287,8 @@ namespace corsika::kokkos::coordinator {
                           "--radio-backend", "cpu", "--frontier-out", frontier.string(),
                           "--frontier-max-energy", number(cap)});
           auto prefixEnv = env;
-          if (spoolPrefixRadio) prefixEnv["CUDA_VISIBLE_DEVICES"] = "";
+          if (spoolPrefixRadio)
+            prefixEnv[corsika::kokkos::application::gpu_visibility_variable()] = "";
           auto prefix = launch("prefix", options, prefixEnv);
           p.wait({prefix}, o.timeout_);
           validate_outputs(root / "prefix/shower");
@@ -285,7 +298,7 @@ namespace corsika::kokkos::coordinator {
           CORSIKA_LOG_INFO("Seed {}: static CPU bootstrap + {} prefix workers", seed,
                            o.prefixWorkers_);
           auto cpuEnv = env;
-          cpuEnv["CUDA_VISIBLE_DEVICES"] = "";
+          cpuEnv[corsika::kokkos::application::gpu_visibility_variable()] = "";
           auto cpuRoots = root / "cpu_frontier.txt";
           auto bootstrapOptions = prefixRadioOptions("bootstrap");
           bootstrapOptions.insert(
@@ -368,7 +381,7 @@ namespace corsika::kokkos::coordinator {
         for (unsigned i = 0; i < devices.size(); ++i) {
           if (!scheduledWorkers.count(i)) continue;
           auto workerEnv = env;
-          workerEnv["CUDA_VISIBLE_DEVICES"] = devices[i];
+          workerEnv[corsika::kokkos::application::gpu_visibility_variable()] = devices[i];
           std::vector<std::string> workerOptions{
               "-s",
               std::to_string(worker_seed(seed, i)),
@@ -377,7 +390,7 @@ namespace corsika::kokkos::coordinator {
               "--radio-backend",
               "kokkos",
               "--kokkos-execution",
-              "cuda",
+              corsika::kokkos::application::gpu_execution(),
               "--kokkos-num-threads",
               "1",
               "--kokkos-device",
@@ -557,8 +570,7 @@ namespace corsika::kokkos::coordinator {
   int main_entry(int argc, char** argv) {
     CoordinatorOptions o;
     std::string output, worker, emBackend, radioBackend, execution;
-    CLI::App app{
-        "CORSIKA 8: each shower on independent CUDA GPUs; native C++ coordination."};
+    CLI::App app{"CORSIKA 8: each shower on independent GPUs; native C++ coordination."};
     app.allow_extras();
     app.add_option("--device", "Physical GPU indices or UUIDs (comma or space separated)")
         ->expected(1, 255)
@@ -598,7 +610,8 @@ namespace corsika::kokkos::coordinator {
     app.add_option("--egs4-stepfc", o.egs4Stepfc_, "C7-EGS4 step factor (default: 1)")
         ->check(CLI::PositiveNumber);
     app.add_option("--radio-backend", radioBackend, "Multi-GPU radio backend: kokkos");
-    app.add_option("--kokkos-execution", execution, "Multi-GPU execution space: cuda");
+    app.add_option("--kokkos-execution", execution,
+                   "Multi-GPU execution space: cuda or hip (as compiled)");
     try {
       o.devices_ = corsika::kokkos::application::parse_devices(argc, argv).ids_;
       app.parse(argc, argv);
@@ -608,9 +621,10 @@ namespace corsika::kokkos::coordinator {
       require((emBackend.empty() || emBackend == "kokkos-proposal" ||
                emBackend == "kokkos-egs4") &&
                   (radioBackend.empty() || radioBackend == "kokkos") &&
-                  (execution.empty() || execution == "cuda"),
+                  (execution.empty() ||
+                   execution == corsika::kokkos::application::gpu_execution()),
               "Multi-GPU requires kokkos-proposal/kokkos-egs4 transport, kokkos radio "
-              "and cuda execution");
+              "and the compiled GPU execution space");
       o.emBackend_ = emBackend.empty() ? "kokkos-proposal" : emBackend;
 #ifndef CORSIKA8_WITH_NATIVE_EGS4
       require(o.emBackend_ != "kokkos-egs4",

@@ -43,6 +43,9 @@ namespace straight_boundary_reference {
   CORSIKA_HOST_DEVICE inline double product(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dmul_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first * second;
 #else
     return first * second;
 #endif
@@ -50,6 +53,9 @@ namespace straight_boundary_reference {
   CORSIKA_HOST_DEVICE inline double sum(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dadd_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first + second;
 #else
     return first + second;
 #endif
@@ -57,6 +63,9 @@ namespace straight_boundary_reference {
   CORSIKA_HOST_DEVICE inline double difference(double first, double second) {
 #if defined(__CUDA_ARCH__)
     return __dsub_rn(first, second);
+#elif defined(__HIP_DEVICE_COMPILE__)
+#pragma clang fp contract(off)
+    return first - second;
 #else
     return first - second;
 #endif

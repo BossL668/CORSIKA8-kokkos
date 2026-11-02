@@ -19,6 +19,8 @@ if (CMAKE_CUDA_COMPILER_LOADED)
     testHomogeneousRadio.cpp testHostRadioStaging.cpp testRadioCounters.cpp
     RadioAccumulatorHeader.cpp RadioAccumulatorOperationsHeader.cpp
     PROPERTIES LANGUAGE CUDA)
+elseif (Kokkos_DEVICES MATCHES "HIP")
+  target_compile_definitions (testRadioAccumulator PRIVATE CORSIKA_RADIO_EXPECT_HIP)
 else ()
   target_compile_definitions (testRadioAccumulator PRIVATE CORSIKA_RADIO_EXPECT_OPENMP)
 endif ()
@@ -34,8 +36,7 @@ set_tests_properties (testRadioAccumulator PROPERTIES LABELS "kokkos;radio;accum
   ENVIRONMENT "OMP_NUM_THREADS=2;OMP_PROC_BIND=false")
 
 # Compile the actual execution-space queries with the selected device compiler.
-corsika_kokkos_device_test (testRadioAccumulator testRadioAccumulator.cpp)
-corsika_kokkos_device_test (testRadioMerge testRadioMerge.cpp)
-corsika_kokkos_device_test (testHomogeneousRadio testHomogeneousRadio.cpp)
-corsika_kokkos_device_test (testHostRadioStaging testHostRadioStaging.cpp)
-corsika_kokkos_device_test (testRadioCounters testRadioCounters.cpp)
+corsika_kokkos_device_test (testRadioAccumulator
+  testRadioAccumulator.cpp testRadioMerge.cpp testHomogeneousRadio.cpp
+  testHostRadioStaging.cpp testRadioCounters.cpp RadioAccumulatorHeader.cpp
+  RadioAccumulatorOperationsHeader.cpp)

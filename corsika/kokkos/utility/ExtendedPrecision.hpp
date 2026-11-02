@@ -14,9 +14,9 @@ namespace corsika::kokkos {
   /**
    * Local two-double expansion for the production polynomial resolvent.
    *
-   * CUDA long double does not supply the additional precision used by the CPU
-   * solver. This record preserves the production local arithmetic; it is not
-   * a replacement for particle-state or model-table scalar types.
+   * GPU solvers use this expansion for the additional precision supplied by
+   * long double on the CPU. This record preserves the production local arithmetic; it is
+   * not a replacement for particle-state or model-table scalar types.
    */
   class ExtendedPrecision {
   public:

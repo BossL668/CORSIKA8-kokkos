@@ -14,6 +14,8 @@
 #include <type_traits>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cuda_runtime_api.h>
+#elif defined(KOKKOS_ENABLE_HIP)
+#include <hip/hip_runtime_api.h>
 #endif
 
 namespace corsika::kokkos::egs4::application {
@@ -269,20 +271,32 @@ namespace corsika::kokkos::egs4::application {
     if (impl_->stream_ || !Kokkos::is_initialized() || Kokkos::is_finalized())
       throw std::logic_error(
           "Plan native EGS4 GPU memory before starting a live session");
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
 #ifdef KOKKOS_ENABLE_CUDA
-    if constexpr (std::is_same_v<Kokkos::DefaultExecutionSpace, Kokkos::Cuda>) {
+    using gpu_execution_type = Kokkos::Cuda;
+#else
+    using gpu_execution_type = Kokkos::HIP;
+#endif
+    if constexpr (std::is_same_v<Kokkos::DefaultExecutionSpace, gpu_execution_type>) {
       std::size_t free = 0, total = 0;
+#ifdef KOKKOS_ENABLE_CUDA
       auto error = cudaMemGetInfo(&free, &total);
       if (error != cudaSuccess)
         throw std::runtime_error(std::string("CUDA memory query: ") +
                                  cudaGetErrorString(error));
+#else
+      auto error = hipMemGetInfo(&free, &total);
+      if (error != hipSuccess)
+        throw std::runtime_error(std::string("HIP memory query: ") +
+                                 hipGetErrorString(error));
+#endif
       using namespace c8_adapter;
       // Upper bound at capacity, including temporary next-generation storage.
       constexpr auto payload = 3 * sizeof(AirRecord) + sizeof(AirOutcome) +
                                sizeof(AirOutput) + sizeof(RareAirTransfer) +
                                sizeof(thinning_result_type) + 3 * sizeof(int) +
                                sizeof(HostOutputRecord);
-      using Acc = ::corsika::kokkos::radio::RadioAccumulator<Kokkos::Cuda>;
+      using Acc = ::corsika::kokkos::radio::RadioAccumulator<gpu_execution_type>;
       // Retained radio buffers can overlap their replacements when a batch grows.
       auto per_history =
           payload + (radio.enabled_
@@ -294,7 +308,7 @@ namespace corsika::kokkos::egs4::application {
                              512ULL * 1024 * 1024 + Acc::projectedDeviceBytes(radio));
     }
 #endif
-    throw std::invalid_argument("GPU memory fraction requires the CUDA execution space");
+    throw std::invalid_argument("GPU memory fraction requires a GPU execution space");
   }
   template <class TExec>
   RunStatistics run_cascade(Tables const& tables, Configuration const& c,

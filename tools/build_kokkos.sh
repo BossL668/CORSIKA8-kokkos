@@ -151,6 +151,17 @@ for c8_backend in "${c8_backends[@]}"; do
       grep -qx "sm_$c8_sm" <<< "$c8_codes" || fail \
         "This nvcc cannot compile sm_$c8_sm. Select a compatible CUDA toolkit (V100: CUDA 12.x; RTX 50: CUDA 12.8+)."
     fi
+  elif [[ $c8_backend == hip ]]; then
+    require_command hipcc
+    require_command hipconfig
+    c8_rocm=$(hipconfig -R)
+    c8_llvm=$(hipconfig -l)
+    [[ -d $c8_rocm && -x $c8_llvm/clang++ ]] || fail \
+      'Source the ROCm/DTK environment script before building HIP'
+    # CMake's HIP language uses Clang directly, whereas C++ uses hipcc.
+    # DTK puts amd_comgr's package in lib64; compiler probes need it too.
+    export HIPCXX=${HIPCXX:-"$c8_llvm/clang++"}
+    export CMAKE_PREFIX_PATH="$c8_rocm:$c8_rocm/lib64/cmake${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
   fi
   printf 'Build %s: profile=%s; FLUKA=%s; jobs=%s\n' \
     "$c8_backend" "${c8_profiles[$c8_backend]}" "$c8_fluka" "$c8_jobs"

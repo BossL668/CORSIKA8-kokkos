@@ -27,6 +27,8 @@ namespace radio_accumulator_test {
 
 #if defined(CORSIKA_RADIO_EXPECT_CUDA)
 static_assert(std::is_same_v<Kokkos::DefaultExecutionSpace, Kokkos::Cuda>);
+#elif defined(CORSIKA_RADIO_EXPECT_HIP)
+static_assert(std::is_same_v<Kokkos::DefaultExecutionSpace, Kokkos::HIP>);
 #elif defined(CORSIKA_RADIO_EXPECT_OPENMP)
 static_assert(std::is_same_v<Kokkos::DefaultExecutionSpace, Kokkos::OpenMP>);
 #endif
