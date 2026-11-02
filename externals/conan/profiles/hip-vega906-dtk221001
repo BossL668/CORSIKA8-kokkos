@@ -8,7 +8,10 @@ compiler.libcxx=libstdc++11
 compiler.cppstd=17
 
 [conf]
-tools.build:compiler_executables={"c": "clang", "cpp": "hipcc"}
+# Ordinary dependencies use the host compiler. Only the application needs
+# hipcc for device-enabled C++ headers; Kokkos enables CMake's HIP language.
+tools.build:compiler_executables={"c": "clang", "cpp": "clang++"}
+&:tools.build:compiler_executables={"c": "clang", "cpp": "hipcc"}
 
 [options]
 &:with_kokkos=True

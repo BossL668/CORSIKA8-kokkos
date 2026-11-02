@@ -45,6 +45,8 @@ name = os.path.basename(sys.argv[0])
 args = sys.argv[1:]
 with open(os.environ['COMMAND_LOG'], 'a') as stream:
     stream.write(json.dumps([name, *args]) + '\n')
+with open(os.environ['COMMAND_LOG'] + '.env', 'a') as stream:
+    stream.write(json.dumps(dict(command=[name, *args], hip_compile=os.environ.get('HIPCC_COMPILE_FLAGS_APPEND'), hip_link=os.environ.get('HIPCC_LINK_FLAGS_APPEND'), hipcxx=os.environ.get('HIPCXX'), gpu_targets=os.environ.get('AMDGPU_TARGETS'))) + '\n')
 if name == 'cmake' and args == ['--version']:
     print('cmake version ' + os.environ.get('CMAKE_TEST_VERSION', '3.31.6'))
 elif name == 'conan':
@@ -60,12 +62,14 @@ elif name == 'nvidia-smi':
     if os.environ.get('GPU_QUERY_FAIL') == '1':
         sys.exit(1)
     print(os.environ.get('GPU_CAP', '7.0'))
+elif name == 'hipconfig':
+    print(os.environ['HIP_TEST_ROOT'] + ('/llvm/bin' if args == ['-l'] else ''))
 elif name == 'nvcc':
     print(os.environ.get('GPU_CODES', 'sm_70\nsm_75\nsm_80\nsm_86\nsm_89\nsm_90\nsm_120'))
 elif name == 'build-python' and os.environ.get('MISSING_PYTHON_MODULE') == '1':
     sys.exit(1)
 """
-        for name in ['conan', 'cmake', 'nvidia-smi', 'nvcc', 'build-python']:
+        for name in ['conan', 'cmake', 'nvidia-smi', 'nvcc', 'build-python', 'hipcc', 'hipconfig']:
             command = self.bin / name
             command.write_text('#!' + sys.executable + '\nfrom pathlib import Path\n' + stub)
             command.chmod(0o755)
@@ -92,6 +96,48 @@ elif name == 'build-python' and os.environ.get('MISSING_PYTHON_MODULE') == '1':
         self.result = result
         return [json.loads(line) for line in self.log.read_text().splitlines()] \
             if self.log.exists() else []
+
+    def prepare_hip(self):
+        runtime = self.root / 'dtk'
+        compiler = runtime / 'llvm/bin/clang++'
+        compiler.parent.mkdir(parents=True)
+        compiler.write_text('#!/bin/sh\nexit 0\n')
+        compiler.chmod(0o755)
+        self.env.update(C8_KOKKOS_PROFILE='hip-vega906-dtk221001',
+                        HIP_TEST_ROOT=str(runtime))
+        for name in ('HIPCC_COMPILE_FLAGS_APPEND', 'HIPCC_LINK_FLAGS_APPEND', 'HIPCXX'):
+            self.env.pop(name, None)
+        return runtime
+
+    def test_hip_preflight_uses_selected_dtk(self):
+        runtime = self.prepare_hip()
+        rows = self.run_helper('tools/build_kokkos.sh', 'hip', '--check')
+        self.assertIn(str(runtime / 'llvm/bin/clang++'), self.result.stdout)
+        self.assertIn('gfx906', self.result.stdout)
+        self.assertFalse(any(row[0] in ('nvidia-smi', 'nvcc') for row in rows))
+        self.assert_no_build(rows)
+
+    def test_hip_requires_a_working_compiler(self):
+        runtime = self.prepare_hip()
+        (runtime / 'llvm/bin/clang++').unlink()
+        rows = self.run_helper('tools/build_kokkos.sh', 'hip', expected=2)
+        self.assertIn('Source the ROCm/DTK environment', self.result.stderr)
+        self.assert_no_build(rows)
+
+    def test_hip_architecture_flags_do_not_leak_to_next_backend(self):
+        self.prepare_hip()
+        self.env['AMDGPU_TARGETS'] = 'gfx906;gfx926'
+        self.run_helper('tools/build_kokkos.sh', 'hip,openmp')
+        calls = [json.loads(line) for line in
+                 Path(str(self.log) + '.env').read_text().splitlines()]
+        builds = [entry for entry in calls if entry['command'][:2] == ['cmake', '-S']]
+        self.assertEqual(len(builds), 2)
+        self.assertEqual(builds[0]['gpu_targets'], 'gfx906')
+        self.assertEqual(builds[1]['gpu_targets'], 'gfx906;gfx926')
+        self.assertEqual(builds[0]['hip_compile'], '--offload-arch=gfx906')
+        self.assertEqual(builds[0]['hip_link'], '--offload-arch=gfx906')
+        self.assertIsNone(builds[1]['hip_compile'])
+        self.assertIsNone(builds[1]['hip_link'])
 
     def test_independent_graphs_export_and_install(self):
         rows = self.run_helper('tools/build_kokkos.sh', 'openmp,cuda', '-DWITH_FLUKA=ON')

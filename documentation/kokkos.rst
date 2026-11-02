@@ -16,12 +16,27 @@ Build configurations
 
 The ordinary build has ``CORSIKA_ENABLE_KOKKOS=OFF`` and does not require Kokkos.
 The optional build requires a Kokkos 4.7 package. Use separate build
-and install directories for OpenMP and CUDA, and build Kokkos with a compiler
+and install directories for OpenMP, CUDA and HIP, and build Kokkos with a compiler
 compatible with the CORSIKA dependency graph. The recommended helpers prepare
 the matching dependency graph and install all native applications::
 
    bash tools/build_kokkos.sh openmp
    bash tools/build_kokkos.sh cuda
+
+For the tested Hygon Z100L / DTK 22.10.1 configuration, activate the build
+environment, source the vendor environment and select the matching profile::
+
+   source /opt/dtk-22.10.1/env.sh
+   C8_KOKKOS_PROFILE=hip-vega906-dtk221001 bash tools/build_kokkos.sh hip --check
+   C8_KOKKOS_PROFILE=hip-vega906-dtk221001 bash tools/build_kokkos.sh hip
+
+Run ``install/hip/bin/c8_air_shower`` with ``--kokkos-execution hip`` and an
+explicit Kokkos EM backend. Keep the installed ``c8_hip_devices`` helper next
+to the application. A comma-separated ``--device`` list selects cooperating
+HIP devices; ``--prefix-workers`` independently selects CPU-prefix workers.
+Device-file permissions and full single-/multi-device examples are described
+in the README. Other HIP toolchain/architecture combinations require their
+own validation.
 
 The helpers enable FLUKA by default. Prepare a compatible licensed installation
 and set ``FLUPRO`` first; ``-DWITH_FLUKA=OFF`` explicitly selects a different

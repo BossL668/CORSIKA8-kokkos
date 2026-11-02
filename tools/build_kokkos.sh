@@ -65,7 +65,7 @@ while (( $# )); do
     c8_fluka_argument=${BASH_REMATCH[2]}
   fi
 done
-declare -A c8_seen=() c8_profiles=() c8_fluka_libraries=()
+declare -A c8_seen=() c8_profiles=() c8_fluka_libraries=() c8_hip_targets=()
 for c8_backend in "${c8_backends[@]}"; do
   case "$c8_backend" in openmp|cuda|cuda-openmp|hip|sycl) ;;
     *) fail "Unknown backend: $c8_backend" ;; esac
@@ -162,6 +162,19 @@ for c8_backend in "${c8_backends[@]}"; do
     # DTK puts amd_comgr's package in lib64; compiler probes need it too.
     export HIPCXX=${HIPCXX:-"$c8_llvm/clang++"}
     export CMAKE_PREFIX_PATH="$c8_rocm:$c8_rocm/lib64/cmake${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+    c8_arch=$(sed -n 's/^&:kokkos_architecture=//p' "$c8_profile")
+    case "$c8_arch" in
+      VEGA906) c8_hip_targets[$c8_backend]=gfx906 ;;
+      VEGA908) c8_hip_targets[$c8_backend]=gfx908 ;;
+      VEGA90A) c8_hip_targets[$c8_backend]=gfx90a ;;
+      GFX940) c8_hip_targets[$c8_backend]=gfx940 ;;
+      GFX942) c8_hip_targets[$c8_backend]=gfx942 ;;
+      # Inherited custom profiles are resolved and checked by Conan.
+      '') ;;
+      *) fail "Unsupported HIP architecture in profile: $c8_arch" ;;
+    esac
+    printf 'HIP compiler: %s; runtime: %s; target: %s\n' \
+      "$HIPCXX" "$c8_rocm" "${c8_hip_targets[$c8_backend]:-resolved by Conan}"
   fi
   printf 'Build %s: profile=%s; FLUKA=%s; jobs=%s\n' \
     "$c8_backend" "${c8_profiles[$c8_backend]}" "$c8_fluka" "$c8_jobs"
@@ -180,27 +193,40 @@ fi
 $c8_check && { echo 'Prerequisite checks passed; no dependencies downloaded or builds started.'; exit 0; }
 bash "$c8_source/tools/prepare_data.sh"
 for c8_backend in "${c8_backends[@]}"; do
-  c8_build="$c8_workspace/build/$c8_backend"
-  c8_install="$c8_workspace/install/$c8_backend"
-  c8_deps="$c8_build/deps"
-  bash "$c8_source/conan-install.sh" --release --output-folder "$c8_deps" \
-    --profile "${c8_profiles[$c8_backend]}" --build-profile "${C8_BUILD_PROFILE:-default}" \
-    --with-proposal-export
-  c8_runtime=${c8_backend//-/_}
-  c8_physics_args=("-DWITH_FLUKA=$c8_fluka")
-  if [[ $c8_fluka == ON ]]; then
-    c8_physics_args+=("-DC8_FLUKALIB=${c8_fluka_libraries[$c8_backend]}")
-  fi
-  cmake -S "$c8_source" -B "$c8_build" \
-    -DCMAKE_TOOLCHAIN_FILE="$c8_deps/conan_toolchain.cmake" \
-    -DCONAN_CMAKE_DIR="$c8_deps" \
-    -DCMAKE_PREFIX_PATH="$c8_deps" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
-    -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
-    -DCORSIKA_ENABLE_PROPOSAL_EXPORT=ON -DCORSIKA_KOKKOS_BACKEND="${c8_runtime^^}" \
-    -DPYTHON_EXECUTABLE="$c8_python" "${c8_physics_args[@]}" \
-    -DCMAKE_INSTALL_PREFIX="$c8_install" "${c8_cmake_args[@]}"
-  cmake --build "$c8_build" --parallel "$c8_jobs"
-  cmake --install "$c8_build"
-  printf 'Native binary: %s/bin/c8_air_shower\n' "$c8_install"
-  printf 'Before running: export CORSIKA_DATA="%s/share/corsika/data"\n' "$c8_install"
+  # Keep HIP compiler flags local to this backend, including dependency builds.
+  (
+    if [[ $c8_backend == hip && -n ${c8_hip_targets[$c8_backend]:-} ]]; then
+      # DTK env.sh may select several targets. Honor this backend's profile.
+      export AMDGPU_TARGETS="${c8_hip_targets[$c8_backend]}"
+      export HIPCC_COMPILE_FLAGS_APPEND="${HIPCC_COMPILE_FLAGS_APPEND:+$HIPCC_COMPILE_FLAGS_APPEND }--offload-arch=${c8_hip_targets[$c8_backend]}"
+      export HIPCC_LINK_FLAGS_APPEND="${HIPCC_LINK_FLAGS_APPEND:+$HIPCC_LINK_FLAGS_APPEND }--offload-arch=${c8_hip_targets[$c8_backend]}"
+    fi
+    c8_build="$c8_workspace/build/$c8_backend"
+    c8_install="$c8_workspace/install/$c8_backend"
+    c8_deps="$c8_build/deps"
+    bash "$c8_source/conan-install.sh" --release --output-folder "$c8_deps" \
+      --profile "${c8_profiles[$c8_backend]}" --build-profile "${C8_BUILD_PROFILE:-default}" \
+      --with-proposal-export
+    c8_runtime=${c8_backend//-/_}
+    c8_physics_args=("-DWITH_FLUKA=$c8_fluka")
+    if [[ $c8_fluka == ON ]]; then
+      c8_physics_args+=("-DC8_FLUKALIB=${c8_fluka_libraries[$c8_backend]}")
+    fi
+    cmake -S "$c8_source" -B "$c8_build" \
+      -DCMAKE_TOOLCHAIN_FILE="$c8_deps/conan_toolchain.cmake" \
+      -DCONAN_CMAKE_DIR="$c8_deps" \
+      -DCMAKE_PREFIX_PATH="$c8_deps" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+      -DCMAKE_BUILD_TYPE=Release -DCORSIKA_ENABLE_KOKKOS=ON \
+      -DCORSIKA_ENABLE_PROPOSAL_EXPORT=ON -DCORSIKA_KOKKOS_BACKEND="${c8_runtime^^}" \
+      -DPYTHON_EXECUTABLE="$c8_python" "${c8_physics_args[@]}" \
+      -DCMAKE_INSTALL_PREFIX="$c8_install" "${c8_cmake_args[@]}"
+    cmake --build "$c8_build" --parallel "$c8_jobs"
+    cmake --install "$c8_build"
+    printf 'Native binary: %s/bin/c8_air_shower\n' "$c8_install"
+    printf 'Before running: export CORSIKA_DATA="%s/share/corsika/data"\n' "$c8_install"
+    if [[ $c8_backend == hip ]]; then
+      printf 'Before running: source the same ROCm/DTK env.sh used for this build.\n'
+      printf 'Device query: %s/bin/c8_hip_devices\n' "$c8_install"
+    fi
+  )
 done

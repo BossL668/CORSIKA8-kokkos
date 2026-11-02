@@ -6,7 +6,12 @@
 `c8_air_shower` 应用通过库接口接入输运、调度、环境转换和输出。
 本仓库是独立研究项目，不是 CORSIKA 官方发行版。
 
-## 最新更新（2026-10-29）
+## 最新更新（2026-11-02）
+
+- 在共用 Kokkos 后端中接入 HIP 设备选择与多卡协调，支持 PROPOSAL 输运、可选 EGS4 和设备射电。
+- 增加 Hygon Z100／DTK 22.10.1 构建配置及安装检查；保留共用物理算法，修复随机数、几何和数值工具中的 HIP 编译器／设备库兼容问题。
+
+## 更新（2026-10-29）
 
 - CPU 前缀的自动拆分阈值改为按 `--prefix-workers` 缩放，与 GPU 数量独立。
   显式指定正值 `--prefix-split-energy` 仍优先；默认串行前缀行为不变。
@@ -36,7 +41,7 @@ externals/conan/                      依赖配方及后端配置
 
 下面按 Ubuntu 22.04/24.04 或 WSL2 的空环境编写，所有命令在 Bash 中执行。
 先准备系统工具和 FLUKA，再选择 **Miniconda/Miniforge 或 venv**，最后选择
-**OpenMP 或 CUDA**。无需先编译 OpenMP 才能编译 CUDA。
+**OpenMP、CUDA 或 HIP**。无需先编译 OpenMP 才能编译 GPU 后端。
 **安装脚本默认开启 FLUKA**，缺少依赖时会提前报错，不会静默更换物理模型。
 
 需要 C++17 编译器（GCC 11 及以上）、兼容的 GFortran、CMake 3.24–3.x、Conan 2
@@ -53,7 +58,7 @@ Ubuntu 系统工具：
 sudo apt-get update
 sudo apt-get install -y build-essential gfortran git curl ca-certificates \
   python3-venv python3-dev pkg-config autoconf automake libtool bison flex \
-  patch unzip bzip2 xz-utils
+  patch unzip bzip2 xz-utils perl
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export FC=/usr/bin/gfortran
@@ -273,8 +278,8 @@ HIP/SYCL 需准备对应工具链并显式选 profile；这里的自动检测针
 ```text
 corsika8-workspace/
 ├── CORSIKA8-kokkos/                 源码
-├── build/{openmp,cuda}/deps/        各后端独立的依赖描述
-└── install/{openmp,cuda}/
+├── build/{openmp,cuda,hip}/deps/    各后端独立的依赖描述
+└── install/{openmp,cuda,hip}/
     ├── bin/c8_air_shower            原生可执行文件
     └── share/corsika/data/          模型和地磁数据
 ```
@@ -288,6 +293,71 @@ Conan 缓存默认在 `~/.conan2`，它不跟随 `C8_WORKSPACE` 移动；需要�
 即使选择 OpenMP 运行也仍需可用 NVIDIA runtime；无 GPU 服务器使用独立 OpenMP 版。
 手动 CMake 接入见 [后端指南](documentation/kokkos.rst)，若采用这里的默认科研配置，
 手动配置也需传入 `-DWITH_FLUKA=ON`。
+
+### HIP：ROCm／海光 DTK
+
+依赖库从源码构建时还需要完整 Perl 和 `IPC::Cmd` 模块
+（RPM 系统通常为 `perl-core` / `perl-IPC-Cmd`）；可用
+`perl -MIPC::Cmd -e 1` 提前检查。
+
+已验证的海光配置为 **DTK 22.10.1、Clang 14、gfx906／Z100L、GCC/GFortran 11**，
+Kokkos 为 4.7.03。先完成上面的系统工具、FLUKA 和 Conda/venv 配置；HIP 用户
+跳过 NVIDIA 工具链步骤。构建脚本不安装或替换系统驱动与 DTK。
+
+激活构建环境后，加载服务器上的 DTK（路径按实际安装修改）：
+
+```bash
+source /opt/dtk-22.10.1/env.sh
+hipcc --version
+hipconfig -R
+hipconfig -l
+ls -l /dev/kfd /dev/dri/renderD*
+id
+```
+
+运行时账户需要对 GPU 设备文件有读写权限。采用 `video`、`render` 组的服务器，
+可请管理员执行 `sudo usermod -aG video,render "$USER"`，随后退出并重新登录。
+编译成功不代表已取得 GPU 访问权限。其他 ROCm／GPU 架构需使用匹配的 profile；
+`hip-vega90a` 是示例配置，不表示本轮已验证该硬件。
+
+在源码目录编译，保持 `FLUPRO` 指向完整的授权 FLUKA 安装：
+
+```bash
+export C8_KOKKOS_PROFILE=hip-vega906-dtk221001
+bash tools/build_kokkos.sh hip --check
+C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
+```
+
+脚本负责选择 HIP 编译器、DTK CMake 搜索路径和 GPU 架构，并依次完成依赖、编译和安装。
+Kokkos 配方启用该工具链需要的显式 HIP 内核启动边界。输出位于 `build/hip` 和
+`install/hip`。更换 DTK／ROCm、编译器或架构时使用新构建目录。Python 只用于构建，
+运行入口仍是原生二进制。
+
+回到工作区目录，先检查设备并运行小事例：
+
+```bash
+source /opt/dtk-22.10.1/env.sh
+export CORSIKA_DATA="$PWD/install/hip/share/corsika/data"
+install/hip/bin/c8_hip_devices
+install/hip/bin/c8_air_shower --pdg 22 --energy 10 --nevent 1 \
+  --em-backend kokkos-proposal --radio-backend kokkos \
+  --kokkos-execution hip --device 0 --gpu-memory-fraction 0.9 \
+  --filename hip-smoke
+```
+
+每次使用新的输出目录。保留同目录的 `c8_hip_devices`，协调器在启动 worker 前通过
+这个独立程序查询设备。八张卡**共同计算一例**、前缀使用 16 核的例子：
+
+```bash
+install/hip/bin/c8_air_shower --pdg 2212 --energy 1e5 --nevent 1 \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution hip \
+  --device 0,1,2,3,4,5,6,7 --prefix-workers 16 \
+  --gpu-memory-fraction 0.9 --filename hip-eight-gpu
+```
+
+前缀 worker 数与卡数独立。若要每卡各跑一例，分别启动单 `--device` 命令，并使用不同
+种子和输出目录。显存比例作用于每张选中的卡。构建时加入 `-DCORSIKA_ENABLE_EGS4=ON`
+后，也可显式选择 `--em-backend kokkos-egs4`。
 
 ## 第一次运行与检查
 

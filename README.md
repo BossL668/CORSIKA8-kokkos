@@ -8,7 +8,15 @@ library interfaces for execution, particle scheduling, environment conversion
 and output. This is an independent
 research repository, not an official CORSIKA release.
 
-## Latest changes (2026-10-29)
+## Latest changes (2026-11-02)
+
+- Add HIP device selection and multi-GPU coordination through the shared Kokkos
+  backend, including PROPOSAL transport, optional EGS4 and device radio.
+- Add a Hygon Z100 / DTK 22.10.1 build profile and installation checks. Preserve
+  the shared physics algorithms while fixing HIP compiler and device-library
+  compatibility in random numbers, geometry and numerical utilities.
+
+## Changes (2026-10-29)
 
 - Scale the automatic CPU-prefix splitting threshold with `--prefix-workers`,
   independently of the GPU count. A positive `--prefix-split-energy` still
@@ -49,8 +57,8 @@ library. Public headers are `.hpp`; inline implementations are `.inl` under
 ## Install on Linux
 
 The following steps start from a fresh Linux account (Ubuntu 22.04/24.04 or WSL2
-examples). Choose **Miniconda/Miniforge or venv**, then **OpenMP or CUDA**; you do
-not need to build OpenMP before CUDA. Both builds use **FLUKA by default**.
+examples). Choose **Miniconda/Miniforge or venv**, then **OpenMP, CUDA or HIP**; you
+do not need to build OpenMP before a GPU backend. All use **FLUKA by default**.
 Prepare FLUKA before starting a dependency build. Commands run in Bash.
 
 Requirements: a C++17 compiler (GCC 11+), compatible GFortran, CMake 3.24–3.x,
@@ -67,7 +75,7 @@ On Ubuntu, install the host tools (no GPU driver is installed by this command):
 sudo apt-get update
 sudo apt-get install -y build-essential gfortran git curl ca-certificates \
   python3-venv python3-dev pkg-config autoconf automake libtool bison flex \
-  patch unzip bzip2 xz-utils
+  patch unzip bzip2 xz-utils perl
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export FC=/usr/bin/gfortran
@@ -249,6 +257,10 @@ The helper checks whether the selected `nvcc` supports the target before buildin
 
 ### 5. Check, build and install
 
+**HIP users:** first complete the [ROCm / Hygon DTK setup](#hip-rocm--hygon-dtk)
+below instead of the NVIDIA toolkit step. The common host tools, FLUKA and
+Conda/venv setup above still apply.
+
 Run from the source directory, with the selected environment active and FLUKA
 ready. `--check` prints the selected profile and checks prerequisites without
 fetching dependencies, compiling, or installing. Select the backend you need:
@@ -305,8 +317,8 @@ Default layout:
 ```text
 corsika8-workspace/
 ├── CORSIKA8-kokkos/                 source
-├── build/{openmp,cuda}/deps/        independent dependency descriptors
-└── install/{openmp,cuda}/
+├── build/{openmp,cuda,hip}/deps/    independent dependency descriptors
+└── install/{openmp,cuda,hip}/
     ├── bin/c8_air_shower            native executable
     └── share/corsika/data/          installed model/geomagnetic data
 ```
@@ -325,6 +337,79 @@ should use the independent `openmp` build.
 For manual CMake integration with an externally installed Kokkos, see the
 [backend guide](documentation/kokkos.rst). Add `-DWITH_FLUKA=ON` to manual CMake
 commands when using the default scientific configuration described here.
+
+### HIP: ROCm / Hygon DTK
+
+The tested Hygon configuration uses **DTK 22.10.1**, its HIP compiler
+(Clang 14), **gfx906 / Z100L**, GCC/GFortran 11 and Kokkos 4.7.03. A newer
+ROCm installation needs its own matching compiler profile; the bundled
+`hip-vega90a` profile is an example, not a validation claim for that hardware.
+The installer does not replace a system GPU driver or install DTK. Source builds
+of dependencies also need Perl with `IPC::Cmd` (`perl-core` / `perl-IPC-Cmd`
+on RPM-based systems); check with `perl -MIPC::Cmd -e 1`.
+
+Activate the Conda/venv build environment prepared above, then source the
+site's DTK environment (adjust this path if needed):
+
+```bash
+source /opt/dtk-22.10.1/env.sh
+hipcc --version
+hipconfig -R
+hipconfig -l
+ls -l /dev/kfd /dev/dri/renderD*
+id
+```
+
+The account must have read/write access to the GPU device files at runtime.
+On systems that use `video` and `render` groups, an administrator can add the
+account with `sudo usermod -aG video,render "$USER"`; log out and back in
+afterward. A successful compilation alone does not establish GPU access.
+
+From the source directory, with `FLUPRO` still pointing to the complete licensed
+FLUKA installation:
+
+```bash
+export C8_KOKKOS_PROFILE=hip-vega906-dtk221001
+bash tools/build_kokkos.sh hip --check
+C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
+```
+
+The helper selects the HIP compiler, supplies the DTK CMake search paths and
+sets the architecture for HIP and `hipcc` compilation. The Kokkos recipe enables
+explicit HIP kernel launch bounds needed by this toolchain. Build and installation
+directories are `build/hip` and `install/hip`; use a fresh directory after changing
+DTK/ROCm, the compiler or GPU architecture. Python is only a build dependency;
+the application entry remains a native binary.
+
+From the workspace directory, first check the installed helper and run a small
+single-GPU event:
+
+```bash
+source /opt/dtk-22.10.1/env.sh
+export CORSIKA_DATA="$PWD/install/hip/share/corsika/data"
+install/hip/bin/c8_hip_devices
+install/hip/bin/c8_air_shower --pdg 22 --energy 10 --nevent 1 \
+  --em-backend kokkos-proposal --radio-backend kokkos \
+  --kokkos-execution hip --device 0 --gpu-memory-fraction 0.9 \
+  --filename hip-smoke
+```
+
+Use a new output name each time. Keep `c8_hip_devices` beside `c8_air_shower`;
+the coordinator queries devices in a separate process before creating workers.
+For eight GPUs **cooperating on one shower**, select the listed device ordinals:
+
+```bash
+install/hip/bin/c8_air_shower --pdg 2212 --energy 1e5 --nevent 1 \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution hip \
+  --device 0,1,2,3,4,5,6,7 --prefix-workers 16 \
+  --gpu-memory-fraction 0.9 --filename hip-eight-gpu
+```
+
+The CPU-prefix worker count is independent of the GPU count. To process independent
+showers instead, launch separate commands with a single `--device` each and distinct
+seeds/output directories. The listed memory fraction applies to each selected GPU.
+`--em-backend kokkos-egs4` is available when EGS4 was enabled at build time with
+`-DCORSIKA_ENABLE_EGS4=ON`; PROPOSAL remains the explicit choice in these examples.
 
 ## Run the native binary
 
