@@ -210,7 +210,7 @@ namespace corsika::kokkos::radio::firn {
       std::size_t row, std::size_t col) const {
     auto const [zi, wz] = bracket(sourceZ_, z);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto value = [&](std::size_t dz, std::size_t dr) {
+    auto value = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return values[flat(fi, zi + dz, ri + dr, row, col)];
     };
     return (1.0 - wz) * ((1.0 - wr) * value(0, 0) + wr * value(0, 1)) +
@@ -221,7 +221,7 @@ namespace corsika::kokkos::radio::firn {
       std::vector<double> const& values, double z, double radius) const {
     auto const [zi, wz] = bracket(sourceZ_, z);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto value = [&](std::size_t dz, std::size_t dr) {
+    auto value = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return values[(zi + dz) * radiusM_.size() + ri + dr];
     };
     return (1.0 - wz) * ((1.0 - wr) * value(0, 0) + wr * value(0, 1)) +
@@ -248,8 +248,8 @@ namespace corsika::kokkos::radio::firn {
     double const h = x1 - x0;
     double const a = 1.0 - weight;
     double const b = weight;
-    auto cubic = [&](std::vector<double> const& value,
-                     std::vector<double> const& second) {
+    auto cubic = [&, fi = fi](std::vector<double> const& value,
+                              std::vector<double> const& second) {
       double const y0 = spatial(value, fi, z, radius, row, col);
       double const y1 = spatial(value, fi + 1, z, radius, row, col);
       double const m0 = spatial(second, fi, z, radius, row, col);
@@ -266,7 +266,7 @@ namespace corsika::kokkos::radio::firn {
     double const radius = std::hypot(observer[0] - source[0], observer[1] - source[1]);
     auto const [zi, wz] = bracket(sourceZ_, source[2]);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto value = [&](std::size_t dz, std::size_t dr) {
+    auto value = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return path[(zi + dz) * radiusM_.size() + ri + dr];
     };
     double const dPathDr =

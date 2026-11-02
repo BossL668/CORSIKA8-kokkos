@@ -134,7 +134,7 @@ TEST_CASE("CPU handler retains real specified reactions and native replay",
   std::set<Code> pairs;
   std::set<PROPOSAL::InteractionType> types;
   unsigned completed = 0;
-  auto execute = [&](cp::FallbackRequest const& e) {
+  auto execute = [&, &env = env, cs = cs](cp::FallbackRequest const& e) {
     TransportStackType output;
     cp::ProposalCpuFallbackHandler<TransportStackType, decltype(model), Postprocess,
                                    DummyEnvironment>

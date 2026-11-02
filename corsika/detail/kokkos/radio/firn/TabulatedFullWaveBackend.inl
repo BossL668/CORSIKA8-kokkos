@@ -176,7 +176,7 @@ namespace corsika::kokkos::radio::firn {
   inline double TabulatedFullWaveBackend::interpolatePath(double z, double radius) const {
     auto const [zi, wz] = bracket(sourceZ_, z);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto value = [&](std::size_t dz, std::size_t dr) {
+    auto value = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return pathM_[(zi + dz) * radiusM_.size() + ri + dr];
     };
     return (1.0 - wz) * ((1.0 - wr) * value(0, 0) + wr * value(0, 1)) +
@@ -192,7 +192,7 @@ namespace corsika::kokkos::radio::firn {
                                                                double radius) const {
     auto const [zi, wz] = bracket(sourceZ_, z);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto value = [&](std::size_t dz, std::size_t dr) {
+    auto value = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return spreadingPerM_[(zi + dz) * radiusM_.size() + ri + dr];
     };
     return (1.0 - wz) * ((1.0 - wr) * value(0, 0) + wr * value(0, 1)) +
@@ -204,7 +204,7 @@ namespace corsika::kokkos::radio::firn {
     double const radius = std::hypot(observer[0] - source[0], observer[1] - source[1]);
     auto const [zi, wz] = bracket(sourceZ_, source[2]);
     auto const [ri, wr] = bracket(radiusM_, radius);
-    auto path = [&](std::size_t dz, std::size_t dr) {
+    auto path = [&, zi = zi, ri = ri](std::size_t dz, std::size_t dr) {
       return pathM_[(zi + dz) * radiusM_.size() + ri + dr];
     };
     double const dPathDr =

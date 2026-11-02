@@ -63,7 +63,7 @@ namespace hybrid_fixture {
     Processes<Old> process(mode, node, result, counter, false, true);
     Output output{result.trace_};
     using RouterType = std::conditional_t<Basic, BasicRouter, Router>;
-    auto router = [&]() {
+    auto router = [&, coordinates = coordinates, node = node]() {
       if constexpr (Basic)
         return BasicRouter(result.trace_);
       else

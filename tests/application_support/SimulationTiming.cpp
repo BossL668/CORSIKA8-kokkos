@@ -46,7 +46,7 @@ struct DelayedOutput final : corsika::BaseOutput {
 };
 template <class Timer>
 YAML::Node managed(std::filesystem::path const& root) {
-  Timer timer(YAML::Node(YAML::NodeType::Map));
+  Timer timer{YAML::Node(YAML::NodeType::Map)};
   DelayedOutput physics;
   {
     corsika::OutputManager output(root.string(), 17, "host-timing-test", false);
