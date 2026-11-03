@@ -11,7 +11,8 @@ void check_options(corsika::kokkos::application::BackendOptions const& candidate
   CHECK(candidate.emBackend_ == original.em_backend);
   CHECK(candidate.egs4Stepfc_ == original.egs4_stepfc);
   CHECK(candidate.gpuDevice_ == original.gpu_device);
-  CHECK(candidate.gpuMinBatch_ == original.gpu_min_batch);
+  // The dispatch threshold intentionally differs from the frozen reference.
+  CHECK(candidate.gpuMinBatch_ == 16384);
   CHECK(candidate.gpuResidentBatchLimit_ == original.gpu_resident_batch_limit);
   CHECK(candidate.gpuMemoryFraction_ == original.gpu_memory_fraction);
   CHECK(candidate.gpuPhysicsSource_ == original.gpu_physics_source);

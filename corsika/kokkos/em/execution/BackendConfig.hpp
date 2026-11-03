@@ -23,7 +23,7 @@ namespace corsika::kokkos {
   struct BackendConfig {
 
     int device_{0};
-    std::size_t minBatchSize_{4096};
+    std::size_t minBatchSize_{16384};
     /**
      * Optional backend-neutral logical checkpoint for a resident input batch.
      *

@@ -374,7 +374,7 @@ namespace corsika::kokkos {
         job.waves_ = e == 1 ? CpuPrimarySubshowerPolicy::HostLeptonWaves
                             : CpuPrimarySubshowerPolicy::AuxiliaryLeptonWaves;
       // Split tails must not return after every single wave merely because
-      // each half is smaller than the original unsplit 4096-input threshold.
+      // each half is smaller than the configured unsplit input threshold.
       // The measured epoch controller already supplies a bounded hand-off.
       job.minimum_ = adaptive_ ? 1 : (e == 0 ? gpu_.minimumBatchSize() : 1);
       if (cpuPrimary_)

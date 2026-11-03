@@ -26,7 +26,7 @@ namespace corsika::kokkos::application {
     std::string emBackend_{"proposal"};
     double egs4Stepfc_{1.};
     int gpuDevice_{0};
-    std::size_t gpuMinBatch_{4096};
+    std::size_t gpuMinBatch_{16384};
     std::size_t gpuResidentBatchLimit_{};
     double gpuMemoryFraction_{0.70};
     std::string gpuPhysicsSource_{"proposal-native"};
