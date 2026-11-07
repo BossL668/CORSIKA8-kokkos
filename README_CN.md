@@ -6,7 +6,13 @@
 `c8_air_shower` 应用通过库接口接入输运、调度、环境转换和输出。
 本仓库是独立研究项目，不是 CORSIKA 官方发行版。
 
-## 最新更新（2026-11-02）
+## 最新更新（2026-11-07）
+
+- 调整 HIP 光子输运与射电核的启动配置，包括分块执行的 ZHS／CoREAS＋ZHS 路径，继续使用共用的 Kokkos 物理代码。
+- CUDA／HIP 协调模式下，`kokkos-proposal` 多事例（`-N > 1`）默认复用 GPU worker 进程、模型和设备会话；每例的输入、输出与计数独立。首个 CPU 前缀结束后，处理真实请求时才初始化 GPU，不提前初始化。
+- 将 `--gpu-min-batch` 默认值改为 **16384** 个粒子；它控制派发门槛，静态导入块大小仍单独设置。
+
+## 更新（2026-11-02）
 
 - 在共用 Kokkos 后端中接入 HIP 设备选择与多卡协调，支持 PROPOSAL 输运、可选 EGS4 和设备射电。
 - 增加 Hygon Z100／DTK 22.10.1 构建配置及安装检查；保留共用物理算法，修复随机数、几何和数值工具中的 HIP 编译器／设备库兼容问题。
@@ -225,6 +231,9 @@ V100/V100S 编译需要 CUDA 12.x，CUDA 13 已移除这些目标；RTX 50 需�
 
 ### 5. 自动检查、编译和安装
 
+**HIP 用户**先完成下方 [ROCm／海光 DTK 配置](#hiprocm海光-dtk)，跳过 NVIDIA
+工具链步骤；系统工具、FLUKA 和 Conda/venv 的准备仍按上文执行。
+
 在源码目录运行，保持环境已激活、FLUKA 已配置。
 `--check` 只检查前置条件、显示所选 profile 和安装路径，不下载依赖、不编译。
 按需要选择后端：
@@ -400,16 +409,51 @@ cut 处正电子额外湮灭光子默认关闭，飞行中正电子湮灭仍保�
 `--prefix-workers 16` 启用独立 CPU 并行前缀。对于 `P` 个前缀进程，
 自动 CPU 拆分能量为 `primary_energy / (96 * P)`，可用正值
 `--prefix-split-energy <GeV>` 覆盖。该值与 GPU 交接能量独立；
-改变阈值可能改变子簇分组及后续随机历史。`--gpu-min-batch` 和
-`C8_STATIC_FRONTIER_IMPORT_BATCH` 控制派发和静态导入粒度，不改变物理 cut。
-后端组合及限制见 [后端说明](documentation/kokkos.rst)。
+改变阈值可能改变子簇分组及后续随机历史。`--gpu-min-batch` 默认 **16384**，
+控制 GPU 派发及小批次检查；`C8_STATIC_FRONTIER_IMPORT_BATCH` 单独控制每次
+导入的静态根粒子数（1–65536）。这些设置不改变物理 cut，也不指定固定 GPU
+批次大小或线程数；应按事例和设备调优，并非越大越快。
+
+### 多事例与 worker 复用
+
+CUDA／HIP 的 `kokkos-proposal` 协调模式在 `-N > 1` 时默认复用 GPU worker。
+多卡运行，或单卡配合正值 `--prefix-workers`，都会使用协调器。
+例如在工作区目录运行：
+
+```bash
+export CORSIKA_DATA="$PWD/install/cuda/share/corsika/data"
+install/cuda/bin/c8_air_shower --pdg 2212 --energy 1e5 --nevent 10 \
+  --seed 18641 --filename results/cuda-four-gpu \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90
+```
+
+HIP 改用 `install/hip`、`--kokkos-execution hip` 及 `c8_hip_devices` 列出的编号。
+需要 CPU 前缀并行时可加 `--prefix-workers 16`，进程数与 GPU 数独立。每例使用
+同一组选中设备；若要每卡独立跑不同 shower，则分别启动命令，并分配不同的
+设备编号、种子和输出目录。
+
+首个 CPU 前缀完成后才启动 GPU worker，首个真实请求初始化 GPU 后端，之后
+跨事例复用并重置每例状态。worker 内的原生 CPU 随机流连续使用，因此与逐例
+冷启动版本做统计比较，不要求粒子历史逐值一致。可用 `--persistent-workers=false`
+恢复协调模式下每例新建 worker；EGS4 仍使用每例新建 worker。普通单进程运行
+原本就通过事件循环复用模型和后端，不使用这个协调器选项。
+
+协调模式下 `-N > 1` 的结果在 `seed_<seed>/merged/`，每例有 `TIMING.json`，
+顶层另有批次总计时。常驻进程日志和计时在 `worker_pool/`；每次请求的计时
+不包含进程启动，不能当作完整运行墙钟。首例可能包含建表和设备初始化，报告
+稳定运行耗时时应与后续事例分开。
+
+`--gpu-memory-fraction` 按后端初始化时的可用显存制定预算，不是固定占整卡
+总容量的比例。更多组合及限制见 [后端说明](documentation/kokkos.rst) 和
+[多卡运行说明](documentation/native_multigpu_CN.md)。
 
 ## 测试、常见问题和更新
 
 ```bash
 # 在源码目录；自定义了 C8_WORKSPACE 则使用实际构建路径
 ctest --test-dir ../build/openmp --output-on-failure -j1
-# CUDA 测试使用 CUDA 构建目录，且需要可用 GPU。
+# CUDA／HIP 测试使用对应构建目录，且需要可用 GPU。
 ```
 
 | 问题 | 检查方式 |
@@ -418,6 +462,7 @@ ctest --test-dir ../build/openmp --output-on-failure -j1
 | FLUKA 缺失或不兼容 | 检查 FLUPRO、libflukahp.a、ndmhep.o 与 GFortran 版本。 |
 | 找不到 nvcc / 不支持目标架构 | 安装兼容的完整 Toolkit，分别检查 nvcc 与 nvidia-smi。 |
 | 同机 GPU 架构不同 | 使用 C8_CUDA_DEVICE 或显式 profile，换目标时使用独立构建目录。 |
+| HIP 设备查询或运行失败 | 加载构建时使用的 DTK／ROCm 环境，检查设备文件权限，运行已安装的 c8_hip_devices。 |
 | Conan 下载失败 | 检查 remote、网络和代理；修复后重跑相同命令。 |
 | 编译 Killed / OOM / 磁盘满 | 先用 C8_BUILD_JOBS=1，检查内存、构建目录及 Conan 缓存空间；WSL 还需看 Windows 分区。 |
 | 运行库 not found | 激活原构建环境并检查 ldd，不从其他安装随意复制库。 |
@@ -431,6 +476,11 @@ git pull --ff-only
 git submodule update --init --recursive
 bash tools/build_kokkos.sh openmp   # 或已经安装的其他后端
 ```
+
+更新 HIP 时先重新加载 DTK／ROCm，恢复 `C8_KOKKOS_PROFILE`，再执行
+`bash tools/build_kokkos.sh hip`。脚本会重新导出仓库内的 Conan 配方，包括
+Kokkos HIP 启动配置，并安装匹配的设备查询程序。应完整构建安装所选后端，
+不要只把可执行文件复制到旧安装中。
 
 编译器、架构或依赖 ABI 改变时使用新 build/install 目录。
 模拟数据保存在源码和构建目录之外。引用与许可证要求见

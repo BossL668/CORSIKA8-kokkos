@@ -127,7 +127,8 @@ configuration.
 
 Physical defaults such as the observation height, cuts and atmosphere are not
 changed by these backend options. ``--device`` selects a physical NVIDIA GPU
-index or UUID. A list such as ``--device 0,1,2,3`` invokes the C++ coordinator
+index or UUID for CUDA, or an index listed by ``c8_hip_devices`` for HIP.
+A list such as ``--device 0,1,2,3`` invokes the C++ coordinator
 and distributes each shower across those devices. ``--prefix-workers`` enables
 the independent CPU prefix stage; it can also be used with one GPU. The
 coordinator launches the same installed binary and merges the per-worker
@@ -159,10 +160,12 @@ and ``em_frontier_energy_effective_GeV`` in the event's ``CONFIG.json``.
 The automatic coefficient was tuned with a high-energy atmospheric proton
 prefix; use an explicit threshold to tune other energies, primaries or hardware.
 
-``--gpu-min-batch`` controls GPU dispatch and small-batch checkpoints.
+``--gpu-min-batch`` defaults to 16384 particles and controls GPU dispatch and
+small-batch checkpoints.
 The ``C8_STATIC_FRONTIER_IMPORT_BATCH`` environment variable controls how many
-staged particles a worker imports at a time in the static coordinator path.
-These are scheduling controls; they do not specify CUDA thread counts.
+staged particles a worker imports at a time in the static coordinator path
+(1--65536). These are scheduling controls; they do not specify CUDA/HIP thread
+counts or a fixed kernel batch size.
 ``--gpu-memory-fraction`` budgets a
 fraction of currently available device memory, rather than promising that the
 whole process will occupy exactly that fraction of physical memory.
@@ -328,9 +331,10 @@ connection. No atmospheric or uniform-ice radio projector is used for firn.
 
 ``--radio-backend kokkos --firn-radio-model coherent-go`` selects device ray
 solving and ordered coherent spectrum accumulation without a full-wave table.
-It exports the exact exponential optical-profile parameters and retains the
-CPU solver's Simpson quadrature, bracketing scans, root iterations, grazing
-cutoffs, Fresnel factors, branch phases and finite-track sinc. Observers can
+It exports the exponential optical-profile parameters and uses analytic path
+integrals and derivatives in the device ray solver. A bracketed Newton solve
+matches the horizontal range. Fresnel factors, branch phases and finite-track
+response remain part of the propagation calculation. Observers can
 have different depths. The existing host subdivision controller and final FFT
 are retained; geometry is computed once per child/observer and reused across
 frequencies. The workspace is bounded independently of the event length.
@@ -358,10 +362,17 @@ or a caustic. In particular, an ARZ charge-excess source and individual C8
 tracks are different source models, even when their longitudinal profiles agree.
 
 Kokkos full-wave radio requires a matching response manifest and rejects
-out-of-domain queries. Hybrid GO/table execution remains a host mode. Multi-process
-firn merging and deferred prefix radio replay are still rejected explicitly.
+out-of-domain queries. Hybrid GO/table execution remains a host mode. The shared
+coordinator supports deferred prefix radio replay and merging of firn waveforms
+and spectra on matching grids. It uses the selected firn propagation model;
+it does not substitute the air radio calculation.
 Radio output is registered once as ``firn_radio``; the shared runner's two radio
 slots do not produce duplicate CoREAS/ZHS outputs.
+
+With ``--firn-radio-model coherent-go``, ``--firn-radio-formalism`` selects
+``spectrum`` (the default finite-track spectrum), ``zhs`` or ``coreas``.
+``--firn-surface-reflection=false`` disables the surface-reflected GO branch;
+full-wave tables retain their encoded boundary response.
 
 ``--firn-samples`` must be a power of two (default 4096);
 ``--radio-sampling-rate-ghz`` and ``--firn-time-origin-ns`` define the Fourier

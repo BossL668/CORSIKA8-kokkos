@@ -64,10 +64,15 @@ Full-wave execution requires a matching external response table and rejects
 out-of-domain queries. `--firn-radio-model coherent-go --radio-backend kokkos`
 uses `IGeometricalOpticsAccumulator.hpp` and `DeviceStratifiedRaySolver.hpp`
 for the existing exponential-profile GO solver on the device, followed by
-ordered finite-track spectrum accumulation. The profile is exported exactly;
-quadrature, root iterations, branch selection and phases remain those of the
-CPU reference. Different observer depths are supported without a response table.
-Hybrid GO/table radio remains a CPU mode; deferred prefix
-radio replay and multi-process firn merging are not yet connected and are
-rejected explicitly. Files under `kokkos/` do not imply every operation is a
-kernel. The applications retain native C8 node search and process sequences.
+ordered spectrum accumulation. The device solver uses analytic path integrals
+and derivatives for the exported exponential profile, with a bracketed Newton
+solve for horizontal range. Different observer depths are supported without a
+response table. `--firn-radio-formalism` selects the finite-track spectrum, ZHS
+or CoREAS source calculation for GO propagation.
+
+Hybrid GO/table radio remains a CPU mode. Deferred prefix radio replay and
+multi-process waveform/spectrum merging use the shared coordinator. It also
+reuses PROPOSAL GPU worker sessions across events, resetting event-local radio
+state. See the [backend guide](../../documentation/kokkos.rst) for options and
+limitations. Files under `kokkos/` do not imply every operation is a kernel.
+The applications retain native C8 node search and process sequences.

@@ -8,7 +8,18 @@ library interfaces for execution, particle scheduling, environment conversion
 and output. This is an independent
 research repository, not an official CORSIKA release.
 
-## Latest changes (2026-11-02)
+## Latest changes (2026-11-07)
+
+- Tune HIP photon transport and radio kernel launch policies, including the
+  tiled ZHS / CoREAS+ZHS path, while retaining the shared Kokkos physics code.
+- Reuse GPU worker processes, models and device sessions across coordinated
+  `kokkos-proposal` events (`-N > 1`) on CUDA and HIP. Each event has separate
+  inputs, outputs and counters. GPU initialization starts with the first real
+  request after the CPU prefix; early GPU initialization is disabled.
+- Set the default `--gpu-min-batch` to **16384** particles. This is a dispatch
+  threshold; static import size remains a separate scheduling control.
+
+## Changes (2026-11-02)
 
 - Add HIP device selection and multi-GPU coordination through the shared Kokkos
   backend, including PROPOSAL transport, optional EGS4 and device radio.
@@ -457,16 +468,57 @@ For `P` prefix workers, the automatic CPU splitting energy is
 `primary_energy / (96 * P)`; use `--prefix-split-energy <GeV>` to override it.
 This threshold is independent of the GPU handoff threshold. Changing it can
 change subshower grouping and subsequent random histories.
-`--gpu-min-batch` and `C8_STATIC_FRONTIER_IMPORT_BATCH` control dispatch and
-static import granularity. These scheduling settings do not change physics cuts.
-See the [backend guide](documentation/kokkos.rst) for combinations and limitations.
+`--gpu-min-batch` defaults to **16384** particles and controls GPU dispatch and
+small-batch checkpoints. `C8_STATIC_FRONTIER_IMPORT_BATCH` separately controls
+how many static roots a worker imports at a time (1–65536). These settings do not
+change physics cuts or specify a fixed GPU batch size or thread count. Tune them
+for the workload and device; a larger value is not always faster.
+
+### Multiple events and worker reuse
+
+For CUDA/HIP coordinated `kokkos-proposal` runs, `-N > 1` reuses GPU workers by
+default. Coordination is used with multiple GPUs, or with one GPU and a positive
+`--prefix-workers` value. For example, from the workspace directory:
+
+```bash
+export CORSIKA_DATA="$PWD/install/cuda/share/corsika/data"
+install/cuda/bin/c8_air_shower --pdg 2212 --energy 1e5 --nevent 10 \
+  --seed 18641 --filename results/cuda-four-gpu \
+  --em-backend kokkos-proposal --radio-backend kokkos --kokkos-execution cuda \
+  --device 0,1,2,3 --gpu-memory-fraction 0.90
+```
+
+For HIP, use `install/hip`, `--kokkos-execution hip` and device indices reported
+by `c8_hip_devices`. Add `--prefix-workers 16` if CPU prefix parallelism is
+appropriate; it is independent of the GPU count. All events use the same selected
+devices. Independent one-GPU showers instead need separate commands with distinct
+device indices, seeds and output directories.
+
+The first CPU prefix completes before GPU workers start. Their first real request
+initializes the GPU backend; later events reuse it, with event-local state reset.
+Native CPU random streams continue within each worker, so compare with separate
+cold-start events statistically, not by requiring identical particle histories.
+Use `--persistent-workers=false` for fresh workers per coordinated event. EGS4
+still uses fresh workers. A direct single-process run already reuses its models
+and backend through its event loop and does not use this coordinator option.
+
+Coordinated results are under `seed_<seed>/merged/` for `-N > 1`, with event
+`TIMING.json` files and a top-level batch total. Persistent-process timings and
+logs are under `worker_pool/`; per-request times exclude process startup and
+must not be presented as full-run wall time. The first event can include table
+and device initialization. Keep it separate when reporting steady-state timings.
+
+`--gpu-memory-fraction` budgets a fraction of available device memory when the
+backend initializes, not a fixed fraction of the card's total capacity. See the
+[backend guide](documentation/kokkos.rst) and
+[multi-GPU guide (Chinese)](documentation/native_multigpu_CN.md) for details.
 
 ## Checks, troubleshooting and updates
 
 ```bash
 # From the source directory; use your actual build path if C8_WORKSPACE differs
 ctest --test-dir ../build/openmp --output-on-failure -j1
-# CUDA tests require a working GPU and the CUDA build directory.
+# CUDA/HIP tests require a working GPU and the matching build directory.
 ```
 
 | Symptom | What to check |
@@ -475,6 +527,7 @@ ctest --test-dir ../build/openmp --output-on-failure -j1
 | FLUKA missing or incompatible | Check `FLUPRO`, `libflukahp.a`, `ndmhep.o` and the package's GFortran compatibility. |
 | `nvcc` missing / target unsupported | Install the full compatible toolkit; check `nvcc --version` separately from `nvidia-smi`. |
 | Mixed GPU architectures | Use `C8_CUDA_DEVICE` or an explicit target profile; use a separate build for another target. |
+| HIP device query or runtime fails | Source the same DTK/ROCm environment used to build; check device-file permissions and run the installed `c8_hip_devices`. |
 | Conan downloads fail | Check the remote list and network/proxy settings; rerun the same command after fixing access. |
 | `Killed`, OOM or disk-full error | Keep `C8_BUILD_JOBS=1`, check RAM, build/Conan-cache space and the Windows disk on WSL. |
 | Runtime library `not found` | Activate the build environment; inspect `ldd`, without copying arbitrary libraries from another installation. |
@@ -488,6 +541,12 @@ git pull --ff-only
 git submodule update --init --recursive
 bash tools/build_kokkos.sh openmp   # or the backend you installed
 ```
+
+For HIP updates, source DTK/ROCm again and restore `C8_KOKKOS_PROFILE` before
+running `bash tools/build_kokkos.sh hip`. The helper re-exports the bundled Conan
+recipes, including the Kokkos HIP launch configuration, and installs the matching
+device-query helper. Rebuild and install the backend as a unit instead of copying
+only the executable into an older installation.
 
 Use new build/install directories when changing compilers, architecture or the
 dependency ABI. Keep simulation data outside source/build directories. Rebuilding
