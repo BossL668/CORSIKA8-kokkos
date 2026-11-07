@@ -198,3 +198,40 @@ TEST_CASE("OutputManager") {
     nothing.getSummary();
   }
 }
+
+TEST_CASE("OutputManager reopens independent worker libraries") {
+  auto const root = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path("c8-worker-output-%%%%-%%%%");
+  {
+    DummyOutput module;
+    OutputManager output((root / "first").string(), 17, "worker test", false);
+    output.add("test", module);
+    output.startOfLibrary();
+    CHECK_THROWS_AS(output.reopenLibrary((root / "second").string(), 23),
+                    std::logic_error);
+    output.startOfShower();
+    output.endOfShower();
+    output.endOfLibrary();
+    output.flushLibrarySummary();
+    CHECK(YAML::LoadFile((root / "first/summary.yaml").string())["showers"].as<int>() ==
+          1);
+    boost::filesystem::last_write_time(root / "first/summary.yaml", 1);
+    output.reopenLibrary((root / "second").string(), 23);
+    CHECK(boost::filesystem::last_write_time(root / "first/summary.yaml") == 1);
+    CHECK(output.getEventId() == 0);
+    CHECK(output.getSummary()["seed"].as<long>() == 23);
+    CHECK(output.getConfig()["path"].as<std::string>() == (root / "second").string());
+    output.startOfShower();
+    output.endOfShower();
+    output.endOfLibrary();
+    output.flushLibrarySummary();
+    CHECK(YAML::LoadFile((root / "second/summary.yaml").string())["showers"].as<int>() ==
+          1);
+    CHECK(YAML::LoadFile((root / "first/summary.yaml").string())["seed"].as<long>() ==
+          17);
+    CHECK_THROWS(output.reopenLibrary((root / "first").string(), 29));
+    boost::filesystem::last_write_time(root / "second/summary.yaml", 2);
+  }
+  CHECK(boost::filesystem::last_write_time(root / "second/summary.yaml") == 2);
+  boost::filesystem::remove_all(root);
+}

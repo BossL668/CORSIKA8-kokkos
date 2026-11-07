@@ -9,6 +9,13 @@
 #include <stdexcept>
 
 namespace corsika::kokkos::application {
+  void CascadeExtension::assignWorkerInput(std::string frontier, unsigned id,
+                                           std::vector<std::string> radioInputs) {
+    workers_.frontierIn_ = std::move(frontier);
+    workers_.workerId_ = id;
+    options_.radioTrackInputs_ = std::move(radioInputs);
+  }
+
   CascadeExtension::CascadeExtension(CLI::App& app, CascadeScene scene)
       : app_(app) {
     options_.hostRadioAdapter_ = scene == CascadeScene::Firn;

@@ -6,6 +6,7 @@
  */
 
 #include <catch2/catch_all.hpp>
+#include <parquet/file_reader.h>
 
 #include <boost/filesystem.hpp>
 
@@ -53,4 +54,24 @@ TEST_CASE("ParquetStreamer") {
     CHECK_FALSE(test.isInit());
     CHECK(boost::filesystem::exists("./parquet_test.parquet"));
   }
+}
+
+TEST_CASE("ParquetStreamer does not duplicate columns between worker requests") {
+  auto const root = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path("c8-worker-parquet-%%%%-%%%%");
+  boost::filesystem::create_directory(root);
+  ParquetStreamer streamer;
+  for (unsigned request = 0; request < 3; ++request) {
+    auto const file = root / (std::to_string(request) + ".parquet");
+    streamer.initStreamer(file.string());
+    streamer.addField("value", parquet::Repetition::REQUIRED, parquet::Type::INT32,
+                      parquet::ConvertedType::INT_32);
+    streamer.buildStreamer();
+    (*streamer.getWriter()) << 0U << static_cast<int>(request) << parquet::EndRow;
+    streamer.closeStreamer();
+    auto reader = parquet::ParquetFileReader::OpenFile(file.string());
+    CHECK(reader->metadata()->num_columns() == 2);
+    CHECK(reader->metadata()->num_rows() == 1);
+  }
+  boost::filesystem::remove_all(root);
 }

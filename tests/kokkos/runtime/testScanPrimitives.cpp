@@ -209,3 +209,24 @@ TEST_CASE("Production seven-column scan matches exact integer prefixes", "[scan]
 TEST_CASE("Production eight-column scan matches exact integer prefixes", "[scan]") {
   check_scan<8>();
 }
+
+TEST_CASE("Bounded physics policies cover each source once", "[scan]") {
+  ensure_runtime();
+  execution_space_type execution;
+  for (std::size_t count : {0, 1, 31, 32, 63, 64, 127, 128, 255, 256, 257, 65537}) {
+    Kokkos::View<unsigned*, memory_space_type> visits("bounded visits", count + 1);
+    Kokkos::deep_copy(execution, visits, 0U);
+    auto const range = current::make_bounded_range_policy<256, 2>(execution, count, 8);
+    Kokkos::parallel_for(
+        "bounded source coverage", range, KOKKOS_LAMBDA(std::size_t source) {
+          Kokkos::atomic_fetch_add(&visits(source), 1U);
+        });
+    execution.fence("bounded coverage complete");
+    auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, visits);
+    bool exactlyOnce = true;
+    for (std::size_t source = 0; source < count; ++source)
+      exactlyOnce = exactlyOnce && host(source) == 1;
+    REQUIRE(exactlyOnce);
+    REQUIRE(host(count) == 0);
+  }
+}

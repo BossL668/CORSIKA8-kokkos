@@ -133,6 +133,19 @@ the independent CPU prefix stage; it can also be used with one GPU. The
 coordinator launches the same installed binary and merges the per-worker
 outputs. It does not require a separate application or Python runtime launcher.
 
+For coordinated air, ice and firn ``kokkos-proposal`` runs with multiple events,
+GPU workers retain their models and device session between events by default.
+Workers start after the first CPU prefix has prepared the shared model tables.
+GPU setup occurs on the first real request, not during CPU-prefix initialization.
+Each request has separate inputs, outputs and counters. Native CPU random
+streams continue within each worker, as in a native multi-event run, so these
+runs are statistically comparable but need not reproduce independent cold starts
+bit for bit. Use ``--persistent-workers=false`` to select fresh workers per event.
+Single-process runs retain their existing event loop; EGS4 uses fresh workers.
+The three applications share the same request protocol and coordinator. Firn
+propagation retains its configured radio formalism and clears event-local
+spectra, replay lists and diagnostics between requests.
+
 With ``P > 0`` CPU prefix workers, ``--prefix-split-energy 0`` resolves to
 ``primary_energy / (96 * P)`` in GeV. A positive explicit value overrides it.
 This total-energy threshold controls when produced particles are saved for

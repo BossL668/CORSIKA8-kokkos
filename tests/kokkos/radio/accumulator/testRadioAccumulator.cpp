@@ -300,3 +300,17 @@ TEST_CASE("Radio accumulator capacity and rejection contracts remain unchanged",
   CHECK_THROWS_AS(old_bad.initialize(to_reference(c), to_reference(invalid_tuning), ex),
                   std::invalid_argument);
 }
+
+TEST_CASE("HIP radio policies preserve default and explicitly tuned tile outputs",
+          "[radio][accumulator]") {
+  ensure_runtime();
+  for (unsigned mask : {1U, 2U, 3U}) {
+    for (std::size_t observers : {31U, 32U, 33U}) {
+      for (std::size_t teamSize : {0U, 128U, 256U}) {
+        cp::TuningParameters tuning;
+        tuning.teamSize_ = teamSize;
+        compare(configuration(mask, observers, false, true), 16385, tuning, true);
+      }
+    }
+  }
+}

@@ -43,6 +43,9 @@ namespace corsika::kokkos::application {
                        CascadeEventConfig defaults, TGeometry geometry, TOutputs outputs,
                        TModels models, TMonitors monitors);
 
+    /** Set the device sampling seed without rewinding native CPU streams. */
+    void setWorkerSeed(std::uint64_t seed);
+
     template <class TOutput>
     void registerBackendOutput(TOutput& output);
 

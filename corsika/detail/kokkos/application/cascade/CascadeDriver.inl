@@ -8,6 +8,14 @@
 #pragma once
 
 namespace corsika::kokkos::application {
+  template <typename TG, typename TO, typename TM, typename TD>
+  void CascadeDriver<TG, TO, TM, TD>::setWorkerSeed(std::uint64_t seed) {
+#ifdef CORSIKA8_WITH_KOKKOS_EM
+    accelerated_.setWorkerSeed(seed);
+#else
+    (void)seed;
+#endif
+  }
 
   template <typename TMedium>
   template <typename TStack, typename TPrimary>

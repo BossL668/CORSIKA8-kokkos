@@ -232,6 +232,7 @@ namespace corsika::kokkos::radio {
     bool fixedSnapshotSealed_{};
     std::size_t trackTileSize_{TrackTileSize};
     std::size_t observerTileSize_{ObserverTileSize};
+    bool defaultTeamSize_ = true;
     std::size_t teamSize_{IsOpenMP ? 1U : 256U};
   };
 } // namespace corsika::kokkos::radio

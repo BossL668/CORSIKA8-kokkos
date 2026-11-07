@@ -63,3 +63,20 @@ foreach (CASE IN LISTS BC_COORDINATOR_CASES)
     --mode ${CASE} --work "${CMAKE_CURRENT_BINARY_DIR}/${BC_PREFIX}-coordinator-${CASE}")
   set_tests_properties (${BC_PREFIX}_coordinator_${CASE} PROPERTIES TIMEOUT 300)
 endforeach ()
+
+add_executable (${BC_PREFIX}_worker_session "${BC_TESTS}/WorkerSessionTest.cpp")
+target_link_libraries (${BC_PREFIX}_worker_session PRIVATE
+  ${BC_NATIVE} nlohmann_json::nlohmann_json)
+target_compile_definitions (${BC_PREFIX}_worker_session PRIVATE CORSIKA_KOKKOS_COORDINATOR=1)
+target_compile_features (${BC_PREFIX}_worker_session PRIVATE cxx_std_17)
+add_test (NAME ${BC_PREFIX}_worker_session COMMAND ${BC_PREFIX}_worker_session)
+set_tests_properties (${BC_PREFIX}_worker_session PROPERTIES TIMEOUT 60)
+
+if (NOT BC_INSTALLED)
+  add_executable (${BC_PREFIX}_worker_session_disabled
+    "${BC_TESTS}/WorkerSessionDisabledTest.cpp")
+  target_include_directories (${BC_PREFIX}_worker_session_disabled PRIVATE "${PROJECT_SOURCE_DIR}")
+  target_compile_features (${BC_PREFIX}_worker_session_disabled PRIVATE cxx_std_17)
+  add_test (NAME ${BC_PREFIX}_worker_session_disabled
+    COMMAND ${BC_PREFIX}_worker_session_disabled)
+endif ()

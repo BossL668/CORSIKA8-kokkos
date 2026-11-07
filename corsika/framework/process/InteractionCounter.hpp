@@ -146,6 +146,9 @@ namespace corsika {
      */
     InteractionHistogram const& getHistogram() const;
 
+    /** Start another independent output library without rebuilding the model. */
+    void resetHistogram() { histogram_ = InteractionHistogram{}; }
+
     /**
      * Return the exact number of calls forwarded to doInteraction().
      *

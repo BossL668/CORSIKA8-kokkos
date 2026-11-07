@@ -100,6 +100,8 @@ namespace corsika::kokkos::application {
                   CascadeEventConfig, TGeometry, TOutputs, TModels, TMonitors);
     template <typename TOutput>
     void registerBackendOutput(TOutput&);
+    /** Set the device sampling seed without rewinding native CPU streams. */
+    void setWorkerSeed(std::uint64_t seed);
     auto captureRadio();
     template <typename TH, typename TL>
     auto captureDiagnostics(TH const&, TL const&) const;

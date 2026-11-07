@@ -156,7 +156,8 @@ namespace corsika::kokkos::application {
 
   int dispatch_cascade(int argc, char** argv,
                        int (*run)(int, char**, DeviceSelection const&),
-                       [[maybe_unused]] CascadeScene scene) {
+                       [[maybe_unused]] CascadeScene scene,
+                       [[maybe_unused]] bool supportsWorkerSession) {
 
     corsika::kokkos::application::DeviceSelection selected_devices;
     try {
@@ -168,7 +169,7 @@ namespace corsika::kokkos::application {
 #ifdef CORSIKA_KOKKOS_COORDINATOR
     // Dispatch before initializing Kokkos or any shower/Fortran model state.
     if (kokkos::coordinator::requested(argc, argv))
-      return kokkos::coordinator::main_entry(argc, argv);
+      return kokkos::coordinator::main_entry(argc, argv, supportsWorkerSession);
 #endif
     try {
       return run(argc, argv, selected_devices);

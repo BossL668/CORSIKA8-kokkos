@@ -58,6 +58,19 @@ TEST_CASE("Firn prefix replay survives event initialization and runs once",
   CHECK(summary["shower_1"]["input_segments"].as<std::uint64_t>() == 0);
   CHECK(summary["shower_1"]["replayed_prefix_segments"].as<std::uint64_t>() == 0);
   process.endOfLibrary();
+  auto const nextDirectory = directory / "next-library";
+  boost::filesystem::create_directory(nextDirectory);
+  process.startOfLibrary(nextDirectory);
+  CHECK(process.getSummary().size() == 0);
+  process.prepareReplay({spool}, coordinates);
+  process.startOfShower(0);
+  process.endOfShower(0);
+  auto const nextSummary = process.getSummary();
+  CHECK(nextSummary.size() == 1);
+  CHECK(nextSummary["shower_0"]["input_segments"].as<std::uint64_t>() == 1);
+  CHECK(nextSummary["shower_0"]["replayed_prefix_segments"].as<std::uint64_t>() == 1);
+  CHECK_FALSE(nextSummary["shower_1"].IsDefined());
+  process.endOfLibrary();
 }
 
 namespace {

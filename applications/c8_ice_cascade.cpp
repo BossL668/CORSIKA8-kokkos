@@ -93,6 +93,7 @@
 #include <tuple>
 #include <vector>
 
+#include <corsika/kokkos/application/cascade/WorkerSession.hpp>
 #include <corsika/kokkos/application/cascade/CascadeExtension.hpp>
 #include <corsika/kokkos/application/cascade/SouthPoleSite.hpp>
 
@@ -171,7 +172,8 @@ int runIceCascade(int argc, char** argv,
                 corsika::kokkos::application::DeviceSelection const& selected_devices);
 
 int main(int argc, char** argv) {
-  return kokkos::application::dispatch_cascade(argc, argv, runIceCascade);
+  return kokkos::application::dispatch_cascade(
+      argc, argv, runIceCascade, kokkos::application::CascadeScene::HomogeneousIce, true);
 }
 
 int runIceCascade(int argc, char** argv,
@@ -791,11 +793,14 @@ int runIceCascade(int argc, char** argv,
 
   // trigger the output manager to open the library for writing
   output.startOfLibrary();
+  corsika::kokkos::application::WorkerSession workerSession;
+  workerSession.ready(decayPythia, heCounted, leIntCounted);
 
   // loop over each shower
   for (int i_shower = 1; i_shower < nevent + 1; i_shower++) {
 
-    auto event = application.shower(i_shower);
+    if (!workerSession.next(backend, application, output, seed)) break;
+    auto event = application.shower(workerSession.isActive() ? 1 : i_shower);
 
     // randomize the primary energy
     double const eSlope = app["--eslope"]->as<double>();
@@ -884,18 +889,21 @@ int runIceCascade(int argc, char** argv,
       auto const hists = heCounted.getHistogram() + leIntCounted.getHistogram();
 
       // directory for output of interaction histograms
-      string const outdir(app["--filename"]->as<std::string>() + "/interaction_hist");
+      string const outdir(output.getConfig()["path"].as<std::string>() +
+                          "/interaction_hist");
       boost::filesystem::create_directories(outdir);
 
-      string const labHist_file = outdir + "/inthist_lab_" + to_string(i_shower) + ".npz";
-      string const cMSHist_file = outdir + "/inthist_cms_" + to_string(i_shower) + ".npz";
+      string const labHist_file =
+          outdir + "/inthist_lab_" + to_string(output.getEventId()) + ".npz";
+      string const cMSHist_file =
+          outdir + "/inthist_cms_" + to_string(output.getEventId()) + ".npz";
       save_hist(hists.labHist(), labHist_file, true);
       save_hist(hists.CMSHist(), cMSHist_file, true);
     }
   }
 
   // and finalize the output on disk
-  output.endOfLibrary();
+  workerSession.close(output);
 
   return EXIT_SUCCESS;
 }

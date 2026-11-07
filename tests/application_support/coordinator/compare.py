@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import struct
 import subprocess
 import tempfile
@@ -241,10 +242,26 @@ def cli_tests():
             old_cap = 'Static CPU split energy cap [GeV]; 0 uses the EM handoff cap'
             new_cap = 'CPU split energy [GeV]; 0 uses primary energy / (96 * prefix workers)'
             require(old_cap in old_help and new_cap in new_help, 'Document CPU default')
-            require(old_help.replace(old_cap, new_cap) == new_help, 'Other help unchanged')
+            require('--persistent-workers' in new_help, 'Document worker reuse option')
+            without_reuse = re.sub(r' --persistent-workers .*?(?= --|$)', '', new_help)
+            expected_help = old_help.replace(old_cap, new_cap)
+            # The frozen reference predates the shared CUDA/HIP coordinator.
+            expected_help = expected_help.replace('independent CUDA GPUs', 'independent GPUs')
+            expected_help = expected_help.replace(
+                'Multi-GPU execution space: cuda',
+                'Multi-GPU execution space: cuda or hip (as compiled)')
+            require(expected_help == without_reuse, 'Other help unchanged')
             require(results[0][2] == results[1][2], 'Help stderr unchanged')
         else:
-            require(results[0] == results[1], ('Original CLI behavior', flags, results))
+            expected = (results[0][0], results[0][1], results[0][2].replace(
+                'and cuda execution', 'and the compiled GPU execution space'))
+            require(expected == results[1], ('Original CLI behavior', flags, results))
+    unsupported = subprocess.run(
+        [str(args.candidate), 'entry', *base, '--persistent-workers=true'],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+    require(unsupported.returncode == 1 and
+            'does not support resident worker sessions' in unsupported.stderr,
+            'An application must explicitly support the resident protocol')
     require(not (args.work / 'unused').exists(), 'Rejected CLI must not launch a shower')
 
 

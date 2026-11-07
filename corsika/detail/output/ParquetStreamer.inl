@@ -14,6 +14,7 @@ namespace corsika {
 
   inline void ParquetStreamer::initStreamer(std::string const& filepath) {
 
+    fields_.clear();
     // open the file and connect it to our pointer
     PARQUET_ASSIGN_OR_THROW(outfile_, arrow::io::FileOutputStream::Open(filepath));
 

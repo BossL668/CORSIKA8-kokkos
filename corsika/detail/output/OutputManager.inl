@@ -83,8 +83,8 @@ namespace corsika {
       endOfShower();
     }
 
-    // write the top level summary file (summary.yaml)
-    writeSummary();
+    // A resident worker may already have acknowledged this closed library.
+    if (!librarySummaryFlushed_) writeSummary();
 
     // if we are being destructed but EndOfLibrary() has not been called,
     // make sure that we gracefully close all the outputs. This is a supported
@@ -182,6 +182,30 @@ namespace corsika {
     writeYAML(getSummary(), root_ / ("summary.yaml"));
   }
 
+  inline void OutputManager::flushLibrarySummary() {
+    if (state_ != OutputState::LibraryFinished)
+      throw std::logic_error("Close the library before publishing its summary");
+    if (!librarySummaryFlushed_) writeSummary();
+    librarySummaryFlushed_ = true;
+  }
+
+  inline void OutputManager::reopenLibrary(std::string const& directory, long seed) {
+    if (state_ != OutputState::LibraryFinished)
+      throw std::logic_error("Close the previous library before reopening outputs");
+    if (boost::filesystem::exists(directory))
+      throw std::runtime_error("Output directory already exists: " + directory);
+    if (!librarySummaryFlushed_) writeSummary();
+    root_ = directory;
+    seed_ = seed;
+    count_ = 0;
+    start_time = std::chrono::system_clock::now();
+    boost::filesystem::create_directories(root_);
+    for (auto const& entry : outputs_)
+      boost::filesystem::create_directory(root_ / entry.first);
+    writeYAML(getConfig(), root_ / "config.yaml");
+    startOfLibrary();
+  }
+
   inline void OutputManager::startOfLibrary() {
 
     // this is only valid when we haven't started a library
@@ -190,6 +214,8 @@ namespace corsika {
 
       throw std::runtime_error("startOfLibrary() called in invalid state.");
     }
+
+    librarySummaryFlushed_ = false;
 
     // we now forward this signal to all of our outputs
     for (auto& [name, output] : outputs_) {

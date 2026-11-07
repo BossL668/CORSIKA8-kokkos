@@ -15,6 +15,7 @@
 #include <array>
 #include <iostream>
 #include <map>
+#include <limits>
 
 namespace {
   namespace cp = corsika::kokkos;
@@ -46,6 +47,32 @@ namespace {
     photon_final_test::flatten(y, b);
     photon_final_test::check(x, y);
   }
+  void equal(cp::ParticleState const& actual, cp::ParticleState const& expected) {
+    auto exactFields = actual;
+#ifdef KOKKOS_ENABLE_HIP
+    if constexpr (std::is_same_v<execution_space_type, Kokkos::HIP>) {
+      // Independent HIP kernels also differ by rounding with the original policy.
+      // Only materialized energy and direction allow roundoff; IDs, weights,
+      // positions, times, random draws and all queue accounting remain exact.
+      auto const rounded = [](double a, double b, double tolerance) {
+        return a == b || (std::isnan(a) && std::isnan(b)) ||
+               (std::isfinite(a) && std::isfinite(b) && std::abs(a - b) <= tolerance);
+      };
+      auto const epsilon = std::numeric_limits<double>::epsilon();
+      REQUIRE(rounded(
+          actual.energyGeV_, expected.energyGeV_,
+          4 * epsilon *
+              std::max(std::abs(actual.energyGeV_), std::abs(expected.energyGeV_))));
+      exactFields.energyGeV_ = expected.energyGeV_;
+      for (unsigned i = 0; i != 3; ++i) {
+        REQUIRE(rounded(actual.direction_[i], expected.direction_[i], 16 * epsilon));
+        exactFields.direction_[i] = expected.direction_[i];
+      }
+    }
+#endif
+    equal<cp::ParticleState>(exactFields, expected);
+  }
+
   struct Oracle {
     cp::InteractionSelectionOutcome selection_{};
     cp::PhotonTransportOutcome transport_{};

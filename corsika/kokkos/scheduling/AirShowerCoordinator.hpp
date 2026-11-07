@@ -25,6 +25,7 @@ namespace corsika::kokkos::coordinator {
     double egs4Stepfc_ = 1.;
     std::uint64_t seed_ = 1;
     unsigned events_ = 1;
+    bool persistentWorkers_ = false;
     unsigned prefixWorkers_ = 0; // 0: unchanged serial prefix; >0: static CPU subshowers
     double prefixSplitEnergy_ = 0; // 0: scale the CPU threshold with prefixWorkers_
     double energy_ = 0, memoryFraction_ = .5, frontierEnergy_ = 0, timeout_ = 7200;
@@ -69,5 +70,5 @@ namespace corsika::kokkos::coordinator {
   void run(CoordinatorOptions const& options);
   /** Parse the existing coordinator CLI and return its process exit status.
    * Called by the existing air-shower entry; this library adds no executable. */
-  int main_entry(int argc, char** argv);
+  int main_entry(int argc, char** argv, bool supportsWorkerSession = false);
 } // namespace corsika::kokkos::coordinator

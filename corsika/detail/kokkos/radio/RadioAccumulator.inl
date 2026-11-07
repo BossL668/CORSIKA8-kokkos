@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <corsika/kokkos/runtime/RangePolicy.hpp>
+
 namespace corsika::kokkos::radio {
   template <class TExecutionSpace>
   template <bool Coreas, bool Zhs, bool ReduceCounters>
@@ -147,7 +149,8 @@ namespace corsika::kokkos::radio {
     config_ = requested;
     if (tuning.trackTileSize_ != 0) trackTileSize_ = tuning.trackTileSize_;
     if (tuning.observerTileSize_ != 0) observerTileSize_ = tuning.observerTileSize_;
-    if (tuning.teamSize_ != 0) teamSize_ = tuning.teamSize_;
+    defaultTeamSize_ = tuning.teamSize_ == 0;
+    if (!defaultTeamSize_) teamSize_ = tuning.teamSize_;
     if (trackTileSize_ == 0 || observerTileSize_ == 0 || teamSize_ == 0 ||
         teamSize_ > 1024)
       throw std::invalid_argument("Kokkos radio tuning is invalid");
@@ -674,7 +677,7 @@ namespace corsika::kokkos::radio {
     Kokkos::parallel_for(
         Coreas && Zhs ? "c8_kokkos_coreas_zhs_direct"
                       : Coreas ? "c8_kokkos_coreas_direct" : "c8_kokkos_zhs_direct",
-        Kokkos::RangePolicy<TExecutionSpace>(execution, 0, pairs),
+        make_bounded_range_policy<256, 2>(execution, pairs),
         KOKKOS_LAMBDA(std::size_t const pair_index) {
           auto const track_index = pair_index / observer_count;
           auto const observer_index = pair_index % observer_count;
@@ -796,22 +799,42 @@ namespace corsika::kokkos::radio {
                              : Coreas ? "c8_kokkos_coreas_tiled" : "c8_kokkos_zhs_tiled";
       // Sparse observer tiles and CoREAS-only work keep the original kernel:
       // their counters do not repay the extra team-reduction overhead.
-      // Small track batches already use the unchanged projectDirect() path.
-      if (Zhs && observer_count >= observer_tile_size) {
-        Kokkos::parallel_for(
-            label, policy,
-            RadioTileProjection<Coreas, Zhs, Zhs>{
-                tracks, coreas_observers, zhs_observers, propagation, coreas_waveforms,
-                zhs_waveforms, counters, track_count, observer_count, observer_tiles,
-                track_tile_size, observer_tile_size, tile_lanes});
+      // Small track batches use the separate direct projection path.
+      auto const launch_projection = [&](auto const& selected_policy) {
+        if (Zhs && observer_count >= observer_tile_size) {
+          Kokkos::parallel_for(
+              label, selected_policy,
+              RadioTileProjection<Coreas, Zhs, Zhs>{
+                  tracks, coreas_observers, zhs_observers, propagation, coreas_waveforms,
+                  zhs_waveforms, counters, track_count, observer_count, observer_tiles,
+                  track_tile_size, observer_tile_size, tile_lanes});
+        } else {
+          Kokkos::parallel_for(
+              label, selected_policy,
+              RadioTileProjection<Coreas, Zhs>{
+                  tracks, coreas_observers, zhs_observers, propagation, coreas_waveforms,
+                  zhs_waveforms, counters, track_count, observer_count, observer_tiles,
+                  track_tile_size, observer_tile_size, tile_lanes});
+        }
+      };
+#if defined(KOKKOS_ENABLE_HIP)
+      // Limit register pressure for HIP ZHS tiles while respecting explicit tuning.
+      if constexpr (std::is_same_v<TExecutionSpace, Kokkos::HIP> && Zhs) {
+        if (team_size == 128 || (defaultTeamSize_ && team_size == 256)) {
+          using bounded_policy_type =
+              Kokkos::TeamPolicy<TExecutionSpace, Kokkos::LaunchBounds<128, 2>>;
+          auto bounded_policy = bounded_policy_type(execution, league_size, 128);
+          bounded_policy.set_scratch_size(0, Kokkos::PerTeam(sizeof(RadioTileScratch)));
+          launch_projection(bounded_policy);
+        } else {
+          launch_projection(policy);
+        }
       } else {
-        Kokkos::parallel_for(
-            label, policy,
-            RadioTileProjection<Coreas, Zhs>{
-                tracks, coreas_observers, zhs_observers, propagation, coreas_waveforms,
-                zhs_waveforms, counters, track_count, observer_count, observer_tiles,
-                track_tile_size, observer_tile_size, tile_lanes});
+        launch_projection(policy);
       }
+#else
+      launch_projection(policy);
+#endif
     }
     auto const pairs = track_count * observer_count;
     statistics_.trackObserverPairs_ += pairs * static_cast<std::size_t>(Coreas + Zhs);

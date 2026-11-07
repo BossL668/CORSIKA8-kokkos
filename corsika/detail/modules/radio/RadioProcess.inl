@@ -152,6 +152,7 @@ namespace corsika {
   inline void RadioProcess<TObserverCollection, TRadioImpl, TPropagator>::startOfLibrary(
       const boost::filesystem::path& directory) {
 
+    showerId_ = 0;
     diagnosticSummary_.open(directory);
 
     // setup the streamer

@@ -260,6 +260,7 @@ namespace corsika::kokkos::radio::firn {
   template <typename TBackend>
   inline void VariableIndexRadioProcess<TBackend>::startOfLibrary(
       boost::filesystem::path const& directory) {
+    diagnosticSummary_ = YAML::Node{};
     waveformOutput_.initStreamer((directory / "radio_waveforms.parquet").string());
     waveformOutput_.enableCompression();
     waveformOutput_.addField("observer", parquet::Repetition::REQUIRED,

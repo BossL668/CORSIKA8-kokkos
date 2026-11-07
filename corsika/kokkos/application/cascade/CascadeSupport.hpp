@@ -53,10 +53,13 @@ namespace corsika::kokkos::application {
                  char const* executable);
   };
 
-  /** Dispatch before the main shower stack frame, models, RNG or CUDA are initialized. */
+  /** Dispatch before initializing models or devices.
+   * Only applications implementing WorkerSession may enable resident workers.
+   */
   int dispatch_cascade(int argc, char** argv,
                        int (*run)(int, char**, DeviceSelection const&),
-                       CascadeScene scene = CascadeScene::Atmosphere);
+                       CascadeScene scene = CascadeScene::Atmosphere,
+                       bool supportsWorkerSession = false);
 
   /** Own run-lifetime backend resources, including the native-only empty implementation.
    * This facade does not start workers or alter the existing lazy initialization.

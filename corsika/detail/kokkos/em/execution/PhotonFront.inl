@@ -186,8 +186,10 @@ namespace corsika::kokkos {
       countsRaw(source) = sourceCounts;
     };
     static_assert(sizeof(selectKernel) < 512);
-    Kokkos::parallel_for("c8_kokkos_resident_photon_select",
-                         policy(execution, 0, currentCount), selectKernel);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_select",
+        make_bounded_range_policy<256, 2>(execution, currentCount, openmpChunkSize),
+        selectKernel);
 
     // Transport is a separate kernel so its geometry state does not share
     // registers with rate inversion.  Selection fallbacks return before
@@ -220,8 +222,10 @@ namespace corsika::kokkos {
       }
     };
     static_assert(sizeof(transportKernel) < 512);
-    Kokkos::parallel_for("c8_kokkos_resident_photon_transport",
-                         policy(execution, 0, currentCount), transportKernel);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_transport",
+        make_bounded_range_policy<256, 2>(execution, currentCount, openmpChunkSize),
+        transportKernel);
 
     // Only true interaction vertices execute the comparatively heavy LPM,
     // final-state kinematics and thinning classifier.  A second stable scan
@@ -261,8 +265,10 @@ namespace corsika::kokkos {
       }
     };
     static_assert(sizeof(finalStateKernel) < 512);
-    Kokkos::parallel_for("c8_kokkos_resident_photon_final_state",
-                         policy(execution, 0, currentCount), finalStateKernel);
+    Kokkos::parallel_for(
+        "c8_kokkos_resident_photon_final_state",
+        make_bounded_range_policy<256, 2>(execution, currentCount, openmpChunkSize),
+        finalStateKernel);
 
     Kokkos::parallel_scan("c8_kokkos_scan_photon_outputs",
                           policy(execution, 0, currentCount),

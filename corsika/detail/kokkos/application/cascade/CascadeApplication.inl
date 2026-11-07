@@ -8,6 +8,10 @@
 #pragma once
 
 namespace corsika::kokkos::application {
+  template <typename TG, typename TO, typename TM, typename TD>
+  void CascadeApplication<TG, TO, TM, TD>::setWorkerSeed(std::uint64_t seed) {
+    defaults_.seed_ = seed;
+  }
 
   template <typename TGeometry, typename TOutputs, typename TModels, typename TMonitors>
   CascadeApplication<TGeometry, TOutputs, TModels, TMonitors>::CascadeApplication(

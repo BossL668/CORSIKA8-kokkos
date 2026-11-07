@@ -80,6 +80,11 @@ namespace corsika {
      */
     void startOfLibrary();
 
+    /** Open another independent library after closing the previous one. */
+    void reopenLibrary(std::string const& directory, long seed);
+    /** Publish the top-level summary before acknowledging a completed request. */
+    void flushLibrarySummary();
+
     /**
      * Called at the start of each event/shower.
      * This iteratively calls startOfEvent on each registered output.
@@ -113,11 +118,12 @@ namespace corsika {
   private:
     boost::filesystem::path root_;           ///< The unique output directory.
     OutputState state_{OutputState::NoInit}; ///< The current state of this manager.
-    std::string const cmnd_line_args_; ///< The command line arguments used in this run
-    bool useCompression_;              ///< compress the files to tarball
-    int count_{0};                     ///< The current ID of this shower.
+    std::string const cmnd_line_args_;  ///< The command line arguments used in this run
+    bool useCompression_;               ///< compress the files to tarball
+    bool librarySummaryFlushed_{false}; ///< Acknowledged summaries remain unchanged.
+    int count_{0};                      ///< The current ID of this shower.
     long seed_{0};
-    std::chrono::time_point<std::chrono::system_clock> const start_time{
+    std::chrono::time_point<std::chrono::system_clock> start_time{
         std::chrono::system_clock::now()}; ///< The time the manager is created.
     inline static auto logger_{get_logger("output")}; ///< A custom logger.
     /**

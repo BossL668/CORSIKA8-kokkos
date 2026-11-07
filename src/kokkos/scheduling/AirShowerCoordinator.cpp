@@ -218,8 +218,132 @@ namespace corsika::kokkos::coordinator {
                             : maximum == 0 && batches == 0),
               "Incomplete frontier consumption: " + folder.string());
     }
+    // The pool owns process lifetimes; event() continues to own all static partitioning.
+    class WorkerPool {
+    public:
+      WorkerPool() = default;
+      ~WorkerPool() = default;
+      WorkerPool(WorkerPool const&) = delete;
+      WorkerPool& operator=(WorkerPool const&) = delete;
+      WorkerPool(WorkerPool&&) = delete;
+      WorkerPool& operator=(WorkerPool&&) = delete;
+
+      bool isStarted() const { return !workers_.empty(); }
+
+      void start(CoordinatorOptions const& o, std::vector<std::string> const& devices) {
+        root_ = o.output_ / "worker_pool";
+        require(fs::create_directory(root_), "Worker pool directory exists");
+        timeout_ = o.timeout_;
+        for (unsigned i = 0; i < devices.size(); ++i) {
+          auto folder = root_ / ("worker_" + std::to_string(i));
+          auto command = o.physics_;
+          command.insert(command.begin(), o.worker_.string());
+          command.insert(command.end(), {"-E",
+                                         number(o.energy_),
+                                         "-N",
+                                         std::to_string(o.events_),
+                                         "-s",
+                                         std::to_string(worker_seed(o.seed_, i)),
+                                         "-f",
+                                         (folder / "initial_outputs").string(),
+                                         "--em-backend",
+                                         "kokkos-proposal",
+                                         "--radio-backend",
+                                         "kokkos",
+                                         "--kokkos-execution",
+                                         corsika::kokkos::application::gpu_execution(),
+                                         "--kokkos-num-threads",
+                                         "1",
+                                         "--kokkos-device",
+                                         "0",
+                                         "--hadronic-workers",
+                                         "1",
+                                         "--hadronic-backend",
+                                         "scalar",
+                                         "--gpu-memory-fraction",
+                                         number(o.memoryFraction_),
+                                         "--gpu-resident-batch-limit",
+                                         "0"});
+          std::map<std::string, std::string> env{
+              {"OMP_NUM_THREADS", "1"},
+              {"OMP_THREAD_LIMIT", "1"},
+              {"OPENBLAS_NUM_THREADS", "1"},
+              {"MKL_NUM_THREADS", "1"},
+              {"ARROW_NUM_THREADS", "1"},
+              {"ARROW_IO_THREADS", "1"},
+              {"C8_WORKER_SESSION", folder.string()},
+              {"C8_WORKER_TIMEOUT", number(o.timeout_)},
+              {"C8_WORKER_EVENTS", std::to_string(o.events_)},
+              {corsika::kokkos::application::gpu_visibility_variable(), devices[i]}};
+          workers_.push_back(processes_.launch(command, folder, env));
+        }
+        // The first prefix has finished building shared CPU model tables.
+        // Initialize the GPU backend only when an actual request is processed.
+      }
+      void submit(unsigned i, json_type request) {
+        auto const& child = processes_.children_[workers_.at(i)];
+        request["request"] = request_;
+        save(child.folder_ / ("request_" + std::to_string(request_) + ".json"), request);
+      }
+      json_type wait(fs::path const& eventRoot) {
+        auto const start = clock_type::now();
+        json_type records = json_type::array();
+        for (auto index : workers_) {
+          auto& child = processes_.children_[index];
+          auto file = child.folder_ / ("done_" + std::to_string(request_) + ".json");
+          while (!fs::exists(file)) {
+            check_interrupt();
+            // Observe exit without reaping: finish() still owns exit accounting.
+            // The last acknowledgement may appear between the file check and exit.
+            siginfo_t status{};
+            auto const result =
+                waitid(P_PID, child.pid_, &status, WEXITED | WNOHANG | WNOWAIT);
+            require(result == 0 || errno == EINTR, "Cannot inspect resident worker");
+            if (result == 0 && status.si_pid == child.pid_) {
+              require(fs::exists(file),
+                      "Resident worker exited before completing request: " +
+                          child.folder_.string());
+              break;
+            }
+            require(seconds(start) <= timeout_, "Resident worker request timed out");
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+          }
+          auto record = read_json(file);
+          require(record.at("request") == request_ && record.at("pid") == child.pid_ &&
+                      record.at("returncode") == 0,
+                  "Resident worker acknowledgement mismatch");
+          if (!record.at("skipped").get<bool>()) {
+            record["name"] = child.folder_.filename().string();
+            record["worker_session_start_s"] = record["start_s"];
+            record["worker_session_end_s"] = record["end_s"];
+            record.erase("start_s");
+            record.erase("end_s");
+            record["timing_scope"] =
+                "request processing; process initialization is in "
+                "worker_pool/TIMING.json";
+            save(eventRoot / record["name"].get<std::string>() / "PROCESS_EXIT.json",
+                 record);
+            records.push_back(record);
+          }
+        }
+        ++request_;
+        return records;
+      }
+      void finish() {
+        processes_.wait(workers_, timeout_ + seconds(processes_.started_));
+        save(root_ / "TIMING.json", {{"wall_s", seconds(processes_.started_)},
+                                     {"processes", processes_.records()}});
+      }
+
+    private:
+      Processes processes_;
+      fs::path root_;
+      std::vector<std::size_t> workers_;
+      unsigned request_ = 0;
+      double timeout_ = 0.;
+    };
     void event(CoordinatorOptions const& o, fs::path const& root, std::uint64_t seed,
-               std::vector<std::string> const& devices) {
+               std::vector<std::string> const& devices, WorkerPool* pool) {
       Processes p;
       auto physics = o.physics_;
       physics.insert(physics.end(), {"-E", number(o.energy_)});
@@ -354,6 +478,7 @@ namespace corsika::kokkos::coordinator {
           save(root / "FRONTIER_JOIN.json", join_frontiers(cpuFrontiers, frontier));
         }
         double prefixPhase = seconds(prefixStart);
+        if (pool && !pool->isStarted()) pool->start(o, devices);
         std::vector<fs::path> shards;
         for (std::size_t i = 0; i < devices.size(); ++i)
           shards.push_back(root / ("roots_" + std::to_string(i) + ".txt"));
@@ -379,6 +504,10 @@ namespace corsika::kokkos::coordinator {
         CORSIKA_LOG_INFO("Seed {}: {} roots on {} GPUs", seed, audit["counts"].dump(),
                          devices.size());
         for (unsigned i = 0; i < devices.size(); ++i) {
+          if (pool && !scheduledWorkers.count(i)) {
+            pool->submit(i, {{"skip", true}});
+            continue;
+          }
           if (!scheduledWorkers.count(i)) continue;
           auto workerEnv = env;
           workerEnv[corsika::kokkos::application::gpu_visibility_variable()] = devices[i];
@@ -408,11 +537,31 @@ namespace corsika::kokkos::coordinator {
               workerOptions.insert(
                   workerOptions.end(),
                   {"--radio-track-in", spool.at("path").get<std::string>()});
-          workers.push_back(
-              launch("worker_" + std::to_string(i), workerOptions, workerEnv));
+          if (pool) {
+            auto folder = root / ("worker_" + std::to_string(i));
+            require(fs::create_directory(folder), "Worker event folder exists");
+            json_type inputs = json_type::array();
+            for (auto const& spool : radioAudit.at("sources"))
+              if (!spool.at("worker").is_null() &&
+                  spool.at("worker").get<unsigned>() == i)
+                inputs.push_back(spool.at("path"));
+            pool->submit(i, {{"skip", false},
+                             {"seed", worker_seed(seed, i)},
+                             {"folder", folder.string()},
+                             {"frontier", shards[i].string()},
+                             {"worker_id", o.prefixWorkers_ + i + 1},
+                             {"radio_inputs", inputs}});
+          } else {
+            workers.push_back(
+                launch("worker_" + std::to_string(i), workerOptions, workerEnv));
+          }
           parts.push_back(root / ("worker_" + std::to_string(i)) / "shower");
         }
-        p.wait(workers, o.timeout_);
+        json_type workerRecords = json_type::array();
+        if (pool)
+          workerRecords = pool->wait(root);
+        else
+          p.wait(workers, o.timeout_);
         // Per-process times are recorded at exit, before serial output validation.
         for (unsigned i = 0; i < devices.size(); ++i)
           if (scheduledWorkers.count(i)) {
@@ -455,11 +604,13 @@ namespace corsika::kokkos::coordinator {
                 "interactions", "primary", "CoREAS", "ZHS"}}});
         check_interrupt();
         auto wall = seconds(p.started_);
+        auto records = p.records();
+        for (auto const& record : workerRecords) records.push_back(record);
         save(root / "TIMING.json", {{"wall_s", wall},
                                     {"merge_s", seconds(mergeStart)},
                                     {"prefix_phase_wall_s", prefixPhase},
                                     {"cpu_prefix_workers", o.prefixWorkers_},
-                                    {"parts", p.records()}});
+                                    {"parts", records}});
         save(root / "COMPLETE.json",
              {{"products", products},
               {"wall_s", wall},
@@ -528,9 +679,13 @@ namespace corsika::kokkos::coordinator {
       auto devices = resolve_devices(o.devices_, o.output_);
       save(o.output_ / "DEVICE_UUIDS.json", devices);
       auto start = clock_type::now();
-      if (o.events_ == 1)
-        event(o, o.output_, o.seed_, devices);
-      else {
+      WorkerPool pool;
+      bool const reuse =
+          o.persistentWorkers_ && o.events_ > 1 && o.emBackend_ == "kokkos-proposal";
+      if (o.events_ == 1) {
+        event(o, o.output_, o.seed_, devices, reuse ? &pool : nullptr);
+        if (reuse) pool.finish();
+      } else {
         json_type events = json_type::array();
         save(o.output_ / "CAMPAIGN.json", {{"events", o.events_},
                                            {"first_seed", o.seed_},
@@ -541,11 +696,12 @@ namespace corsika::kokkos::coordinator {
           auto seed = o.seed_ + i;
           auto folder = o.output_ / ("seed_" + std::to_string(seed));
           require(fs::create_directory(folder), "Event directory exists");
-          event(o, folder, seed, devices);
+          event(o, folder, seed, devices, reuse ? &pool : nullptr);
           events.push_back({{"seed", seed},
                             {"wall_s", read_json(folder / "COMPLETE.json")["wall_s"]},
                             {"output", folder.string()}});
         }
+        if (reuse) pool.finish();
         check_interrupt();
         save(o.output_ / "TIMING.json", {{"wall_s", seconds(start)}, {"events", events}});
         save(o.output_ / "COMPLETE.json", {{"process_complete", true},
@@ -567,8 +723,9 @@ namespace corsika::kokkos::coordinator {
         return true;
     return corsika::kokkos::application::parse_devices(argc, argv).hasMultipleDevices();
   }
-  int main_entry(int argc, char** argv) {
+  int main_entry(int argc, char** argv, bool supportsWorkerSession) {
     CoordinatorOptions o;
+    o.persistentWorkers_ = supportsWorkerSession;
     std::string output, worker, emBackend, radioBackend, execution;
     CLI::App app{"CORSIKA 8: each shower on independent GPUs; native C++ coordination."};
     app.allow_extras();
@@ -603,6 +760,10 @@ namespace corsika::kokkos::coordinator {
            "--prefix-split-energy", o.prefixSplitEnergy_,
            "CPU split energy [GeV]; 0 uses primary energy / (96 * prefix workers)")
         ->default_val(0);
+    app.add_option(
+           "--persistent-workers", o.persistentWorkers_,
+           "Reuse GPU worker processes and models across events (PROPOSAL backend)")
+        ->default_val(supportsWorkerSession);
     app.add_option("--multigpu-worker", worker,
                    "Optional compatible worker binary; default: this binary");
     app.add_option("--em-backend", emBackend,
@@ -615,6 +776,8 @@ namespace corsika::kokkos::coordinator {
     try {
       o.devices_ = corsika::kokkos::application::parse_devices(argc, argv).ids_;
       app.parse(argc, argv);
+      require(!o.persistentWorkers_ || supportsWorkerSession,
+              "This application does not support resident worker sessions");
       o.output_ = output;
       require(o.devices_.size() > 1 || (o.devices_.size() == 1 && o.prefixWorkers_ > 0),
               "Select multiple GPUs or enable static CPU prefix workers");

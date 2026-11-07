@@ -8,6 +8,12 @@
 #pragma once
 
 namespace corsika::kokkos::application {
+  template <typename TG, typename TO, typename TM, typename TD>
+  void CascadeModule<TG, TO, TM, TD>::setWorkerSeed(std::uint64_t seed) {
+    defaults_.seed_ = seed;
+    driver_->setWorkerSeed(seed);
+  }
+
   template <typename TD, typename TG, typename TM>
   CascadeEvent<TD, TG, TM>::CascadeEvent(TD& driver, BackendOptions const& options,
                                          CascadeWorkerOptions const& workers,

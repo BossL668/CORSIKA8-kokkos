@@ -94,6 +94,8 @@ namespace corsika::kokkos::application {
     CascadeModule(CascadeModule&&) = delete;
     CascadeModule& operator=(CascadeModule&&) = delete;
     ~CascadeModule();
+    /** Set the device sampling seed without rewinding native CPU streams. */
+    void setWorkerSeed(std::uint64_t seed);
     auto shower(std::uint64_t ordinal);
 
   private:

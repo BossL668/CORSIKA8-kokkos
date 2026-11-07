@@ -26,4 +26,23 @@ namespace corsika::kokkos {
     return policy;
   }
 
+  template <unsigned int MaximumThreads, unsigned int MinimumBlocks,
+            class TExecutionSpace>
+  auto make_bounded_range_policy(TExecutionSpace const& execution,
+                                 std::size_t const count,
+                                 std::size_t const openmp_chunk_size) {
+#if defined(KOKKOS_ENABLE_HIP)
+    if constexpr (std::is_same_v<TExecutionSpace, Kokkos::HIP>) {
+      using policy_type =
+          Kokkos::RangePolicy<TExecutionSpace,
+                              Kokkos::LaunchBounds<MaximumThreads, MinimumBlocks>>;
+      return policy_type(execution, 0, count);
+    } else {
+      return make_range_policy(execution, count, openmp_chunk_size);
+    }
+#else
+    return make_range_policy(execution, count, openmp_chunk_size);
+#endif
+  }
+
 } // namespace corsika::kokkos

@@ -23,6 +23,9 @@ namespace corsika::kokkos::application {
   public:
     explicit CascadeExtension(CLI::App&, CascadeScene = CascadeScene::Atmosphere);
     bool prepare(DeviceSelection const&, char const* executable);
+    /** Replace the completed shard and radio input paths for a resident worker. */
+    void assignWorkerInput(std::string frontier, unsigned id,
+                           std::vector<std::string> radioInputs);
     void configure(RunEnvironmentConfig const&);
     void registerOutput(OutputManager&);
     /// Bind strict full-wave device radio without exposing runtime details in the app.
