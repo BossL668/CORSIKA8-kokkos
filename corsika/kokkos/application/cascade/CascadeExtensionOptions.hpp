@@ -54,6 +54,20 @@ namespace corsika::kokkos::application {
     template <typename TAxis, typename TDepth>
     auto longitudinalWriter(TAxis const&, TDepth const&);
 
+    /** Describe the existing scene for backend preparation, borrowing its objects. */
+    template <typename TE, typename TC, typename TP, typename TS, typename TStep,
+              typename TA, typename TX>
+    auto geometry(TE&, TC const&, TP const&, TS const&, TStep const&, TA const&,
+                  TX const&) const;
+
+    /** Prepare run resources; event-specific processes and writers are read from
+     * the actual ProcessSequence when constructing each cascade. All supplied
+     * models, counters, geometry objects and output must outlive the result.
+     */
+    template <typename TG, typename TEM, typename TP, typename TC, typename TZ,
+              typename TH, typename TL, typename TO>
+    auto execution(TG, CascadeEventConfig, TEM&, TP&, TC&, TZ&, TH&, TL&, TO&);
+
     template <typename TE, typename TC, typename TP, typename TS, typename TStep,
               typename TA, typename TX, typename TW, typename TLW, typename TPW,
               typename TObs, typename TIW, typename TDC, typename TDZ, typename TCoreas,

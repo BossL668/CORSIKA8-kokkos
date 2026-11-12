@@ -9,6 +9,7 @@
 
 #include <corsika/kokkos/application/cascade/CascadeSupport.hpp>
 #include <corsika/kokkos/application/BackendCli.hpp>
+#include <corsika/kokkos/application/ExecutionSelection.hpp>
 #include <corsika/output/OutputManager.hpp>
 #include <algorithm>
 #include <cstdlib>
@@ -28,6 +29,37 @@
 #endif
 
 namespace corsika::kokkos::application {
+
+  ExecutionSelection::ExecutionSelection(DeviceSelection devices, bool coordinated)
+      : devices_(std::move(devices))
+      , coordinated_(coordinated) {}
+
+  ExecutionSelection select_execution(int argc, char** argv) {
+    DeviceSelection devices;
+    try {
+      devices = parse_devices(argc, argv);
+    } catch (std::exception const& error) {
+      CORSIKA_LOG_ERROR("GPU selection: {}", error.what());
+      throw CascadeAborted{};
+    }
+    bool coordinated = false;
+#ifdef CORSIKA_KOKKOS_COORDINATOR
+    coordinated = kokkos::coordinator::requested(argc, argv);
+#endif
+    return ExecutionSelection{std::move(devices), coordinated};
+  }
+
+  int ExecutionSelection::runCoordinator(
+      [[maybe_unused]] int argc, [[maybe_unused]] char** argv,
+      [[maybe_unused]] bool supportsWorkerSession) const {
+    if (!coordinated_)
+      throw std::logic_error("Direct execution does not use a process coordinator");
+#ifdef CORSIKA_KOKKOS_COORDINATOR
+    return kokkos::coordinator::main_entry(argc, argv, supportsWorkerSession);
+#else
+    throw std::logic_error("This build has no process coordinator");
+#endif
+  }
 
   CascadeWorkerOptions::CascadeWorkerOptions() {
 #ifdef CORSIKA_KOKKOS_STATIC_MULTIGPU

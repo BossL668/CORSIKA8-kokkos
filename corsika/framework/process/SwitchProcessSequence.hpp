@@ -29,6 +29,7 @@
 #include <cmath>
 #include <limits>
 #include <type_traits>
+#include <tuple>
 
 namespace corsika {
 
@@ -176,6 +177,11 @@ namespace corsika {
      * static counter to uniquely index (count) all ContinuousProcess in switch sequence.
      */
     static size_t constexpr getNumberOfProcesses() { return numberOfProcesses_; }
+
+    /** Borrow both alternatives without evaluating the condition or copying models.
+     * The returned references must not outlive this switch or its borrowed models.
+     */
+    auto getProcesses() & { return std::tie(A_, B_); }
 
 #ifdef CORSIKA_UNIT_TESTING
     TCondition getCondition() const { return select_; }

@@ -173,11 +173,28 @@ whole process will occupy exactly that fraction of physical memory.
 Application integration
 -----------------------
 
+The air-shower application retains its configuration and event loop in ``main``.
+``select_execution(argc, argv)`` selects direct execution or the existing
+multi-GPU / parallel-prefix coordinator before model initialization. Direct
+execution includes native C8, OpenMP and a single GPU.
+
 ``CascadeExtension`` registers backend options and validates the selected
-configuration. ``bind`` borrows the objects already constructed by the
-application; those objects must outlive the run. ``CascadeEvent`` manages the
-per-event input and diagnostic lifetime. ``CascadeDriver`` selects the native
-``Cascade`` or the accelerated runner.
+configuration. ``geometry(...)`` describes the application's existing environment,
+and ``execution(...)`` prepares run resources using explicit configuration and
+model references. Each event supplies its original ``make_sequence(...)`` result
+to ``event.cascade(...)``, then starts it with ``EAS.run()``. ``select_process``
+borrows the required processes and writers from that sequence without copying
+models or evaluating switch conditions. Missing or ambiguous process roles fail
+at compile time. The current role adapter supports the standard air-shower
+sequence; custom processes still require an explicit integration policy.
+
+``CascadeEvent`` manages per-event input and diagnostics. ``CascadeDriver`` selects
+the native ``Cascade`` or the accelerated runner. The application keeps ownership
+of the scene, models and writers, which must outlive the execution object and its
+events. Existing scene adapters can continue using ``bind(...)`` and
+``dispatch_cascade(...)``. Both entry styles use the same backend and scheduler.
+Applications handling repeated worker requests through ``WorkerSession`` pass
+``true`` to ``runCoordinator(argc, argv, true)`` to enable the existing reuse policy.
 
 The accelerated runner exports the environment, obtains the native PROPOSAL
 tables, routes supported particle work, completes CPU fallback requests and

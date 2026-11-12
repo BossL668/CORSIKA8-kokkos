@@ -48,3 +48,8 @@ CORSIKA_ADD_TEST (testNativeCounterDefault
   SOURCES process/testNativeCounterDefault.cpp process/NativeCounterHeader.cpp)
 set_tests_properties (testNativeCounterDefault PROPERTIES
   LABELS "process;counter;native" RUN_SERIAL TRUE TIMEOUT 180)
+
+CORSIKA_ADD_TEST (testProcessSelection
+  SOURCES process/testProcessSelection.cpp process/ProcessSelectionHeader.cpp)
+set_tests_properties (testProcessSelection PROPERTIES
+  LABELS "process;execution;native" RUN_SERIAL TRUE TIMEOUT 60)

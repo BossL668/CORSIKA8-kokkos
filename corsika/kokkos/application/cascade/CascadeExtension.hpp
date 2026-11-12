@@ -14,6 +14,8 @@
 
 #include <corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp>
 #include <corsika/kokkos/application/cascade/CascadeDriver.hpp>
+#include <corsika/kokkos/application/cascade/SequenceModels.hpp>
+#include <corsika/kokkos/application/cascade/SequenceOutputs.hpp>
 #include <corsika/kokkos/diagnostics/DecisionReplayTape.hpp>
 #include <corsika/output/ReplayTrace.hpp>
 #include <corsika/output/SimulationTiming.hpp>
@@ -62,6 +64,9 @@ namespace corsika::kokkos::application {
               typename TInspector, typename TThinning>
     auto cascade(TTracking&, TSequence&, TOutput&, TStack&, TInspector&, TThinning&,
                  HEPEnergyType, double);
+    /** Construct a cascade using the inspector and thinning already in sequence. */
+    template <typename TTracking, typename TSequence, typename TOutput, typename TStack>
+    auto cascade(TTracking&, TSequence&, TOutput&, TStack&, HEPEnergyType, double);
 
   private:
     TDriver& driver_;

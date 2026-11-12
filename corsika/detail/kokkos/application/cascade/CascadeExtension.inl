@@ -8,6 +8,42 @@
 #pragma once
 
 namespace corsika::kokkos::application {
+  template <typename TD, typename TG, typename TM>
+  template <typename TT, typename TS, typename TO, typename TK>
+  auto CascadeEvent<TD, TG, TM>::cascade(TT& tracking, TS& sequence, TO& output,
+                                         TK& stack, HEPEnergyType energy, double weight) {
+    return cascade(tracking, sequence, output, stack,
+                   select_process<process_selection::Inspector>(sequence),
+                   select_process<process_selection::Thinning>(sequence), energy, weight);
+  }
+
+  template <typename TE, typename TC, typename TP, typename TS, typename TStep,
+            typename TA, typename TX>
+  auto CascadeExtension::geometry(TE& env, TC const& coordinates, TP const& injection,
+                                  TS const& surface, TStep const& step, TA const& axis,
+                                  TX const& depth) const {
+    return make_cascade_geometry(env, coordinates, injection, surface, step, axis, depth,
+                                 environment_);
+  }
+
+  template <typename TG, typename TEM, typename TP, typename TC, typename TZ, typename TH,
+            typename TL, typename TO>
+  auto CascadeExtension::execution(TG geometry, CascadeEventConfig defaults, TEM& em,
+                                   TP& continuous, TC& coreas, TZ& zhs, TH& high, TL& low,
+                                   TO& output) {
+    defaults.scene_ = environment_.scene_;
+    auto models = SequenceModels{coreas, zhs, em, continuous};
+    auto outputs = SequenceOutputs{coreas.observerCollection(), zhs.observerCollection()};
+    using pool_type = std::remove_pointer_t<decltype(runtime_.hadronicPool())>;
+    boost::optional<pool_type&> pool;
+    if (auto* nativePool = runtime_.hadronicPool()) pool = *nativePool;
+    auto monitors = CascadeMonitors{
+        em.highEnergyModel(), em.lowEnergyModel(), high, low, pool, em.fallbackModel()};
+    return CascadeModule<TG, decltype(outputs), decltype(models), decltype(monitors)>{
+        runtime_, options_, workers_, defaults, geometry,
+        outputs,  models,   monitors, output,   app_["--nevent"]->as<int>()};
+  }
+
   template <typename TG, typename TO, typename TM, typename TD>
   void CascadeModule<TG, TO, TM, TD>::setWorkerSeed(std::uint64_t seed) {
     defaults_.seed_ = seed;

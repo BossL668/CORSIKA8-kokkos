@@ -11,6 +11,8 @@
 #include <corsika/kokkos/application/cascade/CascadeSupport.hpp>
 #include <corsika/kokkos/application/cascade/CascadeRunner.hpp>
 #include <corsika/kokkos/application/cascade/CascadeRunSession.hpp>
+#include <corsika/kokkos/application/cascade/SequenceModels.hpp>
+#include <corsika/kokkos/application/cascade/SequenceOutputs.hpp>
 #include <CLI/App.hpp>
 #include <memory>
 #include <utility>

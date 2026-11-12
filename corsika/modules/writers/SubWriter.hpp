@@ -24,6 +24,12 @@ namespace corsika {
 
     virtual ~SubWriter() {}
 
+    /** Borrow the configured writer; the caller must respect its existing lifetime. */
+    TOutput& getWriter() & { return output_; }
+
+    /** Inspect the configured writer without transferring ownership. */
+    TOutput const& getWriter() const& { return output_; }
+
     /*
      * Write data to the underlying writer.
      */

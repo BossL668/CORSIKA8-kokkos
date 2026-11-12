@@ -29,6 +29,7 @@
 #include <corsika/framework/core/ParticleProperties.hpp>
 
 #include <corsika/framework/geometry/FourVector.hpp>
+#include <tuple>
 
 namespace corsika {
 
@@ -324,6 +325,12 @@ namespace corsika {
      * static counter to uniquely index (count) all ContinuousProcess in switch sequence.
      */
     static size_t constexpr getNumberOfProcesses() { return numberOfProcesses_; }
+
+    /** Borrow the two immediate components without executing or copying them.
+     * References remain valid while this sequence and its borrowed processes live.
+     * This accessor does not flatten nested process scopes.
+     */
+    auto getProcesses() & { return std::tie(A_, B_); }
 
 #ifdef CORSIKA_UNIT_TESTING
     TProcess1 getProcess1() const { return A_; }

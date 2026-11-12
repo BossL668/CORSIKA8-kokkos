@@ -63,10 +63,11 @@ namespace corsika::kokkos::application {
         event.emThinningFraction_ > 0. && maximum_weight > 1.;
     return CascadeAdapter{[this, event, before, &tracking, &sequence, &output, &stack,
                            &inspector, &thinning](auto& configure) {
-      auto const& m = models_;
+      auto const& m = complete_models(models_, sequence);
+      auto const& outputs = complete_outputs(outputs_, sequence);
       auto const& d = monitors_;
       CascadeContext const context{
-          geometry_, outputs_,
+          geometry_, outputs,
           CascadeProcesses{m.coreas_, m.zhs_, m.emCascade_, m.emContinuousProposal_,
                            inspector, m.neutrinoPrimary_, m.hadronSequence_,
                            m.decaySequence_, m.emContinuous_, m.longitudinal_,

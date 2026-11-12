@@ -98,6 +98,7 @@
 #include <vector>
 
 #include <corsika/kokkos/application/cascade/CascadeExtension.hpp>
+#include <corsika/kokkos/application/ExecutionSelection.hpp>
 
 using namespace corsika;
 using namespace std;
@@ -171,21 +172,10 @@ std::vector<std::tuple<double, double, double>> read_antenna_positions(
   return antennas;
 }
 
-// Keep the coordinator out of the large shower/Fortran stack frame. In
-// particular, explicit-loader deployments have little heap/stack headroom.
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((noinline))
-#endif
-int runAirShower(int argc, char** argv,
-                corsika::kokkos::application::DeviceSelection const& selected_devices);
-
-int main(int argc, char** argv) {
-  return kokkos::application::dispatch_cascade(
-      argc, argv, runAirShower, kokkos::application::CascadeScene::Atmosphere, true);
-}
-
-int runAirShower(int argc, char** argv,
-                 corsika::kokkos::application::DeviceSelection const& selected_devices) {
+int main(int argc, char** argv) try {
+  auto const executionMode = air::select_execution(argc, argv);
+  if (executionMode.isCoordinated())
+    return executionMode.runCoordinator(argc, argv, true);
   // the main command line description
   CLI::App app{"Simulate standard (downgoing) showers with CORSIKA 8."};
 
@@ -380,7 +370,7 @@ int runAirShower(int argc, char** argv,
       ->group("Radio");
   // parse the command line options into the variables
   CLI11_PARSE(app, argc, argv);
-  if (!backend.prepare(selected_devices, argv[0])) return EXIT_FAILURE;
+  if (!backend.prepare(executionMode.devices(), argv[0])) return EXIT_FAILURE;
 
   if (app.count("--verbosity")) {
     auto const loglevel = app["--verbosity"]->as<std::string>();
@@ -777,13 +767,12 @@ int runAirShower(int argc, char** argv,
       showerAxis, observationLevel);
   output.add("interactions", inter_writer);
 
-  // Attach the optional backend to the native objects; all ownership remains here.
-  auto application = backend.bind(
-      env, rootCS, injectionPos, surface_, step, showerAxis, dX, seed, eMax, beamCode,
-      prod_threshold, heHadronModelThreshold, multithin, dEdX, profile, prod_profile,
-      observationLevel, inter_writer, detectorCoREAS, detectorZHS, coreas, zhs, emCascade,
-      emContinuousProposal, neutrinoPrimaryPythia, hadronSequence, decaySequence,
-      emContinuous, longprof, prodprof, cut, heCounted, leIntCounted, output);
+  auto geometry =
+      backend.geometry(env, rootCS, injectionPos, surface_, step, showerAxis, dX);
+  auto defaults = air::make_cascade_defaults(
+      app, seed, eMax, beamCode, cut, prod_threshold, heHadronModelThreshold, multithin);
+  auto execution = backend.execution(geometry, defaults, emCascade, emContinuousProposal,
+                                     coreas, zhs, heCounted, leIntCounted, output);
 
   // trigger the output manager to open the library for writing
   output.startOfLibrary();
@@ -793,8 +782,8 @@ int runAirShower(int argc, char** argv,
   // loop over each shower
   for (int i_shower = 1; i_shower < nevent + 1; i_shower++) {
 
-    if (!workerSession.next(backend, application, output, seed)) break;
-    auto event = application.shower(workerSession.isActive() ? 1 : i_shower);
+    if (!workerSession.next(backend, execution, output, seed)) break;
+    auto event = execution.shower(workerSession.isActive() ? 1 : i_shower);
 
     // randomize the primary energy
     double const eSlope = app["--eslope"]->as<double>();
@@ -856,8 +845,8 @@ int runAirShower(int argc, char** argv,
 
     primaryWriter.recordPrimary(primaryProperties);
 
-    auto EAS = event.cascade(tracking, sequence, output, stack, stackInspect, thinning,
-                             primaryTotalEnergy, maxWeight);
+    auto EAS =
+        event.cascade(tracking, sequence, output, stack, primaryTotalEnergy, maxWeight);
     if (force_interaction) {
       CORSIKA_LOG_INFO("Fixing first interaction at injection point.");
       EAS.forceInteraction();
@@ -900,4 +889,4 @@ int runAirShower(int argc, char** argv,
   workerSession.close(output);
 
   return EXIT_SUCCESS;
-}
+} catch (air::CascadeAborted const&) { return EXIT_FAILURE; }

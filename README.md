@@ -8,7 +8,16 @@ library interfaces for execution, particle scheduling, environment conversion
 and output. This is an independent
 research repository, not an official CORSIKA release.
 
-## Latest changes (2026-11-07)
+## Latest changes (2026-11-12)
+
+- Keep air-shower configuration and the event loop in `main`. Select direct or
+  coordinated execution before model initialization, while retaining
+  `make_sequence(...)` and `EAS.run()`.
+- Obtain event processes and their writers from the existing process sequence;
+  pass geometry and run settings separately through the application interface.
+  Physics algorithms, backend defaults and persistent worker behavior are unchanged.
+
+## Changes (2026-11-07)
 
 - Tune HIP photon transport and radio kernel launch policies, including the
   tiled ZHS / CoREAS+ZHS path, while retaining the shared Kokkos physics code.

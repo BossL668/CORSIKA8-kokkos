@@ -14,3 +14,10 @@ include ("${PROJECT_SOURCE_DIR}/cmake/ApplicationSupportContracts.cmake")
 add_subdirectory (coordinator)
 
 add_subdirectory (bindings)
+
+if (TARGET CORSIKA8::CascadeApplication)
+  add_executable (application_execution_selection ExecutionSelection.cpp)
+  target_link_libraries (application_execution_selection PRIVATE CORSIKA8::CascadeApplication)
+  add_test (NAME application_execution_selection COMMAND application_execution_selection)
+  set_tests_properties (application_execution_selection PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+endif ()
