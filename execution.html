@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Particle data and state" href="particles.html" />
+    <link rel="next" title="The hybrid event loop" href="execution/hybrid-loop.html" />
     <link rel="prev" title="Event execution and results" href="application/event-execution.html" /> 
 </head>
 
@@ -69,7 +69,12 @@
 <li class="toctree-l2"><a class="reference internal" href="application/event-execution.html">Event execution and results</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Execution and scheduling</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
@@ -112,18 +117,204 @@
              
   <section id="execution-and-scheduling">
 <h1>Execution and scheduling<a class="headerlink" href="#execution-and-scheduling" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How work moves between CPU processes and device kernels.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Direct execution, OpenMP and single-device execution.</p></li>
-<li><p>Parallel CPU prefixes and multi-device coordination.</p></li>
-<li><p>Particle queues, batching and CPU interaction requests.</p></li>
-<li><p>Worker reuse, random streams and event boundaries.</p></li>
+<p>The application hands a configured event to <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>.
+This chapter follows the next steps: selecting particles from the C8 stack,
+collecting supported particles into batches, advancing those batches and
+returning unfinished work or output to the host. It then follows the optional
+coordinator that divides a shower among processes and GPUs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+The main flow below describes <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> with the ordinary resident
+EM backend. Native C8 execution takes the separate <code class="docutils literal notranslate"><span class="pre">Cascade::run()</span></code> branch
+described in <a class="reference internal" href="application/event-execution.html"><span class="doc">Event execution and results</span></a>. EGS4 and optional cooperative
+CPU/device endpoints have additional paths; they are not interchangeable
+with this flow.</p>
+</div>
+<section id="two-levels-of-scheduling">
+<h2>Two levels of scheduling<a class="headerlink" href="#two-levels-of-scheduling" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 38.0%" />
+<col style="width: 38.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Responsible code</p></th>
+<th class="head"><p>Unit of work</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Within one process</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>, <code class="docutils literal notranslate"><span class="pre">CpuParticleScheduler</span></code> and <code class="docutils literal notranslate"><span class="pre">EmRouter</span></code></p></td>
+<td><p>A C8 particle step or a batch of supported particles. The backend runs
+Kokkos kernels on the selected execution space.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Across processes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">coordinator::run(...)</span></code> and its worker pool</p></td>
+<td><p>A static set of subshower roots assigned to each process. Each GPU worker
+uses the same local cascade and router interfaces.</p></td>
+</tr>
+</tbody>
+</table>
+<p>An OpenMP backend runs particle kernels on CPU threads. A CPU-prefix worker is
+a separate process running a native C8 prefix. These are different forms of
+parallelism. Likewise, one router call can advance several resident wavefronts;
+it does not represent one kernel launch or one complete shower.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
 </ul>
+</div>
+</section>
+<section id="source-file-map">
+<span id="execution-source-files"></span><h2>Source file map<a class="headerlink" href="#source-file-map" title="Link to this heading"></a></h2>
+<p>The trees below select the files used in this chapter. Public declarations are
+under <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/</span></code>, template implementations under
+<code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/</span></code> and compiled implementations under <code class="docutils literal notranslate"><span class="pre">src/kokkos/</span></code>.
+Click a filename to open the pinned source.</p>
+<pre class="literal-block">corsika/kokkos/scheduling/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/HybridCascadeRunner.hpp">HybridCascadeRunner.hpp</a>         event entry and callback contract
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/HybridCascade.hpp">HybridCascade.hpp</a>               hybrid event-loop interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/CpuParticleScheduler.hpp">CpuParticleScheduler.hpp</a>        native stack scheduling
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/ScalarCascadeStepper.hpp">ScalarCascadeStepper.hpp</a>        native particle-step interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/EmRouter.hpp">EmRouter.hpp</a>                    host/device routing interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/StaticFrontier.hpp">StaticFrontier.hpp</a>              capture and bounded import
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/CpuFrontier.hpp">CpuFrontier.hpp</a>                 CPU bootstrap and root import
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/AirShowerCoordinator.hpp">AirShowerCoordinator.hpp</a>        process coordination API
+
+corsika/detail/kokkos/scheduling/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl">HybridCascadeRunner.inl</a>         construct adapters; run and report
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl">HybridCascade.inl</a>               CPU/router loop and completion
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/CpuParticleScheduler.inl">CpuParticleScheduler.inl</a>        acquire, complete, suspend and resume
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/ScalarCascadeStepper.inl">ScalarCascadeStepper.inl</a>        execute native scalar steps
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a>                    staging, batching and returned results
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/StaticFrontier.inl">StaticFrontier.inl</a>              FrontierInput and BufferedFrontierRouter
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/CpuFrontier.inl">CpuFrontier.inl</a>                 CPU-root capture and import
+
+src/kokkos/scheduling/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a>        process launch, worker pool and event orchestration
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/StaticFrontierIO.cpp">StaticFrontierIO.cpp</a>            partition, join, validate and merge files</pre>
+<p>Connections to neighbouring modules:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 47.0%" />
+<col style="width: 53.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Source</p></th>
+<th class="head"><p>Boundary</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a></p></td>
+<td><p>Application callbacks and event configuration.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a></p></td>
+<td><p>Primary/frontier input and special prefix roles.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl">WorkerSession.inl</a></p></td>
+<td><p>Persistent-worker request protocol and event reset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/IEmBackend.hpp">IEmBackend.hpp</a></p></td>
+<td><p>Host backend contract and batch calls.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp">EmBackend.cpp</a></p></td>
+<td><p>Host facade forwarding to the selected backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a></p></td>
+<td><p>Execution-space implementation and resident calls.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonCascade.inl">PhotonCascade.inl</a></p></td>
+<td><p>Resident photon loop.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonCascade.inl">LeptonCascade.inl</a></p></td>
+<td><p>Resident charged-lepton loop.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhotonCascadeResult.hpp">PhotonCascadeResult.hpp</a></p></td>
+<td><p>Photon return records and checkpoints.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/LeptonCascadeResult.hpp">LeptonCascadeResult.hpp</a></p></td>
+<td><p>Lepton return records and checkpoints.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler.inl</a></p></td>
+<td><p>Complete selected interactions on the CPU.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/output/CorsikaOutputSink.hpp">CorsikaOutputSink.hpp</a></p></td>
+<td><p>Connect returned records to C8 outputs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a></p></td>
+<td><p>First initialization and per-shower reuse.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="from-the-application-handoff-to-particle-execution">
+<span id="execution-data-flow"></span><h2>From the application handoff to particle execution<a class="headerlink" href="#from-the-application-handoff-to-particle-execution" title="Link to this heading"></a></h2>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/execution-data-flow.svg"><img alt="File and function flow from the application runner to the CPU scheduler, EM router, resident backend, CPU fallback and output sink." src="_images/execution-data-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Solid arrows show calls and transfers; dashed arrows show returned work.
+The loop continues until the CPU stack, router and deferred work are drained.
+Open the full-size SVG to follow its source links.
+<a class="reference download internal" download="" href="_downloads/56f7f5df5c2d566cf10d21fe6f981054/execution-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/bb871c99b5c862cb39df942665185c04/execution-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p><code class="docutils literal notranslate"><span class="pre">HybridCascadeRunner.inl</span></code> constructs the router, fallback handler and output
+sink for the event. The backend session and its allocated resources can outlive
+this call. <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code> advances the event and invokes the router;
+the router calls the resident EM backend and consumes its results.
+The <a class="reference internal" href="execution/hybrid-loop.html"><span class="doc">The hybrid event loop</span></a> page follows these calls in order.</p>
+</section>
+<section id="where-this-chapter-hands-off">
+<h2>Where this chapter hands off<a class="headerlink" href="#where-this-chapter-hands-off" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Particle conversion uses <code class="docutils literal notranslate"><span class="pre">particle_transfer::to_device_state(...)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">import_particle(...)</span></code>. The <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a> chapter will describe units,
+coordinate systems, state fields and identity in detail.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run_photon_cascade(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">run_lepton_cascade(...)</span></code> are the entry
+points to the resident transport loops. The <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> chapter will
+follow their numerical kernels.</p></li>
+<li><p>Transport records and CPU-produced tracks reach output writers and radio
+accumulators. The <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a> chapter will describe track projection and
+waveform accumulation.</p></li>
+</ul>
+</section>
+<section id="maintenance-and-existing-checks">
+<h2>Maintenance and existing checks<a class="headerlink" href="#maintenance-and-existing-checks" title="Link to this heading"></a></h2>
+<p>The following source tests help locate the contracts affected by a scheduling
+change. They are existing tests, not a claim that a new physics or performance
+campaign was run for this documentation update.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Existing test source</p></th>
+<th class="head"><p>Contract covered</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/testCpuParticleScheduler.cpp">testCpuParticleScheduler.cpp</a></p></td>
+<td><p>Stack order, erased entries, suspension and particle identity.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/hybrid/testHybridCascade.cpp">testHybridCascade.cpp</a></p></td>
+<td><p>Scalar oracle comparison, router ordering, forced actions and deferred interactions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/coordinator/WorkerSessionTest.cpp">WorkerSessionTest.cpp</a></p></td>
+<td><p>Request boundaries, skip handling, CPU-stream continuity, output and model-state reset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/coordinator/WorkerSeedTest.cpp">WorkerSeedTest.cpp</a></p></td>
+<td><p>Worker seed derivation.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 </section>
 
@@ -132,7 +323,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="application/event-execution.html" class="btn btn-neutral float-left" title="Event execution and results" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="particles.html" class="btn btn-neutral float-right" title="Particle data and state" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="execution/hybrid-loop.html" class="btn btn-neutral float-right" title="The hybrid event loop" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

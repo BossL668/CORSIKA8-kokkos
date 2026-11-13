@@ -69,7 +69,12 @@
 <li class="toctree-l2"><a class="reference internal" href="application/event-execution.html">Event execution and results</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
@@ -230,7 +235,7 @@ under <code class="docutils literal notranslate"><span class="pre">corsika/detai
 before constructing the router and starting <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code>. The
 application therefore supplies the inputs and initialization callback; the
 scheduling module controls this execution order. Continue with
-<a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> for the scheduling module’s planned coverage.</p>
+<a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> for the hybrid loop, batch contracts and process coordination.</p>
 </section>
 <section id="names-that-refer-to-different-responsibilities">
 <h2>Names that refer to different responsibilities<a class="headerlink" href="#names-that-refer-to-different-responsibilities" title="Link to this heading"></a></h2>

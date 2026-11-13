@@ -13,7 +13,9 @@ The overview and user guide describe the current application, installation,
 configuration and output. Their source baseline is recorded in the
 :doc:`usage/index`. The :doc:`application` chapter now follows concrete function
 calls, data contracts and event execution, using excerpts included from source.
-The remaining architecture and maintenance chapters are still outlines; an
+The :doc:`execution` chapter covers the hybrid loop, batch contracts and
+process coordination, with file maps and data-flow diagrams. The remaining
+architecture and maintenance chapters are still outlines; an
 outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.
 

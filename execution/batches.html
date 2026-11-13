@@ -1,0 +1,301 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Batches, checkpoints and CPU returns &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/execution/batches.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Parallel prefixes and GPU workers" href="coordinator.html" />
+    <link rel="prev" title="The hybrid event loop" href="hybrid-loop.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="hybrid-loop.html">The hybrid event loop</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="coordinator.html">Parallel prefixes and GPU workers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../execution.html">Execution and scheduling</a></li>
+      <li class="breadcrumb-item active">Batches, checkpoints and CPU returns</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/execution/batches.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="batches-checkpoints-and-cpu-returns">
+<h1>Batches, checkpoints and CPU returns<a class="headerlink" href="#batches-checkpoints-and-cpu-returns" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">EmRouter::advanceOneWavefrontAndReturn(stack)</span></code> connects host staging to the
+resident EM backend. It returns a count of CPU returns or node-refresh requests
+for <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>. Device steps and generated particles are accounted for
+separately in result records and statistics.</p>
+<section id="dispatch-thresholds-and-capacity">
+<h2>Dispatch thresholds and capacity<a class="headerlink" href="#dispatch-thresholds-and-capacity" title="Link to this heading"></a></h2>
+<p>The ordinary router can first return a small staged batch to the scalar stack
+for further expansion. Otherwise, it limits the host input to the backend’s
+advertised capacity, keeps excess input in <code class="docutils literal notranslate"><span class="pre">staged_</span></code> and separates photons
+from charged leptons. Resident queues can contribute additional input without
+a host round trip.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Control</p></th>
+<th class="head"><p>Meaning in this implementation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">minimumBatchSize()</span></code></p></td>
+<td><p>A particle-count threshold for dispatch and small-batch checkpoints.
+The resident loops check the threshold after at least one wavefront.
+Forced flushes and pending work can also run below the threshold.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Maximum resident input / photon / lepton sizes</p></td>
+<td><p>Capacity limits used to split host input and reserve workspace. An input
+that exceeds the limit remains queued for later processing.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">maximumWavefronts</span></code> and history-ID limits</p></td>
+<td><p>Bounds on a resident call before it returns a checkpoint. In the ordinary
+router the photon call requests up to 16 wavefronts; the lepton call
+requests up to 1024 and also supplies a reserved history-ID range.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Static frontier import block</p></td>
+<td><p>Limits roots imported from a coordinator-produced file into an empty
+local stack. It is independent of the resident batch capacity; see
+<a class="reference internal" href="coordinator.html#execution-frontier-import"><span class="std std-ref">Import roots in bounded blocks</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These counts do not specify CUDA/HIP threads per block. Execution policies
+inside the transport kernels determine how particle indices are mapped to
+threads.</p>
+</section>
+<section id="calling-the-backend">
+<h2>Calling the backend<a class="headerlink" href="#calling-the-backend" title="Link to this heading"></a></h2>
+<p>The photon call in <code class="docutils literal notranslate"><span class="pre">EmRouter.inl</span></code> is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">372</span><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">backend_</span><span class="p">.</span><span class="n">runResidentPhotonCascadeForValidation</span><span class="p">(</span>
+<span class="linenos">373</span><span class="w">            </span><span class="n">photons</span><span class="p">,</span><span class="w"> </span><span class="n">firstHistory</span><span class="p">,</span><span class="w"> </span><span class="n">ResidentPhotonWavefronts</span><span class="p">,</span><span class="w"> </span><span class="n">backend_</span><span class="p">.</span><span class="n">minimumBatchSize</span><span class="p">());</span>
+</pre></div>
+</div>
+<p>The charged-lepton call additionally supplies an exclusive history-ID limit:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">405</span><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">backend_</span><span class="p">.</span><span class="n">runResidentLeptonCascadeForValidation</span><span class="p">(</span>
+<span class="linenos">406</span><span class="w">            </span><span class="n">leptons</span><span class="p">,</span><span class="w"> </span><span class="n">historyRange</span><span class="p">.</span><span class="n">first_</span><span class="p">,</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="n">historyRange</span><span class="p">.</span><span class="n">limit_</span><span class="p">,</span>
+<span class="linenos">407</span><span class="w">            </span><span class="n">backend_</span><span class="p">.</span><span class="n">minimumBatchSize</span><span class="p">());</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">ForValidation</span></code> names are retained compatibility spellings used by the
+production router. <code class="docutils literal notranslate"><span class="pre">IEmBackend.inl</span></code> forwards them to <code class="docutils literal notranslate"><span class="pre">runPhotonWavefront</span></code>
+and <code class="docutils literal notranslate"><span class="pre">runLeptonWavefront</span></code>. They are host calls, not virtual dispatch inside
+each particle’s GPU kernel.</p>
+<p><code class="docutils literal notranslate"><span class="pre">EmBackend.cpp</span></code> forwards to the selected backend instance.
+<code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code> combines the supplied
+<code class="docutils literal notranslate"><span class="pre">std::vector&lt;ParticleState&gt;</span></code> with pending resident input, supplies shared
+physics views, workspaces and accumulators, and calls <code class="docutils literal notranslate"><span class="pre">run_photon_cascade</span></code>
+or <code class="docutils literal notranslate"><span class="pre">run_lepton_cascade</span></code>. These templates use the selected Kokkos execution
+space, including OpenMP, CUDA or HIP in a matching build.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="../_static/execution-backend-flow.svg"><img alt="Router inputs pass through the host backend interface into resident photon or lepton loops, then returned records are consumed by the router." src="../_images/execution-backend-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The scheduling-to-transport boundary. Pending queues and shared workspaces
+can remain in the execution space between calls. Open the SVG for source links.
+<a class="reference download internal" download="" href="../_downloads/0df3f400ddbc912b310ffeb7dae5e48d/execution-backend-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="../_downloads/8a1bcb4998b01c467731a91f2d6034a3/execution-backend-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="returned-data-and-its-consumers">
+<h2>Returned data and its consumers<a class="headerlink" href="#returned-data-and-its-consumers" title="Link to this heading"></a></h2>
+<p>The calls return <code class="docutils literal notranslate"><span class="pre">PhotonCascadeResult</span></code> or <code class="docutils literal notranslate"><span class="pre">LeptonCascadeResult</span></code> by value.
+<code class="docutils literal notranslate"><span class="pre">consumeResidentPhoton</span></code> and <code class="docutils literal notranslate"><span class="pre">consumeResidentLepton</span></code> handle these records:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Returned data</p></th>
+<th class="head"><p>Consumer / effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Remaining photons or leptons; generated particles</p></td>
+<td><p>Re-enter host staging when returned. With resident cross-species queues
+enabled, eligible generated particles stay in device-accessible storage
+instead; they must not also be imported as returned children.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fallbackEvents_</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">returnFallbacks(...)</span></code> either queues a specified CPU completion or
+returns the particle for a scalar step, subject to the configured error
+policy.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpuSpillParticles_</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">returnMemorySpills(...)</span></code> restores unfinished states to the native
+stack. Capacity pressure must not silently remove particles.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Lepton <code class="docutils literal notranslate"><span class="pre">decayCandidates_</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">returnForcedDecays(...)</span></code> marks the corresponding scalar step to
+execute a decay.</p></td>
+</tr>
+<tr class="row-even"><td><p>Step, final-state, projected-step and observation records</p></td>
+<td><p>Router recording functions pass the required contributions to
+<code class="docutils literal notranslate"><span class="pre">CorsikaOutputSink</span></code>. Device-owned profile contributions are accumulated
+on their device path and must not be counted again on host replay.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Checkpoint flags and counters</p></td>
+<td><p>Record small batches, workspace limits or exhausted history-ID ranges.
+A resident call can stop while the shower still has work to do.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="three-different-reasons-to-return-to-the-cpu">
+<h2>Three different reasons to return to the CPU<a class="headerlink" href="#three-different-reasons-to-return-to-the-cpu" title="Link to this heading"></a></h2>
+<p><strong>Small-batch expansion</strong> is a scheduling choice. If there is no pending
+resident work and the staging vector is below threshold, the router can
+import it back to the C8 stack. A history/step marker makes <code class="docutils literal notranslate"><span class="pre">canRoute</span></code> reject
+that next routing attempt so the scalar stepper actually advances it. A bounded
+number of expansion rounds and a no-progress check can force a device flush.</p>
+<p><strong>Specified reaction completion</strong> preserves an already selected interaction.
+The ordinary endpoint stores requests accepted by
+<code class="docutils literal notranslate"><span class="pre">ProposalCpuFallbackHandler::canHandle(...)</span></code> in <code class="docutils literal notranslate"><span class="pre">deferredFallbackEvents_</span></code>.
+Once host staging and the resident front drain, <code class="docutils literal notranslate"><span class="pre">flushDeferredFallbacks</span></code> calls
+<code class="docutils literal notranslate"><span class="pre">handle(stack,</span> <span class="pre">event)</span></code> to complete these vertices on the CPU. The request
+contains the particle and selected interaction information. It is not a request
+to resample an unrelated step. The new EM products can then return to the
+device path; a dedicated flag avoids another small-batch expansion cycle.</p>
+<p><strong>A generic scalar return, decay or memory spill</strong> has its own handling and
+history/step markers. Unexpected numerical or capability returns can be rejected
+by <code class="docutils literal notranslate"><span class="pre">failOnUnexpectedFallback</span></code> rather than silently retried. The reaction-level
+capabilities are defined in the physics layer; a low batch count alone does not
+mean that a reaction is unsupported.</p>
+<p>For maintenance, inspect both the producer of a returned state and its consumer.
+Changing only the kernel or only the router can otherwise leave a state
+unconsumed, execute a selected vertex twice or double-count an output record.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hybrid-loop.html" class="btn btn-neutral float-left" title="The hybrid event loop" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="coordinator.html" class="btn btn-neutral float-right" title="Parallel prefixes and GPU workers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,270 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The hybrid event loop &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/execution/hybrid-loop.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Batches, checkpoints and CPU returns" href="batches.html" />
+    <link rel="prev" title="Execution and scheduling" href="../execution.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The hybrid event loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batches.html">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="coordinator.html">Parallel prefixes and GPU workers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../execution.html">Execution and scheduling</a></li>
+      <li class="breadcrumb-item active">The hybrid event loop</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/execution/hybrid-loop.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-hybrid-event-loop">
+<h1>The hybrid event loop<a class="headerlink" href="#the-hybrid-event-loop" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code> combines the native C8 stack and scalar stepper with an EM
+router. The loop itself runs on the host. Parallel particle work begins inside
+the backend calls made by the router.</p>
+<section id="construct-the-event-s-scheduling-objects">
+<h2>1. Construct the event’s scheduling objects<a class="headerlink" href="#construct-the-event-s-scheduling-objects" title="Link to this heading"></a></h2>
+<p>The <a class="reference internal" href="../application.html#application-source-flow"><span class="std std-ref">application handoff</span></a> ends in
+<code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> in <code class="docutils literal notranslate"><span class="pre">HybridCascadeRunner.inl</span></code>. It receives native
+C8 objects, an environment snapshot, transport geometry and callbacks:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 36.0%" />
+<col style="width: 64.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>How it is used</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">environment</span></code>, <code class="docutils literal notranslate"><span class="pre">tracking</span></code>, <code class="docutils literal notranslate"><span class="pre">sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">output</span></code>, <code class="docutils literal notranslate"><span class="pre">stack</span></code></p></td>
+<td><p>References used by <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code> and its native scalar stepper.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">environmentSnapshot</span></code>, <code class="docutils literal notranslate"><span class="pre">geometry</span></code>, <code class="docutils literal notranslate"><span class="pre">coordinateSystem</span></code></p></td>
+<td><p>Borrowed numerical environment data and native node mapping used by
+particle conversion, routing and CPU return paths.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backendFactory</span></code></p></td>
+<td><p>The application’s <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> callback. Initializes or reuses the
+EM session and returns a backend reference.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fallbackFactory</span></code> / <code class="docutils literal notranslate"><span class="pre">outputSinkFactory</span></code></p></td>
+<td><p>Create the CPU completion handler and C8 output adapter for this event.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">configureCascade</span></code> / <code class="docutils literal notranslate"><span class="pre">onComplete</span></code></p></td>
+<td><p>Apply run controls before execution; collect the final report after it.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The function first validates the process registry against the actual C8
+sequence. It then constructs the adapters and runs the event:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">106</span><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">tracking_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">remove_reference_t</span><span class="o">&lt;</span><span class="n">TTracking</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos">107</span><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">sequence_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">remove_reference_t</span><span class="o">&lt;</span><span class="n">TSequence</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos">108</span><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">output_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">remove_reference_t</span><span class="o">&lt;</span><span class="n">TOutput</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos">109</span><span class="w">    </span><span class="n">HybridCascade</span><span class="o">&lt;</span><span class="n">tracking_type</span><span class="p">,</span><span class="w"> </span><span class="n">sequence_type</span><span class="p">,</span><span class="w"> </span><span class="n">output_type</span><span class="p">,</span><span class="w"> </span><span class="n">stack_type</span><span class="p">,</span><span class="w"> </span><span class="n">router_type</span><span class="o">&gt;</span>
+<span class="linenos">110</span><span class="w">        </span><span class="n">cascade</span><span class="p">{</span><span class="n">environment</span><span class="p">,</span><span class="w"> </span><span class="n">tracking</span><span class="p">,</span><span class="w"> </span><span class="n">sequence</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">router</span><span class="p">};</span>
+<span class="linenos">111</span><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">TConfigureCascade</span><span class="o">&gt;</span><span class="p">(</span><span class="n">configureCascade</span><span class="p">)(</span><span class="n">cascade</span><span class="p">);</span>
+<span class="linenos">112</span><span class="w">    </span><span class="n">cascade</span><span class="p">.</span><span class="n">run</span><span class="p">();</span>
+<span class="linenos">113</span><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">TOnComplete</span><span class="o">&gt;</span><span class="p">(</span><span class="n">onComplete</span><span class="p">)(</span><span class="n">backend</span><span class="p">,</span><span class="w"> </span><span class="n">cascade</span><span class="p">,</span><span class="w"> </span><span class="n">router</span><span class="p">,</span><span class="w"> </span><span class="n">outputSink</span><span class="p">,</span>
+<span class="linenos">114</span><span class="w">                                          </span><span class="n">fallbackHandler</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The function returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. Particle state changes and records go through
+the stack, backend, output sink and writers; <code class="docutils literal notranslate"><span class="pre">onComplete</span></code> receives references
+to those objects. The router, fallback handler and sink remain alive until
+that callback returns. The native environment and its snapshot must remain
+valid throughout execution.</p>
+</section>
+<section id="acquire-and-route-a-particle">
+<h2>2. Acquire and route a particle<a class="headerlink" href="#acquire-and-route-a-particle" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CpuParticleScheduler::acquireNext()</span></code> selects a non-erased, non-suspended
+particle in stack order, starting at the end. It returns a <code class="docutils literal notranslate"><span class="pre">ScheduledParticle</span></code>
+containing the particle handle, history/parent identifiers, generation and the
+step identifier from <code class="docutils literal notranslate"><span class="pre">beginTransportStep()</span></code>. <code class="docutils literal notranslate"><span class="pre">completeParticleStep()</span></code> closes
+that host scheduling operation; it does not mean that the particle has ended.</p>
+<p><code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code> starts the output event, sets environment nodes and
+checks whether the selected particle can be routed. An explicitly forced
+interaction or decay is resolved on the scalar path before ordinary routing.
+For a routable particle, the actual transfer is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">165</span><span class="w">              </span><span class="n">emRouter_</span><span class="o">-&gt;</span><span class="n">stage</span><span class="p">(</span><span class="n">scheduled</span><span class="p">.</span><span class="n">particle_</span><span class="p">,</span><span class="w"> </span><span class="n">scheduled</span><span class="p">.</span><span class="n">historyId_</span><span class="p">,</span>
+<span class="linenos">166</span><span class="w">                               </span><span class="n">scheduled</span><span class="p">.</span><span class="n">parentHistoryId_</span><span class="p">,</span><span class="w"> </span><span class="n">scheduled</span><span class="p">.</span><span class="n">generation_</span><span class="p">,</span>
+<span class="linenos">167</span><span class="w">                               </span><span class="n">scheduled</span><span class="p">.</span><span class="n">stepId_</span><span class="p">);</span>
+<span class="linenos">168</span><span class="w">              </span><span class="n">timingStatistics_</span><span class="p">.</span><span class="n">routeStageTimeMs_</span><span class="w"> </span><span class="o">+=</span>
+<span class="linenos">169</span><span class="w">                  </span><span class="n">elapsedMilliseconds</span><span class="p">(</span><span class="n">phase_start</span><span class="p">,</span><span class="w"> </span><span class="n">clock_type</span><span class="o">::</span><span class="n">now</span><span class="p">());</span>
+<span class="linenos">170</span><span class="w">              </span><span class="n">scheduled</span><span class="p">.</span><span class="n">particle_</span><span class="p">.</span><span class="n">erase</span><span class="p">();</span>
+<span class="linenos">171</span><span class="w">              </span><span class="n">scheduler_</span><span class="p">.</span><span class="n">completeParticleStep</span><span class="p">();</span>
+<span class="linenos">172</span><span class="w">              </span><span class="n">doStackIfSafe</span><span class="p">();</span>
+<span class="linenos">173</span><span class="w">              </span><span class="n">advanceInterleavedRouter</span><span class="p">();</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">EmRouter::canRoute(particle,</span> <span class="pre">stepId)</span></code> checks one-step CPU-return markers,
+particle type, backend capability and the environment query.
+<code class="docutils literal notranslate"><span class="pre">stage(...)</span></code> converts the state to the numerical representation and stores
+it in the host vector <code class="docutils literal notranslate"><span class="pre">staged_</span></code>. Only after staging succeeds does the loop
+erase the native stack entry. This transfers responsibility for advancing that
+state to the router.</p>
+</section>
+<section id="advance-scalar-and-device-work">
+<h2>3. Advance scalar and device work<a class="headerlink" href="#advance-scalar-and-device-work" title="Link to this heading"></a></h2>
+<p>Particles not routed use <code class="docutils literal notranslate"><span class="pre">ScalarCascadeStepper::advance(particle)</span></code> with the
+native environment, tracking and process sequence. Surviving particles and
+secondaries remain available through the C8 stack. An optional hadronic process
+pool can suspend a selected particle while an interaction request is outstanding;
+this is separate from the CPU-prefix coordinator discussed later.</p>
+<p>For routed work, <code class="docutils literal notranslate"><span class="pre">readyForScalarInterleave()</span></code> allows the resident front to
+advance before the scalar stack is exhausted. In the ordinary endpoint this
+is triggered by a sufficiently large staging vector, pending resident photons
+or leptons, or a forced small-batch flush. When the scalar stack empties,
+<code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code> also advances any pending router work. Returned CPU work
+has its environment nodes refreshed before further scalar steps.</p>
+<p>This is host-controlled interleaving. It does not imply that a scalar C8 step
+and a device wavefront are running concurrently, or that one GPU thread keeps
+ownership of a particle for its entire lifetime. The optional independent
+endpoint has additional scheduling callbacks; its policy is not shown in the
+ordinary flow diagram.</p>
+</section>
+<section id="finish-only-after-all-work-is-consumed">
+<h2>4. Finish only after all work is consumed<a class="headerlink" href="#finish-only-after-all-work-is-consumed" title="Link to this heading"></a></h2>
+<p>The loop tests three sources of pending work: the CPU scheduler, EM router and
+deferred hadronic interactions. The router includes staged particles, resident
+photon/lepton queues and deferred CPU completions. Cascade-equation hooks can
+add more stack work, so their execution is also inside the outer loop.</p>
+<p>At completion, <code class="docutils literal notranslate"><span class="pre">EmRouter::endOfShower()</span></code> checks that its queues are drained,
+downloads enabled accumulators and passes results to the output sink.
+<code class="docutils literal notranslate"><span class="pre">output_.endOfShower()</span></code> closes the shower. Only then does the runner execute
+its reporting callback. Emptying the native stack alone is not a completion
+criterion.</p>
+<p>Continue with <a class="reference internal" href="batches.html"><span class="doc">Batches, checkpoints and CPU returns</span></a> for the backend arguments, returned records and
+the distinction between a physical CPU completion and a small-batch CPU step.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../execution.html" class="btn btn-neutral float-left" title="Execution and scheduling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="batches.html" class="btn btn-neutral float-right" title="Batches, checkpoints and CPU returns" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

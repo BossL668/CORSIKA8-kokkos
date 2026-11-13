@@ -68,7 +68,12 @@
 <li class="toctree-l2"><a class="reference internal" href="application/event-execution.html">Event execution and results</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
@@ -118,7 +123,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview, user guide and application integration chapter are available. Further architecture and maintenance chapters are being developed.</span>
+  <span>The overview, user guide, application integration and execution chapters are available. Further architecture and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -146,7 +151,9 @@ with Kokkos.</p>
 <p>Start with the <a class="reference internal" href="usage/index.html"><span class="doc">User guide</span></a> to install the application, run a shower and
 inspect its output. The <a class="reference internal" href="application.html"><span class="doc">Application integration</span></a> chapter follows the actual function
 calls, arguments and results from the main application into the library.
-Further chapters will cover subsystem implementation and maintenance.</p>
+The <a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> chapter continues through particle routing, batch execution
+and process coordination. Further chapters will cover subsystem implementation
+and maintenance.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
@@ -179,7 +186,11 @@ Further chapters will cover subsystem implementation and maintenance.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#planned-coverage">Planned coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#two-levels-of-scheduling">Two levels of scheduling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#source-file-map">Source file map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#from-the-application-handoff-to-particle-execution">From the application handoff to particle execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#where-this-chapter-hands-off">Where this chapter hands off</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#maintenance-and-existing-checks">Maintenance and existing checks</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a><ul>
