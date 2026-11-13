@@ -26,8 +26,8 @@ if os.environ.get("C8_DOCS_DOXYGEN_XML"):
     )
 
 html_theme = "sphinx_rtd_theme"
-html_title = "CORSIKA 8 Kokkos — Developer Guide"
-html_short_title = "Kokkos developer guide"
+html_title = "CORSIKA 8 Kokkos — Documentation"
+html_short_title = "Kokkos documentation"
 html_static_path = ["_static"]
 html_css_files = ["guide.css"]
 html_theme_options = {

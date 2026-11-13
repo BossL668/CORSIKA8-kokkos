@@ -44,6 +44,9 @@ body { color: var(--guide-ink); }
 .rst-content .admonition { border-radius: 5px; overflow: hidden; }
 .rst-content code { white-space: normal; overflow-wrap: anywhere; }
 .rst-content pre code { white-space: pre; }
+.rst-content .wy-table-responsive table.docutils { width: 100%; table-layout: fixed; }
+.rst-content .wy-table-responsive table.docutils td,
+.rst-content .wy-table-responsive table.docutils th { white-space: normal; overflow-wrap: anywhere; }
 footer { color: var(--guide-muted); font-size: 12px; }
 .wy-nav-top { background: #172e46; }
 
