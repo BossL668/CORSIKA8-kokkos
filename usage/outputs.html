@@ -1,0 +1,293 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outputs and run checks &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/usage/outputs.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Application integration" href="../application.html" />
+    <link rel="prev" title="Parallel execution" href="parallel-execution.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">User guide</a></li>
+      <li class="breadcrumb-item active">Outputs and run checks</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usage/outputs.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="outputs-and-run-checks">
+<h1>Outputs and run checks<a class="headerlink" href="#outputs-and-run-checks" title="Link to this heading"></a></h1>
+<p>Keep the log and configuration with the output. A directory can be created
+before a shower finishes, so its existence is not a completion test.</p>
+<section id="check-a-direct-run">
+<h2>Check a direct run<a class="headerlink" href="#check-a-direct-run" title="Link to this heading"></a></h2>
+<p>A successful direct run should have a zero exit status and a final
+<code class="docutils literal notranslate"><span class="pre">summary.yaml</span></code> reporting the requested number of showers. For
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>, inspect each event’s <code class="docutils literal notranslate"><span class="pre">complete</span></code> and <code class="docutils literal notranslate"><span class="pre">status</span></code> fields in
+<code class="docutils literal notranslate"><span class="pre">gpu_em/summary.yaml</span></code> as well. A timing record marked <code class="docutils literal notranslate"><span class="pre">closed</span></code> records the
+end of its timing scope; it does not independently establish physics validity.</p>
+<p>The standard air application writes these output groups:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Location below the run directory</p></th>
+<th class="head"><p>Content</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">config.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">summary.yaml</span></code></p></td>
+<td><p>Run metadata and final shower count.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">profile/profile.parquet</span></code></p></td>
+<td><p>Longitudinal particle profiles versus depth.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">energyloss/dEdX.parquet</span></code></p></td>
+<td><p>Energy deposited in depth bins.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">particles/particles.parquet</span></code></p></td>
+<td><p>Particles recorded at the observation level.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">production_profile/</span></code></p></td>
+<td><p>Particle production profile.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CoREAS/</span></code>, <code class="docutils literal notranslate"><span class="pre">ZHS/</span></code></p></td>
+<td><p>Observer configuration and time-domain radio data.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gpu_em/</span></code></p></td>
+<td><p>Kokkos transport configuration, completion status and counters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">simulation_timing/</span></code></p></td>
+<td><p>Per-shower wall timing and associated metadata.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Table rows carry a <code class="docutils literal notranslate"><span class="pre">shower</span></code> index. Inspect the schema and accompanying
+configuration before combining events. Longitudinal <code class="docutils literal notranslate"><span class="pre">X</span></code> is in
+<span class="math notranslate nohighlight">\(\mathrm{g\,cm^{-2}}\)</span>; the deposited energy is stored in GeV per depth
+bin. Divide by the bin width if a density per unit slant depth is required.</p>
+<p>Radio samples for different observers are stored in their configured order.
+Read the observer metadata before treating rows as a single waveform or
+combining antennas. A valid observer window and consistent time sampling are
+essential for waveform and fluence comparisons.</p>
+<p>For a lightweight Parquet inspection, optionally install <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> in your
+analysis environment. The following reads metadata rather than loading all
+particle records:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
+
+<span class="n">run</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"first-openmp"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">relative</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"profile/profile.parquet"</span><span class="p">,</span> <span class="s2">"energyloss/dEdX.parquet"</span><span class="p">):</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">ParquetFile</span><span class="p">(</span><span class="n">run</span> <span class="o">/</span> <span class="n">relative</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">relative</span><span class="p">,</span> <span class="n">table</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="check-a-coordinated-run">
+<h2>Check a coordinated run<a class="headerlink" href="#check-a-coordinated-run" title="Link to this heading"></a></h2>
+<p>The coordinator additionally writes <code class="docutils literal notranslate"><span class="pre">CONFIG.json</span></code>, <code class="docutils literal notranslate"><span class="pre">TIMING.json</span></code> and
+completion records. For multiple events, <code class="docutils literal notranslate"><span class="pre">CAMPAIGN.json</span></code> describes the
+campaign and individual <code class="docutils literal notranslate"><span class="pre">seed_*</span></code> directories hold event results. Physics
+outputs from the workers are collected under each event’s <code class="docutils literal notranslate"><span class="pre">merged</span></code> directory.</p>
+<p>Check that all requested events are present and marked complete. An
+<code class="docutils literal notranslate"><span class="pre">INCOMPLETE.json</span></code> record or a failed worker must be investigated even if
+some output files exist. <code class="docutils literal notranslate"><span class="pre">COMPLETE.json</span></code> records process completion; it
+is not a statistical acceptance report.</p>
+</section>
+<section id="interpret-timing-consistently">
+<h2>Interpret timing consistently<a class="headerlink" href="#interpret-timing-consistently" title="Link to this heading"></a></h2>
+<p>Process wall time includes startup, model/table preparation, shower execution
+and final output. The per-shower <code class="docutils literal notranslate"><span class="pre">wall_time_ms</span></code> in
+<code class="docutils literal notranslate"><span class="pre">simulation_timing/summary.yaml</span></code> covers the application’s shower timing
+scope. Coordinated runs also record stage timings in <code class="docutils literal notranslate"><span class="pre">TIMING.json</span></code>.
+Use the same timing boundary for every configuration in a comparison.</p>
+<p>For <code class="docutils literal notranslate"><span class="pre">-N</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>, initialization is retained across events. Report startup and
+event times separately when studying simulation throughput. Profiling and
+replay options can add overhead, so record whether they were enabled.</p>
+<p>Allocated GPU hours are GPU count multiplied by elapsed allocation time in
+hours. They are different from summed GPU kernel activity. CPU core-hours
+measured from process CPU time are likewise different from allocated CPU
+cores multiplied by wall time. State which quantity is reported.</p>
+</section>
+<section id="common-problems">
+<h2>Common problems<a class="headerlink" href="#common-problems" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Symptom</p></th>
+<th class="head"><p>Check</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Output path is rejected</p></td>
+<td><p>Choose a new <code class="docutils literal notranslate"><span class="pre">--filename</span></code>. Do not reuse a partially written directory
+as though it were a fresh run.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Model files cannot be found</p></td>
+<td><p>Set <code class="docutils literal notranslate"><span class="pre">CORSIKA_DATA</span></code> to this backend’s installed data directory and
+retain the complete FLUKA runtime installation.</p></td>
+</tr>
+<tr class="row-even"><td><p>Requested backend is unavailable</p></td>
+<td><p>Check that the executable was built for that execution space. Runtime
+flags do not compile missing backends or EGS4 support.</p></td>
+</tr>
+<tr class="row-odd"><td><p>HIP compiles but cannot run</p></td>
+<td><p>Activate the matching ROCm/DTK environment and check device-file
+permissions with the administrator. Run <code class="docutils literal notranslate"><span class="pre">c8_hip_devices</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>No radio signal or missing observers</p></td>
+<td><p>Check the antenna count, coordinate convention, observation geometry
+and recording window. A default run without observers has no array.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Low GPU utilization in a small shower</p></td>
+<td><p>Check particle counts and CPU work before interpreting utilization.
+Small-batch expansion and CPU reactions are part of the execution path.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="before-a-physics-comparison">
+<h2>Before a physics comparison<a class="headerlink" href="#before-a-physics-comparison" title="Link to this heading"></a></h2>
+<p>Match the primary, energy definition, angles, hadronic and electromagnetic
+models, atmosphere, field, cuts, thinning, observation level, profile counting
+mode and radio configuration. Keep the same model-data revision. A common
+seed is useful but does not ensure identical histories across different
+schedulers or backends.</p>
+<p>Check particle profiles, energy deposition and radio observables using a
+sample appropriate to the question. A successful installation check or a
+single matching total is not sufficient to establish statistical agreement.</p>
+</section>
+<section id="source-references">
+<h2>Source references<a class="headerlink" href="#source-references" title="Link to this heading"></a></h2>
+<p>See the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/output/OutputManager.inl">output manager</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/output/SimulationTiming.inl">shower timing</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">coordinator output handling</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="parallel-execution.html" class="btn btn-neutral float-left" title="Parallel execution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../application.html" class="btn btn-neutral float-right" title="Application integration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

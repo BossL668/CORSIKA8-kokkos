@@ -1,7 +1,7 @@
 About this guide
 ================
 
-This guide is intended for developers and maintainers of CORSIKA 8 with Kokkos.
+This guide is intended for users, developers and maintainers of CORSIKA 8 with Kokkos.
 Its purpose is to explain the implementation and provide a reference for
 continued development, review and maintenance as the code, dependencies and
 supported platforms evolve.
@@ -9,9 +9,10 @@ supported platforms evolve.
 Current status
 --------------
 
-The website structure, navigation, search and chapter outlines are available.
-The technical chapters have not been written or reviewed yet. An outline does
-not establish that a feature is implemented or validated.
+The overview and user guide describe the current application, installation,
+configuration and output. Their source baseline is recorded in the
+:doc:`usage/index`. The architecture and maintenance chapters are still outlines;
+an outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

@@ -1,0 +1,293 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/usage/installation.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Run a first shower" href="first-shower.html" />
+    <link rel="prev" title="User guide" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">User guide</a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usage/installation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>The build helper creates an independent installation for each backend. Choose
+OpenMP for CPU execution, CUDA for NVIDIA GPUs, or HIP for a compatible ROCm/DTK
+system. You do not need an OpenMP installation before building a GPU backend.
+The application is a native binary; Python supplies build and optional analysis
+tools.</p>
+<section id="prepare-the-host-tools-and-fluka">
+<h2>Prepare the host tools and FLUKA<a class="headerlink" href="#prepare-the-host-tools-and-fluka" title="Link to this heading"></a></h2>
+<p>The documented build uses C++17, GCC 11 or newer with a compatible GFortran,
+CMake 3.24–3.x and Conan 2. The repository pins Kokkos to 4.7.03. Start with one
+compile job and allow space for source, dependency caches and model data in
+addition to simulation output.</p>
+<p>On Ubuntu, install the host tools:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>build-essential<span class="w"> </span>gfortran<span class="w"> </span>git<span class="w"> </span>curl<span class="w"> </span>ca-certificates<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>python3-venv<span class="w"> </span>python3-dev<span class="w"> </span>pkg-config<span class="w"> </span>autoconf<span class="w"> </span>automake<span class="w"> </span>libtool<span class="w"> </span>bison<span class="w"> </span>flex<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>patch<span class="w"> </span>unzip<span class="w"> </span>bzip2<span class="w"> </span>xz-utils<span class="w"> </span>perl
+<span class="nb">export</span><span class="w"> </span><span class="nv">CC</span><span class="o">=</span>/usr/bin/gcc
+<span class="nb">export</span><span class="w"> </span><span class="nv">CXX</span><span class="o">=</span>/usr/bin/g++
+<span class="nb">export</span><span class="w"> </span><span class="nv">FC</span><span class="o">=</span>/usr/bin/gfortran
+</pre></div>
+</div>
+<p>On a cluster, use the site’s matching compiler modules. Keep these compilers
+consistent with the Conan profile, including when Conda supplies the build tools.</p>
+<p>FLUKA is enabled by default. It is a separately licensed prerequisite and is
+not downloaded by the helper. Prepare a complete compatible installation,
+including its runtime data, and set its location:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">FLUPRO</span><span class="o">=</span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/opt/fluka"</span><span class="w">  </span><span class="c1"># replace with your installation</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FLUFOR</span><span class="o">=</span>gfortran
+<span class="nb">export</span><span class="w"> </span><span class="nv">GFORFLU</span><span class="o">=</span><span class="s2">"</span><span class="nv">$FC</span><span class="s2">"</span>
+<span class="nb">test</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">"</span><span class="nv">$FLUPRO</span><span class="s2">/libflukahp.a"</span>
+ar<span class="w"> </span>t<span class="w"> </span><span class="s2">"</span><span class="nv">$FLUPRO</span><span class="s2">/libflukahp.a"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-x<span class="w"> </span>ndmhep.o
+</pre></div>
+</div>
+<p>The C8 interface expects <code class="docutils literal notranslate"><span class="pre">libflukahp.a</span></code> containing <code class="docutils literal notranslate"><span class="pre">ndmhep.o</span></code>. A package with
+a different interface is not interchangeable. See the <a class="reference external" href="https://www.fluka.eu/Fluka/www/html/fluka.php?id=ins_run&amp;mm2=3">FLUKA installation
+instructions</a>
+and the repository’s <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/README.md#install-on-linux">installation notes</a>.</p>
+<p>For an intentional build without FLUKA, append <code class="docutils literal notranslate"><span class="pre">-DWITH_FLUKA=OFF</span></code> to both the
+check and build commands below. The air application then uses UrQMD for its
+low-energy hadronic model, so the physics configuration changes.</p>
+</section>
+<section id="choose-one-build-tool-environment">
+<h2>Choose one build-tool environment<a class="headerlink" href="#choose-one-build-tool-environment" title="Link to this heading"></a></h2>
+<p>Use either Conda or a Python virtual environment. Activate it again in each
+terminal used for building, together with the compiler and FLUKA variables.</p>
+<p><strong>Conda.</strong> If necessary, first install <a class="reference external" href="https://github.com/conda-forge/miniforge#install">Miniforge</a> or <a class="reference external" href="https://www.anaconda.com/docs/getting-started/installation">Miniconda</a> for your operating
+system. Then create an environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>corsika8<span class="w"> </span>--override-channels<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.11<span class="w"> </span>pip<span class="w"> </span><span class="nv">cmake</span><span class="o">=</span><span class="m">3</span>.31<span class="w"> </span>ninja<span class="w"> </span><span class="nv">numpy</span><span class="o">=</span><span class="m">1</span>.26.4<span class="w"> </span>pyyaml<span class="w"> </span>lxml
+conda<span class="w"> </span>activate<span class="w"> </span>corsika8
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'conan&gt;=2,&lt;3'</span><span class="w"> </span><span class="nv">particle</span><span class="o">==</span><span class="m">0</span>.25.1<span class="w"> </span><span class="nv">hepunits</span><span class="o">==</span><span class="m">2</span>.4.1
+</pre></div>
+</div>
+<p><strong>Without Conda.</strong> On Ubuntu 22.04/24.04, use the system Python in a virtual
+environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/venvs/corsika8"</span>
+<span class="nb">source</span><span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/venvs/corsika8/bin/activate"</span>
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'conan&gt;=2,&lt;3'</span><span class="w"> </span><span class="s1">'cmake&gt;=3.24,&lt;4'</span><span class="w"> </span>ninja<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="nv">particle</span><span class="o">==</span><span class="m">0</span>.25.1<span class="w"> </span><span class="nv">hepunits</span><span class="o">==</span><span class="m">2</span>.4.1<span class="w"> </span><span class="nv">numpy</span><span class="o">==</span><span class="m">1</span>.26.4<span class="w"> </span>pyyaml<span class="w"> </span>lxml
+</pre></div>
+</div>
+</section>
+<section id="get-the-source">
+<h2>Get the source<a class="headerlink" href="#get-the-source" title="Link to this heading"></a></h2>
+<p>Use a recursive clone so the required submodules are present:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/corsika8-workspace"</span>
+<span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/corsika8-workspace"</span>
+git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>--branch<span class="w"> </span>CORSIKA8-kokkos<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>https://github.com/BossL668/CORSIKA8-kokkos.git
+<span class="nb">cd</span><span class="w"> </span>CORSIKA8-kokkos
+git<span class="w"> </span>submodule<span class="w"> </span>status<span class="w"> </span>--recursive
+conan<span class="w"> </span>profile<span class="w"> </span>path<span class="w"> </span>default<span class="w"> </span><span class="o">||</span><span class="w"> </span>conan<span class="w"> </span>profile<span class="w"> </span>detect
+conan<span class="w"> </span>profile<span class="w"> </span>show<span class="w"> </span>-pr:h<span class="w"> </span>default<span class="w"> </span>-pr:b<span class="w"> </span>default
+conan<span class="w"> </span>remote<span class="w"> </span>list
+</pre></div>
+</div>
+<p>A leading <code class="docutils literal notranslate"><span class="pre">-</span></code> in submodule status indicates a missing submodule; run
+<code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">submodule</span> <span class="pre">update</span> <span class="pre">--init</span> <span class="pre">--recursive</span></code>. Check that the Conan compiler
+version matches the active C++ compiler. With GCC, the profile should use
+<code class="docutils literal notranslate"><span class="pre">libstdc++11</span></code>. If ConanCenter is absent, add it once:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conan<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>conancenter<span class="w"> </span>https://center2.conan.io
+</pre></div>
+</div>
+<p>The helper exports this repository’s dependency recipes and prepares the model
+data. IGRF14 coefficients are bundled and installed in the normal <code class="docutils literal notranslate"><span class="pre">GeoMag</span></code>
+resource directory. Do not combine headers from these recipes with unrelated
+older PROPOSAL libraries.</p>
+</section>
+<section id="build-the-selected-backend">
+<h2>Build the selected backend<a class="headerlink" href="#build-the-selected-backend" title="Link to this heading"></a></h2>
+<p>Run these commands from the source directory. <code class="docutils literal notranslate"><span class="pre">--check</span></code> checks prerequisites
+without fetching dependencies or compiling. The full command prepares data,
+resolves dependencies, configures, compiles and installs the program.</p>
+<p><strong>CPU / OpenMP</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>openmp<span class="w"> </span>--check
+<span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>openmp
+</pre></div>
+</div>
+<p><strong>NVIDIA / CUDA</strong></p>
+<p>A working driver and a compatible development toolkit containing <code class="docutils literal notranslate"><span class="pre">nvcc</span></code> are
+required. Check both; the version displayed by <code class="docutils literal notranslate"><span class="pre">nvidia-smi</span></code> is not the
+installed compiler version.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>nvidia-smi
+nvcc<span class="w"> </span>--version
+bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>cuda<span class="w"> </span>--check
+<span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>cuda
+</pre></div>
+</div>
+<p>The helper detects the local NVIDIA GPU architecture. On a mixed-GPU host,
+set <code class="docutils literal notranslate"><span class="pre">C8_CUDA_DEVICE</span></code> to the intended build target, for example
+<code class="docutils literal notranslate"><span class="pre">C8_CUDA_DEVICE=0</span> <span class="pre">bash</span> <span class="pre">tools/build_kokkos.sh</span> <span class="pre">cuda</span></code>. This selects the build
+target, not the device used by a later simulation. A known target can also be
+selected with <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code>, for example <code class="docutils literal notranslate"><span class="pre">cuda-volta70</span></code> for V100/V100S.
+The toolkit must support that target.</p>
+<p><strong>HIP / ROCm or Hygon DTK</strong></p>
+<p>Activate the site’s GPU software environment and select a profile matching
+both its compiler and GPU architecture. For the supplied Z100L / DTK 22.10.1
+profile:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span>/opt/dtk-22.10.1/env.sh
+hipcc<span class="w"> </span>--version
+<span class="nb">export</span><span class="w"> </span><span class="nv">C8_KOKKOS_PROFILE</span><span class="o">=</span>hip-vega906-dtk221001
+bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>hip<span class="w"> </span>--check
+<span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>hip
+</pre></div>
+</div>
+<p>Adjust the environment path to the installation on your machine. The
+<code class="docutils literal notranslate"><span class="pre">hip-vega90a</span></code> profile is an example for a different ROCm/compiler setup;
+it is not a universal HIP profile. The account also needs access to the GPU
+device files, normally <code class="docutils literal notranslate"><span class="pre">/dev/kfd</span></code> and <code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code>. Ask the system
+administrator if compilation works but device access is denied.</p>
+</section>
+<section id="locate-the-installation">
+<h2>Locate the installation<a class="headerlink" href="#locate-the-installation" title="Link to this heading"></a></h2>
+<p>With the default workspace, the result is:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>corsika8-workspace/
+├── CORSIKA8-kokkos/          source
+├── build/&lt;backend&gt;/deps/    dependency and build configuration
+└── install/&lt;backend&gt;/
+    ├── bin/c8_air_shower
+    └── share/corsika/data/
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_JOBS</span></code> controls compilation concurrency, not shower threads.
+<code class="docutils literal notranslate"><span class="pre">C8_WORKSPACE</span></code> changes the build/install root, while <code class="docutils literal notranslate"><span class="pre">CONAN_HOME</span></code> changes
+Conan’s separate cache. Set these before building when using another disk.
+Use separate build directories after changing toolchain or GPU architecture.</p>
+<p>Continue with <a class="reference internal" href="first-shower.html"><span class="doc">Run a first shower</span></a> to select the executable and runtime data.
+The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh">build helper</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan">backend profiles</a>
+are the source references for this page.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="User guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="first-shower.html" class="btn btn-neutral float-right" title="Run a first shower" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

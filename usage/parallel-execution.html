@@ -1,0 +1,270 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parallel execution &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/usage/parallel-execution.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Outputs and run checks" href="outputs.html" />
+    <link rel="prev" title="Configure a simulation" href="configuration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">User guide</a></li>
+      <li class="breadcrumb-item active">Parallel execution</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usage/parallel-execution.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="parallel-execution">
+<h1>Parallel execution<a class="headerlink" href="#parallel-execution" title="Link to this heading"></a></h1>
+<p>CPU threads, CPU-prefix workers and GPU workers serve different roles. Select
+resources for the intended run before adjusting batching parameters.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Mode</p></th>
+<th class="head"><p>Work distribution</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>OpenMP</p></td>
+<td><p>CPU threads execute Kokkos particle and radio kernels within a shower.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Direct single GPU</p></td>
+<td><p>One application process uses one GPU; the CPU prefix remains serial.</p></td>
+</tr>
+<tr class="row-even"><td><p>Parallel CPU prefix</p></td>
+<td><p>Separate CPU worker processes advance portions of the initial cascade
+before GPU handoff. The worker count is independent of GPU count.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Multiple cooperating GPUs</p></td>
+<td><p>GPU workers share one shower. <code class="docutils literal notranslate"><span class="pre">--nevent</span></code> runs successive showers in
+that mode; it does not assign one complete shower to each GPU.</p></td>
+</tr>
+</tbody>
+</table>
+<section id="openmp-and-a-direct-gpu-run">
+<h2>OpenMP and a direct GPU run<a class="headerlink" href="#openmp-and-a-direct-gpu-run" title="Link to this heading"></a></h2>
+<p>Use the matching executable and runtime paths from <a class="reference internal" href="first-shower.html"><span class="doc">Run a first shower</span></a>.
+For OpenMP, <code class="docutils literal notranslate"><span class="pre">--kokkos-num-threads</span> <span class="pre">8</span></code> requests eight threads. Optional OpenMP
+placement settings such as <code class="docutils literal notranslate"><span class="pre">OMP_PLACES=cores</span></code> and <code class="docutils literal notranslate"><span class="pre">OMP_PROC_BIND=close</span></code>
+control affinity according to the available CPU allocation; they do not
+reserve cores from other users.</p>
+<p>For a direct single-GPU run, specify <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">0</span></code> and omit
+<code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code>. For example, with a CUDA executable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="s2">"</span><span class="nv">$C8_BIN</span><span class="s2">"</span><span class="w"> </span>-A<span class="w"> </span><span class="m">56</span><span class="w"> </span>-Z<span class="w"> </span><span class="m">26</span><span class="w"> </span>--energy<span class="w"> </span>1e5<span class="w"> </span>--zenith<span class="w"> </span><span class="m">0</span><span class="w"> </span>--azimuth<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--nevent<span class="w"> </span><span class="m">20</span><span class="w"> </span>--seed<span class="w"> </span><span class="m">18641</span><span class="w"> </span>--emthin<span class="w"> </span><span class="m">0</span><span class="w"> </span>--ring<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--em-backend<span class="w"> </span>kokkos-proposal<span class="w"> </span>--radio-backend<span class="w"> </span>kokkos<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--kokkos-execution<span class="w"> </span>cuda<span class="w"> </span>--device<span class="w"> </span><span class="m">0</span><span class="w"> </span>--gpu-memory-fraction<span class="w"> </span><span class="m">0</span>.90<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gpu-min-batch<span class="w"> </span><span class="m">16384</span><span class="w"> </span>--filename<span class="w"> </span>fe-single-gpu
+</pre></div>
+</div>
+<p>This is an example configuration, not a recreation of a previous benchmark.
+Select the required antenna file, cuts and environment for your study.</p>
+</section>
+<section id="cpu-prefix-parallelism-and-multiple-gpus">
+<h2>CPU-prefix parallelism and multiple GPUs<a class="headerlink" href="#cpu-prefix-parallelism-and-multiple-gpus" title="Link to this heading"></a></h2>
+<p>Selecting more than one GPU or explicitly supplying <code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code>
+selects coordinated execution before model initialization. To use four GPUs
+and sixteen CPU-prefix workers:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="s2">"</span><span class="nv">$C8_BIN</span><span class="s2">"</span><span class="w"> </span>-A<span class="w"> </span><span class="m">56</span><span class="w"> </span>-Z<span class="w"> </span><span class="m">26</span><span class="w"> </span>--energy<span class="w"> </span>1e5<span class="w"> </span>--zenith<span class="w"> </span><span class="m">0</span><span class="w"> </span>--azimuth<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--nevent<span class="w"> </span><span class="m">20</span><span class="w"> </span>--seed<span class="w"> </span><span class="m">18641</span><span class="w"> </span>--emthin<span class="w"> </span><span class="m">0</span><span class="w"> </span>--ring<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--em-backend<span class="w"> </span>kokkos-proposal<span class="w"> </span>--radio-backend<span class="w"> </span>kokkos<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--kokkos-execution<span class="w"> </span>cuda<span class="w"> </span>--device<span class="w"> </span><span class="m">0</span>,1,2,3<span class="w"> </span>--prefix-workers<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gpu-memory-fraction<span class="w"> </span><span class="m">0</span>.90<span class="w"> </span>--gpu-min-batch<span class="w"> </span><span class="m">16384</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--filename<span class="w"> </span>fe-four-gpu
+</pre></div>
+</div>
+<p>For HIP, use the HIP executable, <code class="docutils literal notranslate"><span class="pre">--kokkos-execution</span> <span class="pre">hip</span></code> and the device
+indices reported by <code class="docutils literal notranslate"><span class="pre">c8_hip_devices</span></code>. A single GPU can also use a parallel
+prefix, for example <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">0</span> <span class="pre">--prefix-workers</span> <span class="pre">4</span></code>. Allocate CPU resources
+for those processes as well as the GPU workers and coordinator.</p>
+<p>The coordinator uses fixed primary energy and a positive seed for these runs.
+The prefix workflow described here uses <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>. It is not an
+instruction to enable coordinated EGS4 execution.</p>
+<p>GPU workers are persistent by default for coordinated <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>
+runs with multiple events. Models and GPU sessions are retained, while event
+inputs and outputs remain separate. GPU initialization begins with the first
+real work request after the CPU prefix; early initialization is disabled.
+The direct single-process event loop also retains initialization across
+<code class="docutils literal notranslate"><span class="pre">-N</span> <span class="pre">&gt;</span> <span class="pre">1</span></code> events.</p>
+<p>If the goal is throughput across independent events, run separate application
+processes on separate GPUs, each with its own seed and output directory.
+This is different from the cooperating multi-GPU command above. Neither mode
+is universally faster; particle population, prefix cost and radio workload
+all affect the result.</p>
+</section>
+<section id="memory-and-batching-controls">
+<h2>Memory and batching controls<a class="headerlink" href="#memory-and-batching-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Control</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--gpu-memory-fraction</span></code></p></td>
+<td><p>Budget as a fraction of currently free device memory at initialization.
+Set it explicitly: direct execution defaults to 0.70, the coordinator
+to 0.50. The coordinator accepts values up to 0.90.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--gpu-min-batch</span></code></p></td>
+<td><p>Particle-count threshold for GPU dispatch and small-batch checkpoints;
+default 16384. It does not set the GPU block size or a fixed input size.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_STATIC_FRONTIER_IMPORT_BATCH</span></code></p></td>
+<td><p>Number of staged frontier particles imported per chunk by coordinated
+execution. This is distinct from the dispatch threshold.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--prefix-split-energy</span></code></p></td>
+<td><p>CPU-prefix subdivision threshold. Zero selects the automatic rule
+based on primary energy and CPU-prefix worker count.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For a controlled scheduling study, the import size can be set for one run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">C8_STATIC_FRONTIER_IMPORT_BATCH</span><span class="o">=</span><span class="m">32768</span>
+<span class="c1"># Run the chosen coordinated command here, then restore the default:</span>
+<span class="nb">unset</span><span class="w"> </span>C8_STATIC_FRONTIER_IMPORT_BATCH
+</pre></div>
+</div>
+<p>The accepted explicit import range is 1–65536 particles. Larger chunks or
+higher dispatch thresholds are not guaranteed to improve total time. Compare
+several events under the same physical conditions and record the resolved
+settings. Scheduling changes may change random histories; statistical
+consistency and performance are separate checks.</p>
+</section>
+<section id="source-references">
+<h2>Source references<a class="headerlink" href="#source-references" title="Link to this heading"></a></h2>
+<p>See the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/ExecutionSelection.hpp">execution selector</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">air-shower coordinator</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="configuration.html" class="btn btn-neutral float-left" title="Configure a simulation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="outputs.html" class="btn btn-neutral float-right" title="Outputs and run checks" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

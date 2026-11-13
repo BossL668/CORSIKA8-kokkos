@@ -6,11 +6,11 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CORSIKA 8 with Kokkos &mdash; CORSIKA 8 Kokkos — Developer Guide</title>
+  <title>CORSIKA 8 with Kokkos &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=a4a24f85" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/index.html" />
@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Overview and supported features" href="overview.html" /> 
+    <link rel="next" title="Overview" href="overview.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,11 +47,22 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview and supported features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
@@ -93,16 +104,16 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <p class="guide-eyebrow">DEVELOPER DOCUMENTATION</p><section id="corsika-8-with-kokkos">
+  <p class="guide-eyebrow">USER AND DEVELOPER DOCUMENTATION</p><section id="corsika-8-with-kokkos">
 <h1>CORSIKA 8 with Kokkos<a class="headerlink" href="#corsika-8-with-kokkos" title="Link to this heading"></a></h1>
 <div class="guide-lead docutils container">
-<p>Technical documentation for the implementation, development and long-term
-maintenance of CORSIKA 8 with Kokkos.</p>
+<p>A guide to using, understanding, developing and maintaining CORSIKA 8
+with Kokkos.</p>
 </div>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>Chapter outlines are available. Technical content will be added and reviewed progressively.</span>
+  <span>The overview and user guide are available. Detailed architecture and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -127,18 +138,32 @@ maintenance of CORSIKA 8 with Kokkos.</p>
 </div></section>
 <section id="inside-this-guide">
 <h2>Inside this guide<a class="headerlink" href="#inside-this-guide" title="Link to this heading"></a></h2>
-<p>The chapters cover architecture, implementation, development and verification.
-Select a chapter to view its scope and planned coverage.</p>
+<p>Start with the <a class="reference internal" href="usage/index.html"><span class="doc">User guide</span></a> to install the application, run a shower and
+inspect its output. The architecture and maintenance chapters will develop the
+implementation details and practices needed for continued development.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview and supported features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
@@ -169,7 +194,7 @@ Select a chapter to view its scope and planned coverage.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="overview.html" class="btn btn-neutral float-right" title="Overview and supported features" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="overview.html" class="btn btn-neutral float-right" title="Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

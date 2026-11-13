@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configure a simulation &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/usage/configuration.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Parallel execution" href="parallel-execution.html" />
+    <link rel="prev" title="Run a first shower" href="first-shower.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">User guide</a></li>
+      <li class="breadcrumb-item active">Configure a simulation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usage/configuration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="configure-a-simulation">
+<h1>Configure a simulation<a class="headerlink" href="#configure-a-simulation" title="Link to this heading"></a></h1>
+<p>Separate three choices when preparing a run: the primary and physics models,
+the environment and observers, and the computing resources. Record each choice
+explicitly for comparisons. A backend flag does not fully specify the physics
+or the geometry.</p>
+<section id="primary-particle-and-transport-settings">
+<h2>Primary particle and transport settings<a class="headerlink" href="#primary-particle-and-transport-settings" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--pdg</span></code></p></td>
+<td><p>Primary PDG code, for example 2212 (proton), 22 (photon), 11 (electron)
+or 13 (negative muon).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-A</span></code> and <code class="docutils literal notranslate"><span class="pre">-Z</span></code></p></td>
+<td><p>Nuclear mass and atomic numbers. Use <code class="docutils literal notranslate"><span class="pre">-A</span> <span class="pre">56</span> <span class="pre">-Z</span> <span class="pre">26</span></code> for iron-56,
+instead of <code class="docutils literal notranslate"><span class="pre">--pdg</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--energy</span></code></p></td>
+<td><p>Total primary energy in GeV. For a nucleus, this is the whole nucleus’s
+energy, not energy per nucleon.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--zenith</span></code>, <code class="docutils literal notranslate"><span class="pre">--azimuth</span></code></p></td>
+<td><p>Arrival-direction angles in degrees; both default to zero.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--emcut</span></code>, <code class="docutils literal notranslate"><span class="pre">--hadcut</span></code>, <code class="docutils literal notranslate"><span class="pre">--mucut</span></code>, <code class="docutils literal notranslate"><span class="pre">--taucut</span></code></p></td>
+<td><p>Tracking thresholds in kinetic energy, in GeV. Defaults are
+0.0005, 0.3, 0.3 and 0.3, respectively.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--max-deflection-angle</span></code></p></td>
+<td><p>Magnetic tracking limit in radians; default 0.2.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--emthin</span></code>, <code class="docutils literal notranslate"><span class="pre">--max-weight</span></code></p></td>
+<td><p>Electromagnetic thinning controls. <code class="docutils literal notranslate"><span class="pre">--emthin</span></code> defaults to
+<span class="math notranslate nohighlight">\(10^{-6}\)</span>; set it to zero for an unthinned run. A zero maximum
+weight requests the program’s automatic weight limit.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--seed</span></code>, <code class="docutils literal notranslate"><span class="pre">--nevent</span></code></p></td>
+<td><p>Random seed and number of showers. Use an explicit nonzero seed for
+reproducible configuration records.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For example, a 100 TeV, vertically incident iron nucleus is specified by
+<code class="docutils literal notranslate"><span class="pre">-A</span> <span class="pre">56</span> <span class="pre">-Z</span> <span class="pre">26</span> <span class="pre">--energy</span> <span class="pre">1e5</span> <span class="pre">--zenith</span> <span class="pre">0</span> <span class="pre">--azimuth</span> <span class="pre">0</span></code>. This alone does not specify
+cuts, thinning, atmosphere, magnetic field or antenna layout.</p>
+</section>
+<section id="physics-models-and-execution">
+<h2>Physics models and execution<a class="headerlink" href="#physics-models-and-execution" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">--hadronModel</span></code> selects the high-energy hadronic model. The default is
+<code class="docutils literal notranslate"><span class="pre">SIBYLL-2.3d</span></code>; the application also lists <code class="docutils literal notranslate"><span class="pre">QGSJet-II.04</span></code>, <code class="docutils literal notranslate"><span class="pre">QGSJet-III</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EPOS-LHC</span></code> and <code class="docutils literal notranslate"><span class="pre">Pythia8</span></code>. The required model libraries and data must be
+available. <code class="docutils literal notranslate"><span class="pre">--hadronModelTransitionEnergy</span></code> sets the high-/low-energy switch
+in GeV, with a default of about 79.4 GeV.</p>
+<p>The low-energy hadronic model is selected at build time: FLUKA when
+<code class="docutils literal notranslate"><span class="pre">WITH_FLUKA=ON</span></code>, otherwise UrQMD. Selecting a GPU does not replace these
+hadronic models.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Selection</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">proposal</span></code></p></td>
+<td><p>Native C8 CPU electromagnetic path using PROPOSAL.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">kokkos-proposal</span></code></p></td>
+<td><p>Kokkos transport using PROPOSAL physics and native table data.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">kokkos-egs4</span></code></p></td>
+<td><p>Optional EGS4 implementation; requires a build with
+<code class="docutils literal notranslate"><span class="pre">-DCORSIKA_ENABLE_EGS4=ON</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--kokkos-execution</span></code></p></td>
+<td><p>Chooses a compiled execution space, such as <code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda</span></code> or
+<code class="docutils literal notranslate"><span class="pre">hip</span></code>. This is distinct from the electromagnetic model choice.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--radio-backend</span></code></p></td>
+<td><p>Selects <code class="docutils literal notranslate"><span class="pre">cpu</span></code> or <code class="docutils literal notranslate"><span class="pre">kokkos</span></code> radio execution. The air application’s
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> path requires <code class="docutils literal notranslate"><span class="pre">kokkos</span></code> here.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The air application constructs both CoREAS and ZHS. <code class="docutils literal notranslate"><span class="pre">--radio-backend</span></code> does
+not select between these two formalisms; the current entry point has no
+CoREAS-only or ZHS-only command-line switch.</p>
+</section>
+<section id="environment-and-magnetic-field">
+<h2>Environment and magnetic field<a class="headerlink" href="#environment-and-magnetic-field" title="Link to this heading"></a></h2>
+<p>The current air application constructs a five-layer US standard atmosphere
+(<code class="docutils literal notranslate"><span class="pre">AtmosphereId::USStdBK</span></code>), with the refractivity
+normalization set in the source. This scene is shared by the native and Kokkos
+paths; Kokkos exports its supported geometry and medium information for device
+use.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--observation-level</span></code> sets the particle observation height in metres above
+the reference Earth radius (default 0). <code class="docutils literal notranslate"><span class="pre">--injection-height</span></code> sets the primary
+injection height in the same convention (default 112750 m). The horizontal core
+position is set with <code class="docutils literal notranslate"><span class="pre">--shower-core-x</span></code> and <code class="docutils literal notranslate"><span class="pre">--shower-core-y</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--geomagnetic-model</span></code> accepts <code class="docutils literal notranslate"><span class="pre">constant</span></code> (default), <code class="docutils literal notranslate"><span class="pre">IGRF13</span></code> or <code class="docutils literal notranslate"><span class="pre">IGRF14</span></code>.
+The constant field is <span class="math notranslate nohighlight">\((50\,\mu\mathrm{T},0,0)\)</span> in the application’s root
+coordinate system. <code class="docutils literal notranslate"><span class="pre">--geomagnetic-year</span></code> sets the IGRF evaluation year
+(default 2027).</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The current IGRF scene uses a site fixed in the application: latitude
+42.5527 degrees, longitude 86.4153816422 degrees, altitude 2680.444195 m.
+There are no latitude, longitude, field-component or atmosphere-profile
+CLI options in this entry point. Changing <code class="docutils literal notranslate"><span class="pre">--observation-level</span></code> does not
+change that IGRF evaluation site. A different site or atmospheric model
+requires changing the scene construction and rebuilding, or using an
+application that exposes that configuration.</p>
+</div>
+<p>This distinction matters when reproducing another study’s condition card.
+Do not assume an old benchmark’s scene is the application’s current default.</p>
+</section>
+<section id="antenna-layout-and-radio-windows">
+<h2>Antenna layout and radio windows<a class="headerlink" href="#antenna-layout-and-radio-windows" title="Link to this heading"></a></h2>
+<p>Supply an antenna file with <code class="docutils literal notranslate"><span class="pre">--antenna-file</span></code>. Each data row contains three
+whitespace-separated values in metres: <strong>north, west, up</strong>. Empty lines and
+lines starting with <code class="docutils literal notranslate"><span class="pre">#</span></code> are ignored.</p>
+<p>For five observers at a height of 1000 m, create:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>&gt;<span class="w"> </span>antennas-1000m.txt<span class="w"> </span><span class="s">&lt;&lt;'EOF'</span>
+<span class="s"># north_m west_m up_m</span>
+<span class="s">0 0 1000</span>
+<span class="s">100 0 1000</span>
+<span class="s">0 100 1000</span>
+<span class="s">-100 0 1000</span>
+<span class="s">0 -100 1000</span>
+<span class="s">EOF</span>
+</pre></div>
+</div>
+<p>Then add <code class="docutils literal notranslate"><span class="pre">--antenna-file</span> <span class="pre">antennas-1000m.txt</span> <span class="pre">--observation-level</span> <span class="pre">1000</span></code> to the
+run command. Antenna coordinates refer to the application’s fixed local
+north-west-up origin. The third coordinate is height above the reference Earth
+radius; it is not an offset above the observation plane. Moving the shower
+core does not automatically translate the antenna array.</p>
+<p>Check the log’s loaded-antenna count. An unreadable file or skipped malformed
+rows must not be mistaken for the intended array.</p>
+<p>For the small first-run example, <code class="docutils literal notranslate"><span class="pre">--ring</span> <span class="pre">1</span></code> generates eight points at a radius
+of 25 m. More generally, <code class="docutils literal notranslate"><span class="pre">--ring</span> <span class="pre">r</span></code> uses radius <span class="math notranslate nohighlight">\(25r\)</span> metres. These
+generated observers are at height zero, so use a file for an elevated array.
+Without an antenna file or a positive ring selection, no radio observers are
+configured.</p>
+<p>Radio time sampling is controlled by:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 45.0%" />
+<col style="width: 55.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Meaning and default</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--radio-sampling-rate-ghz</span></code></p></td>
+<td><p>Sampling rate, 1 GHz (1 ns spacing).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--radio-window-duration-ns</span></code></p></td>
+<td><p>Observer window duration, 400 ns.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--radio-pretrigger-ns</span></code></p></td>
+<td><p>Start of antenna-file windows before the geometrical direct-arrival
+time, 10 ns.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These settings define time sampling and recording windows, not a detector
+frequency filter. Check that the window contains the signal before comparing
+waveforms or integrating fluence.</p>
+</section>
+<section id="source-references">
+<h2>Source references<a class="headerlink" href="#source-references" title="Link to this heading"></a></h2>
+<p>See the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">primary, model and scene configuration</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/BackendOptions.hpp">backend defaults</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="first-shower.html" class="btn btn-neutral float-left" title="Run a first shower" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="parallel-execution.html" class="btn btn-neutral float-right" title="Parallel execution" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

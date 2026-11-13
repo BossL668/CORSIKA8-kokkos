@@ -1,21 +1,21 @@
 .. raw:: html
 
-   <p class="guide-eyebrow">DEVELOPER DOCUMENTATION</p>
+   <p class="guide-eyebrow">USER AND DEVELOPER DOCUMENTATION</p>
 
 CORSIKA 8 with Kokkos
 =====================
 
 .. container:: guide-lead
 
-   Technical documentation for the implementation, development and long-term
-   maintenance of CORSIKA 8 with Kokkos.
+   A guide to using, understanding, developing and maintaining CORSIKA 8
+   with Kokkos.
 
 .. raw:: html
 
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
      <strong>Documentation in preparation</strong>
-     <span>Chapter outlines are available. Technical content will be added and reviewed progressively.</span>
+     <span>The overview and user guide are available. Detailed architecture and maintenance chapters are being developed.</span>
    </div>
 
 Guide objectives
@@ -47,20 +47,27 @@ Guide objectives
 Inside this guide
 -----------------
 
-The chapters cover architecture, implementation, development and verification.
-Select a chapter to view its scope and planned coverage.
+Start with the :doc:`usage/index` to install the application, run a shower and
+inspect its output. The architecture and maintenance chapters will develop the
+implementation details and practices needed for continued development.
 
 .. toctree::
    :maxdepth: 1
    :caption: Getting oriented
 
    overview
-   application
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Using the application
+
+   usage/index
 
 .. toctree::
    :maxdepth: 1
    :caption: Architecture and data
 
+   application
    execution
    particles
    environment

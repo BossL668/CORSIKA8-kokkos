@@ -6,11 +6,11 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>About this guide &mdash; CORSIKA 8 Kokkos — Developer Guide</title>
+  <title>About this guide &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=a4a24f85" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/about.html" />
@@ -47,11 +47,22 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview and supported features</a></li>
-<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
@@ -95,15 +106,16 @@
              
   <section id="about-this-guide">
 <h1>About this guide<a class="headerlink" href="#about-this-guide" title="Link to this heading"></a></h1>
-<p>This guide is intended for developers and maintainers of CORSIKA 8 with Kokkos.
+<p>This guide is intended for users, developers and maintainers of CORSIKA 8 with Kokkos.
 Its purpose is to explain the implementation and provide a reference for
 continued development, review and maintenance as the code, dependencies and
 supported platforms evolve.</p>
 <section id="current-status">
 <h2>Current status<a class="headerlink" href="#current-status" title="Link to this heading"></a></h2>
-<p>The website structure, navigation, search and chapter outlines are available.
-The technical chapters have not been written or reviewed yet. An outline does
-not establish that a feature is implemented or validated.
+<p>The overview and user guide describe the current application, installation,
+configuration and output. Their source baseline is recorded in the
+<a class="reference internal" href="usage/index.html"><span class="doc">User guide</span></a>. The architecture and maintenance chapters are still outlines;
+an outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.</p>
 </section>
 <section id="writing-a-chapter">
