@@ -62,7 +62,12 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
@@ -113,7 +118,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview and user guide are available. Detailed architecture and maintenance chapters are being developed.</span>
+  <span>The overview, user guide and application integration chapter are available. Further architecture and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -139,8 +144,9 @@ with Kokkos.</p>
 <section id="inside-this-guide">
 <h2>Inside this guide<a class="headerlink" href="#inside-this-guide" title="Link to this heading"></a></h2>
 <p>Start with the <a class="reference internal" href="usage/index.html"><span class="doc">User guide</span></a> to install the application, run a shower and
-inspect its output. The architecture and maintenance chapters will develop the
-implementation details and practices needed for continued development.</p>
+inspect its output. The <a class="reference internal" href="application.html"><span class="doc">Application integration</span></a> chapter follows the actual function
+calls, arguments and results from the main application into the library.
+Further chapters will cover subsystem implementation and maintenance.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
@@ -163,13 +169,37 @@ implementation details and practices needed for continued development.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
-<li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
-<li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
-<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="application.html#read-the-interface-in-execution-order">Read the interface in execution order</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application.html#names-that-refer-to-different-responsibilities">Names that refer to different responsibilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application.html#what-crosses-the-application-interface">What crosses the application interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application.html#maintenance-entry-points">Maintenance entry points</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="particles.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="environment.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="physics-data.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="transport.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#planned-coverage">Planned coverage</a></li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">

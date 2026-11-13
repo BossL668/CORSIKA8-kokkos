@@ -1,0 +1,305 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution selection and setup &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/application/setup.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Application data and lifetime contracts" href="data-contracts.html" />
+    <link rel="prev" title="Application integration" href="../application.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../application.html">Application integration</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../application.html">Application integration</a></li>
+      <li class="breadcrumb-item active">Execution selection and setup</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/application/setup.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="execution-selection-and-setup">
+<h1>Execution selection and setup<a class="headerlink" href="#execution-selection-and-setup" title="Link to this heading"></a></h1>
+<p>This page covers the calls made before the per-event loop. <code class="docutils literal notranslate"><span class="pre">air</span></code> is the
+application’s namespace alias for <code class="docutils literal notranslate"><span class="pre">corsika::kokkos::application</span></code>. The two
+headers exposing the entry interfaces are included in <code class="docutils literal notranslate"><span class="pre">c8_air_shower.cpp</span></code>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">100</span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;corsika/kokkos/application/cascade/CascadeExtension.hpp&gt;</span>
+<span class="linenos">101</span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;corsika/kokkos/application/ExecutionSelection.hpp&gt;</span>
+</pre></div>
+</div>
+<section id="select-process-organization">
+<h2>1. Select process organization<a class="headerlink" href="#select-process-organization" title="Link to this heading"></a></h2>
+<p>The application still enters through <code class="docutils literal notranslate"><span class="pre">main</span></code>. Before constructing models, it
+inspects whether the command line requires coordinated execution:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">175</span><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="o">**</span><span class="w"> </span><span class="n">argv</span><span class="p">)</span><span class="w"> </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">176</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">executionMode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">air</span><span class="o">::</span><span class="n">select_execution</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span>
+<span class="linenos">177</span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">executionMode</span><span class="p">.</span><span class="n">isCoordinated</span><span class="p">())</span>
+<span class="linenos">178</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">executionMode</span><span class="p">.</span><span class="n">runCoordinator</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="linenos">179</span><span class="w">  </span><span class="c1">// the main command line description</span>
+<span class="linenos">180</span><span class="w">  </span><span class="n">CLI</span><span class="o">::</span><span class="n">App</span><span class="w"> </span><span class="n">app</span><span class="p">{</span><span class="s">"Simulate standard (downgoing) showers with CORSIKA 8."</span><span class="p">};</span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Call</p></th>
+<th class="head"><p>Inputs, return and effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">select_execution(argc,</span> <span class="pre">argv)</span></code></p></td>
+<td><p>Reads the original argument vector. Returns <code class="docutils literal notranslate"><span class="pre">ExecutionSelection</span></code>,
+containing parsed device identifiers and a coordination flag. It does
+not initialize physics models, random streams or Kokkos.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">isCoordinated()</span></code></p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">bool</span></code>. In a coordinator-enabled build, multiple selected GPUs
+or an explicit <code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code> option select this branch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">runCoordinator(argc,</span> <span class="pre">argv,</span> <span class="pre">true)</span></code></p></td>
+<td><p>Passes the original arguments to the coordinator and returns its integer
+exit status. <code class="docutils literal notranslate"><span class="pre">true</span></code> declares that this application implements resident
+worker sessions. The coordinator manages subprocesses; it does not
+construct the parent application’s C8 models.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">devices()</span></code></p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">DeviceSelection</span> <span class="pre">const&amp;</span></code>. The direct path passes it to backend
+option validation below.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Native C8, OpenMP and a single GPU without a parallel prefix use the direct
+path. An invalid device selection is reported through <code class="docutils literal notranslate"><span class="pre">CascadeAborted</span></code>.
+Calling <code class="docutils literal notranslate"><span class="pre">runCoordinator</span></code> on a direct selection throws <code class="docutils literal notranslate"><span class="pre">std::logic_error</span></code>.</p>
+<p>Implementation: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/ExecutionSelection.hpp">ExecutionSelection.hpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeSupport.cpp">CascadeSupport.cpp</a>.</p>
+</section>
+<section id="register-and-validate-backend-options">
+<h2>2. Register and validate backend options<a class="headerlink" href="#register-and-validate-backend-options" title="Link to this heading"></a></h2>
+<p>The extension is constructed while the application is registering CLI options:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">280</span><span class="w">  </span><span class="n">air</span><span class="o">::</span><span class="n">CascadeExtension</span><span class="w"> </span><span class="n">backend</span><span class="p">{</span><span class="n">app</span><span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeExtension(CLI::App&amp;,</span> <span class="pre">CascadeScene)</span></code> retains a reference to the parser
+and owns its <code class="docutils literal notranslate"><span class="pre">BackendOptions</span></code>, worker options and runtime holder. The scene
+defaults to <code class="docutils literal notranslate"><span class="pre">CascadeScene::Atmosphere</span></code>. Its constructor calls
+<code class="docutils literal notranslate"><span class="pre">add_backend_cli_options(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">workers_.addOptions(...)</span></code>; it does not
+construct the application’s atmosphere or physics models.</p>
+<p>After parsing, the application validates the combined selection:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">372</span><span class="w">  </span><span class="n">CLI11_PARSE</span><span class="p">(</span><span class="n">app</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span>
+<span class="linenos">373</span><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">backend</span><span class="p">.</span><span class="n">prepare</span><span class="p">(</span><span class="n">executionMode</span><span class="p">.</span><span class="n">devices</span><span class="p">(),</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_FAILURE</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">prepare(DeviceSelection</span> <span class="pre">const&amp;,</span> <span class="pre">char</span> <span class="pre">const*)</span></code> receives the selected devices
+and executable path. It reads already-parsed application options and delegates
+to <code class="docutils literal notranslate"><span class="pre">CascadeWorkerOptions::prepare(...)</span></code>. That function resolves device options,
+checks worker-input combinations and calls <code class="docutils literal notranslate"><span class="pre">validate_backend_cli_options(...)</span></code>.
+It returns <code class="docutils literal notranslate"><span class="pre">true</span></code> on success or <code class="docutils literal notranslate"><span class="pre">false</span></code> for a rejected configuration; some
+exceptional failures can propagate. <code class="docutils literal notranslate"><span class="pre">main</span></code> stops when validation returns false.</p>
+<p>This separates checking a requested backend from actually creating the device
+backend. The latter happens during execution, as described in
+<a class="reference internal" href="event-execution.html#application-backend-start"><span class="std std-ref">Prepare the backend and start transport</span></a>.</p>
+</section>
+<section id="configure-run-resources">
+<h2>3. Configure run resources<a class="headerlink" href="#configure-run-resources" title="Link to this heading"></a></h2>
+<p>After constructing the environment and shower geometry, <code class="docutils literal notranslate"><span class="pre">main</span></code> supplies a
+<code class="docutils literal notranslate"><span class="pre">RunEnvironmentConfig</span></code>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">512</span><span class="w">  </span><span class="n">air</span><span class="o">::</span><span class="n">RunEnvironmentConfig</span><span class="w"> </span><span class="n">run_environment</span><span class="p">{</span>
+<span class="linenos">513</span><span class="w">      </span><span class="n">geomagnetic_model</span><span class="p">,</span>
+<span class="linenos">514</span><span class="w">      </span><span class="n">geomagnetic_year</span><span class="p">,</span>
+<span class="linenos">515</span><span class="w">      </span><span class="n">cma21_latitude_deg</span><span class="p">,</span>
+<span class="linenos">516</span><span class="w">      </span><span class="n">cma21_longitude_deg</span><span class="p">,</span>
+<span class="linenos">517</span><span class="w">      </span><span class="n">cma21_altitude_m</span><span class="p">,</span>
+<span class="linenos">518</span><span class="w">      </span><span class="p">{</span><span class="n">cma21_field</span><span class="p">.</span><span class="n">getX</span><span class="p">(</span><span class="n">rootCS</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_T</span><span class="p">,</span><span class="w"> </span><span class="n">cma21_field</span><span class="p">.</span><span class="n">getY</span><span class="p">(</span><span class="n">rootCS</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_T</span><span class="p">,</span>
+<span class="linenos">519</span><span class="w">       </span><span class="n">cma21_field</span><span class="p">.</span><span class="n">getZ</span><span class="p">(</span><span class="n">rootCS</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_T</span><span class="p">},</span>
+<span class="linenos">520</span><span class="w">      </span><span class="n">app</span><span class="p">[</span><span class="s">"--max-deflection-angle"</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">as</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(),</span>
+<span class="linenos">521</span><span class="w">      </span><span class="p">{</span><span class="n">showerCoreX</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_m</span><span class="p">,</span><span class="w"> </span><span class="n">showerCoreY</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_m</span><span class="p">,</span><span class="w"> </span><span class="n">observationHeight</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_m</span><span class="p">},</span>
+<span class="linenos">522</span><span class="w">      </span><span class="n">app</span><span class="p">[</span><span class="s">"--antenna-file"</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">as</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">()};</span>
+<span class="linenos">523</span><span class="w">  </span><span class="n">backend</span><span class="p">.</span><span class="n">configure</span><span class="p">(</span><span class="n">run_environment</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The positional fields in this call are the magnetic-model name and year, site
+latitude/longitude/altitude, the field components in tesla, the magnetic
+deflection limit, the observation-plane point in metres, and the antenna-file
+path. The struct’s final <code class="docutils literal notranslate"><span class="pre">scene_</span></code> field keeps its atmosphere default here.</p>
+<p><code class="docutils literal notranslate"><span class="pre">configure(RunEnvironmentConfig</span> <span class="pre">const&amp;)</span></code> returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. It checks scene
+compatibility, copies this configuration into the extension and calls
+<code class="docutils literal notranslate"><span class="pre">CascadeRuntime::configure(...)</span></code>. In a Kokkos-enabled build, the runtime
+creates a <code class="docutils literal notranslate"><span class="pre">CascadeRunSession</span></code>. Its underlying <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> remains
+uninitialized until <code class="docutils literal notranslate"><span class="pre">beginProposalNative(...)</span></code>.</p>
+<p>This configuration contains settings and metadata. The actual C8 environment
+tree is passed separately through <code class="docutils literal notranslate"><span class="pre">geometry(...)</span></code>; the next page follows
+that reference.</p>
+</section>
+<section id="connect-writers-and-model-adapters">
+<h2>4. Connect writers and model adapters<a class="headerlink" href="#connect-writers-and-model-adapters" title="Link to this heading"></a></h2>
+<p>The extension provides several small factories used during the normal C8 setup:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 37.0%" />
+<col style="width: 63.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Call in <code class="docutils literal notranslate"><span class="pre">main</span></code></p></th>
+<th class="head"><p>Inputs and result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">registerOutput(output)</span></code></p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">OutputManager&amp;</span></code>; returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. Registers the available
+accelerated run output as <code class="docutils literal notranslate"><span class="pre">gpu_em</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">energyLossWriter(showerAxis,</span> <span class="pre">dX)</span></code></p></td>
+<td><p>Returns an <code class="docutils literal notranslate"><span class="pre">EnergyLossWriter</span></code> for the supplied axis and depth binning,
+with the configured short-track deposit convention. <code class="docutils literal notranslate"><span class="pre">main</span></code> registers
+this writer as <code class="docutils literal notranslate"><span class="pre">energyloss</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">longitudinalWriter(showerAxis,</span> <span class="pre">dX)</span></code></p></td>
+<td><p>Returns a <code class="docutils literal notranslate"><span class="pre">LongitudinalWriter</span></code> using <code class="docutils literal notranslate"><span class="pre">--profile-crossings</span></code>. <code class="docutils literal notranslate"><span class="pre">main</span></code>
+registers it as <code class="docutils literal notranslate"><span class="pre">profile</span></code> and supplies it to <code class="docutils literal notranslate"><span class="pre">LongitudinalProfile</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">interaction(env,</span> <span class="pre">sophia,</span> <span class="pre">sibyll-&gt;getHadronInteractionModel(),</span> <span class="pre">heHadronModelThreshold)</span></code></p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">proposal::AirShowerInteraction</span></code>. It receives the environment,
+low- and high-energy photonuclear models and their transition energy.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interactionCounter(leIntModel)</span></code></p></td>
+<td><p>Returns a counter around the supplied low-energy hadronic model. With
+FLUKA enabled, the library uses <code class="docutils literal notranslate"><span class="pre">make_fluka_interaction_counter(...)</span></code>;
+otherwise it constructs <code class="docutils literal notranslate"><span class="pre">InteractionCounter{model}</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These factories produce objects used by the application and its process
+sequence. Their existence does not imply that the associated calculation runs
+on a GPU.</p>
+<p>Implementation: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp">CascadeExtensionOptions.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeExtension.cpp">CascadeExtension.cpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl">CascadeExtension.inl</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../application.html" class="btn btn-neutral float-left" title="Application integration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="data-contracts.html" class="btn btn-neutral float-right" title="Application data and lifetime contracts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

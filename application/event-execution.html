@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event execution and results &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/application/event-execution.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Execution and scheduling" href="../execution.html" />
+    <link rel="prev" title="Application data and lifetime contracts" href="data-contracts.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../application.html">Application integration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../application.html">Application integration</a></li>
+      <li class="breadcrumb-item active">Event execution and results</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/application/event-execution.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="event-execution-and-results">
+<h1>Event execution and results<a class="headerlink" href="#event-execution-and-results" title="Link to this heading"></a></h1>
+<p>This page follows one event after the run-level <code class="docutils literal notranslate"><span class="pre">CascadeModule</span></code> has been
+created. The primary, tracking object, stack and process sequence are still
+constructed by <code class="docutils literal notranslate"><span class="pre">main</span></code>.</p>
+<section id="create-the-event-and-its-input">
+<h2>Create the event and its input<a class="headerlink" href="#create-the-event-and-its-input" title="Link to this heading"></a></h2>
+<p>At the start of the event loop, the application handles a worker request when
+running as a resident worker, then creates the event scope:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">785</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">workerSession</span><span class="p">.</span><span class="n">next</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span><span class="w"> </span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">seed</span><span class="p">))</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
+<span class="linenos">786</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">execution</span><span class="p">.</span><span class="n">shower</span><span class="p">(</span><span class="n">workerSession</span><span class="p">.</span><span class="n">isActive</span><span class="p">()</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i_shower</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For a direct run, <code class="docutils literal notranslate"><span class="pre">execution.shower(i_shower)</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">CascadeEvent&lt;...&gt;</span></code>. The event retains references to its driver and geometry,
+records the ordinal and captures the pre-event diagnostic state. This call
+does not transport the primary.</p>
+<p><code class="docutils literal notranslate"><span class="pre">main</span></code> builds the ordinary process sequence:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">812</span><span class="w">    </span><span class="c1">// assemble the final process sequence</span>
+<span class="linenos">813</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">sequence</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">814</span><span class="w">        </span><span class="n">make_sequence</span><span class="p">(</span><span class="n">stackInspect</span><span class="p">,</span><span class="w"> </span><span class="n">neutrinoPrimaryPythia</span><span class="p">,</span><span class="w"> </span><span class="n">hadronSequence</span><span class="p">,</span><span class="w"> </span><span class="n">decaySequence</span><span class="p">,</span>
+<span class="linenos">815</span><span class="w">                      </span><span class="n">emCascade</span><span class="p">,</span><span class="w"> </span><span class="n">prodprof</span><span class="p">,</span><span class="w"> </span><span class="n">emContinuous</span><span class="p">,</span><span class="w"> </span><span class="n">coreas</span><span class="p">,</span><span class="w"> </span><span class="n">zhs</span><span class="p">,</span><span class="w"> </span><span class="n">longprof</span><span class="p">,</span>
+<span class="linenos">816</span><span class="w">                      </span><span class="n">observationLevel</span><span class="p">,</span><span class="w"> </span><span class="n">inter_writer</span><span class="p">,</span><span class="w"> </span><span class="n">thinning</span><span class="p">,</span><span class="w"> </span><span class="n">cut</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It then supplies the primary through the event:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">842</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">primaryProperties</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">843</span><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">make_tuple</span><span class="p">(</span><span class="n">beamCode</span><span class="p">,</span><span class="w"> </span><span class="n">eKin</span><span class="p">,</span><span class="w"> </span><span class="n">propDir</span><span class="p">.</span><span class="n">normalized</span><span class="p">(),</span><span class="w"> </span><span class="n">injectionPos</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="n">_ns</span><span class="p">);</span>
+<span class="linenos">844</span><span class="w">    </span><span class="n">event</span><span class="p">.</span><span class="n">addPrimary</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">primaryProperties</span><span class="p">);</span>
+<span class="linenos">845</span>
+<span class="linenos">846</span><span class="w">    </span><span class="n">primaryWriter</span><span class="p">.</span><span class="n">recordPrimary</span><span class="p">(</span><span class="n">primaryProperties</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">addPrimary(TStack&amp;,</span> <span class="pre">TPrimary</span> <span class="pre">const&amp;)</span></code> returns <code class="docutils literal notranslate"><span class="pre">void</span></code> and constructs the
+event’s <code class="docutils literal notranslate"><span class="pre">CascadeParticleInput</span></code>. For a direct run, it calls
+<code class="docutils literal notranslate"><span class="pre">stack.addParticle(primaryProperties)</span></code>. The tuple contains particle code,
+kinetic energy, normalized direction, injection point and initial time, all
+in their native C8 types. In a worker receiving a frontier, the same interface
+imports or stages the assigned particles instead of adding a second primary.</p>
+</section>
+<section id="construct-the-runnable-adapter">
+<h2>Construct the runnable adapter<a class="headerlink" href="#construct-the-runnable-adapter" title="Link to this heading"></a></h2>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">848</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">EAS</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">849</span><span class="w">        </span><span class="n">event</span><span class="p">.</span><span class="n">cascade</span><span class="p">(</span><span class="n">tracking</span><span class="p">,</span><span class="w"> </span><span class="n">sequence</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">primaryTotalEnergy</span><span class="p">,</span><span class="w"> </span><span class="n">maxWeight</span><span class="p">);</span>
+<span class="linenos">850</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">force_interaction</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">851</span><span class="w">      </span><span class="n">CORSIKA_LOG_INFO</span><span class="p">(</span><span class="s">"Fixing first interaction at injection point."</span><span class="p">);</span>
+<span class="linenos">852</span><span class="w">      </span><span class="n">EAS</span><span class="p">.</span><span class="n">forceInteraction</span><span class="p">();</span>
+<span class="linenos">853</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">854</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">force_decay</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">855</span><span class="w">      </span><span class="n">CORSIKA_LOG_INFO</span><span class="p">(</span><span class="s">"Forcing the primary to decay"</span><span class="p">);</span>
+<span class="linenos">856</span><span class="w">      </span><span class="n">EAS</span><span class="p">.</span><span class="n">forceDecay</span><span class="p">();</span>
+<span class="linenos">857</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">858</span><span class="w">    </span><span class="n">EAS</span><span class="p">.</span><span class="n">run</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>The arguments to <code class="docutils literal notranslate"><span class="pre">event.cascade(...)</span></code> are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>Role</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tracking</span></code></p></td>
+<td><p>Reference to the native tracking object for scalar propagation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sequence</span></code></p></td>
+<td><p>Reference to this event’s configured process tree.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">output</span></code></p></td>
+<td><p>Reference to the output manager used by the selected cascade.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stack</span></code></p></td>
+<td><p>Reference to the event’s particle stack.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">primaryTotalEnergy</span></code></p></td>
+<td><p>This event’s total primary energy, as <code class="docutils literal notranslate"><span class="pre">HEPEnergyType</span></code>. It is distinct
+from the kinetic energy in <code class="docutils literal notranslate"><span class="pre">primaryProperties</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">maxWeight</span></code></p></td>
+<td><p>Dimensionless maximum thinning weight selected for this event.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The overload used by <code class="docutils literal notranslate"><span class="pre">main</span></code> obtains the inspector and thinning process from
+<code class="docutils literal notranslate"><span class="pre">sequence</span></code> with <code class="docutils literal notranslate"><span class="pre">select_process&lt;...&gt;()</span></code>. It requires the earlier
+<code class="docutils literal notranslate"><span class="pre">addPrimary(...)</span></code> call, then returns a <code class="docutils literal notranslate"><span class="pre">CascadeAdapter&lt;...&gt;</span></code> wrapping the
+driver’s event runner.</p>
+<p><code class="docutils literal notranslate"><span class="pre">forceInteraction()</span></code> and <code class="docutils literal notranslate"><span class="pre">forceDecay()</span></code> set flags in the adapter. They are
+applied to the selected cascade when <code class="docutils literal notranslate"><span class="pre">run()</span></code> executes the stored callback:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">25</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="n">CascadeAdapter</span><span class="o">&lt;</span><span class="n">TRun</span><span class="o">&gt;::</span><span class="n">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">configure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="k">this</span><span class="p">](</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">cascade</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">forceInteraction_</span><span class="p">)</span><span class="w"> </span><span class="n">cascade</span><span class="p">.</span><span class="n">forceInteraction</span><span class="p">();</span>
+<span class="linenos">28</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">forceDecay_</span><span class="p">)</span><span class="w"> </span><span class="n">cascade</span><span class="p">.</span><span class="n">forceDecay</span><span class="p">();</span>
+<span class="linenos">29</span><span class="w">    </span><span class="p">};</span>
+<span class="linenos">30</span><span class="w">    </span><span class="n">run_</span><span class="p">(</span><span class="n">configure</span><span class="p">);</span>
+<span class="linenos">31</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The factory returns an object; <code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. The simulation
+results are written through the references supplied to that object.</p>
+</section>
+<section id="select-the-native-or-accelerated-runner">
+<h2>Select the native or accelerated runner<a class="headerlink" href="#select-the-native-or-accelerated-runner" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeDriver::cascade(...)</span></code> installs the following branch order in its
+callback:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">input.runPrefix(...)</span></code> handles a CPU-prefix capture/splitting role. If it
+returns <code class="docutils literal notranslate"><span class="pre">true</span></code>, that role has completed and the callback returns.</p></li>
+<li><p>With <code class="docutils literal notranslate"><span class="pre">options_.emBackend_</span> <span class="pre">==</span> <span class="pre">&quot;proposal&quot;</span></code>, construct and run a native C8
+<code class="docutils literal notranslate"><span class="pre">Cascade</span></code> using the original environment, tracking, sequence, output and
+stack.</p></li>
+<li><p>Otherwise, construct the accelerated event adapter through
+<code class="docutils literal notranslate"><span class="pre">accelerated_.cascade(...)</span></code> and call its <code class="docutils literal notranslate"><span class="pre">run()</span></code>.</p></li>
+</ol>
+<p>The native branch contains the familiar C8 construction:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">189</span><span class="w">        </span><span class="n">Cascade</span><span class="w"> </span><span class="nf">EAS</span><span class="p">(</span><span class="n">geometry_</span><span class="p">.</span><span class="n">environment_</span><span class="p">,</span><span class="w"> </span><span class="n">tracking</span><span class="p">,</span><span class="w"> </span><span class="n">sequence</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">);</span>
+<span class="linenos">190</span><span class="w">        </span><span class="n">configure</span><span class="p">(</span><span class="n">EAS</span><span class="p">);</span>
+<span class="linenos">191</span><span class="w">        </span><span class="n">EAS</span><span class="p">.</span><span class="n">run</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Thus the outer <code class="docutils literal notranslate"><span class="pre">EAS</span></code> in <code class="docutils literal notranslate"><span class="pre">main</span></code> is an adapter. This inner <code class="docutils literal notranslate"><span class="pre">EAS</span></code> is the
+native <code class="docutils literal notranslate"><span class="pre">Cascade</span></code> selected by that adapter. They are separate local objects
+with the same run/forced-primary operations.</p>
+</section>
+<section id="recover-the-actual-event-processes-and-writers">
+<h2>Recover the actual event processes and writers<a class="headerlink" href="#recover-the-actual-event-processes-and-writers" title="Link to this heading"></a></h2>
+<p>On the accelerated branch, <code class="docutils literal notranslate"><span class="pre">CascadeApplication::cascade(...)</span></code> combines the
+run defaults with event-specific energy, weight and IDs. Its callback then
+calls <code class="docutils literal notranslate"><span class="pre">complete_models(models_,</span> <span class="pre">sequence)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">complete_outputs(outputs_,</span> <span class="pre">sequence)</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">complete_models</span></code> keeps the explicitly bound radio and electromagnetic
+models, then borrows the neutrino, hadron-switch, decay-switch, continuous-loss,
+longitudinal, production and cut processes from the event sequence.
+<code class="docutils literal notranslate"><span class="pre">complete_outputs</span></code> retrieves the associated writers:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">16</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">complete_outputs</span><span class="p">(</span><span class="n">SequenceOutputs</span><span class="o">&lt;</span><span class="n">TC</span><span class="p">,</span><span class="w"> </span><span class="n">TZ</span><span class="o">&gt;</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">outputs</span><span class="p">,</span><span class="w"> </span><span class="n">TS</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sequence</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">process_selection</span><span class="p">;</span>
+<span class="linenos">18</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">CascadeOutputs</span><span class="p">{</span><span class="n">select_process</span><span class="o">&lt;</span><span class="n">Cut</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sequence</span><span class="p">).</span><span class="n">getWriter</span><span class="p">(),</span>
+<span class="linenos">19</span><span class="w">                          </span><span class="n">select_process</span><span class="o">&lt;</span><span class="n">Longitudinal</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sequence</span><span class="p">).</span><span class="n">getWriter</span><span class="p">(),</span>
+<span class="linenos">20</span><span class="w">                          </span><span class="n">select_process</span><span class="o">&lt;</span><span class="n">Production</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sequence</span><span class="p">).</span><span class="n">getWriter</span><span class="p">(),</span>
+<span class="linenos">21</span><span class="w">                          </span><span class="n">select_process</span><span class="o">&lt;</span><span class="n">Observation</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sequence</span><span class="p">),</span>
+<span class="linenos">22</span><span class="w">                          </span><span class="n">select_process</span><span class="o">&lt;</span><span class="n">Interactions</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sequence</span><span class="p">),</span>
+<span class="linenos">23</span><span class="w">                          </span><span class="n">outputs</span><span class="p">.</span><span class="n">coreasDetector_</span><span class="p">,</span>
+<span class="linenos">24</span><span class="w">                          </span><span class="n">outputs</span><span class="p">.</span><span class="n">zhsDetector_</span><span class="p">};</span>
+<span class="linenos">25</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>These calls return reference bundles, <code class="docutils literal notranslate"><span class="pre">CascadeModels&lt;...&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CascadeOutputs&lt;...&gt;</span></code>. <code class="docutils literal notranslate"><span class="pre">select_process</span></code> matches process types at compile
+time and requires exactly one match. It does not run a hadronic switch’s
+particle-dependent condition to select a physics outcome. A matching
+composite retains its whole switch scope.</p>
+<p>The resulting <code class="docutils literal notranslate"><span class="pre">CascadeContext</span></code> groups geometry, outputs, processes, execution
+objects and diagnostics. For <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>, it is passed to
+<code class="docutils literal notranslate"><span class="pre">run_cascade(session_,</span> <span class="pre">options_,</span> <span class="pre">event,</span> <span class="pre">context)</span></code>. An enabled EGS4 session
+takes its separate <code class="docutils literal notranslate"><span class="pre">egs4_-&gt;run(...)</span></code> branch.</p>
+</section>
+<section id="prepare-the-backend-and-start-transport">
+<span id="application-backend-start"></span><h2>Prepare the backend and start transport<a class="headerlink" href="#prepare-the-backend-and-start-transport" title="Link to this heading"></a></h2>
+<p>The PROPOSAL runner exports the observation plane from the actual observation
+process and prepares the host data:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">102</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">observation_plane</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">103</span><span class="w">        </span><span class="n">export_observation_plane</span><span class="p">(</span><span class="n">observationLevel</span><span class="p">.</span><span class="n">getPlane</span><span class="p">(),</span><span class="w"> </span><span class="n">rootCS</span><span class="p">);</span>
+<span class="linenos">104</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">prepared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prepare_cascade</span><span class="p">(</span>
+<span class="linenos">105</span><span class="w">        </span><span class="n">cuda_session</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_cli</span><span class="p">,</span><span class="w"> </span><span class="n">event</span><span class="p">,</span><span class="w"> </span><span class="n">env</span><span class="p">,</span><span class="w"> </span><span class="n">rootCS</span><span class="p">,</span><span class="w"> </span><span class="n">injectionPos</span><span class="p">,</span><span class="w"> </span><span class="n">surface_</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p">,</span>
+<span class="linenos">106</span><span class="w">        </span><span class="n">detectorCoREAS</span><span class="p">,</span><span class="w"> </span><span class="n">detectorZHS</span><span class="p">,</span><span class="w"> </span><span class="n">showerAxis</span><span class="p">,</span><span class="w"> </span><span class="n">dX</span><span class="p">,</span><span class="w"> </span><span class="n">observationHeight_m</span><span class="p">,</span><span class="w"> </span><span class="n">showerCoreX_m</span><span class="p">,</span>
+<span class="linenos">107</span><span class="w">        </span><span class="n">showerCoreY_m</span><span class="p">,</span><span class="w"> </span><span class="n">magnetic_field_T</span><span class="p">,</span><span class="w"> </span><span class="n">dEdX</span><span class="p">,</span><span class="w"> </span><span class="n">profile</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">observation_plane</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_cascade(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">PreparedCascade&lt;...&gt;</span></code> as described in
+<a class="reference internal" href="data-contracts.html"><span class="doc">Application data and lifetime contracts</span></a>. Inside the runner’s <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> callback, the
+interaction and continuous models provide calculator views on the first
+initialization. The session is then started or reused:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">139</span><span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">session_begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">runtime_session</span><span class="p">.</span><span class="n">beginProposalNative</span><span class="p">(</span>
+<span class="linenos">140</span><span class="w">          </span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentData_</span><span class="p">,</span><span class="w"> </span><span class="n">prepared</span><span class="p">.</span><span class="n">geometry_</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_config</span><span class="p">,</span><span class="w"> </span><span class="n">physics_requirements</span><span class="p">,</span>
+<span class="linenos">141</span><span class="w">          </span><span class="n">native_views</span><span class="p">,</span><span class="w"> </span><span class="n">native_continuous_views</span><span class="p">);</span>
+<span class="linenos">142</span><span class="w">      </span><span class="n">backend_reused_for_shower</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">session_begin</span><span class="p">.</span><span class="n">reused_</span><span class="p">;</span>
+<span class="linenos">143</span><span class="w">      </span><span class="n">muon_transport_available</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">session_begin</span><span class="p">.</span><span class="n">muonTransportAvailable_</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The six inputs are the numerical environment view, transport geometry,
+backend configuration, physics requirements, native interaction-calculator
+views and native continuous-calculator views. The return type is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">16</span><span class="w">  </span><span class="k">struct</span><span class="w"> </span><span class="nc">SessionBeginResult</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">    </span><span class="n">EmBackend</span><span class="o">*</span><span class="w"> </span><span class="n">backend_</span><span class="p">{};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">backend_</span></code> is a borrowed pointer to the session-owned <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code>;
+<code class="docutils literal notranslate"><span class="pre">reused_</span></code> reports whether it was already initialized; and
+<code class="docutils literal notranslate"><span class="pre">muonTransportAvailable_</span></code> reports the backend capability. On first use the
+session exports tables and initializes the backend. On reuse it calls
+<code class="docutils literal notranslate"><span class="pre">beginShower(...)</span></code> to reset event state, after checking environment
+compatibility.</p>
+<p>Finally, <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> validates the process registry, obtains the
+backend, constructs the CPU-fallback handler and output sink, and creates the
+particle router and <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>. It calls <code class="docutils literal notranslate"><span class="pre">cascade.run()</span></code> and then the
+completion/report callback. Both this function and <code class="docutils literal notranslate"><span class="pre">run_cascade(...)</span></code> return
+<code class="docutils literal notranslate"><span class="pre">void</span></code>.</p>
+</section>
+<section id="where-the-results-go">
+<h2>Where the results go<a class="headerlink" href="#where-the-results-go" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Result</p></th>
+<th class="head"><p>Receiver</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Particle propagation and interactions</p></td>
+<td><p>The supplied stack, particle router and CPU/device processing paths.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Energy deposition and longitudinal profiles</p></td>
+<td><p>The writers recovered from the event sequence, connected through
+<code class="docutils literal notranslate"><span class="pre">CorsikaOutputSink</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Observation-level particles and interaction records</p></td>
+<td><p>The existing observation and interaction writers.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Radio waveforms</p></td>
+<td><p>The bound CoREAS/ZHS observer collections and their output modules.</p></td>
+</tr>
+<tr class="row-even"><td><p>Backend statistics and completion</p></td>
+<td><p>Run-session output, recorded by <code class="docutils literal notranslate"><span class="pre">ShowerReportBuilder::record(...)</span></code>
+after accelerated execution.</p></td>
+</tr>
+</tbody>
+</table>
+<p>After <code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> returns, <code class="docutils literal notranslate"><span class="pre">main</span></code> reads the same writers, for example
+<code class="docutils literal notranslate"><span class="pre">dEdX.getEnergyLost()</span></code> and <code class="docutils literal notranslate"><span class="pre">observationLevel.getEnergyGround()</span></code> for its energy
+budget. The event wrapper also completes any radio-track capture after a
+successful run.</p>
+<p>An exception in the accelerated branch is recorded as incomplete. The driver
+closes an active shower/output library and throws <code class="docutils literal notranslate"><span class="pre">CascadeAborted</span></code>. A failed
+run must therefore not be interpreted as a completed event merely because
+some writer files exist.</p>
+</section>
+<section id="source-references-and-existing-checks">
+<h2>Source references and existing checks<a class="headerlink" href="#source-references-and-existing-checks" title="Link to this heading"></a></h2>
+<p>Follow <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl">CascadeApplication.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>.</p>
+<p>Existing focused checks include <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/ExecutionSelection.cpp">execution selection</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/bindings/Bindings.cpp">bindings and adapter behavior</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/framework/process/testProcessSelection.cpp">process selection</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/hybrid/testHybridCascade.cpp">hybrid cascade behavior</a>.
+They cover interface contracts at different levels; none alone establishes
+full-shower statistical agreement. This chapter documents their scope, without
+reporting a new simulation campaign.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="data-contracts.html" class="btn btn-neutral float-left" title="Application data and lifetime contracts" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../execution.html" class="btn btn-neutral float-right" title="Execution and scheduling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

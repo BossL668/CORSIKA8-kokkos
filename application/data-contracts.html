@@ -1,0 +1,385 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Application data and lifetime contracts &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/application/data-contracts.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Event execution and results" href="event-execution.html" />
+    <link rel="prev" title="Execution selection and setup" href="setup.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../application.html">Application integration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../application.html">Application integration</a></li>
+      <li class="breadcrumb-item active">Application data and lifetime contracts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/application/data-contracts.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="application-data-and-lifetime-contracts">
+<h1>Application data and lifetime contracts<a class="headerlink" href="#application-data-and-lifetime-contracts" title="Link to this heading"></a></h1>
+<p>The run is connected with three calls immediately before the event loop. These
+are actual calls from <code class="docutils literal notranslate"><span class="pre">main</span></code>; the environment and models already exist here.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">770</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">geometry</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">771</span><span class="w">      </span><span class="n">backend</span><span class="p">.</span><span class="n">geometry</span><span class="p">(</span><span class="n">env</span><span class="p">,</span><span class="w"> </span><span class="n">rootCS</span><span class="p">,</span><span class="w"> </span><span class="n">injectionPos</span><span class="p">,</span><span class="w"> </span><span class="n">surface_</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p">,</span><span class="w"> </span><span class="n">showerAxis</span><span class="p">,</span><span class="w"> </span><span class="n">dX</span><span class="p">);</span>
+<span class="linenos">772</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">defaults</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">air</span><span class="o">::</span><span class="n">make_cascade_defaults</span><span class="p">(</span>
+<span class="linenos">773</span><span class="w">      </span><span class="n">app</span><span class="p">,</span><span class="w"> </span><span class="n">seed</span><span class="p">,</span><span class="w"> </span><span class="n">eMax</span><span class="p">,</span><span class="w"> </span><span class="n">beamCode</span><span class="p">,</span><span class="w"> </span><span class="n">cut</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">,</span><span class="w"> </span><span class="n">heHadronModelThreshold</span><span class="p">,</span><span class="w"> </span><span class="n">multithin</span><span class="p">);</span>
+<span class="linenos">774</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">backend</span><span class="p">.</span><span class="n">execution</span><span class="p">(</span><span class="n">geometry</span><span class="p">,</span><span class="w"> </span><span class="n">defaults</span><span class="p">,</span><span class="w"> </span><span class="n">emCascade</span><span class="p">,</span><span class="w"> </span><span class="n">emContinuousProposal</span><span class="p">,</span>
+<span class="linenos">775</span><span class="w">                                     </span><span class="n">coreas</span><span class="p">,</span><span class="w"> </span><span class="n">zhs</span><span class="p">,</span><span class="w"> </span><span class="n">heCounted</span><span class="p">,</span><span class="w"> </span><span class="n">leIntCounted</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">geometry</span></code> describes the scene through references, <code class="docutils literal notranslate"><span class="pre">defaults</span></code> contains
+configuration values, and <code class="docutils literal notranslate"><span class="pre">execution</span></code> retains the library driver across
+events. None of these calls advances a particle.</p>
+<section id="geometry-borrow-the-existing-scene">
+<h2>geometry(): borrow the existing scene<a class="headerlink" href="#geometry-borrow-the-existing-scene" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeExtension::geometry(...)</span></code> calls <code class="docutils literal notranslate"><span class="pre">make_cascade_geometry(...)</span></code> and
+returns <code class="docutils literal notranslate"><span class="pre">CascadeGeometry&lt;...&gt;</span></code> by value. Copying that bundle copies references
+to C8 objects; it does not copy the environment tree to a GPU.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 32.0%" />
+<col style="width: 44.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument in <code class="docutils literal notranslate"><span class="pre">main</span></code></p></th>
+<th class="head"><p>Field in <code class="docutils literal notranslate"><span class="pre">CascadeGeometry</span></code></p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">env</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">environment_</span></code></p></td>
+<td><p>Reference to the native <code class="docutils literal notranslate"><span class="pre">Environment&lt;EnvironmentInterface&gt;</span></code> and its
+geometry/material tree.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rootCS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">coordinates_</span></code></p></td>
+<td><p>Reference to the coordinate-system pointer used for numerical export.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">injectionPos</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">injectionPosition_</span></code></p></td>
+<td><p>Native primary-injection point, retaining its units and coordinates.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">surface_</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_</span></code></p></td>
+<td><p>Native surface reference used by the propagation setup.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">step</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">propagationStep_</span></code></p></td>
+<td><p>Radio propagation step, set to <code class="docutils literal notranslate"><span class="pre">1_m</span></code> in this application. It is not
+the particle’s selected transport step.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">showerAxis</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">showerAxis_</span></code></p></td>
+<td><p>Native shower axis used for longitudinal projections.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dX</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">depthStep_</span></code></p></td>
+<td><p>Profile bin width, <code class="docutils literal notranslate"><span class="pre">10_g</span> <span class="pre">/</span> <span class="pre">square(1_cm)</span></code> here. It is not a sampled
+interaction depth.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The factory also copies the observation height, horizontal core coordinates
+and magnetic-field metadata from the previously configured
+<code class="docutils literal notranslate"><span class="pre">RunEnvironmentConfig</span></code>. The actual device field is obtained from the native
+environment’s model export during <code class="docutils literal notranslate"><span class="pre">prepare_cascade(...)</span></code>.</p>
+<p>The storage contract is visible in the declaration:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">26</span><span class="w">  </span><span class="k">struct</span><span class="w"> </span><span class="nc">CascadeGeometry</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">    </span><span class="n">TEnvironment</span><span class="o">&amp;</span><span class="w"> </span><span class="n">environment_</span><span class="p">;</span>
+<span class="linenos">28</span><span class="w">    </span><span class="n">TCoordinates</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">coordinates_</span><span class="p">;</span>
+<span class="linenos">29</span><span class="w">    </span><span class="n">TPosition</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">injectionPosition_</span><span class="p">;</span>
+<span class="linenos">30</span><span class="w">    </span><span class="n">TSurface</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">surface_</span><span class="p">;</span>
+<span class="linenos">31</span><span class="w">    </span><span class="n">TStep</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">propagationStep_</span><span class="p">;</span>
+<span class="linenos">32</span><span class="w">    </span><span class="n">TAxis</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">showerAxis_</span><span class="p">;</span>
+<span class="linenos">33</span><span class="w">    </span><span class="n">TDepth</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">depthStep_</span><span class="p">;</span>
+<span class="linenos">34</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">observationHeightM_</span><span class="p">;</span>
+<span class="linenos">35</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">coreXM_</span><span class="p">;</span>
+<span class="linenos">36</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">coreYM_</span><span class="p">;</span>
+<span class="linenos">37</span><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&lt;</span><span class="kt">double</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="o">&gt;</span><span class="w"> </span><span class="n">magneticFieldT_</span><span class="p">;</span>
+<span class="linenos">38</span><span class="w">  </span><span class="p">};</span>
+</pre></div>
+</div>
+<p>The referenced scene objects must remain alive through transport, CPU fallback
+and output. Changing a few fields in <code class="docutils literal notranslate"><span class="pre">RunEnvironmentConfig</span></code> does not replace
+the actual C8 environment.</p>
+</section>
+<section id="make-cascade-defaults-copy-run-settings">
+<h2>make_cascade_defaults(): copy run settings<a class="headerlink" href="#make-cascade-defaults-copy-run-settings" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">make_cascade_defaults(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">CascadeEventConfig</span></code>. Its inputs are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>Values read or stored</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">app</span></code></p></td>
+<td><p>Parsed thinning fraction, automatic-weight selection, high-energy
+hadronic model name and maximum magnetic deflection angle.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seed</span></code>, <code class="docutils literal notranslate"><span class="pre">eMax</span></code>, <code class="docutils literal notranslate"><span class="pre">beamCode</span></code></p></td>
+<td><p>Run seed, maximum configured primary energy and primary particle code.
+<code class="docutils literal notranslate"><span class="pre">eMax</span></code> has the native <code class="docutils literal notranslate"><span class="pre">HEPEnergyType</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cut</span></code></p></td>
+<td><p>Electron and muon kinetic-energy cuts, obtained with
+<code class="docutils literal notranslate"><span class="pre">getElectronKineticECut()</span></code> and <code class="docutils literal notranslate"><span class="pre">getMuonKineticECut()</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prod_threshold</span></code>, <code class="docutils literal notranslate"><span class="pre">heHadronModelThreshold</span></code></p></td>
+<td><p>Native energy quantities for secondary production and the hadronic
+model transition.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">multithin</span></code></p></td>
+<td><p>Stored as <code class="docutils literal notranslate"><span class="pre">keepZeroWeightParticles_</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>This is a value object. It does not store a new primary particle or start a
+shower. <code class="docutils literal notranslate"><span class="pre">CascadeApplication::cascade(...)</span></code> later copies it and fills the
+event’s ordinal, output ID, actual primary energy and maximum weight. That
+distinction also supports a run whose primary energies are sampled over a
+range.</p>
+</section>
+<section id="execution-bind-models-and-outputs-for-the-run">
+<h2>execution(): bind models and outputs for the run<a class="headerlink" href="#execution-bind-models-and-outputs-for-the-run" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">backend.execution(...)</span></code> receives <code class="docutils literal notranslate"><span class="pre">geometry</span></code> and <code class="docutils literal notranslate"><span class="pre">defaults</span></code> by value,
+then references to six existing model/counter objects and the output manager:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Arguments</p></th>
+<th class="head"><p>Why the library needs them</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emCascade</span></code>, <code class="docutils literal notranslate"><span class="pre">emContinuousProposal</span></code></p></td>
+<td><p>Native interaction and continuous-process instances. They provide
+PROPOSAL calculator views for table export and the corresponding native
+process connections.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">coreas</span></code>, <code class="docutils literal notranslate"><span class="pre">zhs</span></code></p></td>
+<td><p>Radio process instances. Their <code class="docutils literal notranslate"><span class="pre">observerCollection()</span></code> methods supply
+the configured observer collections.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">heCounted</span></code>, <code class="docutils literal notranslate"><span class="pre">leIntCounted</span></code></p></td>
+<td><p>Existing hadronic interaction counters used for event diagnostics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">output</span></code></p></td>
+<td><p>Existing <code class="docutils literal notranslate"><span class="pre">OutputManager&amp;</span></code> used to register run-level timing and any
+additional backend output.</p></td>
+</tr>
+</tbody>
+</table>
+<p>It creates <code class="docutils literal notranslate"><span class="pre">SequenceModels</span></code>, <code class="docutils literal notranslate"><span class="pre">SequenceOutputs</span></code> and <code class="docutils literal notranslate"><span class="pre">CascadeMonitors</span></code>
+bundles, then returns a <code class="docutils literal notranslate"><span class="pre">CascadeModule&lt;...&gt;</span></code>. The returned module contains
+its <code class="docutils literal notranslate"><span class="pre">CascadeDriver</span></code>, timing writer and binding/configuration state. The
+physical model objects and detector collections remain owned by the caller.</p>
+<p>For example, the run-level model bundle contains references:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">17</span><span class="w">  </span><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceModels</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">18</span><span class="w">    </span><span class="n">TC</span><span class="o">&amp;</span><span class="w"> </span><span class="n">coreas_</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">    </span><span class="n">TZ</span><span class="o">&amp;</span><span class="w"> </span><span class="n">zhs_</span><span class="p">;</span>
+<span class="linenos">20</span><span class="w">    </span><span class="n">TE</span><span class="o">&amp;</span><span class="w"> </span><span class="n">emCascade_</span><span class="p">;</span>
+<span class="linenos">21</span><span class="w">    </span><span class="n">TP</span><span class="o">&amp;</span><span class="w"> </span><span class="n">emContinuousProposal_</span><span class="p">;</span>
+<span class="linenos">22</span><span class="w">  </span><span class="p">};</span>
+</pre></div>
+</div>
+<p>Event-specific processes and writers are obtained from the actual
+<code class="docutils literal notranslate"><span class="pre">ProcessSequence</span></code> when the event executes. The application therefore does
+not pass every event-local object to <code class="docutils literal notranslate"><span class="pre">execution(...)</span></code>. The
+<a class="reference internal" href="event-execution.html"><span class="doc">Event execution and results</span></a> page follows this lookup.</p>
+</section>
+<section id="where-host-objects-become-device-data">
+<h2>Where host objects become device data<a class="headerlink" href="#where-host-objects-become-device-data" title="Link to this heading"></a></h2>
+<p>The main application passes C8 objects to a host-side interface. GPU kernels
+receive numerical views and backend-managed storage later in the call chain:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Boundary</p></th>
+<th class="head"><p>Returned data or state change</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prepare_cascade(...)</span></code></p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">PreparedCascade&lt;...&gt;</span></code>. It owns a shared reference to an
+exported environment snapshot, provides its <code class="docutils literal notranslate"><span class="pre">EnvironmentDataView</span></code> and
+prepares transport, radio, profile and physics-requirement configuration.
+It does not transport particles or initialize the backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nativeCalculatorViews()</span></code></p></td>
+<td><p>The interaction and continuous models provide native calculator views.
+The runner requests them on first backend initialization.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">beginProposalNative(...)</span></code></p></td>
+<td><p>Exports/loads native table data and initializes device storage on the
+first call; resets shower-local backend state on reuse. Returns
+<code class="docutils literal notranslate"><span class="pre">SessionBeginResult</span></code>; see <a class="reference internal" href="event-execution.html#application-backend-start"><span class="std std-ref">Prepare the backend and start transport</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">PreparedCascade::environmentData_</span></code> borrows
+<code class="docutils literal notranslate"><span class="pre">PreparedCascade::environmentStorage_</span></code>. The original native environment also
+remains necessary for CPU processing and node-aware fallback. A changed
+environment is rejected when reusing an initialized <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code>; create
+a new session to upload a different scene.</p>
+</section>
+<section id="ownership-rules-for-application-authors">
+<h2>Ownership rules for application authors<a class="headerlink" href="#ownership-rules-for-application-authors" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Keep <code class="docutils literal notranslate"><span class="pre">CLI::App</span></code> alive for the extension, and keep <code class="docutils literal notranslate"><span class="pre">backend</span></code> alive for
+the returned <code class="docutils literal notranslate"><span class="pre">execution</span></code> module.</p></li>
+<li><p>Keep the native environment, coordinate system, geometry, model instances,
+counters, detectors and output manager alive while their bindings are used.</p></li>
+<li><p>Keep the event, stack, tracking object and sequence alive until the returned
+adapter’s <code class="docutils literal notranslate"><span class="pre">run()</span></code> finishes. Its callbacks capture references.</p></li>
+<li><p>Treat run-configuration values and borrowed object state differently:
+copying a configuration struct does not create independent models or writers.</p></li>
+</ul>
+</section>
+<section id="source-references">
+<h2>Source references<a class="headerlink" href="#source-references" title="Link to this heading"></a></h2>
+<p>The factories are in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeSupport.inl">CascadeSupport.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl">CascadeExtension.inl</a>.
+The receiving types are declared in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeContext.hpp">CascadeContext.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeEventConfig.hpp">CascadeEventConfig.hpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/PreparedCascade.hpp">PreparedCascade.hpp</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="setup.html" class="btn btn-neutral float-left" title="Execution selection and setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="event-execution.html" class="btn btn-neutral float-right" title="Event execution and results" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

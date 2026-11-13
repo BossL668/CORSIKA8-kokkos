@@ -62,10 +62,12 @@ Where to start
 * **Check a result:** see :doc:`usage/outputs` for completion records, data and
   timing definitions.
 
-The later architecture and maintenance chapters are being written. Implementation
-availability, numerical validation and performance measurements will be documented
-separately; a build profile does not establish scientific validation on every
-device it can target.
+For the implementation, continue with :doc:`application`: it traces the function
+calls, arguments, ownership and results of the application interface. The remaining
+architecture and maintenance chapters are being written. Implementation
+availability, numerical validation and performance measurements are separate;
+a build profile does not establish scientific validation on every device it
+can target.
 
 Source reference
 ----------------
