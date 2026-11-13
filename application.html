@@ -123,6 +123,62 @@ The following pages describe the current implementation. Code excerpts are
 included directly from repository files, with their original identifiers and
 source line numbers. Paths are relative to the project root.</p>
 </div>
+<section id="source-file-map">
+<span id="application-source-files"></span><h2>Source file map<a class="headerlink" href="#source-file-map" title="Link to this heading"></a></h2>
+<p>The selected files below follow the call chain described in this chapter.
+Paths start at the repository root; each filename links to the source baseline
+recorded above.</p>
+<p>The public headers in <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/application/</span></code> declare the application
+interfaces and data types. Template implementations are under
+<code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/application/</span></code>, while compiled, non-template
+implementations are under <code class="docutils literal notranslate"><span class="pre">src/kokkos/application/</span></code>.</p>
+<pre class="literal-block">applications/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">c8_air_shower.cpp</a>                 main(), C8 setup and event loop
+
+corsika/kokkos/application/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/ExecutionSelection.hpp">ExecutionSelection.hpp</a>            direct/coordinated execution interface
+└── cascade/
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp">CascadeExtensionOptions.hpp</a>   CascadeExtension declaration
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtension.hpp">CascadeExtension.hpp</a>          CascadeModule and CascadeEvent declarations
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeContext.hpp">CascadeContext.hpp</a>            geometry and context reference bundles
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeEventConfig.hpp">CascadeEventConfig.hpp</a>        run defaults and per-event settings
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/RunEnvironmentConfig.hpp">RunEnvironmentConfig.hpp</a>      site and run metadata
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/PreparedCascade.hpp">PreparedCascade.hpp</a>           prepared snapshot and backend settings
+    ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/SequenceModels.hpp">SequenceModels.hpp</a>            borrowed model references
+    └── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/SequenceOutputs.hpp">SequenceOutputs.hpp</a>           borrowed observer references
+
+corsika/detail/kokkos/application/cascade/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl">CascadeExtension.inl</a>              geometry(), execution(), shower(), cascade()
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeSupport.inl">CascadeSupport.inl</a>                geometry and defaults factories
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeAdapter.inl">CascadeAdapter.inl</a>                run() and forced-primary flags
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a>                 prefix/native/accelerated path selection
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl">CascadeApplication.inl</a>            event context and accelerated dispatch
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl">CascadePreparation.inl</a>            prepare_cascade(): host data preparation
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a>                 run_cascade(): start the hybrid cascade
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceModels.inl">SequenceModels.inl</a>                complete_models(): recover event processes
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceOutputs.inl">SequenceOutputs.inl</a>               complete_outputs(): recover event writers
+
+src/kokkos/application/cascade/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeExtension.cpp">CascadeExtension.cpp</a>              option registration, prepare(), configure()
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeSupport.cpp">CascadeSupport.cpp</a>                select_execution() and runtime setup
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeRunSession.cpp">CascadeRunSession.cpp</a>             run-session state and output records</pre>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeExtension.hpp</span></code> is the header included by <code class="docutils literal notranslate"><span class="pre">main</span></code>. It includes
+<code class="docutils literal notranslate"><span class="pre">CascadeExtensionOptions.hpp</span></code>, where the <code class="docutils literal notranslate"><span class="pre">CascadeExtension</span></code> class itself is
+declared, and defines the <code class="docutils literal notranslate"><span class="pre">CascadeModule</span></code> and <code class="docutils literal notranslate"><span class="pre">CascadeEvent</span></code> templates.
+There are no separate <code class="docutils literal notranslate"><span class="pre">CascadeModule.hpp</span></code> or <code class="docutils literal notranslate"><span class="pre">CascadeEvent.hpp</span></code> files in
+this baseline.</p>
+<p>To follow calls beyond the application bindings:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/process/ProcessSelection.hpp">ProcessSelection.hpp</a> in
+<code class="docutils literal notranslate"><span class="pre">corsika/framework/process/</span></code> provides <code class="docutils literal notranslate"><span class="pre">select_process(...)</span></code>.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/core/Cascade.hpp">Cascade.hpp</a> in
+<code class="docutils literal notranslate"><span class="pre">corsika/framework/core/</span></code> declares the native C8 cascade.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a> in
+<code class="docutils literal notranslate"><span class="pre">src/kokkos/em/</span></code> implements <code class="docutils literal notranslate"><span class="pre">beginProposalNative(...)</span></code>.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl">HybridCascadeRunner.inl</a> in
+<code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/scheduling/</span></code> implements <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>.</p></li>
+</ul>
+</section>
 <section id="read-the-interface-in-execution-order">
 <h2>Read the interface in execution order<a class="headerlink" href="#read-the-interface-in-execution-order" title="Link to this heading"></a></h2>
 <div class="toctree-wrapper compound">
