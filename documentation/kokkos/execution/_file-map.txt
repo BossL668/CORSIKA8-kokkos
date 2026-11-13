@@ -1,0 +1,77 @@
+.. parsed-literal::
+
+   corsika/kokkos/scheduling/
+   ├── `HybridCascadeRunner.hpp`_         event entry and callback contract
+   ├── `HybridCascade.hpp`_               hybrid event-loop interface
+   ├── `CpuParticleScheduler.hpp`_        native stack scheduling
+   ├── `ScalarCascadeStepper.hpp`_        native particle-step interface
+   ├── `EmRouter.hpp`_                    host/device routing interface
+   ├── `StaticFrontier.hpp`_              capture and bounded import
+   ├── `CpuFrontier.hpp`_                 CPU bootstrap and root import
+   └── `AirShowerCoordinator.hpp`_        process coordination API
+
+   corsika/detail/kokkos/scheduling/
+   ├── `HybridCascadeRunner.inl`_         construct adapters; run and report
+   ├── `HybridCascade.inl`_               CPU/router loop and completion
+   ├── `CpuParticleScheduler.inl`_        acquire, complete, suspend and resume
+   ├── `ScalarCascadeStepper.inl`_        execute native scalar steps
+   ├── `EmRouter.inl`_                    staging, batching and returned results
+   ├── `StaticFrontier.inl`_              FrontierInput and BufferedFrontierRouter
+   └── `CpuFrontier.inl`_                 CPU-root capture and import
+
+   src/kokkos/scheduling/
+   ├── `AirShowerCoordinator.cpp`_        process launch, worker pool and event orchestration
+   └── `StaticFrontierIO.cpp`_            partition, join, validate and merge files
+
+.. _HybridCascadeRunner.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/HybridCascadeRunner.hpp
+.. _HybridCascade.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/HybridCascade.hpp
+.. _CpuParticleScheduler.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/CpuParticleScheduler.hpp
+.. _ScalarCascadeStepper.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/ScalarCascadeStepper.hpp
+.. _EmRouter.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/EmRouter.hpp
+.. _StaticFrontier.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/StaticFrontier.hpp
+.. _CpuFrontier.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/CpuFrontier.hpp
+.. _AirShowerCoordinator.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/AirShowerCoordinator.hpp
+.. _HybridCascadeRunner.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl
+.. _HybridCascade.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl
+.. _CpuParticleScheduler.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/CpuParticleScheduler.inl
+.. _ScalarCascadeStepper.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/ScalarCascadeStepper.inl
+.. _EmRouter.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl
+.. _StaticFrontier.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/StaticFrontier.inl
+.. _CpuFrontier.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/CpuFrontier.inl
+.. _AirShowerCoordinator.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp
+.. _StaticFrontierIO.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/StaticFrontierIO.cpp
+
+Connections to neighbouring modules:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 47 53
+
+   * - Source
+     - Boundary
+   * - `CascadeRunner.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl>`_
+     - Application callbacks and event configuration.
+   * - `CascadeDriver.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl>`_
+     - Primary/frontier input and special prefix roles.
+   * - `WorkerSession.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl>`_
+     - Persistent-worker request protocol and event reset.
+   * - `IEmBackend.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/IEmBackend.hpp>`_
+     - Host backend contract and batch calls.
+   * - `EmBackend.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp>`_
+     - Host facade forwarding to the selected backend.
+   * - `BackendInstanceImplementation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl>`_
+     - Execution-space implementation and resident calls.
+   * - `PhotonCascade.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonCascade.inl>`_
+     - Resident photon loop.
+   * - `LeptonCascade.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonCascade.inl>`_
+     - Resident charged-lepton loop.
+   * - `PhotonCascadeResult.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhotonCascadeResult.hpp>`_
+     - Photon return records and checkpoints.
+   * - `LeptonCascadeResult.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/LeptonCascadeResult.hpp>`_
+     - Lepton return records and checkpoints.
+   * - `ProposalCpuFallbackHandler.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl>`_
+     - Complete selected interactions on the CPU.
+   * - `CorsikaOutputSink.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/output/CorsikaOutputSink.hpp>`_
+     - Connect returned records to C8 outputs.
+   * - `EmRunSession.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp>`_
+     - First initialization and per-shower reuse.

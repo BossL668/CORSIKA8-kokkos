@@ -63,8 +63,9 @@ Where to start
   timing definitions.
 
 For the implementation, continue with :doc:`application`: it traces the function
-calls, arguments, ownership and results of the application interface. The remaining
-architecture and maintenance chapters are being written. Implementation
+calls, arguments, ownership and results of the application interface. Continue
+with :doc:`execution` for particle routing, batch execution and process
+coordination. The remaining architecture and maintenance chapters are being written. Implementation
 availability, numerical validation and performance measurements are separate;
 a build profile does not establish scientific validation on every device it
 can target.

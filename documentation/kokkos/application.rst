@@ -157,7 +157,7 @@ The handoff passes ``begin_backend`` as a callback to
 before constructing the router and starting ``HybridCascade::run()``. The
 application therefore supplies the inputs and initialization callback; the
 scheduling module controls this execution order. Continue with
-:doc:`execution` for the scheduling module's planned coverage.
+:doc:`execution` for the hybrid loop, batch contracts and process coordination.
 
 Names that refer to different responsibilities
 ----------------------------------------------
