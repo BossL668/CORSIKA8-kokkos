@@ -5,6 +5,12 @@ Run from the repository root. Python 3.11 or newer is required by the pinned
 Sphinx version. This builds documentation only; no CORSIKA binary, FLUKA,
 PROPOSAL or GPU toolchain is required.
 
+The application chapter uses ``literalinclude`` to read excerpts from tracked
+C++ files. Keep ``applications``, ``corsika`` and ``src`` available alongside
+``documentation`` in a sparse checkout. No compilation is involved. The stored
+SVG diagram is ready to use; its adjacent DOT source is only needed when editing
+the diagram, with Graphviz's ``dot -Tsvg`` command.
+
 Local preview::
 
    python3 -m venv build/kokkos-docs-env

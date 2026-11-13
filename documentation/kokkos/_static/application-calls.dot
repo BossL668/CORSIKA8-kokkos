@@ -1,0 +1,27 @@
+// Regenerate with: dot -Tsvg application-calls.dot -o application-calls.svg
+digraph ApplicationCalls {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.18", nodesep="0.35", ranksep="0.35"];
+  node [shape=box, style="rounded,filled", color="#a6c6d2", fillcolor="#f1f7fa",
+        fontname="DejaVu Sans", fontsize=12, fontcolor="#1c3247", margin="0.18,0.16"];
+  edge [color="#36758d", penwidth=1.5, arrowsize=0.7];
+
+  objects [label=<<B>Application setup</B><BR/><BR/>
+    C8 environment and models<BR/>Observers and writers<BR/>
+    Native units and coordinates>];
+  run [label=<<B>Run bindings</B><BR/><BR/>
+    <FONT FACE="DejaVu Sans Mono">backend.geometry(...)</FONT><BR/>
+    <FONT FACE="DejaVu Sans Mono">make_cascade_defaults(...)</FONT><BR/>
+    <FONT FACE="DejaVu Sans Mono">backend.execution(...)</FONT><BR/><BR/>
+    Returns <B>CascadeModule</B>>];
+  event [label=<<B>Event setup</B><BR/><BR/>
+    <FONT FACE="DejaVu Sans Mono">execution.shower(...)</FONT><BR/>
+    <FONT FACE="DejaVu Sans Mono">event.addPrimary(...)</FONT><BR/>
+    <FONT FACE="DejaVu Sans Mono">event.cascade(...)</FONT><BR/><BR/>
+    Returns <B>CascadeAdapter</B>>];
+  execute [color="#8cbaa9", fillcolor="#eef7f2", label=<<B>Execute the event</B><BR/><BR/>
+    <FONT FACE="DejaVu Sans Mono">EAS.run()</FONT><BR/>
+    Native or accelerated path<BR/><BR/>
+    Updates stack and outputs>];
+
+  objects -> run -> event -> execute;
+}

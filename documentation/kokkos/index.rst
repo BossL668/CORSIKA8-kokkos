@@ -15,7 +15,7 @@ CORSIKA 8 with Kokkos
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
      <strong>Documentation in preparation</strong>
-     <span>The overview and user guide are available. Detailed architecture and maintenance chapters are being developed.</span>
+     <span>The overview, user guide and application integration chapter are available. Further architecture and maintenance chapters are being developed.</span>
    </div>
 
 Guide objectives
@@ -48,8 +48,9 @@ Inside this guide
 -----------------
 
 Start with the :doc:`usage/index` to install the application, run a shower and
-inspect its output. The architecture and maintenance chapters will develop the
-implementation details and practices needed for continued development.
+inspect its output. The :doc:`application` chapter follows the actual function
+calls, arguments and results from the main application into the library.
+Further chapters will cover subsystem implementation and maintenance.
 
 .. toctree::
    :maxdepth: 1
@@ -64,7 +65,7 @@ implementation details and practices needed for continued development.
    usage/index
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Architecture and data
 
    application
