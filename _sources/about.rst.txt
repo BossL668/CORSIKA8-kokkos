@@ -1,9 +1,10 @@
 About this guide
 ================
 
-This is the documentation scaffold for the CORSIKA 8 Kokkos backend.
-It is prepared for developer review and future maintenance; it is not an
-official CORSIKA documentation release.
+This guide is intended for developers and maintainers of CORSIKA 8 with Kokkos.
+Its purpose is to explain the implementation and provide a reference for
+continued development, review and maintenance as the code, dependencies and
+supported platforms evolve.
 
 Current status
 --------------
@@ -11,6 +12,7 @@ Current status
 The website structure, navigation, search and chapter outlines are available.
 The technical chapters have not been written or reviewed yet. An outline does
 not establish that a feature is implemented or validated.
+This site is not an official CORSIKA documentation release.
 
 Writing a chapter
 -----------------

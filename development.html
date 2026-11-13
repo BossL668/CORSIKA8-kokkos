@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Development and troubleshooting &mdash; CORSIKA 8 Kokkos — Developer Guide</title>
+  <title>Development and maintenance &mdash; CORSIKA 8 Kokkos — Developer Guide</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
@@ -64,7 +64,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="backends.html">Build and backend portability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation and performance</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Development and troubleshooting</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Development and maintenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
@@ -84,7 +84,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Development and troubleshooting</li>
+      <li class="breadcrumb-item active">Development and maintenance</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/development.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -94,20 +94,22 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="development-and-troubleshooting">
-<h1>Development and troubleshooting<a class="headerlink" href="#development-and-troubleshooting" title="Link to this heading"></a></h1>
+  <section id="development-and-maintenance">
+<h1>Development and maintenance<a class="headerlink" href="#development-and-maintenance" title="Link to this heading"></a></h1>
 <div class="chapter-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>Where to start when extending or diagnosing the backend.</p>
+</div><p>Guidance for continued development, code review and long-term maintenance.</p>
 <section id="planned-coverage">
 <h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Adding a process, a particle field or an output.</p></li>
-<li><p>Adding a density model, geometry or radio propagator.</p></li>
-<li><p>Tracing errors through the application, scheduler and kernel.</p></li>
-<li><p>Memory capacity, synchronization and worker diagnostics.</p></li>
-<li><p>Code-review and documentation updates for a change.</p></li>
+<li><p>Development workflow, repository organization and coding conventions.</p></li>
+<li><p>Interface evolution, component responsibilities and the impact of changes.</p></li>
+<li><p>Design rationale, implementation constraints and recorded decisions.</p></li>
+<li><p>Compatibility with CORSIKA 8, dependency updates and backend support.</p></li>
+<li><p>Code review, regression testing and reproducible troubleshooting.</p></li>
+<li><p>Performance maintenance across hardware platforms and toolchains.</p></li>
+<li><p>Release procedures, deprecation and documentation updates.</p></li>
 </ul>
 </section>
 </section>

@@ -1,44 +1,45 @@
 .. raw:: html
 
-   <p class="guide-eyebrow">DEVELOPER &amp; MAINTENANCE GUIDE</p>
+   <p class="guide-eyebrow">DEVELOPER DOCUMENTATION</p>
 
 CORSIKA 8 with Kokkos
 =====================
 
 .. container:: guide-lead
 
-   A guide to understanding, extending and maintaining the Kokkos backend.
+   Technical documentation for the implementation, development and long-term
+   maintenance of CORSIKA 8 with Kokkos.
 
 .. raw:: html
 
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
-     <strong>Documentation scaffold</strong>
-     <span>The navigation is ready. Technical chapters will be added next.</span>
+     <strong>Documentation in preparation</strong>
+     <span>Chapter outlines are available. Technical content will be added and reviewed progressively.</span>
    </div>
 
-Choose a starting point
------------------------
+Guide objectives
+----------------
 
 .. raw:: html
 
    <div class="guide-cards">
      <a class="guide-card" href="overview.html">
        <span class="card-kicker">01 / UNDERSTAND</span>
-       <h3>Understand the architecture</h3>
-       <p>Follow the application interface, particle data and execution flow.</p>
+       <h3>Understand the implementation</h3>
+       <p>Understand the software architecture, component responsibilities and integration with the CORSIKA 8 framework.</p>
        <span class="card-link">Start with the overview <span aria-hidden="true">&#8594;</span></span>
      </a>
      <a class="guide-card" href="development.html">
-       <span class="card-kicker">02 / DEVELOP</span>
-       <h3>Make a change</h3>
-       <p>Find the extension points for environments, models and particle state.</p>
-       <span class="card-link">Open the development guide <span aria-hidden="true">&#8594;</span></span>
+       <span class="card-kicker">02 / DEVELOP &amp; MAINTAIN</span>
+       <h3>Develop and maintain</h3>
+       <p>Support continued development and long-term maintenance through documented interfaces, design decisions and review practices.</p>
+       <span class="card-link">Open development and maintenance <span aria-hidden="true">&#8594;</span></span>
      </a>
      <a class="guide-card" href="validation.html">
-       <span class="card-kicker">03 / VERIFY</span>
-       <h3>Check the result</h3>
-       <p>Find validation procedures, timing definitions and diagnostic guidance.</p>
+       <span class="card-kicker">03 / VALIDATE</span>
+       <h3>Validate changes</h3>
+       <p>Assess correctness and performance with reproducible tests, benchmarks and regression checks across supported backends.</p>
        <span class="card-link">Open validation and performance <span aria-hidden="true">&#8594;</span></span>
      </a>
    </div>
@@ -46,8 +47,8 @@ Choose a starting point
 Inside this guide
 -----------------
 
-The chapters below are reserved for the implementation guide. Each chapter
-currently contains its scope and an outline, rather than claims about the code.
+The chapters cover architecture, implementation, development and verification.
+Select a chapter to view its scope and planned coverage.
 
 .. toctree::
    :maxdepth: 1
