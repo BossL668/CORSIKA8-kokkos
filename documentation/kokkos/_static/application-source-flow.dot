@@ -1,0 +1,88 @@
+// Regenerate with: dot -Tsvg application-source-flow.dot -o application-source-flow.svg
+// Source links are pinned to the baseline documented in application.rst.
+digraph ApplicationSourceFlow {
+  graph [rankdir=TB, bgcolor="transparent", pad="0.2", nodesep="0.55",
+         ranksep="0.45", splines=spline, outputorder=edgesfirst];
+  node [shape=box, style="rounded,filled", color="#a6c6d2", fillcolor="#f1f7fa",
+        fontname="DejaVu Sans", fontsize=12, margin="0.14,0.10", penwidth=1.2];
+  edge [color="#36758d", fontcolor="#36576b", fontname="DejaVu Sans",
+        fontsize=11, penwidth=1.4, arrowsize=0.7];
+
+  main_run [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp#L770" TARGET="_blank"><FONT COLOR="#136d88"><B>applications/c8_air_shower.cpp</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">main(): before the event loop</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">backend.geometry(...)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">air::make_cascade_defaults(...)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">backend.execution(...)</FONT></TD></TR></TABLE>>];
+  bindings [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl#L22" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeExtension.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">CascadeExtension::geometry() / execution()</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeSupport.inl#L12" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeSupport.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">make_cascade_geometry() / make_cascade_defaults()</FONT></TD></TR></TABLE>>];
+  main_event [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp#L785" TARGET="_blank"><FONT COLOR="#136d88"><B>applications/c8_air_shower.cpp</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">main(): inside the event loop</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">execution.shower(...) -&gt; event</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">event.addPrimary(stack, primaryProperties)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">event.cascade(tracking, sequence, output, stack,</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">              primaryTotalEnergy, maxWeight)</FONT></TD></TR></TABLE>>];
+  event_adapter [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl#L94" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeExtension.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">CascadeEvent::cascade(...) -&gt; CascadeAdapter</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeAdapter.inl#L25" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeAdapter.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">CascadeAdapter::run(): invoke the saved callback</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Triggered by EAS.run() in main.</FONT></TD></TR></TABLE>>];
+  driver [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl#L170" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeDriver.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">CascadeDriver::cascade(): saved callback</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Select native or accelerated execution.</FONT></TD></TR></TABLE>>];
+  native [fillcolor="#f4f5f7", color="#bcc7d0", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/core/Cascade.inl" TARGET="_blank"><FONT COLOR="#136d88"><B>corsika/detail/framework/core/Cascade.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">Cascade::run()</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Uses the native environment,</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">tracking, sequence, output and stack.</FONT></TD></TR></TABLE>>];
+  context [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl#L53" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeApplication.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">CascadeApplication::cascade(): saved callback</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceModels.inl#L16" TARGET="_blank"><FONT COLOR="#136d88"><B>SequenceModels.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">complete_models(models_, sequence)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceOutputs.inl#L16" TARGET="_blank"><FONT COLOR="#136d88"><B>SequenceOutputs.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">complete_outputs(outputs_, sequence)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Assemble CascadeContext from borrowed objects.</FONT></TD></TR></TABLE>>];
+  runner [group="chain", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl#L241" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeRunner.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">run_cascade(session_, options_, event, context)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Prepare host data, then define execution callbacks.</FONT></TD></TR></TABLE>>];
+  prepare [fillcolor="#f6f8fb", color="#bcc7d0", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl#L12" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadePreparation.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">prepare_cascade(...)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Export environment; prepare</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">transport, physics and output settings.</FONT></TD></TR></TABLE>>];
+  handoff [group="chain", fillcolor="#eef7f2", color="#8cbaa9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT"><FONT COLOR="#24664e"><B>NEXT MODULE: execution and scheduling</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">corsika/detail/kokkos/scheduling/</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl#L38" TARGET="_blank"><FONT COLOR="#136d88"><B>HybridCascadeRunner.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">run_hybrid_cascade(...)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">1. Invoke backendFactory() (the begin_backend callback).</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">2. Create fallback handler, output sink and router.</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">3. Construct HybridCascade and call cascade.run().</FONT></TD></TR></TABLE>>];
+  hybrid [group="chain", fillcolor="#e3f3eb", color="#65a78a", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl#L55" TARGET="_blank"><FONT COLOR="#136d88"><B>HybridCascade.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">HybridCascade::run()</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Advance particles through CPU steps and the EM router;</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">the router connects device batches, fallback and output.</FONT></TD></TR></TABLE>>];
+  begin [fillcolor="#f6f8fb", color="#bcc7d0", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="3" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl#L132" TARGET="_blank"><FONT COLOR="#136d88"><B>CascadeRunner.inl</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">begin_backend callback</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp#L35" TARGET="_blank"><FONT COLOR="#136d88"><B>src/kokkos/em/EmRunSession.cpp</B></FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="12">EmRunSession::beginProposalNative(...)</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Initialize or reuse the device backend.</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="DejaVu Sans Mono" POINT-SIZE="11">SessionBeginResult -&gt; *backend_</FONT></TD></TR></TABLE>>];
+
+  main_run -> bindings [label="env, coordinates, models, writers and run settings"];
+  bindings -> main_event [style=dashed, label="return geometry + defaults + execution"];
+  main_event -> event_adapter [label="tracking, sequence, output, stack, energy and weight"];
+  event_adapter -> driver [label="EAS.run(): follow the stored event callbacks"];
+  driver -> native [label="proposal", constraint=false];
+  driver -> context [label="kokkos-proposal"];
+  context -> runner [label="CascadeContext + options + per-event configuration"];
+
+  { rank=same; driver; native; }
+  { rank=same; runner; prepare; }
+  runner -> prepare [label="call", constraint=false];
+  prepare -> runner [label="return PreparedCascade", style=dashed, constraint=false];
+
+  runner -> handoff [label="C8 objects + prepared data + callbacks"];
+  { rank=same; handoff; begin; }
+  handoff -> begin [label="1. call", constraint=false];
+  begin -> handoff [label="return EmBackend&", style=dashed, constraint=false];
+  handoff -> hybrid [label="3. cascade.run()"];
+}
