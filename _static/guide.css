@@ -1,0 +1,65 @@
+:root {
+  --guide-ink: #1c3247;
+  --guide-muted: #52667a;
+  --guide-accent: #136d88;
+  --guide-line: #dce5ed;
+  --guide-paper: #f5f8fb;
+}
+
+body { color: var(--guide-ink); }
+.wy-nav-side { background: #172e46; width: 288px; }
+.wy-side-nav-search { background: #172e46; padding: 24px 20px 22px; }
+.wy-side-nav-search > a { font-size: 19px; line-height: 1.4; }
+.wy-side-nav-search > div.version { color: #c0d5e6; font-size: 13px; }
+.wy-side-nav-search input[type=text] { border: 1px solid #7796b1; border-radius: 5px; }
+.wy-menu-vertical { padding-bottom: 24px; }
+.wy-menu-vertical p.caption { color: #8ac8da; font-size: 11px; letter-spacing: .065em; margin-top: 14px; }
+.wy-menu-vertical a { color: #dfebf4; padding: 9px 24px; font-size: 14px; line-height: 1.35; }
+.wy-menu-vertical a:hover { background: #24445f; }
+.wy-menu-vertical li.current > a { border-right: 4px solid #1786a3; }
+.wy-nav-content-wrap { margin-left: 288px; background: #eef3f7; }
+.wy-nav-content { max-width: 1120px; min-height: 100vh; padding: 35px 48px 30px; }
+.wy-breadcrumbs { font-size: 13px; color: var(--guide-muted); }
+.rst-content h1, .rst-content h2, .rst-content h3 { color: var(--guide-ink); font-family: Lato, sans-serif; }
+.rst-content h1 { font-size: 34px; line-height: 1.22; margin-bottom: 18px; letter-spacing: -.025em; }
+.rst-content h2 { font-size: 22px; line-height: 1.35; margin-top: 34px; }
+.rst-content p, .rst-content li { line-height: 1.65; }
+.rst-content a { color: var(--guide-accent); }
+.guide-eyebrow { font-size: 11px !important; font-weight: 800; letter-spacing: .14em; color: var(--guide-accent); margin: 12px 0 12px !important; }
+.guide-lead p { font-size: 18px; color: var(--guide-muted); max-width: 690px; margin-bottom: 24px; }
+.guide-status, .chapter-status { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 10px; background: #eef6fa; border: 1px solid #cfe3ec; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #38566e; margin: 0 0 28px; line-height: 1.55; }
+.status-dot { width: 7px; height: 7px; flex: 0 0 7px; background: #1b819c; border-radius: 50%; }
+.guide-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0 32px; }
+.rst-content .guide-card { display: flex; flex-direction: column; padding: 21px 20px 18px; color: var(--guide-ink); border: 1px solid var(--guide-line); border-top: 3px solid var(--guide-accent); border-radius: 7px; background: white; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.guide-card:hover { border-color: #75adbf; box-shadow: 0 4px 14px #172e4610; }
+.guide-card:focus-visible { outline: 3px solid #2782ae; outline-offset: 3px; }
+.card-kicker { font-size: 10px; letter-spacing: .12em; font-weight: 800; color: var(--guide-accent); }
+.rst-content .guide-card h3 { font-size: 18px; line-height: 1.35; margin: 15px 0 10px; }
+.rst-content .guide-card p { font-size: 14px; color: var(--guide-muted); line-height: 1.55; margin: 0 0 22px; }
+.card-link { margin-top: auto; font-size: 12px; line-height: 1.5; font-weight: 700; color: var(--guide-accent); }
+.guide-reference { border-top: 1px solid var(--guide-line); margin-top: 30px; padding-top: 20px; color: var(--guide-muted); font-size: 13px; }
+.rst-content .toctree-wrapper p.caption { font-weight: 700; color: var(--guide-ink); margin: 24px 0 10px; }
+.rst-content .toctree-wrapper ul { margin-bottom: 16px; }
+.rst-content .toctree-wrapper li { margin-bottom: 5px; }
+.rst-content .admonition { border-radius: 5px; overflow: hidden; }
+.rst-content code { white-space: normal; overflow-wrap: anywhere; }
+.rst-content pre code { white-space: pre; }
+footer { color: var(--guide-muted); font-size: 12px; }
+.wy-nav-top { background: #172e46; }
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .wy-nav-content { padding: 30px; }
+  .guide-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .wy-nav-side { left: -288px; }
+  .wy-nav-content-wrap { margin-left: 0; }
+  .wy-nav-content { padding: 24px 20px; }
+  .guide-cards { grid-template-columns: 1fr; }
+  .rst-content h1 { font-size: 29px; }
+  .wy-nav-content-wrap.shift { left: 288px; }
+}
+@media print {
+  .guide-cards { grid-template-columns: 1fr; }
+  .guide-card { break-inside: avoid; }
+}
