@@ -1,15 +1,17 @@
-Development and troubleshooting
-===============================
+Development and maintenance
+===========================
 
 .. include:: _includes/draft.rst
 
-Where to start when extending or diagnosing the backend.
+Guidance for continued development, code review and long-term maintenance.
 
 Planned coverage
 ----------------
 
-* Adding a process, a particle field or an output.
-* Adding a density model, geometry or radio propagator.
-* Tracing errors through the application, scheduler and kernel.
-* Memory capacity, synchronization and worker diagnostics.
-* Code-review and documentation updates for a change.
+* Development workflow, repository organization and coding conventions.
+* Interface evolution, component responsibilities and the impact of changes.
+* Design rationale, implementation constraints and recorded decisions.
+* Compatibility with CORSIKA 8, dependency updates and backend support.
+* Code review, regression testing and reproducible troubleshooting.
+* Performance maintenance across hardware platforms and toolchains.
+* Release procedures, deprecation and documentation updates.
