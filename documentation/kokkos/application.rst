@@ -14,6 +14,93 @@ connection from the call in ``main`` to the code that starts a cascade.
    included directly from repository files, with their original identifiers and
    source line numbers. Paths are relative to the project root.
 
+.. _application-source-files:
+
+Source file map
+---------------
+
+The selected files below follow the call chain described in this chapter.
+Paths start at the repository root; each filename links to the source baseline
+recorded above.
+
+The public headers in ``corsika/kokkos/application/`` declare the application
+interfaces and data types. Template implementations are under
+``corsika/detail/kokkos/application/``, while compiled, non-template
+implementations are under ``src/kokkos/application/``.
+
+.. parsed-literal::
+
+   applications/
+   └── `c8_air_shower.cpp`_                 main(), C8 setup and event loop
+
+   corsika/kokkos/application/
+   ├── `ExecutionSelection.hpp`_            direct/coordinated execution interface
+   └── cascade/
+       ├── `CascadeExtensionOptions.hpp`_   CascadeExtension declaration
+       ├── `CascadeExtension.hpp`_          CascadeModule and CascadeEvent declarations
+       ├── `CascadeContext.hpp`_            geometry and context reference bundles
+       ├── `CascadeEventConfig.hpp`_        run defaults and per-event settings
+       ├── `RunEnvironmentConfig.hpp`_      site and run metadata
+       ├── `PreparedCascade.hpp`_           prepared snapshot and backend settings
+       ├── `SequenceModels.hpp`_            borrowed model references
+       └── `SequenceOutputs.hpp`_           borrowed observer references
+
+   corsika/detail/kokkos/application/cascade/
+   ├── `CascadeExtension.inl`_              geometry(), execution(), shower(), cascade()
+   ├── `CascadeSupport.inl`_                geometry and defaults factories
+   ├── `CascadeAdapter.inl`_                run() and forced-primary flags
+   ├── `CascadeDriver.inl`_                 prefix/native/accelerated path selection
+   ├── `CascadeApplication.inl`_            event context and accelerated dispatch
+   ├── `CascadePreparation.inl`_            prepare_cascade(): host data preparation
+   ├── `CascadeRunner.inl`_                 run_cascade(): start the hybrid cascade
+   ├── `SequenceModels.inl`_                complete_models(): recover event processes
+   └── `SequenceOutputs.inl`_               complete_outputs(): recover event writers
+
+   src/kokkos/application/cascade/
+   ├── `CascadeExtension.cpp`_              option registration, prepare(), configure()
+   ├── `CascadeSupport.cpp`_                select_execution() and runtime setup
+   └── `CascadeRunSession.cpp`_             run-session state and output records
+
+``CascadeExtension.hpp`` is the header included by ``main``. It includes
+``CascadeExtensionOptions.hpp``, where the ``CascadeExtension`` class itself is
+declared, and defines the ``CascadeModule`` and ``CascadeEvent`` templates.
+There are no separate ``CascadeModule.hpp`` or ``CascadeEvent.hpp`` files in
+this baseline.
+
+To follow calls beyond the application bindings:
+
+* `ProcessSelection.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/process/ProcessSelection.hpp>`_ in
+  ``corsika/framework/process/`` provides ``select_process(...)``.
+* `Cascade.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/core/Cascade.hpp>`_ in
+  ``corsika/framework/core/`` declares the native C8 cascade.
+* `EmRunSession.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp>`_ in
+  ``src/kokkos/em/`` implements ``beginProposalNative(...)``.
+* `HybridCascadeRunner.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl>`_ in
+  ``corsika/detail/kokkos/scheduling/`` implements ``run_hybrid_cascade(...)``.
+
+.. _c8_air_shower.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp
+.. _ExecutionSelection.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/ExecutionSelection.hpp
+.. _CascadeExtensionOptions.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp
+.. _CascadeExtension.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtension.hpp
+.. _CascadeContext.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeContext.hpp
+.. _CascadeEventConfig.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeEventConfig.hpp
+.. _RunEnvironmentConfig.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/RunEnvironmentConfig.hpp
+.. _PreparedCascade.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/PreparedCascade.hpp
+.. _SequenceModels.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/SequenceModels.hpp
+.. _SequenceOutputs.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/SequenceOutputs.hpp
+.. _CascadeExtension.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl
+.. _CascadeSupport.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeSupport.inl
+.. _CascadeAdapter.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeAdapter.inl
+.. _CascadeDriver.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl
+.. _CascadeApplication.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl
+.. _CascadePreparation.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl
+.. _CascadeRunner.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl
+.. _SequenceModels.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceModels.inl
+.. _SequenceOutputs.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceOutputs.inl
+.. _CascadeExtension.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeExtension.cpp
+.. _CascadeSupport.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeSupport.cpp
+.. _CascadeRunSession.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeRunSession.cpp
+
 Read the interface in execution order
 -------------------------------------
 
