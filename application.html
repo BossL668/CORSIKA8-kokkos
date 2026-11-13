@@ -201,6 +201,37 @@ for its assigned work. <a class="reference download internal" download="" href="
 </figcaption>
 </figure>
 </section>
+<section id="follow-the-data-from-main-to-the-scheduling-module">
+<span id="application-source-flow"></span><h2>Follow the data from main to the scheduling module<a class="headerlink" href="#follow-the-data-from-main-to-the-scheduling-module" title="Link to this heading"></a></h2>
+<p>The following diagram connects the calls in <code class="docutils literal notranslate"><span class="pre">main</span></code> to their implementation
+files and the next module. It follows an ordinary event using
+<code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">kokkos-proposal</span></code>, with the native <code class="docutils literal notranslate"><span class="pre">proposal</span></code> branch shown
+alongside it. Process coordination is selected before this path; a dedicated
+prefix task can return earlier through <code class="docutils literal notranslate"><span class="pre">input.runPrefix(...)</span></code>. The EGS4
+session has a separate execution branch described in
+<a class="reference internal" href="application/event-execution.html"><span class="doc">Event execution and results</span></a>.</p>
+<figure class="align-default" id="id2">
+<a class="reference external image-reference" href="_static/application-source-flow.svg"><img alt="File-level flow from c8_air_shower.cpp through CascadeExtension, CascadeDriver, CascadeApplication and CascadeRunner to HybridCascadeRunner and HybridCascade, with environment preparation and backend initialization callbacks." src="_images/application-source-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Read from top to bottom. Solid arrows follow execution and helper calls;
+dashed arrows identify returned objects. Each box names the file and the
+relevant function or callback. Green boxes mark the handoff to execution
+and scheduling. Open the full-size SVG to follow its clickable source links.
+<a class="reference download internal" download="" href="_downloads/8a52c7cfab7ecd08498e0365c3e17c60/application-source-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> /
+<a class="reference download internal" download="" href="_downloads/b1d9e927435c48d9a0fbf6ae1ddccb32/application-source-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Except where a full path is shown, application <code class="docutils literal notranslate"><span class="pre">.inl</span></code> files in this figure
+are under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/application/cascade/</span></code>. Both green boxes are
+under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/scheduling/</span></code>.</p>
+<p>The handoff passes <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> as a callback to
+<code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>. That function invokes it to obtain <code class="docutils literal notranslate"><span class="pre">EmBackend&amp;</span></code>
+before constructing the router and starting <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code>. The
+application therefore supplies the inputs and initialization callback; the
+scheduling module controls this execution order. Continue with
+<a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> for the scheduling module’s planned coverage.</p>
+</section>
 <section id="names-that-refer-to-different-responsibilities">
 <h2>Names that refer to different responsibilities<a class="headerlink" href="#names-that-refer-to-different-responsibilities" title="Link to this heading"></a></h2>
 <table class="docutils align-default">
