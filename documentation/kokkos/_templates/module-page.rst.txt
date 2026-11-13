@@ -1,0 +1,41 @@
+Module title
+============
+
+Status: draft / reviewed implementation / proposal.
+Verified against: release tag or commit.
+
+Purpose and scope
+-----------------
+
+Describe the responsibility of this module and its place in the execution flow.
+
+Inputs and outputs
+------------------
+
+Specify types, units, coordinate systems and required invariants.
+
+Ownership and lifetime
+----------------------
+
+Identify the owner, memory space, copies, updates and invalidation conditions.
+
+Execution flow
+--------------
+
+Add a small diagram and source excerpts using literalinclude. Cite the actual
+public interface and implementation instead of copying a complete source file.
+
+Extension points
+----------------
+
+Explain the files and interfaces involved in one representative modification.
+
+Validation
+----------
+
+Link to executable tests, conditions, commands and acceptance criteria.
+
+Limitations and decisions
+------------------------
+
+Separate present limitations from proposed changes. Link to design decisions.

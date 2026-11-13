@@ -8,6 +8,7 @@ Welcome to the CORSIKA 8 air shower simulation framework.
 
    readme_link
    kokkos
+   kokkos/index
    output
    particles
    particle_stack
