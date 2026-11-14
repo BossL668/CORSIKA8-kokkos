@@ -1,0 +1,385 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device-code contracts and portability &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/backends/device-code.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Validation and performance" href="../validation.html" />
+    <link rel="prev" title="Runtime selection and ownership" href="runtime.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
+      <li class="breadcrumb-item active">Device-code contracts and portability</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/backends/device-code.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="device-code-contracts-and-portability">
+<span id="backend-device-code"></span><h1>Device-code contracts and portability<a class="headerlink" href="#device-code-contracts-and-portability" title="Link to this heading"></a></h1>
+<p>Backend portability depends on callable operations, accessible storage and
+correct execution ordering. Selecting a Kokkos execution space supplies a
+dispatch mechanism; it does not make an arbitrary native C8 object graph
+usable by a device. The contracts below describe the implementation at
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">revision d5297c43</a>.</p>
+<section id="callable-functions-and-kernel-captures">
+<h2>Callable functions and kernel captures<a class="headerlink" href="#callable-functions-and-kernel-captures" title="Link to this heading"></a></h2>
+<p>The numerical transport functions use <code class="docutils literal notranslate"><span class="pre">KOKKOS_INLINE_FUNCTION</span></code> and kernels
+use <code class="docutils literal notranslate"><span class="pre">KOKKOS_LAMBDA</span></code>. The annotations make the functions available to the
+selected compilation targets; every operation reached from a kernel must
+also be callable there. The lambda macro captures values, so copying a
+pointer captures its address rather than transferring its allocation. See
+the <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/macros-special/host_device_macros.html">Kokkos function annotations</a> for the underlying rules.</p>
+<p>Dependency-free framework algorithms use the smaller C8 annotation in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/core/HostDevice.hpp#L10-L16">HostDevice.hpp</a>, which does not require Kokkos headers.
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_HOST_DEVICE</span></code> expands to CUDA/HIP host and device qualifiers under
+those compilers; it is empty otherwise. <code class="docutils literal notranslate"><span class="pre">inline</span></code> remains explicit at the
+function definition. Neither annotation repairs a host-only dependency.
+Review the entire call chain when extending a numerical routine, including
+math helpers, table access and geometry queries. Keep native stack access,
+host containers, logging and exception-based preparation in the host adapter.</p>
+<p>For example, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonTransportStep.hpp#L29-L56">transport_lepton’s interface</a> requires accessible table and
+environment storage, exclusive output slots, non-aliasing inputs and outputs,
+and inspection of its status before consuming a record. Its device body
+reports an explicit fallback request; it does not execute the CPU handler.
+Adding an annotation to a native particle accessor would not satisfy these
+requirements. The representation boundary is described in
+<a class="reference internal" href="../particles/representation.html"><span class="doc">Particle representation and numerical conventions</span></a> and <a class="reference internal" href="../environment/extension.html"><span class="doc">Supported models and extension requirements</span></a>.</p>
+</section>
+<section id="accessible-storage-and-borrowed-views">
+<h2>Accessible storage and borrowed views<a class="headerlink" href="#accessible-storage-and-borrowed-views" title="Link to this heading"></a></h2>
+<p>An execution space must be able to access each allocation used by its kernel.
+This is a property of the execution/memory-space pair, expressible through
+<code class="docutils literal notranslate"><span class="pre">Kokkos::SpaceAccessibility&lt;ExecutionSpace,</span> <span class="pre">MemorySpace&gt;::accessible</span></code>; a
+valid host pointer alone is insufficient. See <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/SpaceAccessibility.html">Kokkos space accessibility</a>.</p>
+<p>The batch code allocates views in <code class="docutils literal notranslate"><span class="pre">TExecutionSpace::memory_space</span></code>.
+<code class="docutils literal notranslate"><span class="pre">ParticleSoA&lt;TMemorySpace&gt;</span></code> owns Kokkos views, while
+<code class="docutils literal notranslate"><span class="pre">ParticleSoARawView</span></code> and <code class="docutils literal notranslate"><span class="pre">RawView1D/2D</span></code> borrow their addresses. A raw view
+does not retain an owner, transfer data or validate indices. Its allocations
+must remain unchanged and alive until all submitted users have completed.
+When replacing or growing storage, complete outstanding work and obtain new
+borrowed views before launching again. The ownership interface is in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleSoA.hpp">ParticleSoA.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RawView.hpp">RawView.hpp</a>.</p>
+<p>Do not assume a three-component field is laid out as consecutive triples.
+The adapter preserves both strides supplied by the owning Kokkos view:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">17</span><span class="w">  </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="linenos">18</span><span class="w">  </span><span class="n">KOKKOS_INLINE_FUNCTION</span><span class="w"> </span><span class="n">T</span><span class="o">&amp;</span><span class="w"> </span><span class="n">RawView2D</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="p">()(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">first</span><span class="p">,</span>
+<span class="linenos">19</span><span class="w">                                                     </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">second</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">data_</span><span class="p">[</span><span class="n">first</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride0_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stride1_</span><span class="p">];</span>
+<span class="linenos">21</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">28</span><span class="w">  </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">NExtent</span><span class="p">,</span><span class="w"> </span><span class="k">class</span><span class="p">...</span><span class="w"> </span><span class="n">TProperties</span><span class="o">&gt;</span>
+<span class="linenos">29</span><span class="w">  </span><span class="n">RawView2D</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">raw_device_view</span><span class="p">(</span>
+<span class="linenos">30</span><span class="w">      </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="n">T</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">[</span><span class="n">NExtent</span><span class="p">],</span><span class="w"> </span><span class="n">TProperties</span><span class="p">...</span><span class="o">&gt;</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">view</span><span class="p">)</span><span class="w"> </span><span class="k">noexcept</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">31</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="n">view</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">view</span><span class="p">.</span><span class="n">stride_0</span><span class="p">(),</span><span class="w"> </span><span class="n">view</span><span class="p">.</span><span class="n">stride_1</span><span class="p">()};</span>
+<span class="linenos">32</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The data layout can differ between execution spaces. Copying a managed
+<code class="docutils literal notranslate"><span class="pre">Kokkos::View</span></code> handle also shares its allocation rather than copying its
+elements; use the appropriate transfer operation when a distinct copy is
+required. See the <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/View.html">Kokkos View guide</a> and
+<a class="reference internal" href="../particles/storage.html"><span class="doc">Device storage and state updates</span></a> for the storage interfaces used here.</p>
+</section>
+<section id="ordering-copies-kernels-and-host-access">
+<h2>Ordering copies, kernels and host access<a class="headerlink" href="#ordering-copies-kernels-and-host-access" title="Link to this heading"></a></h2>
+<p>Pass the same execution-space instance through a dependent sequence of
+transfers and kernels. <code class="docutils literal notranslate"><span class="pre">deep_copy(execution,</span> <span class="pre">...)</span></code> may return before the
+copy finishes, but it orders that copy with work submitted to that instance.
+Another instance of the same execution-space type does not acquire that
+ordering automatically. Host reads require completion of the relevant copy;
+host staging buffers must also remain alive while a transfer uses them.
+These semantics are specified by <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/deep_copy.html">Kokkos deep_copy</a>.</p>
+<p>The validation batch wrapper demonstrates the upload and launch boundary:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">45</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">hostInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">create_mirror_view</span><span class="p">(</span><span class="n">interactions</span><span class="p">);</span>
+<span class="linenos">46</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">count</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="n">hostInput</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="linenos">47</span><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">deep_copy</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">interactions</span><span class="p">,</span><span class="w"> </span><span class="n">hostInput</span><span class="p">);</span>
+<span class="linenos">48</span><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(</span>
+<span class="linenos">49</span><span class="w">        </span><span class="s">"c8_kokkos_transport_leptons"</span><span class="p">,</span><span class="w"> </span><span class="n">policy_type</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">),</span>
+<span class="linenos">50</span><span class="w">        </span><span class="n">KOKKOS_LAMBDA</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">51</span><span class="w">          </span><span class="n">flags</span><span class="p">(</span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transport_lepton</span><span class="p">(</span><span class="n">physics</span><span class="p">.</span><span class="n">getContinuousView</span><span class="p">(),</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="n">environment</span><span class="p">,</span>
+<span class="linenos">52</span><span class="w">                                          </span><span class="n">geometry</span><span class="p">,</span><span class="w"> </span><span class="n">interactions</span><span class="p">(</span><span class="n">index</span><span class="p">),</span>
+<span class="linenos">53</span><span class="w">                                          </span><span class="n">rawRecords</span><span class="p">(</span><span class="n">index</span><span class="p">),</span><span class="w"> </span><span class="n">rawFallbacks</span><span class="p">(</span><span class="n">index</span><span class="p">));</span>
+<span class="linenos">54</span><span class="w">        </span><span class="p">});</span>
+</pre></div>
+</div>
+<p>After transport and compaction, it copies results and fences the same instance
+before reading host mirrors:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 94</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">hostRecords</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">create_mirror_view</span><span class="p">(</span><span class="n">records</span><span class="p">);</span>
+<span class="linenos"> 95</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">hostFallbacks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">create_mirror_view</span><span class="p">(</span><span class="n">fallbacks</span><span class="p">);</span>
+<span class="linenos"> 96</span><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">deep_copy</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">hostRecords</span><span class="p">,</span><span class="w"> </span><span class="n">records</span><span class="p">);</span>
+<span class="linenos"> 97</span><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">deep_copy</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">hostFallbacks</span><span class="p">,</span><span class="w"> </span><span class="n">fallbacks</span><span class="p">);</span>
+<span class="linenos"> 98</span><span class="w">    </span><span class="n">execution</span><span class="p">.</span><span class="n">fence</span><span class="p">(</span><span class="s">"download Kokkos lepton transport"</span><span class="p">);</span>
+<span class="linenos"> 99</span><span class="w">    </span><span class="n">result</span><span class="p">.</span><span class="n">records_</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">fallbackCount</span><span class="p">);</span>
+<span class="linenos">100</span><span class="w">    </span><span class="n">result</span><span class="p">.</span><span class="n">fallbackEvents_</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">fallbackCount</span><span class="p">);</span>
+<span class="linenos">101</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">records_</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span>
+<span class="linenos">102</span><span class="w">      </span><span class="n">result</span><span class="p">.</span><span class="n">records_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hostRecords</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="linenos">103</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">fallbackEvents_</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span>
+<span class="linenos">104</span><span class="w">      </span><span class="n">result</span><span class="p">.</span><span class="n">fallbackEvents_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hostFallbacks</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This is a host-returning validation interface. Resident execution retains
+storage across stages, so synchronization belongs at its ownership and
+observation boundaries. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/WavefrontExecutionGuard.hpp">WavefrontExecutionGuard.hpp</a> documents that both
+the queue and its execution instance must outlive the guard; its destructor
+attempts to drain that instance on exceptional exit. Preserve that ordering
+when changing workspace lifetimes or error paths. A fence on an unrelated
+instance does not establish the required completion.</p>
+</section>
+<section id="shared-algorithms-and-narrow-backend-adapters">
+<h2>Shared algorithms and narrow backend adapters<a class="headerlink" href="#shared-algorithms-and-narrow-backend-adapters" title="Link to this heading"></a></h2>
+<p>The OpenMP, CUDA, HIP and SYCL factory files instantiate
+<code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code>. The shared implementation
+owns environment/physics storage and dispatches the same numerical stage
+interfaces. For example, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/CudaBackendInstance.cpp">CudaBackendInstance.cpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/HipBackendInstance.cpp">HipBackendInstance.cpp</a> differ in the execution-space template argument.
+Backend changes should remain at this boundary when the stage contract is
+unchanged.</p>
+<p>Sharing also occurs beneath the native/device boundary. The native and
+numerical <code class="docutils literal notranslate"><span class="pre">next_environment_boundary</span></code> wrappers include the same
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a> and supply different access adapters.
+This does not mean every native C8 algorithm already shares its implementation
+with the numerical backend; the environment and transport chapters identify
+the actual shared functions.</p>
+<p>There are deliberate backend-specific operations. In
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/runtime/CompositeExclusiveScan.inl#L119-L184">CompositeExclusiveScan.inl</a>, automatic CUDA scans use CUB, while the portable
+path uses <code class="docutils literal notranslate"><span class="pre">Kokkos::parallel_scan</span></code>. The CUDA adapter passes
+<code class="docutils literal notranslate"><span class="pre">execution.cuda_stream()</span></code> to CUB and launches the total calculation on the
+same Kokkos instance. Both paths implement the same composite integer-prefix
+contract. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/runtime/ResidentExecutionWait.inl">ResidentExecutionWait.inl</a> similarly uses CUDA completion events
+for cooperative or blocking waits and an execution-instance fence for the
+ordinary path. These adapters alter how work is executed or observed, while
+retaining the numerical interface.</p>
+<p>Keep such adapters small and preserve a portable reference path where one
+exists. A new backend needs its own implementation of any required native
+operation, or an explicitly supported portable path. A conditional branch
+that merely compiles is not evidence that its stream, memory and lifetime
+contracts have been validated.</p>
+</section>
+<section id="execution-tuning-and-physical-models">
+<h2>Execution tuning and physical models<a class="headerlink" href="#execution-tuning-and-physical-models" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/TuningParameters.hpp">TuningParameters.hpp</a> records batch size, chunk size, team size, track/observer
+tile sizes and queue count. <code class="docutils literal notranslate"><span class="pre">make_range_policy</span></code> applies a requested chunk
+size only to OpenMP. The bounded policy adds launch bounds only for HIP:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">29</span><span class="w">  </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">MaximumThreads</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">MinimumBlocks</span><span class="p">,</span>
+<span class="linenos">30</span><span class="w">            </span><span class="k">class</span><span class="w"> </span><span class="nc">TExecutionSpace</span><span class="o">&gt;</span>
+<span class="linenos">31</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">make_bounded_range_policy</span><span class="p">(</span><span class="n">TExecutionSpace</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">execution</span><span class="p">,</span>
+<span class="linenos">32</span><span class="w">                                 </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">count</span><span class="p">,</span>
+<span class="linenos">33</span><span class="w">                                 </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">openmp_chunk_size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">34</span><span class="cp">#if defined(KOKKOS_ENABLE_HIP)</span>
+<span class="linenos">35</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">is_same_v</span><span class="o">&lt;</span><span class="n">TExecutionSpace</span><span class="p">,</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">HIP</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">36</span><span class="w">      </span><span class="k">using</span><span class="w"> </span><span class="n">policy_type</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">37</span><span class="w">          </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">RangePolicy</span><span class="o">&lt;</span><span class="n">TExecutionSpace</span><span class="p">,</span>
+<span class="linenos">38</span><span class="w">                              </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">LaunchBounds</span><span class="o">&lt;</span><span class="n">MaximumThreads</span><span class="p">,</span><span class="w"> </span><span class="n">MinimumBlocks</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+<span class="linenos">39</span><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">policy_type</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="linenos">40</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">41</span><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">make_range_policy</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">,</span><span class="w"> </span><span class="n">openmp_chunk_size</span><span class="p">);</span>
+<span class="linenos">42</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">43</span><span class="cp">#else</span>
+<span class="linenos">44</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">make_range_policy</span><span class="p">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">,</span><span class="w"> </span><span class="n">openmp_chunk_size</span><span class="p">);</span>
+<span class="linenos">45</span><span class="cp">#endif</span>
+<span class="linenos">46</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>These settings govern scheduling and resource use. Keep physical model
+selection, table contents, cuts, units and domain checks in their existing
+model/configuration interfaces. A new launch policy must preserve the
+algorithm’s inputs, outputs, source ordering and failure behavior. Numerical
+agreement still needs validation: a different execution order does not
+establish bitwise equivalence for floating-point reductions. The radio
+chapter describes its specific accumulation and tile policies in
+<a class="reference internal" href="../radio/accumulation.html"><span class="doc">Parallel projection and waveform accumulation</span></a>.</p>
+</section>
+<section id="test-registration-and-support-boundaries">
+<h2>Test registration and support boundaries<a class="headerlink" href="#test-registration-and-support-boundaries" title="Link to this heading"></a></h2>
+<p>Tests that instantiate device kernels or include device-dependent Kokkos
+headers must use the selected device compiler. The
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/CMakeLists.txt#L14-L28">test registration helper</a> assigns CUDA or HIP to the listed source files;
+for CUDA it also requests C++17 device compilation, extended lambdas and
+<code class="docutils literal notranslate"><span class="pre">CUDA::cudart</span></code>. Register new device-bearing test sources through that
+helper. Native model fixtures retain ordinary C++ compilation.</p>
+<p>Header compilation checks, runtime lifecycle cases, scan comparisons and
+queue/transfer tests are registered in the source tree. Some lifecycle cases
+run in separate processes because Kokkos cannot be reinitialized after
+finalization. The build/install consumer contracts are additionally gated on
+the configured production targets and, for real backend execution, the
+native export bridge. See <a class="reference internal" href="../backends.html"><span class="doc">Build and backend portability</span></a> for the source and test map.
+Run the relevant registered tests in each intended backend configuration;
+an OpenMP run cannot exercise a CUDA-only completion-event branch.</p>
+<p>The checked-in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.gitlab-ci.yml">GitLab CI configuration</a> defines ordinary GCC/Clang
+configure, build and CTest jobs, but their configure commands do not enable
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS</span></code>, whose default is <code class="docutils literal notranslate"><span class="pre">OFF</span></code>. It contains no explicit
+Kokkos backend jobs, and this pinned tree contains no GitHub Actions workflow.
+The backend test registrations and consumer contracts therefore describe
+available checks, not a passing GPU CI matrix.</p>
+<p>Production backend recognition is limited to the device combinations in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeSelection.cmake">BackendRuntimeSelection.cmake</a>. Other Kokkos configurations can retain the
+generic runtime through <code class="docutils literal notranslate"><span class="pre">AUTO</span></code> or <code class="docutils literal notranslate"><span class="pre">NONE</span></code> without acquiring a production
+backend. A factory or test registration for a backend is not a claim of
+validation on every compiler, accelerator or operating system supported by
+Kokkos. Record the concrete toolchain, Kokkos build, device and executed tests
+when extending platform coverage.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="runtime.html" class="btn btn-neutral float-left" title="Runtime selection and ownership" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../validation.html" class="btn btn-neutral float-right" title="Validation and performance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

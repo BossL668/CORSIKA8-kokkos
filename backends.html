@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Validation and performance" href="validation.html" />
+    <link rel="next" title="Build configuration and toolchains" href="backends/build.html" />
     <link rel="prev" title="Propagation models and medium-specific interfaces" href="radio/propagation.html" /> 
 </head>
 
@@ -108,7 +108,12 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Build and backend portability</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation and performance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
@@ -142,19 +147,281 @@
              
   <section id="build-and-backend-portability">
 <h1>Build and backend portability<a class="headerlink" href="#build-and-backend-portability" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How to build and validate an execution backend.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Optional builds and dependency configuration.</p></li>
-<li><p>OpenMP, CUDA and HIP toolchains.</p></li>
-<li><p>Device-callable functions and accessible memory.</p></li>
-<li><p>Architecture selection and runtime resources.</p></li>
-<li><p>Continuous integration and the backend test matrix.</p></li>
+<p>The Kokkos integration separates physical models, execution-space
+implementations and process coordination. A build supplies particular
+execution-space implementations; runtime options select compatible resources
+and application routes. Portability requires both device-callable numerical
+code and a valid memory, runtime and toolchain configuration.</p>
+<p>Use <a class="reference internal" href="usage/installation.html"><span class="doc">Installation</span></a> for installation commands and
+<a class="reference internal" href="usage/parallel-execution.html"><span class="doc">Parallel execution</span></a> for running a configured application. This
+chapter explains the source-level contracts behind those commands.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+Build support, executable test coverage and validation on particular
+hardware are separate claims. The tables below describe implementation
+paths in this revision; they are not a certification matrix for devices
+or compiler versions.</p>
+</div>
+<section id="configuration-layers">
+<h2>Configuration layers<a class="headerlink" href="#configuration-layers" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 36.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Configuration</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Physics and application route</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span></code> and <code class="docutils literal notranslate"><span class="pre">--radio-backend</span></code></p></td>
+<td><p>Select native or accelerated implementations of the requested
+calculations. Availability depends on compiled targets and application
+support.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compiled execution support</p></td>
+<td><p>Kokkos dependency options, architecture profile and
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_KOKKOS_BACKEND</span></code></p></td>
+<td><p>Determine which numerical implementations the library contains and
+which compiler generates them.</p></td>
+</tr>
+<tr class="row-even"><td><p>Runtime resources</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--kokkos-execution</span></code>, <code class="docutils literal notranslate"><span class="pre">--device</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--kokkos-num-threads</span></code></p></td>
+<td><p>Select a compatible execution implementation, visible device or host
+thread configuration. They cannot add a missing compiled backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Process coordination</p></td>
+<td><p>Device list and <code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code></p></td>
+<td><p>Select direct execution or worker processes. Coordination distributes
+work across application processes; it is not a Kokkos execution space.</p></td>
+</tr>
+<tr class="row-even"><td><p>Kernel and queue configuration</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TuningParameters</span></code>, memory budget and dispatch thresholds</p></td>
+<td><p>Control launch geometry, storage and work submission within the
+selected implementation.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Changing the EM backend is not equivalent to selecting CUDA or HIP: the same
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> numerical path can run with different compiled execution
+spaces. Conversely, changing the execution space does not port a CPU-only
+external physics library. CPU completion routes remain part of the hybrid
+cascade. See <a class="reference internal" href="application.html"><span class="doc">Application integration</span></a> and <a class="reference internal" href="transport/interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends/device-code.html">Device-code contracts and portability</a></li>
 </ul>
+</div>
+</section>
+<section id="compiled-implementation-paths">
+<h2>Compiled implementation paths<a class="headerlink" href="#compiled-implementation-paths" title="Link to this heading"></a></h2>
+<p>The top-level build defaults to <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS=OFF</span></code>. Enabling it adds
+the generic runtime and numerical/data targets. The production
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> and EM implementation are then selected from the dependency’s
+<code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code>. Explicit requests incompatible with that dependency are
+configuration errors. <code class="docutils literal notranslate"><span class="pre">AUTO</span></code> and <code class="docutils literal notranslate"><span class="pre">NONE</span></code> have different roles from turning
+Kokkos off; <a class="reference internal" href="backends/build.html"><span class="doc">Build configuration and toolchains</span></a> documents the exact rules.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 36.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Build selection</p></th>
+<th class="head"><p>EM implementation</p></th>
+<th class="head"><p>Scope</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">OPENMP</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;Kokkos::OpenMP&gt;</span></code></p></td>
+<td><p>Kokkos kernels execute on CPU threads.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CUDA</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;Kokkos::Cuda&gt;</span></code></p></td>
+<td><p>Kokkos kernels execute on a selected NVIDIA device.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HIP</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;Kokkos::HIP&gt;</span></code></p></td>
+<td><p>Kokkos kernels execute on a selected HIP device with a matching
+architecture and ROCm/DTK toolchain.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SYCL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;Kokkos::SYCL&gt;</span></code></p></td>
+<td><p>A source implementation is present. Its existence does not establish
+validation on a particular SYCL device or compiler.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code></p></td>
+<td><p>CUDA and OpenMP implementations plus a cooperative adapter</p></td>
+<td><p>Optional experimental combined build. Selection, shared runtime
+ownership and cooperation have additional contracts.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These are instantiations of a shared implementation, rather than separate
+copies of all physics functions. For example, the HIP factory is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">11</span><span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">BackendInstance</span><span class="o">&gt;</span><span class="w"> </span><span class="n">make_hip_backend_instance</span><span class="p">(</span>
+<span class="linenos">12</span><span class="w">      </span><span class="n">RuntimeConfig</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">BackendInstanceImplementation</span><span class="o">&lt;</span><span class="n">Kokkos</span><span class="o">::</span><span class="n">HIP</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">config</span><span class="p">);</span>
+<span class="linenos">14</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> resolves the requested execution mode and calls the corresponding
+factory. <code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation</span></code> owns the execution instance,
+resident tables, environment data, queues and accumulators. Its implementation
+contains execution-space-specific branches for operations such as resource
+queries, scans, waits and launch policies. A common template therefore does
+not imply identical low-level instructions or synchronization on all devices.
+See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp">EmBackend.cpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendApplicationTargets.cmake">BackendApplicationTargets.cmake</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>.</p>
+</section>
+<section id="runtime-identity-and-reproducibility">
+<h2>Runtime identity and reproducibility<a class="headerlink" href="#runtime-identity-and-reproducibility" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">RuntimeInfo</span></code> records the selected backend, device, architecture, compiler,
+Kokkos and driver/runtime versions, concurrency and memory information.
+<code class="docutils literal notranslate"><span class="pre">TuningCache</span></code> associates launch parameters with runtime and build metadata.
+These records help distinguish a change in the algorithm from a change in
+its execution configuration. They do not replace the physical run conditions,
+model/table identities, random-stream policy or event seed.</p>
+<p>The public runtime classes have different ownership contracts. Generic
+<code class="docutils literal notranslate"><span class="pre">Runtime</span></code> can manage or borrow the process Kokkos lifetime. Production
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> owns initialization or uses an explicit cooperative lease.
+Neither class can safely be recreated after its owned Kokkos runtime has
+been finalized. Keep the appropriate owner alive across event reuse and
+release device work and allocations before releasing that owner. The exact
+rules, including external initialization and thread ownership, are in
+<a class="reference internal" href="backends/runtime.html"><span class="doc">Runtime selection and ownership</span></a>.</p>
+</section>
+<section id="source-organization">
+<h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>Build configuration selects and exports library targets. Public runtime
+interfaces are under <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/runtime</span></code> and their compiled
+implementations are under <code class="docutils literal notranslate"><span class="pre">src/kokkos/runtime</span></code>. Application device parsing
+is separate from runtime lifetime and from the EM implementation factories.</p>
+<pre class="literal-block">tools/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh">build_kokkos.sh</a>  prerequisites, profile selection and backend-specific build/install
+
+./
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conanfile.py">conanfile.py</a>  dependency requirements and Kokkos options
+
+externals/conan/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles">profiles</a>  backend and architecture profiles
+
+cmake/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeSelection.cmake">BackendRuntimeSelection.cmake</a>  dependency-device combination to production runtime selection
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeTargets.cmake">BackendRuntimeTargets.cmake</a>  runtime libraries and device-compiler configuration
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendApplicationTargets.cmake">BackendApplicationTargets.cmake</a>  application support and EM backend factories
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/corsikaConfig.cmake.in">corsikaConfig.cmake.in</a>  installed dependency and target discovery
+
+corsika/kokkos/runtime/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/Runtime.hpp">Runtime.hpp</a>  generic Kokkos lifetime contract
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/BackendRuntime.hpp">BackendRuntime.hpp</a>  production runtime and cooperative lease interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeConfig.hpp">RuntimeConfig.hpp</a>  execution request and resource configuration
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeInfo.hpp">RuntimeInfo.hpp</a>  resolved runtime metadata
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/TuningParameters.hpp">TuningParameters.hpp</a>  launch and tile settings
+
+src/kokkos/runtime/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/Runtime.cpp">Runtime.cpp</a>  generic ownership and configuration checks
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp">BackendRuntime.cpp</a>  production initialization, metadata and probes
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendSelection.cpp">BackendSelection.cpp</a>  requested execution name to compiled implementation
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/TuningCache.cpp">TuningCache.cpp</a>  configuration matching and cached tuning
+
+src/kokkos/application/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceSelection.cpp">DeviceSelection.cpp</a>  GPU discovery, selection and visibility mapping
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceCliOptions.cpp">DeviceCliOptions.cpp</a>  application option preparation
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/BackendCli.cpp">BackendCli.cpp</a>  backend option parsing
+
+src/kokkos/em/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp">EmBackend.cpp</a>  host facade and execution-space factory dispatch
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/HipBackendInstance.cpp">HipBackendInstance.cpp</a>  HIP instantiation of the shared implementation
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/CudaBackendInstance.cpp">CudaBackendInstance.cpp</a>  CUDA instantiation of the shared implementation
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/OpenMPBackendInstance.cpp">OpenMPBackendInstance.cpp</a>  OpenMP instantiation of the shared implementation
+
+corsika/detail/kokkos/em/execution/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>  resident EM implementation for the selected execution space</pre>
+</section>
+<section id="validation-coverage">
+<h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>Backend validation has several levels: command/configuration checks, process
+lifecycle, device primitives, numerical kernels and complete events. A host-only
+parser test cannot establish GPU visibility or device execution. Likewise,
+passing primitive tests does not establish complete-shower physics agreement.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39.0%" />
+<col style="width: 61.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Source or registration</p></th>
+<th class="head"><p>Existing coverage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/build_tools/test_install_helpers.py">test_install_helpers.py</a></p></td>
+<td><p>Installer commands, prerequisites and compiler/architecture selection using stub tools. No real GPU compilation or runtime execution.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/DeviceOptions.cpp">DeviceOptions.cpp</a></p></td>
+<td><p>CUDA device-option parsing and visibility/argument contracts with controlled inputs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/HipDeviceOptions.cpp">HipDeviceOptions.cpp</a></p></td>
+<td><p>HIP device-list parsing, ordinal validation against synthetic listings, and help preserving visibility; not a hardware probe.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testRuntime.cpp">testRuntime.cpp</a></p></td>
+<td><p>Owned, shared and borrowed lifetimes; invalid/conflicting settings, thread ownership and finalization. Lifecycle scenarios are separate processes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/backend/RuntimeContract.cpp">RuntimeContract.cpp</a></p></td>
+<td><p>Production owner, unavailable-backend and cooperative-lifetime contracts, plus primitive/queue/tiling probes for the selected execution space.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/backend/CacheContract.cpp">CacheContract.cpp</a></p></td>
+<td><p>Tuning-cache compatibility against the retained implementation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testScanPrimitives.cpp">testScanPrimitives.cpp</a></p></td>
+<td><p>Bounded iteration and exact multi-column integer scans.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testParticleQueues.cpp">testParticleQueues.cpp</a></p></td>
+<td><p>Queue growth, source ordering and wavefront storage contracts.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testExecutionWait.cpp">testExecutionWait.cpp</a></p></td>
+<td><p>Execution-wait modes and, in CUDA builds, completion tickets and exceptional cleanup.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendExecutionContracts.cmake">BackendExecutionContracts.cmake</a></p></td>
+<td><p>Registers real-table backend stage/router and session tests when their targets and export fixtures are available.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The existing CMake test registrations select the compiled backend and, where
+needed, compile test translation units with the device compiler. The pinned
+GitLab pipeline does not configure a Kokkos backend matrix. Test registration
+is therefore not evidence that every backend runs automatically in CI. See
+<a class="reference internal" href="backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a> for the current boundary and requirements for
+extending coverage.</p>
+</section>
+<section id="build-to-execution-flow">
+<h2>Build-to-execution flow<a class="headerlink" href="#build-to-execution-flow" title="Link to this heading"></a></h2>
+<p>The build determines the available factories. At run time, the application
+supplies a compatible <code class="docutils literal notranslate"><span class="pre">RuntimeConfig</span></code>; the selected implementation acquires
+its runtime and initializes resident storage before submitting kernels. The
+process coordinator, when selected, repeats this local setup within each GPU
+worker rather than creating one cross-device Kokkos execution instance.</p>
+<figure class="align-default" id="id4">
+<a class="reference external image-reference" href="_static/backend-configuration-flow.svg"><img alt="Build profiles configure a Kokkos dependency and CMake backend targets; compiled factories and runtime options converge at EmBackend, which creates the selected implementation, initializes resident storage and executes shared transport and radio kernels." src="_images/backend-configuration-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Build selection and runtime handoff for the standard EM backend. Open the
+SVG for links to the checked source revision.
+<a class="reference download internal" download="" href="_downloads/d7884542653893a14359fcf8b72d5fa1/backend-configuration-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/220caa22802086ea2d3409816b8768fe/backend-configuration-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -163,7 +430,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="radio/propagation.html" class="btn btn-neutral float-left" title="Propagation models and medium-specific interfaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="validation.html" class="btn btn-neutral float-right" title="Validation and performance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="backends/build.html" class="btn btn-neutral float-right" title="Build configuration and toolchains" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -1,0 +1,505 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build configuration and toolchains &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/backends/build.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Runtime selection and ownership" href="runtime.html" />
+    <link rel="prev" title="Build and backend portability" href="../backends.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
+      <li class="breadcrumb-item active">Build configuration and toolchains</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/backends/build.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="build-configuration-and-toolchains">
+<h1>Build configuration and toolchains<a class="headerlink" href="#build-configuration-and-toolchains" title="Link to this heading"></a></h1>
+<p>The build selects a Kokkos package, verifies its enabled execution spaces,
+and compiles the corresponding CORSIKA implementation. A backend name in
+CORSIKA’s CMake cache does not enable that backend in an existing Kokkos
+library. The package, compiler, architecture and CORSIKA selection must agree.</p>
+<p>This page describes the build interfaces at the chapter’s pinned source
+baseline. For prerequisites and installation commands, see
+<a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>.</p>
+<section id="optional-targets-and-dependencies">
+<h2>Optional targets and dependencies<a class="headerlink" href="#optional-targets-and-dependencies" title="Link to this heading"></a></h2>
+<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt">top-level CMake configuration</a> defines three options,
+all defaulting to <code class="docutils literal notranslate"><span class="pre">OFF</span></code>:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>Build effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS</span></code></p></td>
+<td><p>Adds <code class="docutils literal notranslate"><span class="pre">src/kokkos</span></code> and <code class="docutils literal notranslate"><span class="pre">tests/kokkos</span></code>, discovers Kokkos and enables
+the required device language before libraries and tests are configured.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_PROPOSAL_EXPORT</span></code></p></td>
+<td><p>Requires Kokkos to be enabled. Adds the native export bridge and checks
+the dependency export interface at configuration time.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_EGS4</span></code></p></td>
+<td><p>Requires both options above. Adds the native EGS4 implementation;
+selecting a Kokkos execution backend does not enable EGS4 by itself.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">Kokkos target definitions</a> separate value records, compiled runtime
+support and production implementations. The following exported targets
+illustrate the dependency boundaries; they are not an exhaustive target list.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public target</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::KokkosData</span></code></p></td>
+<td><p>Interface target providing include paths and C++17. It links neither
+Kokkos nor a physics library, but is created only in a Kokkos-enabled
+CORSIKA build.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::KokkosRuntime</span></code></p></td>
+<td><p>Compiled generic runtime; publicly links <code class="docutils literal notranslate"><span class="pre">Kokkos::kokkos</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Threads::Threads</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::NativeTableQueries</span></code></p></td>
+<td><p>Numerical table representation and hashing implementation; publicly
+links <code class="docutils literal notranslate"><span class="pre">KokkosData</span></code> and <code class="docutils literal notranslate"><span class="pre">Kokkos::kokkos</span></code> without the host export bridge.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::BackendRuntime</span></code></p></td>
+<td><p>Created only when <code class="docutils literal notranslate"><span class="pre">CORSIKA_KOKKOS_RESOLVED_BACKEND</span></code> is not <code class="docutils literal notranslate"><span class="pre">NONE</span></code>.
+Exports the selected production backend definition.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::EmBackend</span></code></p></td>
+<td><p>Created when <code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> exists. Its compiled sources are
+selected by the resolved backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA8::ProposalBridge</span></code> and <code class="docutils literal notranslate"><span class="pre">CORSIKA8::EmRunSession</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ProposalBridge</span></code> requires the export option. <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code> also
+requires <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> and links the backend to native table preparation.</p></td>
+</tr>
+</tbody>
+</table>
+<p>An enabled build also requires CubicInterpolation for
+<code class="docutils literal notranslate"><span class="pre">CORSIKA8::MoliereInterpolation</span></code> and OpenSSL plus <code class="docutils literal notranslate"><span class="pre">nlohmann_json</span></code> for
+application support. These dependencies are present even when the native
+PROPOSAL export bridge is disabled. Conan’s <code class="docutils literal notranslate"><span class="pre">with_proposal_export</span></code> option
+selects the repository’s revision-locked PROPOSAL and CubicInterpolation
+recipes; native table preparation is described in
+<a class="reference internal" href="../physics-data/preparation.html"><span class="doc">Model selection, preparation and reuse</span></a>.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS=OFF</span></code>, CMake omits the Kokkos libraries, test
+subtree and installed Kokkos headers. The ordinary application binaries are
+still built: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/CascadeApplicationTargets.cmake#L10-L62">corsika_add_cascade_application(SOURCE_ROOT, NATIVE_TARGET)</a>
+includes host CLI utilities directly when <code class="docutils literal notranslate"><span class="pre">ApplicationSupport</span></code> is absent.
+Its Kokkos EM session sources and definitions are added only if
+<code class="docutils literal notranslate"><span class="pre">CORSIKA8::EmRunSession</span></code> exists. The scalar-only build does not export the
+<code class="docutils literal notranslate"><span class="pre">CascadeApplication</span></code> library as a Kokkos interface.</p>
+</section>
+<section id="resolving-the-production-backend">
+<h2>Resolving the production backend<a class="headerlink" href="#resolving-the-production-backend" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeSelection.cmake">BackendRuntimeSelection.cmake</a> takes <code class="docutils literal notranslate"><span class="pre">CORSIKA_KOKKOS_BACKEND</span></code> and the
+installed Kokkos package’s <code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code>. It uppercases, deduplicates and
+sorts the device list, then recognizes these exact sets:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 52.0%" />
+<col style="width: 48.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Normalized <code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code></p></th>
+<th class="head"><p>Detected production backend</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">OPENMP</span></code> or <code class="docutils literal notranslate"><span class="pre">OPENMP;SERIAL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">OPENMP</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CUDA;SERIAL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CUDA</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HIP;SERIAL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HIP</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SERIAL;SYCL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SYCL</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CUDA;OPENMP</span></code> or <code class="docutils literal notranslate"><span class="pre">CUDA;OPENMP;SERIAL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Any other set</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NONE</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>The default request, <code class="docutils literal notranslate"><span class="pre">AUTO</span></code>, uses the detected backend. An explicit
+<code class="docutils literal notranslate"><span class="pre">NONE</span></code> omits the production runtime even for a recognized set. Other
+requests must match the detected backend or configuration fails; an unknown
+backend name is also an error. The assignment to the resolved variable is:</p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="linenos">32</span><span class="nb">if</span><span class="w"> </span><span class="p">(</span><span class="s">CORSIKA_KOKKOS_REQUESTED_BACKEND</span><span class="w"> </span><span class="s">STREQUAL</span><span class="w"> </span><span class="s2">"AUTO"</span><span class="p">)</span>
+<span class="linenos">33</span><span class="w">  </span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">CORSIKA_KOKKOS_RESOLVED_BACKEND</span><span class="w"> </span><span class="s2">"${CORSIKA_KOKKOS_DETECTED_BACKEND}"</span><span class="p">)</span>
+<span class="linenos">34</span><span class="nb">elseif</span><span class="w"> </span><span class="p">(</span><span class="s">CORSIKA_KOKKOS_REQUESTED_BACKEND</span><span class="w"> </span><span class="s">STREQUAL</span><span class="w"> </span><span class="s2">"NONE"</span><span class="p">)</span>
+<span class="linenos">35</span><span class="w">  </span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">CORSIKA_KOKKOS_RESOLVED_BACKEND</span><span class="w"> </span><span class="s2">"NONE"</span><span class="p">)</span>
+<span class="linenos">36</span><span class="nb">elseif</span><span class="w"> </span><span class="p">(</span><span class="s">NOT</span><span class="w"> </span><span class="s">CORSIKA_KOKKOS_REQUESTED_BACKEND</span><span class="w"> </span><span class="s">STREQUAL</span><span class="w"> </span><span class="s">CORSIKA_KOKKOS_DETECTED_BACKEND</span><span class="p">)</span>
+<span class="linenos">37</span><span class="w">  </span><span class="nb">message</span><span class="w"> </span><span class="p">(</span><span class="s">FATAL_ERROR</span>
+<span class="linenos">38</span><span class="w">    </span><span class="s2">"Requested production backend ${CORSIKA_KOKKOS_REQUESTED_BACKEND} does not match "</span>
+<span class="linenos">39</span><span class="w">    </span><span class="s2">"Kokkos devices '${CORSIKA_KOKKOS_DEVICE_SET}' (supported combination: "</span>
+<span class="linenos">40</span><span class="w">    </span><span class="s2">"${CORSIKA_KOKKOS_DETECTED_BACKEND}). Generic Runtime remains available with AUTO/NONE."</span><span class="p">)</span>
+<span class="linenos">41</span><span class="nb">else</span><span class="w"> </span><span class="p">()</span>
+<span class="linenos">42</span><span class="w">  </span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">CORSIKA_KOKKOS_RESOLVED_BACKEND</span><span class="w"> </span><span class="s2">"${CORSIKA_KOKKOS_REQUESTED_BACKEND}"</span><span class="p">)</span>
+<span class="linenos">43</span><span class="nb">endif</span><span class="w"> </span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">NONE</span></code> within an enabled build keeps the generic runtime and numerical
+targets, with their Kokkos dependency. It differs from disabling Kokkos
+entirely. It also does not suppress device-language setup: the top-level
+configuration enables CUDA or HIP from <code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code> before entering
+the target definitions.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeTargets.cmake">BackendRuntimeTargets.cmake</a> publishes
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_KOKKOS_BACKEND_&lt;resolved</span> <span class="pre">backend&gt;=1</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_KOKKOS_PROJECT_REVISION</span></code> on <code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code>. The latter is a
+cache string defaulting to <code class="docutils literal notranslate"><span class="pre">unknown</span></code>; a build that needs a recorded source
+revision must supply it. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendApplicationTargets.cmake">BackendApplicationTargets.cmake</a> uses the same
+resolved value to add <code class="docutils literal notranslate"><span class="pre">OpenMPBackendInstance.cpp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CudaBackendInstance.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">HipBackendInstance.cpp</span></code> or
+<code class="docutils literal notranslate"><span class="pre">SyclBackendInstance.cpp</span></code>. <code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code> adds both OpenMP and CUDA
+implementations and <code class="docutils literal notranslate"><span class="pre">CooperativeBackend.cpp</span></code>. Runtime selection and
+ownership are described in <a class="reference internal" href="runtime.html"><span class="doc">Runtime selection and ownership</span></a>.</p>
+</section>
+<section id="conan-profiles-and-the-build-helper">
+<h2>Conan, profiles and the build helper<a class="headerlink" href="#conan-profiles-and-the-build-helper" title="Link to this heading"></a></h2>
+<p>The configuration passes through three layers:</p>
+<ol class="arabic simple">
+<li><p>A host profile selects <code class="docutils literal notranslate"><span class="pre">&amp;:with_kokkos</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_backend</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_architecture</span></code>. Bundled profiles inherit <code class="docutils literal notranslate"><span class="pre">default</span></code> and may
+override compiler settings. For example, the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/openmp">OpenMP profile</a> selects
+<code class="docutils literal notranslate"><span class="pre">openmp</span></code> with architecture <code class="docutils literal notranslate"><span class="pre">NONE</span></code>; the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/cuda-openmp-ampere80">combined CUDA/OpenMP profile</a>
+selects <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code> with <code class="docutils literal notranslate"><span class="pre">AMPERE80</span></code>.</p></li>
+<li><p>The root <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conanfile.py">Conan recipe</a> forwards backend and architecture to the Kokkos
+dependency in <code class="docutils literal notranslate"><span class="pre">Pkg.configure()</span></code>. <code class="docutils literal notranslate"><span class="pre">Pkg.generate()</span></code> writes the CORSIKA
+options and device architecture variables into <code class="docutils literal notranslate"><span class="pre">conan_toolchain.cmake</span></code>;
+<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code> supplies dependency descriptors. When <code class="docutils literal notranslate"><span class="pre">with_kokkos</span></code> is
+true, the generated backend name is uppercased for CMake.</p></li>
+<li><p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/kokkos/conanfile.py">Kokkos Conan recipe</a> translates the dependency options into
+<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_*</span></code> and <code class="docutils literal notranslate"><span class="pre">Kokkos_ARCH_*</span></code> cache entries, builds a static
+Kokkos library and exposes its own CMake package. Its
+<code class="docutils literal notranslate"><span class="pre">cmake_find_mode=none</span></code> setting preserves Kokkos’ exported targets and
+<code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code> metadata instead of reconstructing them through
+<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code>.</p></li>
+</ol>
+<p>The Kokkos recipe enables OpenMP for <code class="docutils literal notranslate"><span class="pre">openmp</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, CUDA
+for <code class="docutils literal notranslate"><span class="pre">cuda</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, and HIP or SYCL for their respective
+choices. Serial is enabled for every choice except <code class="docutils literal notranslate"><span class="pre">openmp</span></code>. CUDA and HIP
+use <code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE</span></code>. CUDA UVM and Kokkos’ async
+CUDA allocation implementation are disabled. HIP enables
+<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS</span></code> to retain explicit
+launch bounds with older HIP compilers.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conan-install.sh">conan-install.sh</a> exports the repository’s three local recipes and invokes
+<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">install</span> <span class="pre">--build=missing</span></code> with distinct host and build profiles,
+host C++17 and the requested build type. Exporting a recipe alone does not
+select it: the root recipe’s options determine the dependency graph.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh">build_kokkos.sh</a> orchestrates this dependency step, data preparation,
+CMake configuration, compilation and installation. It uses Release for
+dependencies and CORSIKA, enables Kokkos and the PROPOSAL export bridge,
+and passes the generated toolchain to CMake. Its inputs and outputs are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Backend argument</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">hip</span></code> or <code class="docutils literal notranslate"><span class="pre">sycl</span></code>; a
+comma-separated list builds each requested installation in sequence.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_WORKSPACE</span></code></p></td>
+<td><p>Defaults to the source directory’s parent. Each backend uses
+<code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;/deps</span></code> and <code class="docutils literal notranslate"><span class="pre">install/&lt;backend&gt;</span></code>
+beneath it.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_OPENMP_PROFILE</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code></p></td>
+<td><p>Select the CPU profile / GPU profile by file path or bundled name.
+HIP and SYCL require an explicit GPU profile.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_PROFILE</span></code></p></td>
+<td><p>Selects Conan’s build profile, defaulting to <code class="docutils literal notranslate"><span class="pre">default</span></code>. Existing
+profiles are not overwritten. A missing default is created with
+<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">profile</span> <span class="pre">detect</span></code> only during a normal build; <code class="docutils literal notranslate"><span class="pre">--check</span></code> reports
+its absence.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_JOBS</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_PYTHON</span></code></p></td>
+<td><p>Positive compile-job count, defaulting to one / build Python,
+defaulting to <code class="docutils literal notranslate"><span class="pre">python3</span></code> from the active environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--check</span></code></p></td>
+<td><p>Checks prerequisites and reports the plan, then exits before data
+preparation, dependency fetching, configuration or compilation.</p></td>
+</tr>
+<tr class="row-even"><td><p>Additional CMake arguments</p></td>
+<td><p>Appended to the configuration command. They do not rewrite the Conan
+profile or rebuild Kokkos with a different backend.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">openmp,cuda</span></code> produces two separate dependency/build/install trees.
+<code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code> produces one combined installation. The compatibility entry
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos_dual.sh">build_kokkos_dual.sh</a> delegates to the latter and maps
+<code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_DUAL_PROFILE</span></code> to <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code> when provided. These are
+different build products, so the comma-separated and combined forms are
+not interchangeable.</p>
+</section>
+<section id="architecture-and-compiler-contracts">
+<h2>Architecture and compiler contracts<a class="headerlink" href="#architecture-and-compiler-contracts" title="Link to this heading"></a></h2>
+<p>The architecture option controls both Kokkos compilation and application
+device compilation. The root Conan recipe accepts these explicit mappings:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend</p></th>
+<th class="head"><p>Kokkos architecture to CMake device target</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>CUDA / CUDA_OPENMP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VOLTA70</span></code> → <code class="docutils literal notranslate"><span class="pre">70</span></code>, <code class="docutils literal notranslate"><span class="pre">VOLTA72</span></code> → <code class="docutils literal notranslate"><span class="pre">72</span></code>, <code class="docutils literal notranslate"><span class="pre">TURING75</span></code> → <code class="docutils literal notranslate"><span class="pre">75</span></code>,
+<code class="docutils literal notranslate"><span class="pre">AMPERE80</span></code> → <code class="docutils literal notranslate"><span class="pre">80</span></code>, <code class="docutils literal notranslate"><span class="pre">AMPERE86</span></code> → <code class="docutils literal notranslate"><span class="pre">86</span></code>, <code class="docutils literal notranslate"><span class="pre">ADA89</span></code> → <code class="docutils literal notranslate"><span class="pre">89</span></code>,
+<code class="docutils literal notranslate"><span class="pre">HOPPER90</span></code> → <code class="docutils literal notranslate"><span class="pre">90</span></code>, <code class="docutils literal notranslate"><span class="pre">BLACKWELL120</span></code> → <code class="docutils literal notranslate"><span class="pre">120</span></code>;
+written to <code class="docutils literal notranslate"><span class="pre">CMAKE_CUDA_ARCHITECTURES</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>HIP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VEGA906</span></code> → <code class="docutils literal notranslate"><span class="pre">gfx906</span></code>, <code class="docutils literal notranslate"><span class="pre">VEGA908</span></code> → <code class="docutils literal notranslate"><span class="pre">gfx908</span></code>,
+<code class="docutils literal notranslate"><span class="pre">VEGA90A</span></code> → <code class="docutils literal notranslate"><span class="pre">gfx90a</span></code>, <code class="docutils literal notranslate"><span class="pre">GFX940</span></code> → <code class="docutils literal notranslate"><span class="pre">gfx940</span></code>,
+<code class="docutils literal notranslate"><span class="pre">GFX942</span></code> → <code class="docutils literal notranslate"><span class="pre">gfx942</span></code>; written to <code class="docutils literal notranslate"><span class="pre">CMAKE_HIP_ARCHITECTURES</span></code>,
+<code class="docutils literal notranslate"><span class="pre">AMDGPU_TARGETS</span></code> and <code class="docutils literal notranslate"><span class="pre">GPU_TARGETS</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Unrecognized CUDA or HIP architecture values fail toolchain generation.
+These mappings describe accepted configuration inputs, not a matrix of
+tested hardware.</p>
+<p>Without an explicit CUDA profile, the helper queries <code class="docutils literal notranslate"><span class="pre">nvidia-smi</span></code> for
+compute capability and selects a bundled profile for 7.0, 7.5, 8.0, 8.6,
+8.9, 9.0 or 12.0. It rejects mixed or unknown results. <code class="docutils literal notranslate"><span class="pre">C8_CUDA_DEVICE</span></code>
+limits this build-time query to an index or UUID; it does not select the
+device used by a later simulation. For directly specified architectures in
+the bundled profiles, the helper checks <code class="docutils literal notranslate"><span class="pre">nvcc</span> <span class="pre">--list-gpu-code</span></code> before
+fetching dependencies. Inherited custom profile settings are resolved by
+Conan/CMake. In particular, <code class="docutils literal notranslate"><span class="pre">VOLTA72</span></code> appears in the recipe mapping but
+has no bundled profile or automatic-detection case.</p>
+<p>HIP uses two compiler roles. The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/hip-vega906-dtk221001">DTK HIP profile</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/hip-vega90a">ROCm HIP profile</a>
+keep ordinary dependencies on <code class="docutils literal notranslate"><span class="pre">clang++</span></code> while selecting <code class="docutils literal notranslate"><span class="pre">hipcc</span></code> for
+the application’s C++ compiler. The helper obtains the toolkit and LLVM
+paths from <code class="docutils literal notranslate"><span class="pre">hipconfig</span></code>, sets <code class="docutils literal notranslate"><span class="pre">HIPCXX</span></code> to the toolkit’s <code class="docutils literal notranslate"><span class="pre">clang++</span></code> unless
+already supplied, and adds the toolkit CMake paths. It confines HIP target
+environment flags to a subshell for that backend, preventing them from
+leaking into the next backend in a multi-build request. The profile’s
+declared compiler version must match the active toolkit. The supplied
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/sycl-intel-pvc">SYCL profile</a> is likewise a compiler/architecture example, not evidence
+that its hardware has been validated.</p>
+<p>The helper enforces Conan 2 and CMake 3.24 through 3.x. This is stricter
+than the top-level file’s historical <code class="docutils literal notranslate"><span class="pre">cmake_minimum_required(VERSION</span> <span class="pre">3.9)</span></code>.
+CORSIKA and the Kokkos recipe use C++17, and native model builds still
+require Fortran. The Kokkos integration accepts version 4.7 or later within
+4.x and explicitly rejects 5.x; the supplied recipe pins the downloaded
+archive to <code class="docutils literal notranslate"><span class="pre">4.7.03</span></code> with a SHA-256 checksum. Enabling
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_SANITIZERS_ENABLED</span></code> rejects Kokkos packages with CUDA, HIP, SYCL
+or OpenMPTarget enabled.</p>
+</section>
+<section id="installed-package-behavior">
+<h2>Installed package behavior<a class="headerlink" href="#installed-package-behavior" title="Link to this heading"></a></h2>
+<p>Targets are installed through <code class="docutils literal notranslate"><span class="pre">CORSIKA8PublicTargets</span></code> and imported with
+the <code class="docutils literal notranslate"><span class="pre">CORSIKA8::</span></code> namespace. The generated <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/corsikaConfig.cmake.in">corsikaConfig.cmake</a> records
+the build’s enabled features. For a Kokkos-enabled installation it discovers
+Kokkos, Threads, CubicInterpolation, OpenSSL and <code class="docutils literal notranslate"><span class="pre">nlohmann_json</span></code> before
+importing the targets; a CUDA installation also discovers <code class="docutils literal notranslate"><span class="pre">CUDAToolkit</span></code>.
+Thus the dependency-free link interface of <code class="docutils literal notranslate"><span class="pre">KokkosData</span></code> does not make the
+whole <code class="docutils literal notranslate"><span class="pre">find_package(corsika)</span></code> operation dependency-free.</p>
+<p>The export-interface flag and header digest are properties of the installed
+binary, checked again when a consumer configures. A consumer cannot change
+the installed execution backend or enable an omitted bridge through its own
+CMake options. Build a corresponding installation and consume its exported
+targets with the matching dependency graph.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../backends.html" class="btn btn-neutral float-left" title="Build and backend portability" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="runtime.html" class="btn btn-neutral float-right" title="Runtime selection and ownership" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

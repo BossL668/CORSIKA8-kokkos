@@ -1,0 +1,504 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Runtime selection and ownership &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/backends/runtime.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Device-code contracts and portability" href="device-code.html" />
+    <link rel="prev" title="Build configuration and toolchains" href="build.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
+      <li class="breadcrumb-item active">Runtime selection and ownership</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/backends/runtime.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="runtime-selection-and-ownership">
+<h1>Runtime selection and ownership<a class="headerlink" href="#runtime-selection-and-ownership" title="Link to this heading"></a></h1>
+<p>The build determines which execution spaces are available. The application
+then chooses its EM and radio implementations, process organization and
+visible device before creating a backend. A runtime object owns or borrows
+Kokkos initialization; the EM backend owns the execution-space instance and
+storage used to advance particles.</p>
+<section id="application-choices">
+<h2>Application choices<a class="headerlink" href="#application-choices" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BackendOptions</span></code> contains application settings without owning Kokkos or
+device-runtime objects. These settings describe separate choices:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.0%" />
+<col style="width: 73.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Setting or interface</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">proposal</span></code></p></td>
+<td><p>Native C8 transport through <code class="docutils literal notranslate"><span class="pre">Cascade::run()</span></code>. This is the default.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">kokkos-proposal</span></code></p></td>
+<td><p>The accelerated application path with native PROPOSAL calculator data
+and a resident Kokkos EM backend. Its kernels can run on OpenMP or a
+compiled GPU execution space.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--em-backend</span> <span class="pre">kokkos-egs4</span></code></p></td>
+<td><p>The separate EGS4 transport path, requiring EGS4 build support. Its
+execution validator accepts OpenMP, CUDA or HIP.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--radio-backend</span> <span class="pre">cpu|kokkos</span></code></p></td>
+<td><p>Radio projection implementation. The standard air-shower
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> path requires <code class="docutils literal notranslate"><span class="pre">kokkos</span></code> radio. The library also
+permits an application-supplied host radio adapter through
+<code class="docutils literal notranslate"><span class="pre">hostRadioAdapter_</span></code>; this is not a command-line capability switch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--kokkos-execution</span></code></p></td>
+<td><p>Selection among execution spaces compiled into the backend. An empty
+setting requests the build default.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ExecutionSelection</span></code></p></td>
+<td><p>Direct application execution or a process coordinator. It is obtained
+before model and runtime initialization.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeDriver::cascade(...)</span></code> returns an adapter whose callback first handles
+any CPU-prefix role, then runs native <code class="docutils literal notranslate"><span class="pre">Cascade</span></code> for <code class="docutils literal notranslate"><span class="pre">proposal</span></code> or the
+accelerated adapter otherwise. The driver routes application execution; it
+does not change the compiled Kokkos execution space. See
+<a class="reference internal" href="../application/event-execution.html"><span class="doc">Event execution and results</span></a> for the event inputs and their lifetimes.</p>
+<p><code class="docutils literal notranslate"><span class="pre">validate_backend_cli_options(BackendOptions&amp;,</span> <span class="pre">executable)</span></code> returns <code class="docutils literal notranslate"><span class="pre">bool</span></code>
+and reports rejected combinations through the logger. In particular, an
+explicit <code class="docutils literal notranslate"><span class="pre">--kokkos-execution</span></code> requires a Kokkos EM choice. With
+<code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS=OFF</span></code>, requesting <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> or Kokkos radio is
+rejected. The shared application interface and native <code class="docutils literal notranslate"><span class="pre">proposal</span></code> path
+remain available; an unavailable accelerated request does not silently select
+native transport. In a Kokkos-enabled build, constructing the application
+runtime holder also does not itself start Kokkos for the native path.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/BackendOptions.hpp">BackendOptions.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/BackendCli.cpp">BackendCli.cpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a>.</p>
+</section>
+<section id="resolving-a-compiled-backend">
+<h2>Resolving a compiled backend<a class="headerlink" href="#resolving-a-compiled-backend" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">resolve_execution_backend(std::string</span> <span class="pre">const&amp;</span> <span class="pre">requested)</span></code> returns the
+selected backend name without initializing Kokkos. In an independent build,
+an empty request selects the sole compiled backend: <code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda</span></code>,
+<code class="docutils literal notranslate"><span class="pre">hip</span></code> or <code class="docutils literal notranslate"><span class="pre">sycl</span></code>. A different nonempty request throws
+<code class="docutils literal notranslate"><span class="pre">std::invalid_argument</span></code>.</p>
+<p>The experimental <code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code> build accepts <code class="docutils literal notranslate"><span class="pre">cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">openmp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code> and <code class="docutils literal notranslate"><span class="pre">openmp-cuda</span></code>; an empty request selects <code class="docutils literal notranslate"><span class="pre">cuda</span></code>.
+<code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> sends the latter two names to the cooperative backend factory.
+Constructing <code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> directly with either cooperative name is
+rejected: that runtime represents one endpoint, while the factory assembles
+the cooperating endpoints.</p>
+<p>The dual build requires a working NVIDIA device during Kokkos initialization,
+including when its EM backend selects OpenMP. It does not provide automatic
+CPU fallback after device failure. An independent OpenMP build supplies the
+CPU-only backend. Native <code class="docutils literal notranslate"><span class="pre">proposal</span></code> execution is a separate application
+choice and does not imply use of Kokkos OpenMP.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Kokkos::DefaultExecutionSpace</span></code> is a type fixed by the Kokkos build. It must
+not be used as a synonym for the runtime-selected EM backend in the dual
+build: <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> explicitly instantiates the selected implementation,
+and <code class="docutils literal notranslate"><span class="pre">RuntimeInfo::backend_</span></code> reports that selection.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendSelection.cpp">BackendSelection.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp">EmBackend.cpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp">BackendRuntime.cpp</a>.</p>
+</section>
+<section id="device-selection-and-visibility">
+<span id="backend-device-visibility"></span><h2>Device selection and visibility<a class="headerlink" href="#device-selection-and-visibility" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">parse_devices(argc,</span> <span class="pre">argv)</span></code> returns <code class="docutils literal notranslate"><span class="pre">DeviceSelection</span></code>, whose <code class="docutils literal notranslate"><span class="pre">ids_</span></code> is an
+ordered vector of identifier strings. It parses <code class="docutils literal notranslate"><span class="pre">--device</span></code> and the hidden
+<code class="docutils literal notranslate"><span class="pre">--devices</span></code> alias, accepts comma-separated or space-separated values, and
+normalizes numeric identifiers. It stops at <code class="docutils literal notranslate"><span class="pre">--</span></code>; <code class="docutils literal notranslate"><span class="pre">--help</span></code> or <code class="docutils literal notranslate"><span class="pre">-h</span></code> before
+that marker returns an empty selection without querying hardware. Empty,
+duplicate, malformed or excessive selections are rejected. At most 255
+devices may be listed, and the device-selection options cannot be combined
+with the hidden <code class="docutils literal notranslate"><span class="pre">--kokkos-device</span></code> option.</p>
+<p>Parsing and resolving identifiers are separate operations:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 40.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend</p></th>
+<th class="head"><p>Resolution</p></th>
+<th class="head"><p>Visibility in the application or worker</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>CUDA</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">resolve_gpu_ids(requested,</span> <span class="pre">listing)</span></code> maps indices or complete UUID
+aliases from an <code class="docutils literal notranslate"><span class="pre">nvidia-smi</span></code> index/UUID listing to UUID strings. It
+rejects unknown identifiers and aliases naming the same GPU.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CUDA_VISIBLE_DEVICES</span></code> is set to the resolved UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>HIP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">resolve_hip_indices(requested,</span> <span class="pre">listing)</span></code> validates nonnegative
+ordinal strings against the index/PCI-address listing from
+<code class="docutils literal notranslate"><span class="pre">c8_hip_devices</span></code>. It returns the requested order unchanged and
+rejects unknown or duplicate indices. UUID input is not accepted.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HIP_VISIBLE_DEVICES</span></code> is set to the validated index.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">select_single_gpu(DeviceSelection</span> <span class="pre">const&amp;)</span></code> requires exactly one identifier
+and returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. It runs the query in a child process, validates the
+result, then updates the visibility environment. Query failure, timeout or
+failure to set the environment is an error. The selecting parent does not
+initialize a device runtime as part of this query.</p>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_device_cli(app,</span> <span class="pre">options,</span> <span class="pre">selection)</span></code> returns <code class="docutils literal notranslate"><span class="pre">true</span></code> for an empty
+selection. For a single device, it checks the compiled backend and compatible
+application options, selects visibility and sets <code class="docutils literal notranslate"><span class="pre">options.kokkosDevice_</span></code> to
+zero. Where the user supplied no explicit choices, it selects
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>, Kokkos radio unless a host adapter is supplied, and the
+compiled GPU execution name. It catches selection errors, logs them and
+returns <code class="docutils literal notranslate"><span class="pre">false</span></code>. Multiple devices must have been dispatched to the
+coordinator before this direct-path helper is called.</p>
+<p>The selected device is therefore addressed as ordinal <code class="docutils literal notranslate"><span class="pre">0</span></code> inside its
+restricted process. <code class="docutils literal notranslate"><span class="pre">RuntimeConfig::device_</span></code> and the legacy
+<code class="docutils literal notranslate"><span class="pre">--kokkos-device</span></code> refer to this process-visible ordinal, not the
+identifier originally supplied to <code class="docutils literal notranslate"><span class="pre">--device</span></code>. Device selection neither recompiles
+kernels nor changes their architecture target.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceSelection.cpp">DeviceSelection.cpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceCliOptions.cpp">DeviceCliOptions.cpp</a>.</p>
+</section>
+<section id="generic-runtime-lifetime">
+<span id="generic-kokkos-runtime"></span><h2>Generic runtime lifetime<a class="headerlink" href="#generic-runtime-lifetime" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Runtime(int</span> <span class="pre">numThreads</span> <span class="pre">=</span> <span class="pre">0,</span> <span class="pre">int</span> <span class="pre">deviceId</span> <span class="pre">=</span> <span class="pre">-1)</span></code> manages or borrows the one
+Kokkos runtime in a process. The first instance initializes Kokkos if needed;
+subsequent compatible instances share its lifetime. If Kokkos was initialized
+externally, these instances borrow it and never finalize that initialization.
+The last reference to an initialization owned by <code class="docutils literal notranslate"><span class="pre">Runtime</span></code> fences and
+finalizes Kokkos.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interface or input</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">numThreads</span></code></p></td>
+<td><p>Host parallel-backend thread count. Zero keeps the Kokkos default or
+accepts the existing count. Negative values are invalid; a Serial host
+backend rejects values greater than one.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">deviceId</span></code></p></td>
+<td><p>Visible GPU ordinal. Minus one keeps the default or accepts the
+existing device. Values below minus one and unavailable explicit
+devices are invalid. A CPU-only build rejects explicit GPU ordinals.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">getNumThreads()</span></code> / <code class="docutils literal notranslate"><span class="pre">getDeviceId()</span></code></p></td>
+<td><p>Return the actual host concurrency and visible device ordinal captured
+from Kokkos; the device value is minus one for a CPU-only build.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">getExecutionSpaceName()</span></code></p></td>
+<td><p>Returns the build-selected <code class="docutils literal notranslate"><span class="pre">Kokkos::DefaultExecutionSpace</span></code> name.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ownsInitialization()</span></code></p></td>
+<td><p>Returns whether the shared lifetime owns initialization. All instances
+sharing an owned lifetime report <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Explicit settings must match an existing runtime. An incompatible request
+throws <code class="docutils literal notranslate"><span class="pre">std::invalid_argument</span></code>. Acquisition from another host thread or
+after Kokkos finalization throws <code class="docutils literal notranslate"><span class="pre">std::logic_error</span></code>. Initialization cannot
+be restarted after finalization.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Runtime</span></code> is neither copyable nor movable. Construct and destroy its
+instances on the coordinating host thread. An external owner must belong to
+that thread and outlive every borrower. Destroy Kokkos Views and
+execution-space objects before releasing the last owning instance.
+Wrong-thread destruction violates the contract and terminates the process.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/Runtime.hpp">Runtime.hpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/Runtime.cpp">Runtime.cpp</a>.</p>
+</section>
+<section id="backend-runtime-lifetime">
+<span id="backend-runtime-owner"></span><h2>Backend runtime lifetime<a class="headerlink" href="#backend-runtime-lifetime" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BackendRuntime(RuntimeConfig</span> <span class="pre">const&amp;)</span></code> owns the runtime used by an EM
+backend endpoint. Ordinary construction requires sole ownership of Kokkos
+initialization: an already initialized runtime without an explicit cooperative
+lease causes <code class="docutils literal notranslate"><span class="pre">std::logic_error</span></code>. It does not adopt an arbitrary generic
+<code class="docutils literal notranslate"><span class="pre">Runtime</span></code> or external <code class="docutils literal notranslate"><span class="pre">Kokkos::ScopeGuard</span></code> as its owner.</p>
+<p>The reverse order is supported: a generic <code class="docutils literal notranslate"><span class="pre">Runtime</span></code> can borrow an existing
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code>. That borrower does not extend the backend owner’s
+lifetime and must be destroyed before the backend owner finalizes Kokkos.
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> is noncopyable and movable; its owned implementation and
+runtime lease move with it.</p>
+<p>For the experimental dual build, a configuration with
+<code class="docutils literal notranslate"><span class="pre">cooperativeOwner_</span> <span class="pre">=</span> <span class="pre">true</span></code> selects CUDA and may call
+<code class="docutils literal notranslate"><span class="pre">shareCooperativeLifetime()</span></code> to obtain a <code class="docutils literal notranslate"><span class="pre">std::shared_ptr&lt;RuntimeLease&gt;</span></code>.
+Another endpoint receives that lease through <code class="docutils literal notranslate"><span class="pre">RuntimeConfig::runtimeLease_</span></code>.
+The borrower must use the same coordinating thread and device, a compatible
+thread count and a live cooperative lease. Owning and borrowing simultaneously
+is invalid. Other builds reject cooperative ownership or borrowing, and an
+ordinary owner cannot lend a cooperative lifetime.</p>
+<p>The last lease releases the owned initialization. All endpoints, their work,
+Views and execution-space objects must finish and be destroyed before that
+final lease, on the coordinating thread. This lifetime mechanism alone does
+not schedule a cooperative shower. The process coordinator described below
+also has a separate role from this in-process CUDA/OpenMP mechanism.</p>
+<p><code class="docutils literal notranslate"><span class="pre">getInfo()</span></code> returns <code class="docutils literal notranslate"><span class="pre">RuntimeInfo</span> <span class="pre">const&amp;</span></code> owned by the runtime. It reports
+the selected backend, Kokkos and compiler versions, project revision, device
+description, concurrency and memory information. <code class="docutils literal notranslate"><span class="pre">device_</span></code> retains the
+configured ordinal; it is not a physical-device identifier. The reference
+remains valid while its owning implementation remains alive.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/BackendRuntime.hpp">BackendRuntime.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeConfig.hpp">RuntimeConfig.hpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeInfo.hpp">RuntimeInfo.hpp</a>.</p>
+</section>
+<section id="session-and-execution-space-ownership">
+<h2>Session and execution-space ownership<a class="headerlink" href="#session-and-execution-space-ownership" title="Link to this heading"></a></h2>
+<p>For <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>, <code class="docutils literal notranslate"><span class="pre">CascadeRunSession</span></code> copies application settings into
+the configuration retained by <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">32</span><span class="w">    </span><span class="n">corsika</span><span class="o">::</span><span class="n">kokkos</span><span class="o">::</span><span class="n">RuntimeConfig</span><span class="w"> </span><span class="n">runtimeConfig</span><span class="p">{};</span>
+<span class="linenos">33</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">device_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosDevice_</span><span class="p">;</span>
+<span class="linenos">34</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">threads_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosNumThreads_</span><span class="p">;</span>
+<span class="linenos">35</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">executionBackend_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosExecution_</span><span class="p">;</span>
+<span class="linenos">36</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">cooperativePolicy_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosCooperativePolicy_</span><span class="p">;</span>
+<span class="linenos">37</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">tuningCache_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosTuningCache_</span><span class="p">;</span>
+<span class="linenos">38</span><span class="w">    </span><span class="n">runtimeConfig</span><span class="p">.</span><span class="n">requireTuning_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">kokkosRequireTuning_</span><span class="p">;</span>
+<span class="linenos">39</span><span class="w">    </span><span class="n">runtimeSession_</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">40</span><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">corsika</span><span class="o">::</span><span class="n">kokkos</span><span class="o">::</span><span class="n">EmRunSession</span><span class="o">&gt;</span><span class="p">(</span><span class="n">runtimeConfig</span><span class="p">,</span><span class="w"> </span><span class="n">auxiliaryCache</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This constructs a session holder. Its first <code class="docutils literal notranslate"><span class="pre">beginProposalNative(...)</span></code>
+creates <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code>, selects a backend instance and initializes its storage.
+Later compatible events reuse that backend. The application session and
+backend storage lifetimes can therefore span several events; they are
+not created once per particle or per host thread.</p>
+<p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;::Impl</span></code> owns a
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code>, one <code class="docutils literal notranslate"><span class="pre">TExecutionSpace</span> <span class="pre">execution_</span></code> and the tables, queues
+and accumulators used with that instance. Its member order places the runtime
+before the execution-space and storage members, so those members are destroyed
+before the runtime. Resident transport and accumulator calls receive the backend’s
+<code class="docutils literal notranslate"><span class="pre">execution_</span></code> instance; storage upload helpers also manage their own
+copy and synchronization paths. The session API and event reuse rules are described
+in <a class="reference internal" href="../application/event-execution.html#application-backend-start"><span class="std std-ref">Backend preparation and session reuse</span></a>.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>.</p>
+</section>
+<section id="host-threads-and-memory-configuration">
+<h2>Host threads and memory configuration<a class="headerlink" href="#host-threads-and-memory-configuration" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">--kokkos-num-threads</span></code> becomes <code class="docutils literal notranslate"><span class="pre">RuntimeConfig::threads_</span></code>. A positive
+value requests Kokkos host threads; zero requests the backend’s default
+thread policy. Independent
+GPU builds use a Serial host, and ordinary GPU execution rejects more than
+one host thread. The dual build’s ordinary CUDA mode explicitly initializes
+OpenMP with one thread. Its cooperative owner may use several OpenMP threads.</p>
+<p>This count is distinct from GPU kernel team size, execution-space
+<code class="docutils literal notranslate"><span class="pre">concurrency_</span></code> and the number of CPU-prefix processes. <code class="docutils literal notranslate"><span class="pre">RuntimeInfo</span></code>
+records <code class="docutils literal notranslate"><span class="pre">hostThreads_</span></code> separately: normally one for a GPU endpoint and the
+OpenMP concurrency for CPU execution; cooperative endpoints report the
+shared host-thread count.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--gpu-memory-fraction</span></code> becomes <code class="docutils literal notranslate"><span class="pre">BackendConfig::memoryFraction_</span></code>, not a
+Kokkos initialization setting. The direct CLI defaults to <code class="docutils literal notranslate"><span class="pre">0.70</span></code> and accepts
+<code class="docutils literal notranslate"><span class="pre">[0.01,</span> <span class="pre">1]</span></code>; the backend interface accepts <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">1]</span></code>. For CUDA and HIP, the
+backend computes its byte budget from the free-memory snapshot recorded by
+<code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> at initialization. For SYCL, the recorded basis is total
+global device memory because the implementation has no portable free-memory
+query. This is a budgeting input, not a reservation or a guarantee that a
+later allocation succeeds.</p>
+<p>The resident implementation checks projected storage against its budget and
+derives automatic GPU capacity when <code class="docutils literal notranslate"><span class="pre">residentBatchLimit_</span> <span class="pre">==</span> <span class="pre">0</span></code>. OpenMP
+uses its separate capacity policy; this fraction is not a measured host-RAM
+budget. Tuning-cache path and requirement settings also pass through
+<code class="docutils literal notranslate"><span class="pre">RuntimeConfig</span></code>, but cache loading belongs to backend initialization, after
+runtime and device identity are available.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp">BackendRuntime.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>.</p>
+</section>
+<section id="process-coordinator-support">
+<h2>Process coordinator support<a class="headerlink" href="#process-coordinator-support" title="Link to this heading"></a></h2>
+<p>The current GPU coordinator supports the compiled CUDA or HIP path. It
+selects <code class="docutils literal notranslate"><span class="pre">gpu_execution()</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_visibility_variable()</span></code> accordingly.
+It requires Kokkos radio and <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> or enabled <code class="docutils literal notranslate"><span class="pre">kokkos-egs4</span></code>
+transport; it does not dispatch OpenMP or SYCL worker backends. Multiple GPUs,
+or one GPU with CPU-prefix workers, enter this path when coordinator support
+is compiled. The EGS4 route uses a serial prefix with multiple GPUs;
+CPU-prefix workers and persistent GPU-worker reuse are limited to
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>. EGS4 also rejects an explicit
+<code class="docutils literal notranslate"><span class="pre">--multigpu-frontier-energy</span></code>, because it exports unstarted roots.</p>
+<p>Each GPU worker is a separate process with a restricted visibility mask and
+<code class="docutils literal notranslate"><span class="pre">--kokkos-device</span> <span class="pre">0</span></code>. The coordinator supplies
+<code class="docutils literal notranslate"><span class="pre">--kokkos-num-threads</span> <span class="pre">1</span></code> and limits the worker’s common host-thread
+environment settings. CPU-prefix processes have independent process counts.
+The coordinator’s per-GPU memory fraction defaults to <code class="docutils literal notranslate"><span class="pre">0.5</span></code> and accepts
+<code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0.9]</span></code>, a different policy from the direct CLI.</p>
+<p>The full worker lifecycle, output merging and supported event constraints
+belong to <a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a>. The device-parser tests cover
+identifier handling with supplied listings; the CUDA query tests also use a
+synthetic query process. These checks do not establish full-shower correctness
+or hardware coverage for every compiled backend.</p>
+<p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="build.html" class="btn btn-neutral float-left" title="Build configuration and toolchains" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="device-code.html" class="btn btn-neutral float-right" title="Device-code contracts and portability" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

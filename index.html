@@ -107,7 +107,12 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation and performance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
@@ -148,7 +153,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport and radio chapters are available. Further architecture and maintenance chapters are being developed.</span>
+  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio and backend-portability chapters are available. Validation and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -184,8 +189,9 @@ extension requirements. The <a class="reference internal" href="physics-data.htm
 preparation, table storage and query contracts. The <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> chapter
 follows candidate sampling, particle propagation and interaction final states.
 The <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a> chapter covers track collection, projection, waveform
-accumulation and propagation-specific interfaces. Further chapters will
-cover backend configuration, validation and maintenance.</p>
+accumulation and propagation-specific interfaces. The <a class="reference internal" href="backends.html"><span class="doc">Build and backend portability</span></a> chapter
+explains build selection, runtime ownership and device-code contracts. Further
+chapters will cover validation and maintenance.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
