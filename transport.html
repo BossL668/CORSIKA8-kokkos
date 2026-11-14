@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Radio calculation" href="radio.html" />
+    <link rel="next" title="Candidate sampling and vertex selection" href="transport/selection.html" />
     <link rel="prev" title="Query contracts and model extensions" href="physics-data/contracts.html" /> 
 </head>
 
@@ -93,7 +93,12 @@
 <li class="toctree-l2"><a class="reference internal" href="physics-data/contracts.html">Query contracts and model extensions</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Transport and interaction kernels</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
@@ -132,19 +137,225 @@
              
   <section id="transport-and-interaction-kernels">
 <h1>Transport and interaction kernels<a class="headerlink" href="#transport-and-interaction-kernels" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>Where particle-step calculations are implemented.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Rates, candidate steps and competing limits.</p></li>
-<li><p>Magnetic transport, continuous loss and multiple scattering.</p></li>
-<li><p>Interaction-channel selection and final states.</p></li>
-<li><p>Shared algorithms, backend implementations and CPU library calls.</p></li>
-<li><p>Per-process numerical checks and regression tests.</p></li>
+<p>Transport combines sampled interaction depths, environmental limits and
+continuous processes to advance a particle. Interaction kernels then construct
+the final state at a reached vertex. These numerical functions are separate
+from the execution layer that allocates output slots, advances resident queues
+and returns work to native C8 modules.</p>
+<p>This chapter follows one particle through the standard Kokkos EM path. It
+continues from <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a> and <a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a>; the surrounding
+batch and event control is described in <a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+The description covers the <code class="docutils literal notranslate"><span class="pre">proposal-native</span></code> Kokkos EM implementation.
+Native C8 scalar transport and the EGS4 execution path have separate
+implementations. A shared physics model or table does not imply that these
+paths use the same C++ call chain or random stream.</p>
+</div>
+<section id="stage-responsibilities">
+<h2>Stage responsibilities<a class="headerlink" href="#stage-responsibilities" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.0%" />
+<col style="width: 36.0%" />
+<col style="width: 37.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Stage</p></th>
+<th class="head"><p>Main input</p></th>
+<th class="head"><p>Output and responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Candidate sampling</p></td>
+<td><p>Particle state, physics view and random identity.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">InteractionSelectionOutcome</span></code> with a sampled depth, cut or fallback.
+Charged-lepton channel selection remains pending.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Charged-lepton transport</p></td>
+<td><p>Candidate, continuous tables, environment and geometry configuration.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LeptonTransportRecord</span></code> with endpoints, limiting process and deposits.
+Multiple scattering completes the direction update in a separate stage.</p></td>
+</tr>
+<tr class="row-even"><td><p>Charged-lepton vertex selection</p></td>
+<td><p>Reached candidate, post-loss energy and retained acceptance draw.</p></td>
+<td><p>Selected process/component and loss fraction, rejected-vertex
+continuation, or specified CPU completion request.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photon transport</p></td>
+<td><p>Candidate and environment/geometry data.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PhotonTransportRecord</span></code> at a boundary, observation, cut or interaction.
+Photon flight changes position and time, not energy or direction.</p></td>
+</tr>
+<tr class="row-even"><td><p>Final-state classification</p></td>
+<td><p>Selected vertex, model parameters, thinning configuration and random identity.</p></td>
+<td><p>Kinematic parameters and retained-child counts, or continuation,
+suppression or fallback. No output queue is allocated here.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Final-state materialization</p></td>
+<td><p>Classification, exclusive output offset and first child history ID.</p></td>
+<td><p>Particle states and records written into caller-provided output slots.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="transport/interactions.html">Photon transport and interaction completion</a></li>
 </ul>
+</div>
+</section>
+<section id="kernel-execution-and-shared-implementations">
+<h2>Kernel execution and shared implementations<a class="headerlink" href="#kernel-execution-and-shared-implementations" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">LeptonFront.inl</span></code> launches candidate selection, transport and multiple
+scattering as separate kernels on the same execution instance. It then
+compacts the interaction candidates in source order and applies vertex and
+final-state classification to those candidates. <code class="docutils literal notranslate"><span class="pre">PhotonFront.inl</span></code> likewise
+separates selection from transport and compacts reached interactions before
+final-state classification.</p>
+<p>These resident front implementations are the production call sites. The
+host-vector adapters such as <code class="docutils literal notranslate"><span class="pre">transport_leptons_batch</span></code> and
+<code class="docutils literal notranslate"><span class="pre">transport_photons_batch</span></code> are useful for direct calls and tests, but their
+allocation and copy sequence is not the resident shower loop.</p>
+<p>OpenMP, CUDA and HIP builds instantiate the same Kokkos numerical functions
+for the selected execution space. Kokkos supplies launch, iteration and memory
+primitives; the CORSIKA integration supplies the physics and record contracts.
+Native C8 scalar modules still have their own transport and PROPOSAL calls.
+The shared environment boundary-selection body is one specific common
+implementation, described in <a class="reference internal" href="environment/queries.html"><span class="doc">Environment queries and boundary selection</span></a>; it does not make
+every numerical solver common to the scalar and accelerated paths.</p>
+<p>Changing a launch policy is therefore different from changing a physical
+step. Kernel changes must preserve the full particle state, random keys,
+selected interaction, record ordering and exactly-once output accounting.
+Changing a model or solver also requires numerical and physics validation.</p>
+</section>
+<section id="source-organization">
+<h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>Public headers declare the per-particle interfaces and records. Their inline
+implementations reside under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/em</span></code>. Resident execution
+files connect these functions to the queue and output storage.</p>
+<pre class="literal-block">corsika/kokkos/em/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/InteractionRecord.hpp">InteractionRecord.hpp</a>  candidate and vertex state
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/LeptonTransportRecord.hpp">LeptonTransportRecord.hpp</a>  charged-lepton endpoints, limits and deposits
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/PhotonTransportRecord.hpp">PhotonTransportRecord.hpp</a>  photon endpoints and limiting process
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/FallbackRequest.hpp">FallbackRequest.hpp</a>  CPU completion identity and diagnostics
+
+corsika/kokkos/em/algorithms/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionSelection.hpp">InteractionSelection.hpp</a>  candidate-depth interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonContinuousStep.hpp">LeptonContinuousStep.hpp</a>  continuous-step preparation and final energy
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonTransportStep.hpp">LeptonTransportStep.hpp</a>  charged-lepton propagation interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/MoliereStep.hpp">MoliereStep.hpp</a>  post-transport scattering stage
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonVertexSelection.hpp">LeptonVertexSelection.hpp</a>  post-loss acceptance and channel selection
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonTransportStep.hpp">PhotonTransportStep.hpp</a>  photon flight interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonFinalStateStep.hpp">LeptonFinalStateStep.hpp</a>  charged-lepton classification and materialization
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonFinalStateStep.hpp">PhotonFinalStateStep.hpp</a>  photon classification and materialization
+
+corsika/detail/kokkos/em/algorithms/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/InteractionSelection.inl">InteractionSelection.inl</a>  cuts, rate queries and candidate sampling
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonContinuousStep.inl">LeptonContinuousStep.inl</a>  continuous depth and energy-loss queries
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonTransportStep.inl">LeptonTransportStep.inl</a>  limit competition, magnetic advance and loss
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/MoliereStep.inl">MoliereStep.inl</a>  projected-angle sampling and direction update
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonVertexSelection.inl">LeptonVertexSelection.inl</a>  vertex acceptance and native selection
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonTransportStep.inl">PhotonTransportStep.inl</a>  straight transport and vertex reachability
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonFinalStateStep.inl">LeptonFinalStateStep.inl</a>  lepton products, LPM and thinning
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonFinalStateStep.inl">PhotonFinalStateStep.inl</a>  photon products, LPM and thinning
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/NativeMuonPairCutRecord.inl">NativeMuonPairCutRecord.inl</a>  tagged below-rest-mass cut accounting
+
+corsika/detail/kokkos/em/execution/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonFront.inl">LeptonFront.inl</a>  resident lepton kernels and output materialization
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonFront.inl">PhotonFront.inl</a>  resident photon kernels and output materialization
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonCascade.inl">LeptonCascade.inl</a>  lepton front iteration and checkpoint handling
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonCascade.inl">PhotonCascade.inl</a>  photon front iteration and checkpoint handling
+
+corsika/detail/kokkos/em/proposal/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler.inl</a>  complete a specified native reaction
+
+corsika/detail/kokkos/scheduling/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a>  consume results and dispatch CPU returns</pre>
+</section>
+<section id="validation-coverage">
+<h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>The tests below cover different layers of the step. Many compare against a
+retained production reference within the selected execution space. They
+establish implementation compatibility for the tested inputs, not independent
+physical accuracy or universal bitwise equality between GPU architectures.
+Real-table targets require the export-enabled build and its data fixtures.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39.0%" />
+<col style="width: 61.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Test source</p></th>
+<th class="head"><p>Existing coverage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testSelectionContracts.cpp">testSelectionContracts.cpp</a></p></td>
+<td><p>Controlled branch tests for cuts, invalid inputs, acceptance ties, continuation and deferred photon completion.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testInteractionSelection.cpp">testInteractionSelection.cpp</a></p></td>
+<td><p>Real native-table sampling and post-loss selection, compared with the retained production reference on host and selected execution space.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/testContinuousQueries.cpp">testContinuousQueries.cpp</a></p></td>
+<td><p>Native mass, range, step-limit and final-energy queries; corresponding device tests exercise the selected execution space.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testLeptonTransport.cpp">testLeptonTransport.cpp</a></p></td>
+<td><p>Node-tree charged-lepton steps, limits, endpoints, deposits and failure records against the retained reference.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testPhotonTransport.cpp">testPhotonTransport.cpp</a></p></td>
+<td><p>Straight photon transport, boundary/observation ordering, cuts, interaction reachability and deferred-completion metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testMoliereStep.cpp">testMoliereStep.cpp</a></p></td>
+<td><p>Scattering draws and directions, cut bypass and missing-muon-model behavior.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testLeptonFinalState.cpp">testLeptonFinalState.cpp</a></p></td>
+<td><p>Charged-lepton classification and materialization, including native sampling, LPM, thinning and CPU-only channels.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testPhotonFinalState.cpp">testPhotonFinalState.cpp</a></p></td>
+<td><p>Photon products and native pair sharing, suppression, thinning and tagged muon-pair cut behavior.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonFront.cpp">testLeptonFront.cpp</a></p></td>
+<td><p>Resident lepton-stage outputs, histories, fallback records and projected records.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhotonFront.cpp">testPhotonFront.cpp</a></p></td>
+<td><p>Resident photon outputs and records, stable ordering and execution-space comparison.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonCascade.cpp">testLeptonCascade.cpp</a></p></td>
+<td><p>Lepton iteration and resumed-checkpoint consistency, including history allocation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhotonCascade.cpp">testPhotonCascade.cpp</a></p></td>
+<td><p>Photon iteration and resumed-checkpoint consistency, including history allocation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp">testCpuFallbackPhysics.cpp</a></p></td>
+<td><p>Specified CPU reactions with real PROPOSAL calculators and retained selection inputs.</p></td>
+</tr>
+</tbody>
+</table>
+<p>This map records coverage in the pinned source revision; it is not a test
+report. Algorithm or model changes require the relevant executable tests and
+an appropriate full-shower validation.</p>
+</section>
+<section id="per-particle-execution-flow">
+<h2>Per-particle execution flow<a class="headerlink" href="#per-particle-execution-flow" title="Link to this heading"></a></h2>
+<p>The diagram follows reached and accepted interaction vertices. Boundary
+continuations, cuts, observations, decay candidates and early fallback
+requests bypass the later interaction stages and are omitted here. Selecting
+a photon channel is not enough to execute its reaction: transport must reach
+the candidate vertex first. The surrounding execution layer handles all
+returned outcomes and queue checkpoints.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/transport-step-flow.svg"><img alt="Candidate selection branches into charged-lepton transport, scattering and vertex selection, or photon flight; reached vertices are classified and their outputs are materialized for the resident queues and host consumers." src="_images/transport-step-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Numerical step functions and their resident callers. Open the SVG for
+links to the checked source revision.
+<a class="reference download internal" download="" href="_downloads/23520a0bd941ba186950e65a147402ff/transport-step-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/2c5de646353e77c51e14b2c03e1d796e/transport-step-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -153,7 +364,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="physics-data/contracts.html" class="btn btn-neutral float-left" title="Query contracts and model extensions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="radio.html" class="btn btn-neutral float-right" title="Radio calculation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="transport/selection.html" class="btn btn-neutral float-right" title="Candidate sampling and vertex selection" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

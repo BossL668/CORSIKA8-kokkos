@@ -20,7 +20,9 @@ transfer and resident storage, with source excerpts and a test map. The
 :doc:`environment` chapter covers scene export, ownership, numerical queries,
 shared boundary selection and model-extension requirements. The
 :doc:`physics-data` chapter covers native model preparation, table
-representation, resident ownership and query/extension contracts. The remaining
+representation, resident ownership and query/extension contracts. The
+:doc:`transport` chapter follows candidate sampling, step-limit competition,
+continuous processes and final-state/CPU completion contracts. The remaining
 architecture and maintenance chapters are still outlines; an
 outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.

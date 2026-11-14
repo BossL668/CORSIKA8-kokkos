@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate sampling and vertex selection &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/transport/selection.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Charged-lepton propagation" href="lepton-step.html" />
+    <link rel="prev" title="Transport and interaction kernels" href="../transport.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../transport.html">Transport and interaction kernels</a></li>
+      <li class="breadcrumb-item active">Candidate sampling and vertex selection</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/transport/selection.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="candidate-sampling-and-vertex-selection">
+<h1>Candidate sampling and vertex selection<a class="headerlink" href="#candidate-sampling-and-vertex-selection" title="Link to this heading"></a></h1>
+<p>An interaction depth is a candidate for the next step, not a complete
+transport decision. Geometry, continuous loss, magnetic deflection and muon
+decay can stop a particle earlier. For charged leptons, the energy at the
+candidate vertex also differs from the energy used to sample that depth.</p>
+<p>The two selection interfaces below preserve this distinction. They operate
+on value records and borrowed physics views. They neither move particles nor
+allocate or compact execution queues.</p>
+<section id="selection-interfaces">
+<h2>Selection interfaces<a class="headerlink" href="#selection-interfaces" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29.0%" />
+<col style="width: 35.0%" />
+<col style="width: 36.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Input</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">select_discrete_interaction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">InteractionPhysicsView</span></code>, initial <code class="docutils literal notranslate"><span class="pre">ParticleState</span></code>, input index,
+random seed and shower ID.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">InteractionSelectionOutcome</span></code>: candidate interaction record or
+fallback request, with native inverse counters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">select_lepton_vertex</span></code></p></td>
+<td><p>The same physics view and event key; an <code class="docutils literal notranslate"><span class="pre">InteractionRecord</span></code> at the
+transported, post-loss vertex.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LeptonVertexSelectionOutcome</span></code>: exactly one interaction,
+continuation or fallback branch, with native inverse counters.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Particle records use total energy in GeV. Selection converts it to MeV for
+the native tables. Rates have units cm²/g and interaction depth has units
+g/cm². The input index identifies the caller’s result slot; it is not a
+random-number input. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionSelection.hpp">InteractionSelection.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonVertexSelection.hpp">LeptonVertexSelection.hpp</a> and <a class="reference internal" href="../particles/representation.html"><span class="doc">Particle representation and numerical conventions</span></a>.</p>
+</section>
+<section id="initial-rate-and-candidate-depth">
+<h2>Initial rate and candidate depth<a class="headerlink" href="#initial-rate-and-candidate-depth" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">select_discrete_interaction</span></code> first handles the native tagged muon-pair
+cut, the particle-time cut, and species-specific energy cuts. An ordinary
+charged-lepton cut uses kinetic energy relative to the transport mass and
+also checks the continuous table’s lower endpoint. The mass used by a native
+table and the mass used for transport are separate query results; they must
+not be replaced by an assumed common value.</p>
+<p>For a valid muon above its transport rest mass, the function also samples a
+laboratory decay distance and retains it in <code class="docutils literal notranslate"><span class="pre">decayDistanceM_</span></code>. Transport
+later compares that distance with the other limits. Selection does not
+execute the decay.</p>
+<p>For a positive total rate, the candidate depth is</p>
+<div class="math notranslate nohighlight">
+\[\Delta X_{\mathrm{int}} = -\frac{\ln U_d}{r_{\mathrm{tot}}(E_i)},
+\qquad 0 &lt; U_d &lt; 1.\]</div>
+<p>Here <span class="math notranslate nohighlight">\(r_{\mathrm{tot}}\)</span> is the independently exported total-rate
+interpolant. A successful nonpositive rate produces
+<code class="docutils literal notranslate"><span class="pre">NoDiscreteInteraction</span></code> with infinite candidate depth. A failed rate query
+instead returns a fallback request with the table status; these are different
+outcomes.</p>
+<p>The exact draw and record assignment are:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">104</span><span class="w">    </span><span class="n">RandomNumberKey</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">distance_key</span><span class="p">{</span><span class="n">random_seed</span><span class="p">,</span>
+<span class="linenos">105</span><span class="w">                                       </span><span class="n">shower_id</span><span class="p">,</span>
+<span class="linenos">106</span><span class="w">                                       </span><span class="n">particle</span><span class="p">.</span><span class="n">historyId_</span><span class="p">,</span>
+<span class="linenos">107</span><span class="w">                                       </span><span class="n">particle</span><span class="p">.</span><span class="n">stepId_</span><span class="p">,</span>
+<span class="linenos">108</span><span class="w">                                       </span><span class="n">InteractionDistanceRandomProcessId</span><span class="p">,</span>
+<span class="linenos">109</span><span class="w">                                       </span><span class="n">InteractionDistanceDrawId</span><span class="p">};</span>
+<span class="linenos">110</span><span class="w">    </span><span class="n">record</span><span class="p">.</span><span class="n">distanceUniform_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">uniform_open01</span><span class="p">(</span><span class="n">distance_key</span><span class="p">);</span>
+<span class="linenos">111</span><span class="w">    </span><span class="n">record</span><span class="p">.</span><span class="n">interactionGrammageGPerCm2_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-::</span><span class="n">log</span><span class="p">(</span><span class="n">record</span><span class="p">.</span><span class="n">distanceUniform_</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total</span><span class="p">.</span><span class="n">value_</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>For charged leptons, this function then returns <code class="docutils literal notranslate"><span class="pre">DistanceSampled</span></code>. No
+process, target component or stochastic loss fraction has yet been selected.
+For photons, energy is unchanged by flight, so channel and loss selection can
+already be prepared at this stage. A prepared photon interaction still has
+to compete with geometry and reach its vertex; see <a class="reference internal" href="interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p>
+</section>
+<section id="charged-lepton-vertex-acceptance">
+<h2>Charged-lepton vertex acceptance<a class="headerlink" href="#charged-lepton-vertex-acceptance" title="Link to this heading"></a></h2>
+<p>After a successful step reaches the candidate interaction, the transport
+record carries <code class="docutils literal notranslate"><span class="pre">RequiresReselection</span></code> and the post-continuous-loss energy
+<span class="math notranslate nohighlight">\(E_f\)</span>. The resident path also completes multiple scattering before
+calling <code class="docutils literal notranslate"><span class="pre">select_lepton_vertex</span></code>. The name <code class="docutils literal notranslate"><span class="pre">RequiresReselection</span></code> is a stage
+label; it does not mean that the current initial sampler already chose a
+charged-lepton reaction.</p>
+<p>The vertex selector retains the earlier acceptance uniform <span class="math notranslate nohighlight">\(U_a\)</span> and
+initial rate, then evaluates the total rate at <span class="math notranslate nohighlight">\(E_f\)</span>. It accepts the
+candidate only when</p>
+<div class="math notranslate nohighlight">
+\[U_a\,r_{\mathrm{tot}}(E_i) &lt; r_{\mathrm{tot}}(E_f).\]</div>
+<p>The comparison is strict. A failed acceptance produces
+<code class="docutils literal notranslate"><span class="pre">NoDiscreteInteraction</span></code> at the advanced particle state, clears the reaction
+fields and increments <code class="docutils literal notranslate"><span class="pre">stepId_</span></code> for continuation. It does not undo the
+completed transport or continuous energy loss. An exhausted step-ID range
+returns a failure instead of wrapping around.</p>
+<p>An accepted candidate then receives an independent native-selection uniform.
+This ordering is implemented in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonVertexSelection.inl">LeptonVertexSelection.inl</a>; a native
+at-rest positron-annihilation record has a separate early branch.</p>
+</section>
+<section id="ordered-channel-and-loss-selection">
+<h2>Ordered channel and loss selection<a class="headerlink" href="#ordered-channel-and-loss-selection" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">select_rate_column_by_uniform</span></code> selects a process and target-component
+column in the exported native order. Its normalization is the ordered sum of
+individual column rates, which is distinct from the total-rate interpolant
+used for distance and outer acceptance. This distinction is documented in
+<a class="reference internal" href="../physics-data/storage.html"><span class="doc">Table representation and device storage</span></a>.</p>
+<p>The implementation sets <code class="docutils literal notranslate"><span class="pre">sampled_rate</span></code> to the selection uniform times that
+column sum, subtracts each column rate in order, and selects the first column
+that makes the residual negative. It returns
+<code class="docutils literal notranslate"><span class="pre">lossQuantile_</span> <span class="pre">=</span> <span class="pre">-sampled_rate</span> <span class="pre">/</span> <span class="pre">selected_rate</span></code> for that interval. The
+subtraction order, strict comparison and residual orientation are part of the
+native selection contract.</p>
+<p>The selected quantile is then passed to the native loss-fraction query.
+Success supplies <code class="docutils literal notranslate"><span class="pre">processId_</span></code>, <code class="docutils literal notranslate"><span class="pre">componentHash_</span></code> and <code class="docutils literal notranslate"><span class="pre">energyFraction_</span></code>
+in a <code class="docutils literal notranslate"><span class="pre">Selected</span></code> record. It does not by itself construct directions or
+secondary particles. Selected CPU-only processes and unavailable inverses
+follow the explicit policies in <a class="reference internal" href="../physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a> and
+<a class="reference internal" href="interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p>
+<p>This vertex acceptance step is separate from rejection sampling of a
+final-state energy split. The standard native-table path described here uses
+CDF inversion where the required distribution is available.</p>
+</section>
+<section id="random-provenance-and-stage-records">
+<h2>Random provenance and stage records<a class="headerlink" href="#random-provenance-and-stage-records" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">RandomNumberKey</span></code> combines the event seed, shower ID, particle history ID,
+step ID, process domain and draw ID. <code class="docutils literal notranslate"><span class="pre">uniform_open01</span></code> evaluates the
+counter-based Philox generator from that identity. Queue position and thread
+index do not enter the key. Moving a particle to a different execution slot
+therefore does not change this draw when the full identity remains unchanged.
+This does not imply that changing event scheduling or CPU random-stream
+history preserves a whole shower bit for bit.</p>
+<p>The separate domains in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/random/RandomDomains.hpp">RandomDomains.hpp</a> distinguish interaction distance,
+outer acceptance, native channel selection, scattering and muon decay.
+<code class="docutils literal notranslate"><span class="pre">InteractionRecord</span></code> retains uniforms, domain identifiers, target identity
+and the vertex-reached flag for downstream processing and CPU completion.
+Consumers must use the outcome flags and stage fields together; the presence
+of a process ID alone is not proof that an interaction has occurred.</p>
+<p>Inverse iteration counters describe the table query performed at this stage.
+They do not count accepted reactions or transported steps. Preserve these
+distinctions when adding diagnostics or changing kernel boundaries.</p>
+</section>
+<section id="validation-coverage">
+<h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testSelectionContracts.cpp">testSelectionContracts.cpp</a> exercises early cuts, invalid input, acceptance
+ties, rejected-vertex continuation, step overflow, missing inverses and
+deferred photon completion with controlled tables. The controlled tables
+exercise branches; they are not physical cross-section models.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testInteractionSelection.cpp">testInteractionSelection.cpp</a> uses real native tables and compares host and
+selected-execution-space results against the retained production reference.
+It covers table endpoints, accepted and rejected charged-lepton vertices,
+muon decay draws and direct-pair replay. Its prescribed post-transport input
+does not independently validate geometry or continuous propagation; those
+are covered in <a class="reference internal" href="lepton-step.html"><span class="doc">Charged-lepton propagation</span></a>.</p>
+<p>The real-table target is conditional on <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_PROPOSAL_EXPORT</span></code>.
+These source references describe test coverage, not a claim that the tests
+have run on every device.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../transport.html" class="btn btn-neutral float-left" title="Transport and interaction kernels" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="lepton-step.html" class="btn btn-neutral float-right" title="Charged-lepton propagation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

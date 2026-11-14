@@ -1,0 +1,435 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photon transport and interaction completion &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/transport/interactions.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Radio calculation" href="../radio.html" />
+    <link rel="prev" title="Charged-lepton propagation" href="lepton-step.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../transport.html">Transport and interaction kernels</a></li>
+      <li class="breadcrumb-item active">Photon transport and interaction completion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/transport/interactions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="photon-transport-and-interaction-completion">
+<h1>Photon transport and interaction completion<a class="headerlink" href="#photon-transport-and-interaction-completion" title="Link to this heading"></a></h1>
+<p>A selected process is not yet an executed interaction. A photon must first
+reach its sampled vertex before its final state can be constructed. Charged
+leptons additionally update their energy and direction before vertex
+selection; that sequence is described in <a class="reference internal" href="lepton-step.html"><span class="doc">Charged-lepton propagation</span></a>.</p>
+<p>This page follows the <code class="docutils literal notranslate"><span class="pre">proposal-native</span></code> path at the source baseline recorded
+in <a class="reference internal" href="../transport.html"><span class="doc">Transport and interaction kernels</span></a>. It distinguishes numerical propagation, final-state
+classification, secondary construction and native CPU completion.</p>
+<section id="photon-propagation">
+<h2>Photon propagation<a class="headerlink" href="#photon-propagation" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">transport_photon(environment,</span> <span class="pre">config,</span> <span class="pre">interaction,</span> <span class="pre">external)</span></code> reads the
+current photon state and an <code class="docutils literal notranslate"><span class="pre">InteractionRecord</span></code>. It returns a
+<code class="docutils literal notranslate"><span class="pre">PhotonTransportOutcome</span></code> containing a step record, a fallback request and
+<code class="docutils literal notranslate"><span class="pre">fallbackFlag_</span></code>. Inputs are read-only. A partial record can exist on failure;
+the caller must check the flag before using it as a completed step.</p>
+<p>The interface is declared in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonTransportStep.hpp">PhotonTransportStep.hpp</a> and implemented in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonTransportStep.inl">PhotonTransportStep.inl</a>. Positions and distances are in metres, times in
+seconds, total particle energies in GeV and grammage in g/cm².</p>
+<ol class="arabic simple">
+<li><p>Check the particle identity and selection status, then resolve its current
+environment node. An existing <code class="docutils literal notranslate"><span class="pre">ParticleCut</span></code> selection produces a
+zero-length step and records the photon energy as deposited energy.</p></li>
+<li><p>Find the next straight-line environment boundary and observation-plane
+intersection. An optional <code class="docutils literal notranslate"><span class="pre">ExternalTransportBoundary</span></code> can impose a
+closer material interface or disable the observation plane. The standard
+resident photon front calls the function with its default external boundary.</p></li>
+<li><p>Integrate the grammage along the ray to the limiting boundary. Compare it
+with the sampled interaction grammage. If the interaction wins, invert
+grammage to distance using <code class="docutils literal notranslate"><span class="pre">environment_arclength</span></code>.</p></li>
+<li><p>Advance position by <span class="math notranslate nohighlight">\(L\boldsymbol{n}\)</span> and time by <span class="math notranslate nohighlight">\(L/c\)</span>.
+Resolve the vertex density for an interaction, or update the node and medium
+when an environment boundary is crossed. Apply the time cut before marking
+an interaction vertex as reached.</p></li>
+</ol>
+<p>The photon direction and energy are unchanged by this propagation function.
+It draws no random numbers, constructs no secondaries and invokes no CPU
+handler. The selected depth, process and random identities come from the
+preceding selection stage.</p>
+<p>The comparisons deliberately define exact ties: the environment boundary
+wins a tie with the observation plane; an external interface must be strictly
+closer; an interaction wins equality with the limiting boundary grammage.
+These rules are covered by <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testPhotonTransport.cpp">testPhotonTransport.cpp</a>. The <code class="docutils literal notranslate"><span class="pre">LayerBoundary</span></code>
+name also covers transitions in the general environment tree, not only
+spherical atmospheric layers.</p>
+<p><code class="docutils literal notranslate"><span class="pre">PhotonFront.inl</span></code> calls selection and propagation in separate kernels.
+It then builds a stable list of sources whose limit is <code class="docutils literal notranslate"><span class="pre">Interaction</span></code>.
+Only this list enters the final-state classifier. Boundary continuations,
+observations, cuts and propagation failures therefore do not execute the
+heavy final-state calculation. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonFront.inl">PhotonFront.inl</a> for the actual dispatch
+and <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a> for returned-record handling.</p>
+</section>
+<section id="final-state-interfaces">
+<h2>Final-state interfaces<a class="headerlink" href="#final-state-interfaces" title="Link to this heading"></a></h2>
+<p>The common pattern is classification followed by writing results to assigned
+output slots. The functions are declared in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonFinalStateStep.hpp">PhotonFinalStateStep.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonFinalStateStep.hpp">LeptonFinalStateStep.hpp</a>.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 36.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interface</p></th>
+<th class="head"><p>Input</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">classify_photon_final_state</span></code></p></td>
+<td><p>Native table view, photon-pair auxiliary data, thinning configuration,
+reached-vertex record, seed and shower ID.</p></td>
+<td><p>Sampled parameters, retained-child count and flags for a final state,
+continuation, suppression or fallback.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">classify_lepton_final_state</span></code></p></td>
+<td><p>Bremsstrahlung auxiliary data, optional prepared LPM factors, thinning
+configuration, vertex record, seed and shower ID.</p></td>
+<td><p>The corresponding charged-lepton classification. The vertex record
+already contains the selected loss fraction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">materialize_photon_final_state_in_place</span></code> /
+<code class="docutils literal notranslate"><span class="pre">materialize_lepton_final_state_in_place</span></code></p></td>
+<td><p>Vertex, classification, child offset, first available history ID and
+an output writer; the lepton interface also takes the electron mass.</p></td>
+<td><p>Secondary states and reaction records written to exclusive slots,
+or the specified continuation, suppression or fallback record.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Classification samples the remaining random variables and determines how many
+children will be retained. A stable scan assigns output offsets. Materialization
+uses those offsets to assign history IDs and write the result; it does not
+allocate a queue or call a CPU model. Aggregate-return versions are also
+available for standalone callers and tests. Resident execution uses the
+in-place interfaces to avoid a large thread-local result object.</p>
+<p>New children inherit the vertex position, time and environment association.
+Their parent history is recorded, generation is incremented and step ID is
+reset. Final-state records preserve the random draw identities and thinning
+information. For a generation-zero parent, the first-interaction record
+retains the children with the original parent weight before thinning.</p>
+</section>
+<section id="implemented-reaction-paths">
+<h2>Implemented reaction paths<a class="headerlink" href="#implemented-reaction-paths" title="Link to this heading"></a></h2>
+<p>The dispatch table in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/ProcessCapabilities.inl">ProcessCapabilities.inl</a> is separate from rate-table
+availability. The table below describes the final-state implementation;
+it does not enable a channel absent from the configured physical model.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 22.0%" />
+<col style="width: 46.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Reaction</p></th>
+<th class="head"><p>Completion path</p></th>
+<th class="head"><p>Implementation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Electron/positron and muon bremsstrahlung</p></td>
+<td><p>Backend</p></td>
+<td><p>Selected energy loss, local angular calculation, species-specific
+LPM data and suppression decision.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Discrete ionization by a charged lepton</p></td>
+<td><p>Backend</p></td>
+<td><p>Outgoing lepton and delta electron from the selected loss, with
+process-specific kinematics.</p></td>
+</tr>
+<tr class="row-even"><td><p>Positron annihilation</p></td>
+<td><p>Backend</p></td>
+<td><p>Two-photon energy sharing and directions. The optional stopped-positron
+path uses an explicit <code class="docutils literal notranslate"><span class="pre">AtRestAnnihilation</span></code> status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photon conversion to an electron pair</p></td>
+<td><p>Backend</p></td>
+<td><p>Native CDF inversion for energy sharing, Sauter directions, electron-pair
+LPM decision and applicable EM thinning.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photon conversion to a muon pair</p></td>
+<td><p>Backend</p></td>
+<td><p>Native CDF inversion for <span class="math notranslate nohighlight">\(E_{\mu^+}/E_\gamma\)</span> and BKK directions.
+No electron-pair LPM veto or EM thinning is applied.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compton scattering</p></td>
+<td><p>Backend</p></td>
+<td><p>Selected photon energy loss and local photon/electron kinematics,
+followed by applicable EM thinning.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photoelectric absorption</p></td>
+<td><p>Backend</p></td>
+<td><p>Binding-energy correction and one electron along the incoming photon
+direction, using the current native-model convention.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Direct electron-pair production by <span class="math notranslate nohighlight">\(e^\pm\)</span> or <span class="math notranslate nohighlight">\(\mu^\pm\)</span></p></td>
+<td><p>CPU PROPOSAL</p></td>
+<td><p>Complete the selected vertex on CPU because the native energy-asymmetry
+<span class="math notranslate nohighlight">\(\rho\)</span> CDF is unavailable; the reaction remains in selection.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The registry also declares CPU-only identifiers for photonuclear reactions,
+lepton muon-pair production, hadronic production, weak interactions,
+photoproduction and decay. Their availability depends on the configured
+models. Transport-selected muon decay has a separate forced-decay return
+path, described in <a class="reference internal" href="lepton-step.html"><span class="doc">Charged-lepton propagation</span></a>; it is not ordinary final-state
+materialization in these kernels. An unregistered process is reported as
+<code class="docutils literal notranslate"><span class="pre">GpuProcessNotImplemented</span></code> and must not silently become an accepted CPU
+reaction.</p>
+<p>The current pair-production paths do not use rejection sampling to replace
+native CDF inversion or the missing <span class="math notranslate nohighlight">\(\rho\)</span> distribution. Some older
+pair-related identifiers and materialization branches remain in the source;
+actual support is determined by the capability dispatch and classifier.
+See <a class="reference internal" href="../physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a> for the distinction between a loss CDF
+and a complete final-state model.</p>
+</section>
+<section id="lpm-suppression-and-thinning">
+<h2>LPM suppression and thinning<a class="headerlink" href="#lpm-suppression-and-thinning" title="Link to this heading"></a></h2>
+<p>For bremsstrahlung and photon electron-pair production, a valid sampled
+candidate can be rejected by the physical LPM survival decision. This is
+distinct from a failed numerical query. The result keeps the parent at the
+reached vertex, increments its step ID and returns a suppression record;
+no children are constructed. Propagation already completed before that
+vertex is retained.</p>
+<p>Thinning is applied after the applicable LPM decision. The retained-child
+count, weights and keep mask must remain consistent with the scan and output
+writer. Muon bremsstrahlung bypasses EM thinning through the charged-lepton
+helper, and photon muon-pair production retains both children with the
+parent weight. The complete order is defined in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonFinalStateStep.inl">LeptonFinalStateStep.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonFinalStateStep.inl">PhotonFinalStateStep.inl</a>.</p>
+</section>
+<section id="native-mass-conventions-and-the-muon-pair-cut">
+<h2>Native mass conventions and the muon-pair cut<a class="headerlink" href="#native-mass-conventions-and-the-muon-pair-cut" title="Link to this heading"></a></h2>
+<p>PROPOSAL and C8 use slightly different numerical mass constants. The helper
+<code class="docutils literal notranslate"><span class="pre">proposal_secondary_transport_energy_gev</span></code> preserves the sampled kinetic
+energy when converting a secondary’s total energy to the transport mass
+convention. Reaction records carry the corresponding weighted mass-convention
+correction for energy accounting; see <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/TransportMass.inl">TransportMass.inl</a>. This conversion
+must remain consistent with secondary cuts and output accumulation.</p>
+<p>The native photon-to-muon-pair model can produce a positive sampled secondary
+energy at or below the muon rest mass. The materializer marks such a converted
+child with <code class="docutils literal notranslate"><span class="pre">NativeMuonPairCutFlag</span></code>. This is a narrowly defined compatibility
+case: a newly created muon, generation greater than zero, step ID zero and
+positive total energy no greater than the transport mass.</p>
+<p>The following lepton step recognizes the tag and produces a zero-length cut
+record. It preserves the native signed kinetic-energy deposit
+<span class="math notranslate nohighlight">\(E_\mu-m_\mu c^2\)</span>, including a negative value for this specific case.
+It neither propagates that child as an ordinary muon nor redirects the whole
+photon interaction to CPU. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/NativeMuonPairCut.inl">NativeMuonPairCut.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/NativeMuonPairCutRecord.inl">NativeMuonPairCutRecord.inl</a> implement this contract; the tag does not
+permit arbitrary sub-rest-mass input states.</p>
+</section>
+<section id="specified-cpu-completion">
+<h2>Specified CPU completion<a class="headerlink" href="#specified-cpu-completion" title="Link to this heading"></a></h2>
+<p>CPU-only final states retain the reached vertex and selected process/component
+identity. Photon selection can store a deferred completion reason in its
+interaction record; photon propagation must reach the vertex before that
+request becomes a specified CPU interaction. A return before reaching the
+vertex is not interchangeable with this request.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ProposalCpuFallbackHandler::canHandle</span></code> checks whether the request contains
+an accepted specified interaction or a resolvable selected loss.
+<code class="docutils literal notranslate"><span class="pre">handle(stack,</span> <span class="pre">event)</span></code> then:</p>
+<ol class="arabic simple">
+<li><p>Imports the retained parent into the native stack and resolves its node.
+The CPU calculator key comes from that node’s nuclear composition, not
+from the PROPOSAL medium hash stored in table metadata.</p></li>
+<li><p>Reconstructs the interaction record. If required, it completes the selected
+loss or replays native selection with the retained uniform, checking the
+selected identities.</p></li>
+<li><p>Supplies the required final-state random numbers to
+<code class="docutils literal notranslate"><span class="pre">doSpecifiedInteraction</span></code> and verifies successful completion.</p></li>
+<li><p>Calls <code class="docutils literal notranslate"><span class="pre">processList_.doSecondaries(secondaries)</span></code> for native secondary
+processing, then erases the parent and updates completion statistics.</p></li>
+</ol>
+<p>The implementation is in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler.inl</a>. Completion avoids
+resampling the physical interaction distance, but the native secondary chain
+can still consume its own random stream. It must not be treated as a
+random-number-free operation.</p>
+<p>Creating a <code class="docutils literal notranslate"><span class="pre">FallbackRequest</span></code> alone does not execute this handler or authorize
+arbitrary numerical failures as CPU work. The standard router’s strict policy
+can reject unexpected requests. Scheduling and acceptance rules are described
+in <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a>; numerical statuses are described in
+<a class="reference internal" href="../physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a>.</p>
+</section>
+<section id="validation-coverage">
+<h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testPhotonTransport.cpp">testPhotonTransport.cpp</a> covers exact boundary ties, zero-length interactions,
+node/material transitions, time cuts, failed inverse grammage and invalid
+vertex density. It compares current host and selected-execution-space paths
+with a retained production reference and checks that the input is unchanged.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testPhotonFinalState.cpp">testPhotonFinalState.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testLeptonFinalState.cpp">testLeptonFinalState.cpp</a> check routing flags,
+invalid inputs, child identities, thinning, LPM suppression and final-state
+records. Real-table cases are enabled when <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_PROPOSAL_EXPORT</span></code>
+is set. The photon tests separately exercise the muon-pair cut tag and energy
+convention. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testTransportRecords.cpp">testTransportRecords.cpp</a> checks the corresponding cut records.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp">testCpuFallbackPhysics.cpp</a> exercises native specified reactions and selection
+replay, including direct electron-pair production by both electron signs and
+both muon signs. Comparisons with a retained production implementation are
+conditional on the reference build option. These checks establish regression
+contracts within their test configurations.
+Independent physical validation and full-shower statistical comparisons remain
+separate requirements for changes to the model or execution path.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="lepton-step.html" class="btn btn-neutral float-left" title="Charged-lepton propagation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../radio.html" class="btn btn-neutral float-right" title="Radio calculation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
