@@ -1,0 +1,33 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Test source
+     - Existing coverage
+   * - `testProposalNativeExport.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeExport.cpp>`_
+     - Export of five projectile families, ordering, versions, warm-cache content identity and rejection of corrupt records or unknown parametrizations.
+   * - `testNativeTableStorage.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testNativeTableStorage.cpp>`_
+     - Upload budgets, validation and hash failures, shared ownership, reset and a kernel query through retained storage.
+   * - `testProposalNativeQueries.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueries.cpp>`_
+     - Real native-table queries compared with the retained production reference on the host, including failures and solver iterations.
+   * - `testProposalNativeQueriesDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueriesDevice.cpp>`_
+     - Queries and retained reference executed on the selected backend; host/device tolerance checks for selected rates.
+   * - `testDiscreteContracts.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/discrete/testDiscreteContracts.cpp>`_
+     - Distinct distance and selection rates, column ordering, zero-rate selection and invalid indices.
+   * - `testContinuousContracts.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/testContinuousContracts.cpp>`_
+     - Continuous query statuses, cut definitions, endpoint behavior and normal cut completion.
+   * - `testPhysicsContext.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhysicsContext.cpp>`_
+     - Context publication, borrowed inputs, event-key updates and rejection before initialization.
+   * - `testCpuFallbackHandler.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackHandler.cpp>`_
+     - Specified interaction identity, ancestry and postprocessing order; rejection of invalid requests.
+   * - `testCpuFallbackPhysics.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp>`_
+     - Real PROPOSAL specified reactions and retained-uniform replay across the supported projectile families.
+
+The real-table export/query tests require the PROPOSAL export-enabled build
+and their configured cache fixtures. A basic contract-test target does not
+establish that these real-table checks were built or run. See
+`the table-test build configuration <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/CMakeLists.txt>`_.
+
+Many checks compare with a retained production implementation. They protect
+implementation compatibility; a new physical model additionally needs an
+independent physics validation.

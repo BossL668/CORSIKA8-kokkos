@@ -15,7 +15,7 @@ CORSIKA 8 with Kokkos
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
      <strong>Documentation in preparation</strong>
-     <span>The overview, user guide, application integration, execution, particle-data and environment chapters are available. Further architecture and maintenance chapters are being developed.</span>
+     <span>The overview, user guide, application integration, execution, particle-data, environment and physics-data chapters are available. Further architecture and maintenance chapters are being developed.</span>
    </div>
 
 Guide objectives
@@ -54,7 +54,8 @@ The :doc:`execution` chapter continues through particle routing, batch execution
 and process coordination. The :doc:`particles` chapter defines particle-state
 representations, conversion interfaces and backend storage. The
 :doc:`environment` chapter follows native scene export, device queries and
-extension requirements. Further chapters will cover subsystem implementation
+extension requirements. The :doc:`physics-data` chapter documents native model
+preparation, table storage and query contracts. Further chapters will cover subsystem implementation
 and maintenance.
 
 .. toctree::

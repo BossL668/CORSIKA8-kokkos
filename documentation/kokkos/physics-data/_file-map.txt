@@ -1,0 +1,40 @@
+.. parsed-literal::
+
+   corsika/kokkos/em/
+   ├── `EmRunSession.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/EmRunSession.hpp>`_  session preparation and event reuse
+   ├── `PhysicsRequirements.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/PhysicsRequirements.hpp>`_  energy and cut requirements
+   └── `ProcessCapabilities.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/ProcessCapabilities.hpp>`_  final-state capability contract
+
+   corsika/kokkos/em/proposal/
+   ├── `NativeTableExporter.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/NativeTableExporter.hpp>`_  read-only native export bridge
+   ├── `ProposalNativeAux.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/ProposalNativeAux.hpp>`_  auxiliary model parameter preparation
+   └── `ProposalCpuFallbackHandler.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/ProposalCpuFallbackHandler.hpp>`_  specified CPU interaction completion
+
+   corsika/kokkos/em/tables/
+   ├── `ProposalNativeTable.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeTable.hpp>`_  owning host export and validation API
+   ├── `ProposalNativeData.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp>`_  descriptors, identities and borrowed data view
+   ├── `ProposalNativeQueries.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeQueries.hpp>`_  numerical native queries
+   ├── `ContinuousPhysicsQueries.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ContinuousPhysicsQueries.hpp>`_  continuous-loss query contract
+   ├── `DiscretePhysicsQueries.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/DiscretePhysicsQueries.hpp>`_  rate, selection and loss queries
+   └── `TableQueryResult.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/TableQueryResult.hpp>`_  status and iteration-count result
+
+   corsika/kokkos/em/execution/
+   ├── `NativeTableStorage.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/NativeTableStorage.hpp>`_  execution-space table ownership
+   ├── `PhysicsContext.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhysicsContext.hpp>`_  publish borrowed physics inputs
+   └── `PhysicsContextData.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhysicsContextData.hpp>`_  numerical context record
+
+   src/kokkos/em/
+   └── `EmRunSession.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp>`_  export, initialize and reuse backend
+
+   src/kokkos/em/proposal/
+   ├── `NativeTableExporter.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp>`_  copy and classify native interpolation data
+   └── `ProposalNativeAux.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/ProposalNativeAux.cpp>`_  prepare and cache auxiliary models
+
+   src/kokkos/em/tables/
+   └── `ProposalNativeTable.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/tables/ProposalNativeTable.cpp>`_  format validation and content hashing
+
+   corsika/detail/kokkos/em/
+   ├── `tables/ProposalNativeQueries.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl>`_  interpolation and inverse implementation
+   ├── `execution/NativeTableStorage.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/NativeTableStorage.inl>`_  upload and publish array view
+   ├── `execution/PhysicsContext.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhysicsContext.inl>`_  context initialization and event updates
+   └── `execution/BackendInstanceImplementation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl>`_  combine resident data and kernel inputs
