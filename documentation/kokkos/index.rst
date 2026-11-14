@@ -15,7 +15,7 @@ CORSIKA 8 with Kokkos
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
      <strong>Documentation in preparation</strong>
-     <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio and backend-portability chapters are available. Validation and maintenance chapters are being developed.</span>
+     <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio, backend-portability and validation chapters are available. Maintenance and reference chapters are being developed.</span>
    </div>
 
 Guide objectives
@@ -59,8 +59,10 @@ preparation, table storage and query contracts. The :doc:`transport` chapter
 follows candidate sampling, particle propagation and interaction final states.
 The :doc:`radio` chapter covers track collection, projection, waveform
 accumulation and propagation-specific interfaces. The :doc:`backends` chapter
-explains build selection, runtime ownership and device-code contracts. Further
-chapters will cover validation and maintenance.
+explains build selection, runtime ownership and device-code contracts. The
+:doc:`validation` chapter documents executable tests, numerical and statistical
+comparisons, and performance measurement. Further chapters will cover
+maintenance, design decisions and the API reference.
 
 .. toctree::
    :maxdepth: 1
