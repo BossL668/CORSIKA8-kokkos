@@ -5,11 +5,23 @@ on:
     paths:
       - 'documentation/kokkos/**'
       - 'tools/build_kokkos_docs.py'
+      - 'corsika/**'
+      - 'src/**'
+      - 'applications/**'
+      - 'tests/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
       - '.github/workflows/kokkos-docs.yml'
   push:
     paths:
       - 'documentation/kokkos/**'
       - 'tools/build_kokkos_docs.py'
+      - 'corsika/**'
+      - 'src/**'
+      - 'applications/**'
+      - 'tests/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
       - '.github/workflows/kokkos-docs.yml'
   workflow_dispatch:
     inputs:
@@ -32,7 +44,10 @@ jobs:
           cache: pip
           cache-dependency-path: documentation/kokkos/requirements.txt
       - name: Install documentation dependencies
-        run: python -m pip install -r documentation/kokkos/requirements.txt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen
+          python -m pip install -r documentation/kokkos/requirements.txt
       - name: Build and check internal links
         run: python tools/build_kokkos_docs.py
       - name: Save the preview

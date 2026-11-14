@@ -2,28 +2,31 @@
 
 import os
 from pathlib import Path
+import sys
 
 project = "CORSIKA 8 with Kokkos"
 author = "CORSIKA 8 Kokkos contributors"
 copyright = "2026, CORSIKA 8 Kokkos contributors"
-version = "Documentation draft"
+version = "Source: d5297c43"
 release = version
 language = "en"
 root_doc = "index"
 source_suffix = ".rst"
-extensions = ["sphinx.ext.mathjax", "sphinx.ext.graphviz", "breathe"]
+sys.path.insert(0, str(Path(__file__).parent / "_ext"))
+extensions = ["sphinx.ext.mathjax", "sphinx.ext.graphviz", "breathe", "api_links"]
 exclude_patterns = ["_build", "_includes", "_templates", "BUILDING.rst"]
 templates_path = ["_templates"]
 nitpicky = True
 
-# An existing Doxygen XML directory can be attached when API pages are written.
-# No model libraries or device compiler are needed for the documentation scaffold.
+# The build helper extracts public headers and supplies its fresh XML directory.
+# No model libraries or device compiler are needed for API extraction.
 breathe_projects = {}
 breathe_default_project = "CORSIKA8"
 if os.environ.get("C8_DOCS_DOXYGEN_XML"):
     breathe_projects["CORSIKA8"] = str(
         Path(os.environ["C8_DOCS_DOXYGEN_XML"]).resolve()
     )
+api_source_revision = "d5297c43c041a22b43c65c322d9b51bc7ec8e397"
 
 html_theme = "sphinx_rtd_theme"
 html_title = "CORSIKA 8 Kokkos — Documentation"
