@@ -1,10 +1,11 @@
 Application integration
 =======================
 
-The air-shower application creates the C8 environment, models, observers and
-process sequence. The application interface binds those objects to an execution
-path and exposes the event through ``EAS.run()``. This chapter follows that
-connection from the call in ``main`` to the code that starts a cascade.
+The air-shower application constructs the C8 environment, physics models,
+observers and process sequence. The application integration layer binds these
+objects to the selected execution path, invoked through ``EAS.run()``. This
+chapter documents the component responsibilities, interface data contracts
+and control flow from ``main`` to cascade execution.
 
 .. note::
 
@@ -15,13 +16,14 @@ connection from the call in ``main`` to the code that starts a cascade.
    source line numbers. Paths are relative to the project root.
 
 .. _application-source-files:
+.. _source-file-map:
 
-Source file map
----------------
+Source organization
+-------------------
 
-The selected files below follow the call chain described in this chapter.
-Paths start at the repository root; each filename links to the source baseline
-recorded above.
+The following files implement the application integration layer and its
+dependencies. Paths are relative to the repository root; source links refer
+to the revision specified above.
 
 The public headers in ``corsika/kokkos/application/`` declare the application
 interfaces and data types. Template implementations are under
@@ -67,7 +69,7 @@ declared, and defines the ``CascadeModule`` and ``CascadeEvent`` templates.
 There are no separate ``CascadeModule.hpp`` or ``CascadeEvent.hpp`` files in
 this baseline.
 
-To follow calls beyond the application bindings:
+Dependencies outside the application integration layer:
 
 * `ProcessSelection.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/process/ProcessSelection.hpp>`_ in
   ``corsika/framework/process/`` provides ``select_process(...)``.
@@ -101,8 +103,10 @@ To follow calls beyond the application bindings:
 .. _CascadeSupport.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeSupport.cpp
 .. _CascadeRunSession.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/cascade/CascadeRunSession.cpp
 
-Read the interface in execution order
--------------------------------------
+.. _read-the-interface-in-execution-order:
+
+Application lifecycle
+---------------------
 
 .. toctree::
    :maxdepth: 1
@@ -111,9 +115,8 @@ Read the interface in execution order
    application/data-contracts
    application/event-execution
 
-The first page covers process selection and setup. The second follows the
-arguments into their receiving objects. The third follows an individual event,
-including the native and accelerated branches and the output they update.
+These sections document execution selection and configuration, input and
+lifetime contracts, and per-event execution on the native and accelerated paths.
 
 .. figure:: _static/application-calls.svg
    :alt: Direct application execution binds C8 objects into CascadeModule, creates an event and CascadeAdapter, then calls EAS.run to update the stack and outputs.
@@ -123,59 +126,69 @@ including the native and accelerated branches and the output they update.
    selected before this setup; each worker then uses the application interfaces
    for its assigned work. :download:`Diagram source <_static/application-calls.dot>`.
 
-Names that refer to different responsibilities
-----------------------------------------------
+.. _names-that-refer-to-different-responsibilities:
+
+Interface components and responsibilities
+-----------------------------------------
+
+The identifiers below refer to distinct objects in ``main``. Their types
+separate execution selection, application configuration, persistent bindings
+and per-event state.
 
 .. list-table::
    :header-rows: 1
    :widths: 32 68
 
-   * - Name in ``main``
-     - Concrete role
+   * - Identifier in ``main``
+     - Type and responsibility
    * - ``executionMode``
-     - An ``ExecutionSelection`` value. It selects direct execution or the
+     - ``ExecutionSelection``: selects direct execution or the
        process coordinator before model setup.
    * - ``backend``
-     - A ``CascadeExtension`` object. It registers options, configures library
-       resources and creates the application bindings. It is not a GPU kernel
-       or an ``EmBackend`` instance.
+     - ``CascadeExtension``: registers command-line options, configures library
+       resources and constructs the application bindings.
    * - ``geometry`` / ``defaults``
-     - A ``CascadeGeometry<...>`` bundle of references to scene objects and a
-       ``CascadeEventConfig`` value containing run defaults.
+     - ``CascadeGeometry<...>``: references to scene objects.
+       ``CascadeEventConfig``: run defaults used to configure individual events.
    * - ``execution``
-     - A ``CascadeModule<...>`` that retains the driver and bindings across
-       events. It is distinct from ``executionMode``.
+     - ``CascadeModule<...>``: retains the driver and application bindings
+       across events.
    * - ``event``
-     - A ``CascadeEvent<...>`` for one shower, including its input and diagnostic
-       bookkeeping.
+     - ``CascadeEvent<...>``: manages the input and diagnostic state of one shower.
    * - ``EAS``
-     - A ``CascadeAdapter<...>`` returned by ``event.cascade(...)``. Its
+     - ``CascadeAdapter<...>``: returned by ``event.cascade(...)``. Its
        ``run()`` call executes the selected path; the native branch constructs
        a C8 ``Cascade`` internally.
 
-What crosses the application interface
---------------------------------------
+.. _what-crosses-the-application-interface:
 
-The application supplies native C++ objects and typed quantities: its environment,
-coordinate system, particle stack, process sequence, model instances and output
-writers. The binding structs mainly hold references to those objects. Numerical
-environment snapshots, model-table export and device uploads occur later inside
-the accelerated execution path.
-
-Most execution functions return ``void`` and write through the supplied stack,
-writers or run-session objects. An event is therefore not returned as one new
-"shower result" value. The detailed contracts below distinguish returned objects
-from state changes and output records.
-
-Maintenance entry points
+Interface data contracts
 ------------------------
+
+The interface accepts native C8 objects and typed quantities, including the
+environment, coordinate system, particle stack, process sequence, physics models
+and output writers. Reference bundles provide access to application-owned
+objects; configuration structures carry run defaults and per-event settings.
+The accelerated execution path subsequently exports numerical environment
+snapshots and model tables and transfers the required data to device storage.
+
+Execution functions generally return ``void`` and record their results through
+updates to the particle stack, run-session state and output writers.
+:doc:`application/data-contracts` specifies the input types, returned binding
+objects and lifetime requirements; :doc:`application/event-execution` documents
+state updates and output handling during execution.
+
+.. _maintenance-entry-points:
+
+Implementation and maintenance references
+-----------------------------------------
 
 .. list-table::
    :header-rows: 1
    :widths: 36 64
 
-   * - Change under consideration
-     - Start reading here
+   * - Maintenance scope
+     - Implementation references
    * - Direct versus coordinated execution
      - ``ExecutionSelection.hpp`` and ``CascadeSupport.cpp``;
        see :doc:`application/setup`.
@@ -189,22 +202,22 @@ Maintenance entry points
      - ``CascadeRunner.inl`` and ``EmRunSession.cpp``;
        see :ref:`application-backend-start`.
 
-The older ``bind(...)`` and ``dispatch_cascade(...)`` helpers remain in the
-library. The air-shower ``main`` described here uses ``select_execution(...)``,
-``geometry(...)`` and ``execution(...)`` instead. Their presence in the source
-should not be mistaken for additional calls made by this entry point.
+The library retains the earlier ``bind(...)`` and ``dispatch_cascade(...)``
+helpers. The current air-shower entry point uses ``select_execution(...)``,
+``geometry(...)`` and ``execution(...)``; the earlier helpers are outside this
+application's call path.
 
 .. _application-source-flow:
+.. _follow-the-data-from-main-to-the-scheduling-module:
 
-Follow the data from main to the scheduling module
-------------------------------------------------------------
+Control and data flow
+---------------------
 
-The following diagram connects the calls in ``main`` to their implementation
-files and the next module. It follows an ordinary event using
-``--em-backend kokkos-proposal``, with the native ``proposal`` branch shown
-alongside it. Process coordination is selected before this path; a dedicated
-prefix task can return earlier through ``input.runPrefix(...)``. The EGS4
-session has a separate execution branch described in
+The diagram maps calls in ``main`` to implementation files and the scheduling
+module. It shows the ``kokkos-proposal`` event path and the native ``proposal``
+branch. Process coordination is selected before this path; a dedicated prefix
+task can return earlier through ``input.runPrefix(...)``. The EGS4 session uses
+the separate execution branch described in
 :doc:`application/event-execution`.
 
 .. figure:: _static/application-source-flow.svg
@@ -212,10 +225,10 @@ session has a separate execution branch described in
    :width: 100%
    :target: _static/application-source-flow.svg
 
-   Read from top to bottom. Solid arrows follow execution and helper calls;
-   dashed arrows identify returned objects. Each box names the file and the
-   relevant function or callback. Green boxes mark the handoff to execution
-   and scheduling. Open the full-size SVG to follow its clickable source links.
+   Control flow proceeds from top to bottom. Solid arrows represent function
+   calls; dashed arrows represent returned objects. Nodes identify implementation
+   files and functions or callbacks. Green nodes indicate the scheduling-module
+   boundary. Source links are available in the full-size SVG.
    :download:`SVG <_static/application-source-flow.svg>` /
    :download:`Editable DOT source <_static/application-source-flow.dot>`.
 
@@ -223,9 +236,9 @@ Except where a full path is shown, application ``.inl`` files in this figure
 are under ``corsika/detail/kokkos/application/cascade/``. Both green boxes are
 under ``corsika/detail/kokkos/scheduling/``.
 
-The handoff passes ``begin_backend`` as a callback to
+The application passes ``begin_backend`` as a callback to
 ``run_hybrid_cascade(...)``. That function invokes it to obtain ``EmBackend&``
 before constructing the router and starting ``HybridCascade::run()``. The
 application therefore supplies the inputs and initialization callback; the
-scheduling module controls this execution order. Continue with
-:doc:`execution` for the hybrid loop, batch contracts and process coordination.
+scheduling module controls this execution order. The :doc:`execution` chapter
+documents the hybrid loop, batch contracts and process coordination.
