@@ -1,24 +1,32 @@
 Execution and scheduling
 ========================
 
-The application hands a configured event to ``run_hybrid_cascade(...)``.
-This chapter follows the next steps: selecting particles from the C8 stack,
-collecting supported particles into batches, advancing those batches and
-returning unfinished work or output to the host. It then follows the optional
-coordinator that divides a shower among processes and GPUs.
+The scheduling layer advances a configured event by combining native C8
+particle steps with Kokkos batch execution. ``HybridCascade`` controls the
+local event loop, ``EmRouter`` transfers supported particles to the EM backend,
+and the backend advances them using the selected Kokkos execution space.
+An optional process coordinator distributes subshower work among CPU-prefix
+processes and GPU workers.
+
+This chapter documents these components, their interfaces and the conditions
+for event completion. The preceding :doc:`application/event-execution` page
+describes how the application supplies the event to
+``run_hybrid_cascade(...)``.
 
 .. note::
 
    Source baseline: `d5297c43
    <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397>`_.
-   The main flow below describes ``kokkos-proposal`` with the ordinary resident
-   EM backend. Native C8 execution takes the separate ``Cascade::run()`` branch
-   described in :doc:`application/event-execution`. EGS4 and optional cooperative
-   CPU/device endpoints have additional paths; they are not interchangeable
-   with this flow.
+   The execution flow below describes ``kokkos-proposal`` with the standard
+   resident EM backend. Native C8 execution uses ``Cascade::run()``, as
+   described in :doc:`application/event-execution`. The EGS4 backend and optional
+   independent-subshower execution have additional scheduling paths outside
+   the scope of this chapter.
 
-Two levels of scheduling
-------------------------
+.. _two-levels-of-scheduling:
+
+Scheduling hierarchy
+--------------------
 
 .. list-table::
    :header-rows: 1
@@ -26,20 +34,53 @@ Two levels of scheduling
 
    * - Level
      - Responsible code
-     - Unit of work
-   * - Within one process
+     - Scheduling responsibility
+   * - Host event loop
      - ``HybridCascade``, ``CpuParticleScheduler`` and ``EmRouter``
-     - A C8 particle step or a batch of supported particles. The backend runs
-       Kokkos kernels on the selected execution space.
-   * - Across processes
+     - Select a runnable stack particle, execute a scalar step or stage it for
+       the backend, and process returned work.
+   * - Backend batch execution
+     - ``BackendInstanceImplementation<TExecutionSpace>`` and the resident
+       photon/lepton loops
+     - Advance supported particles in batches using Kokkos kernels on CPU
+       threads or a GPU.
+   * - Process coordination
      - ``coordinator::run(...)`` and its worker pool
-     - A static set of subshower roots assigned to each process. Each GPU worker
-       uses the same local cascade and router interfaces.
+     - Assign static subshower roots to worker processes and merge their
+       outputs. Each GPU worker uses the local event loop and backend.
 
-An OpenMP backend runs particle kernels on CPU threads. A CPU-prefix worker is
-a separate process running a native C8 prefix. These are different forms of
-parallelism. Likewise, one router call can advance several resident wavefronts;
-it does not represent one kernel launch or one complete shower.
+An OpenMP execution space parallelizes backend kernels across CPU threads.
+CPU-prefix parallelism distributes the initial shower work among separate
+processes. Their thread and process counts are configured independently.
+
+Execution terminology
+---------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Term
+     - Meaning in this chapter
+   * - Batch
+     - A group of particle states supplied to, or processed by, the backend.
+   * - Transport wavefront
+     - The active particle set in one iteration of a resident transport loop.
+       Particles retain their own step lengths and simulation times. One
+       iteration can involve several kernel launches.
+   * - Resident state
+     - Particle queues, workspaces or accumulators retained in the backend's
+       execution-space memory between calls.
+   * - Frontier and root
+     - A frontier is a serialized list of particle states from which worker
+       processes continue the shower. Each listed particle is a subshower root.
+   * - Worker
+     - A separate application process assigned CPU-prefix or GPU work. In the
+       GPU phase, the coordinator assigns one worker to each selected GPU.
+
+One router call can execute several transport wavefronts before returning.
+Batch size, transport-wavefront count and GPU thread-block size describe
+different levels of execution.
 
 .. toctree::
    :maxdepth: 1
@@ -48,10 +89,14 @@ it does not represent one kernel launch or one complete shower.
    execution/batches
    execution/coordinator
 
+.. raw:: html
+
+   <span id="source-file-map"></span>
+
 .. _execution-source-files:
 
-Source file map
----------------
+Source organization
+-------------------
 
 The trees below select the files used in this chapter. Public declarations are
 under ``corsika/kokkos/``, template implementations under
@@ -60,46 +105,54 @@ Click a filename to open the pinned source.
 
 .. include:: execution/_file-map.txt
 
-.. _execution-data-flow:
+.. _where-this-chapter-hands-off:
 
-From the application handoff to particle execution
---------------------------------------------------
+Related modules
+---------------
+
+* Particle conversion uses ``particle_transfer::to_device_state(...)`` and
+  ``import_particle(...)`` to translate particle state, units, coordinates and
+  identity. This interface belongs to :doc:`particles`.
+* ``run_photon_cascade(...)`` and ``run_lepton_cascade(...)`` are the entry
+  points to the resident transport loops. Their numerical physics kernels
+  belong to :doc:`transport`.
+* Transport records and CPU-produced tracks reach output writers and radio
+  accumulators. Track projection and waveform accumulation belong to
+  :doc:`radio`.
+
+.. _maintenance-and-existing-checks:
+
+Validation coverage
+-------------------
+
+The following tests cover scheduling and worker-session contracts. Changes to
+these interfaces should preserve particle identity, queue accounting, output
+contributions and the configured random-stream policy. Full-shower physics and
+performance comparisons require separate validation.
+
+.. include:: execution/_checks.txt
+
+.. _execution-data-flow:
+.. _from-the-application-handoff-to-particle-execution:
+
+Control and data flow
+---------------------
+
+``HybridCascadeRunner.inl`` constructs the router, CPU-fallback handler and
+output sink for each event. The backend session and its allocated resources
+can persist across events. ``HybridCascade::run()`` advances the event through
+scalar steps and router calls, then finalizes output after all pending work
+has been processed. The :doc:`execution/hybrid-loop` page describes this
+sequence in detail.
 
 .. figure:: _static/execution-data-flow.svg
-   :alt: File and function flow from the application runner to the CPU scheduler, EM router, resident backend, CPU fallback and output sink.
+   :alt: File and function flow from the application runner to the CPU scheduler, EM router, resident backend, CPU fallback, output accumulation and event finalization.
    :width: 100%
    :target: _static/execution-data-flow.svg
 
-   Solid arrows show calls and transfers; dashed arrows show returned work.
-   The loop continues until the CPU stack, router and deferred work are drained.
-   Open the full-size SVG to follow its source links.
+   Solid arrows indicate calls and transfers; dashed arrows indicate returned
+   work. The loop continues while the CPU scheduler, router or deferred
+   interactions have pending work. Source links are available in the full-size
+   SVG.
    :download:`SVG <_static/execution-data-flow.svg>` ·
    :download:`Editable DOT source <_static/execution-data-flow.dot>`.
-
-``HybridCascadeRunner.inl`` constructs the router, fallback handler and output
-sink for the event. The backend session and its allocated resources can outlive
-this call. ``HybridCascade::run()`` advances the event and invokes the router;
-the router calls the resident EM backend and consumes its results.
-The :doc:`execution/hybrid-loop` page follows these calls in order.
-
-Where this chapter hands off
-----------------------------
-
-* Particle conversion uses ``particle_transfer::to_device_state(...)`` and
-  ``import_particle(...)``. The :doc:`particles` chapter will describe units,
-  coordinate systems, state fields and identity in detail.
-* ``run_photon_cascade(...)`` and ``run_lepton_cascade(...)`` are the entry
-  points to the resident transport loops. The :doc:`transport` chapter will
-  follow their numerical kernels.
-* Transport records and CPU-produced tracks reach output writers and radio
-  accumulators. The :doc:`radio` chapter will describe track projection and
-  waveform accumulation.
-
-Maintenance and existing checks
--------------------------------
-
-The following source tests help locate the contracts affected by a scheduling
-change. They are existing tests, not a claim that a new physics or performance
-campaign was run for this documentation update.
-
-.. include:: execution/_checks.txt

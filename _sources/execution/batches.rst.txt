@@ -1,48 +1,60 @@
-Batches, checkpoints and CPU returns
+.. _batches-checkpoints-and-cpu-returns:
+
+Batch execution and CPU return paths
 ====================================
 
-``EmRouter::advanceOneWavefrontAndReturn(stack)`` connects host staging to the
-resident EM backend. It returns a count of CPU returns or node-refresh requests
-for ``HybridCascade``. Device steps and generated particles are accounted for
-separately in result records and statistics.
+``EmRouter::advanceOneWavefrontAndReturn(stack)`` submits staged particles to
+the resident EM backend and processes its results. A single call can advance
+several transport wavefronts. Its return value counts CPU returns and
+reaction-completion notifications that require node refresh; it is not a
+particle-step or kernel-launch count. Transport steps and generated particles
+are recorded separately in the result objects and backend statistics.
+
+A checkpoint returns control to the caller while preserving unfinished work
+in result records or resident queues. The caller can then resume that work
+in a later batch.
 
 Dispatch thresholds and capacity
 --------------------------------
 
-The ordinary router can first return a small staged batch to the scalar stack
-for further expansion. Otherwise, it limits the host input to the backend's
-advertised capacity, keeps excess input in ``staged_`` and separates photons
-from charged leptons. Resident queues can contribute additional input without
-a host round trip.
+The standard router first checks whether a small staged batch should receive
+further scalar steps. For backend dispatch, it limits the input to the
+advertised capacity, retains excess states in ``staged_`` and separates photons
+from charged leptons. It processes the photon batch before the charged-lepton
+batch. Both calls can also consume states already held in resident queues.
 
 .. list-table::
    :header-rows: 1
    :widths: 32 68
 
    * - Control
-     - Meaning in this implementation
+     - Scheduling effect
    * - ``minimumBatchSize()``
-     - A particle-count threshold for dispatch and small-batch checkpoints.
-       The resident loops check the threshold after at least one wavefront.
-       Forced flushes and pending work can also run below the threshold.
+     - A particle-count threshold used by host dispatch and resident-loop
+       checkpoints. The small-batch checkpoint applies after at least one
+       wavefront; other limits can stop a call earlier. Forced dispatch and
+       pending resident work allow execution below this threshold.
    * - Maximum resident input / photon / lepton sizes
      - Capacity limits used to split host input and reserve workspace. An input
        that exceeds the limit remains queued for later processing.
    * - ``maximumWavefronts`` and history-ID limits
-     - Bounds on a resident call before it returns a checkpoint. In the ordinary
-       router the photon call requests up to 16 wavefronts; the lepton call
-       requests up to 1024 and also supplies a reserved history-ID range.
+     - Limits on iterations and secondary-particle identities within one
+       backend call. The standard router requests up to 16 photon wavefronts
+       or 1024 lepton wavefronts. The lepton call supplies an exclusive upper
+       bound on the reserved history-ID range.
    * - Static frontier import block
      - Limits roots imported from a coordinator-produced file into an empty
        local stack. It is independent of the resident batch capacity; see
        :ref:`execution-frontier-import`.
 
-These counts do not specify CUDA/HIP threads per block. Execution policies
-inside the transport kernels determine how particle indices are mapped to
-threads.
+These controls govern the amount of particle work submitted or retained.
+Execution policies inside the transport kernels separately determine the
+mapping of particle indices to threads and thread blocks.
 
-Calling the backend
--------------------
+.. _calling-the-backend:
+
+Backend interface and execution
+-------------------------------
 
 The photon call in ``EmRouter.inl`` is:
 
@@ -60,10 +72,10 @@ The charged-lepton call additionally supplies an exclusive history-ID limit:
    :end-at: backend_.minimumBatchSize());
    :lineno-match:
 
-The ``ForValidation`` names are retained compatibility spellings used by the
-production router. ``IEmBackend.inl`` forwards them to ``runPhotonWavefront``
-and ``runLeptonWavefront``. They are host calls, not virtual dispatch inside
-each particle's GPU kernel.
+The production router uses the compatibility methods whose names end in
+``ForValidation``. ``IEmBackend.inl`` forwards them to ``runPhotonWavefront``
+and ``runLeptonWavefront``. This interface dispatch executes on the host;
+the particle kernels use the selected execution-space implementation.
 
 ``EmBackend.cpp`` forwards to the selected backend instance.
 ``BackendInstanceImplementation<TExecutionSpace>`` combines the supplied
@@ -82,8 +94,10 @@ space, including OpenMP, CUDA or HIP in a matching build.
    :download:`SVG <../_static/execution-backend-flow.svg>` ·
    :download:`Editable DOT source <../_static/execution-backend-flow.dot>`.
 
-Returned data and its consumers
--------------------------------
+.. _returned-data-and-its-consumers:
+
+Result contracts
+----------------
 
 The calls return ``PhotonCascadeResult`` or ``LeptonCascadeResult`` by value.
 ``consumeResidentPhoton`` and ``consumeResidentLepton`` handle these records:
@@ -93,7 +107,7 @@ The calls return ``PhotonCascadeResult`` or ``LeptonCascadeResult`` by value.
    :widths: 38 62
 
    * - Returned data
-     - Consumer / effect
+     - Processing responsibility
    * - Remaining photons or leptons; generated particles
      - Re-enter host staging when returned. With resident cross-species queues
        enabled, eligible generated particles stay in device-accessible storage
@@ -103,8 +117,8 @@ The calls return ``PhotonCascadeResult`` or ``LeptonCascadeResult`` by value.
        returns the particle for a scalar step, subject to the configured error
        policy.
    * - ``cpuSpillParticles_``
-     - ``returnMemorySpills(...)`` restores unfinished states to the native
-       stack. Capacity pressure must not silently remove particles.
+     - ``returnMemorySpills(...)`` applies the required native cut handling
+       and restores unfinished states to the native stack for scalar processing.
    * - Lepton ``decayCandidates_``
      - ``returnForcedDecays(...)`` marks the corresponding scalar step to
        execute a decay.
@@ -114,32 +128,60 @@ The calls return ``PhotonCascadeResult`` or ``LeptonCascadeResult`` by value.
        on their device path and must not be counted again on host replay.
    * - Checkpoint flags and counters
      - Record small batches, workspace limits or exhausted history-ID ranges.
-       A resident call can stop while the shower still has work to do.
+       They describe the end of this backend call, while the event can retain
+       active particles elsewhere.
 
-Three different reasons to return to the CPU
---------------------------------------------
+.. _three-different-reasons-to-return-to-the-cpu:
 
-**Small-batch expansion** is a scheduling choice. If there is no pending
-resident work and the staging vector is below threshold, the router can
-import it back to the C8 stack. A history/step marker makes ``canRoute`` reject
-that next routing attempt so the scalar stepper actually advances it. A bounded
-number of expansion rounds and a no-progress check can force a device flush.
+CPU return policies
+-------------------
 
-**Specified reaction completion** preserves an already selected interaction.
-The ordinary endpoint stores requests accepted by
+CPU returns serve distinct scheduling and physics requirements. Here a CPU
+return means resuming the native C8 scalar path, including when the backend
+uses OpenMP. The request type determines how the state is resumed.
+
+Small-batch scalar expansion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When staging is below threshold and no resident work is pending, the router
+can return those particles to the C8 stack for further scalar steps. This path
+also requires that no deferred reaction batch or forced-dispatch condition
+takes precedence. A history/step marker directs the next scheduling attempt to
+the scalar stepper. A limit on consecutive expansion rounds and a check for
+unchanged particle state can trigger backend dispatch even below threshold.
+
+Selected-interaction completion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The standard path stores requests accepted by
 ``ProposalCpuFallbackHandler::canHandle(...)`` in ``deferredFallbackEvents_``.
-Once host staging and the resident front drain, ``flushDeferredFallbacks`` calls
-``handle(stack, event)`` to complete these vertices on the CPU. The request
-contains the particle and selected interaction information. It is not a request
-to resample an unrelated step. The new EM products can then return to the
-device path; a dedicated flag avoids another small-batch expansion cycle.
+These requests preserve the particle state and the selected interaction.
+After host staging and resident queues are drained, ``flushDeferredFallbacks``
+calls ``handle(stack, event)`` to complete the corresponding vertices on the
+CPU. Eligible products can then return to the backend. A dedicated flag sends
+the resulting staged batch to backend execution without another scalar
+expansion cycle.
 
-**A generic scalar return, decay or memory spill** has its own handling and
-history/step markers. Unexpected numerical or capability returns can be rejected
-by ``failOnUnexpectedFallback`` rather than silently retried. The reaction-level
-capabilities are defined in the physics layer; a low batch count alone does not
-mean that a reaction is unsupported.
+Other scalar returns
+~~~~~~~~~~~~~~~~~~~~
 
-For maintenance, inspect both the producer of a returned state and its consumer.
-Changing only the kernel or only the router can otherwise leave a state
-unconsumed, execute a selected vertex twice or double-count an output record.
+Generic fallback states, decay candidates and memory spills use separate
+history/step markers. A decay marker forces the next scalar step to execute
+the pending decay. Generic fallback and spill markers allow the particle to
+receive a scalar step before routing is reconsidered.
+
+For a fallback request that no specified-reaction handler accepts, enabling
+``failOnUnexpectedFallback`` rejects reasons outside the permitted set:
+``UnsupportedParticle``, ``UnsupportedMedium`` and ``UnsupportedGeometry``.
+Thus an unexpected numerical failure can abort the event, while a permitted
+capability return continues through scalar transport. Small-batch expansion
+is a scheduling decision independent of these reaction capabilities.
+
+Maintenance requirements
+------------------------
+
+Changes to a return record must update both its backend producer and router
+consumer. Each active particle needs exactly one continuation path, each
+selected interaction must complete once, and each output contribution must
+be accumulated once. Resident cross-species retention, host staging and CPU
+returns must preserve these invariants.

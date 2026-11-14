@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Batches, checkpoints and CPU returns &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Batch execution and CPU return paths &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Parallel prefixes and GPU workers" href="coordinator.html" />
-    <link rel="prev" title="The hybrid event loop" href="hybrid-loop.html" /> 
+    <link rel="next" title="Process coordination and worker lifecycle" href="coordinator.html" />
+    <link rel="prev" title="Hybrid event execution" href="hybrid-loop.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -70,9 +70,9 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="coordinator.html">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
@@ -106,7 +106,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../execution.html">Execution and scheduling</a></li>
-      <li class="breadcrumb-item active">Batches, checkpoints and CPU returns</li>
+      <li class="breadcrumb-item active">Batch execution and CPU return paths</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/execution/batches.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -116,19 +116,24 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="batches-checkpoints-and-cpu-returns">
-<h1>Batches, checkpoints and CPU returns<a class="headerlink" href="#batches-checkpoints-and-cpu-returns" title="Link to this heading"></a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">EmRouter::advanceOneWavefrontAndReturn(stack)</span></code> connects host staging to the
-resident EM backend. It returns a count of CPU returns or node-refresh requests
-for <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>. Device steps and generated particles are accounted for
-separately in result records and statistics.</p>
+  <section id="batch-execution-and-cpu-return-paths">
+<span id="batches-checkpoints-and-cpu-returns"></span><h1>Batch execution and CPU return paths<a class="headerlink" href="#batch-execution-and-cpu-return-paths" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">EmRouter::advanceOneWavefrontAndReturn(stack)</span></code> submits staged particles to
+the resident EM backend and processes its results. A single call can advance
+several transport wavefronts. Its return value counts CPU returns and
+reaction-completion notifications that require node refresh; it is not a
+particle-step or kernel-launch count. Transport steps and generated particles
+are recorded separately in the result objects and backend statistics.</p>
+<p>A checkpoint returns control to the caller while preserving unfinished work
+in result records or resident queues. The caller can then resume that work
+in a later batch.</p>
 <section id="dispatch-thresholds-and-capacity">
 <h2>Dispatch thresholds and capacity<a class="headerlink" href="#dispatch-thresholds-and-capacity" title="Link to this heading"></a></h2>
-<p>The ordinary router can first return a small staged batch to the scalar stack
-for further expansion. Otherwise, it limits the host input to the backend’s
-advertised capacity, keeps excess input in <code class="docutils literal notranslate"><span class="pre">staged_</span></code> and separates photons
-from charged leptons. Resident queues can contribute additional input without
-a host round trip.</p>
+<p>The standard router first checks whether a small staged batch should receive
+further scalar steps. For backend dispatch, it limits the input to the
+advertised capacity, retains excess states in <code class="docutils literal notranslate"><span class="pre">staged_</span></code> and separates photons
+from charged leptons. It processes the photon batch before the charged-lepton
+batch. Both calls can also consume states already held in resident queues.</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 32.0%" />
@@ -136,37 +141,39 @@ a host round trip.</p>
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Control</p></th>
-<th class="head"><p>Meaning in this implementation</p></th>
+<th class="head"><p>Scheduling effect</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">minimumBatchSize()</span></code></p></td>
-<td><p>A particle-count threshold for dispatch and small-batch checkpoints.
-The resident loops check the threshold after at least one wavefront.
-Forced flushes and pending work can also run below the threshold.</p></td>
+<td><p>A particle-count threshold used by host dispatch and resident-loop
+checkpoints. The small-batch checkpoint applies after at least one
+wavefront; other limits can stop a call earlier. Forced dispatch and
+pending resident work allow execution below this threshold.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Maximum resident input / photon / lepton sizes</p></td>
 <td><p>Capacity limits used to split host input and reserve workspace. An input
 that exceeds the limit remains queued for later processing.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">maximumWavefronts</span></code> and history-ID limits</p></td>
-<td><p>Bounds on a resident call before it returns a checkpoint. In the ordinary
-router the photon call requests up to 16 wavefronts; the lepton call
-requests up to 1024 and also supplies a reserved history-ID range.</p></td>
+<td><p>Limits on iterations and secondary-particle identities within one
+backend call. The standard router requests up to 16 photon wavefronts
+or 1024 lepton wavefronts. The lepton call supplies an exclusive upper
+bound on the reserved history-ID range.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Static frontier import block</p></td>
 <td><p>Limits roots imported from a coordinator-produced file into an empty
 local stack. It is independent of the resident batch capacity; see
-<a class="reference internal" href="coordinator.html#execution-frontier-import"><span class="std std-ref">Import roots in bounded blocks</span></a>.</p></td>
+<a class="reference internal" href="coordinator.html#execution-frontier-import"><span class="std std-ref">Bounded frontier import</span></a>.</p></td>
 </tr>
 </tbody>
 </table>
-<p>These counts do not specify CUDA/HIP threads per block. Execution policies
-inside the transport kernels determine how particle indices are mapped to
-threads.</p>
+<p>These controls govern the amount of particle work submitted or retained.
+Execution policies inside the transport kernels separately determine the
+mapping of particle indices to threads and thread blocks.</p>
 </section>
-<section id="calling-the-backend">
-<h2>Calling the backend<a class="headerlink" href="#calling-the-backend" title="Link to this heading"></a></h2>
+<section id="backend-interface-and-execution">
+<span id="calling-the-backend"></span><h2>Backend interface and execution<a class="headerlink" href="#backend-interface-and-execution" title="Link to this heading"></a></h2>
 <p>The photon call in <code class="docutils literal notranslate"><span class="pre">EmRouter.inl</span></code> is:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">372</span><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">backend_</span><span class="p">.</span><span class="n">runResidentPhotonCascadeForValidation</span><span class="p">(</span>
 <span class="linenos">373</span><span class="w">            </span><span class="n">photons</span><span class="p">,</span><span class="w"> </span><span class="n">firstHistory</span><span class="p">,</span><span class="w"> </span><span class="n">ResidentPhotonWavefronts</span><span class="p">,</span><span class="w"> </span><span class="n">backend_</span><span class="p">.</span><span class="n">minimumBatchSize</span><span class="p">());</span>
@@ -178,10 +185,10 @@ threads.</p>
 <span class="linenos">407</span><span class="w">            </span><span class="n">backend_</span><span class="p">.</span><span class="n">minimumBatchSize</span><span class="p">());</span>
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">ForValidation</span></code> names are retained compatibility spellings used by the
-production router. <code class="docutils literal notranslate"><span class="pre">IEmBackend.inl</span></code> forwards them to <code class="docutils literal notranslate"><span class="pre">runPhotonWavefront</span></code>
-and <code class="docutils literal notranslate"><span class="pre">runLeptonWavefront</span></code>. They are host calls, not virtual dispatch inside
-each particle’s GPU kernel.</p>
+<p>The production router uses the compatibility methods whose names end in
+<code class="docutils literal notranslate"><span class="pre">ForValidation</span></code>. <code class="docutils literal notranslate"><span class="pre">IEmBackend.inl</span></code> forwards them to <code class="docutils literal notranslate"><span class="pre">runPhotonWavefront</span></code>
+and <code class="docutils literal notranslate"><span class="pre">runLeptonWavefront</span></code>. This interface dispatch executes on the host;
+the particle kernels use the selected execution-space implementation.</p>
 <p><code class="docutils literal notranslate"><span class="pre">EmBackend.cpp</span></code> forwards to the selected backend instance.
 <code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code> combines the supplied
 <code class="docutils literal notranslate"><span class="pre">std::vector&lt;ParticleState&gt;</span></code> with pending resident input, supplies shared
@@ -199,8 +206,8 @@ can remain in the execution space between calls. Open the SVG for source links.
 </figcaption>
 </figure>
 </section>
-<section id="returned-data-and-its-consumers">
-<h2>Returned data and its consumers<a class="headerlink" href="#returned-data-and-its-consumers" title="Link to this heading"></a></h2>
+<section id="result-contracts">
+<span id="returned-data-and-its-consumers"></span><h2>Result contracts<a class="headerlink" href="#result-contracts" title="Link to this heading"></a></h2>
 <p>The calls return <code class="docutils literal notranslate"><span class="pre">PhotonCascadeResult</span></code> or <code class="docutils literal notranslate"><span class="pre">LeptonCascadeResult</span></code> by value.
 <code class="docutils literal notranslate"><span class="pre">consumeResidentPhoton</span></code> and <code class="docutils literal notranslate"><span class="pre">consumeResidentLepton</span></code> handle these records:</p>
 <table class="docutils align-default">
@@ -210,7 +217,7 @@ can remain in the execution space between calls. Open the SVG for source links.
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Returned data</p></th>
-<th class="head"><p>Consumer / effect</p></th>
+<th class="head"><p>Processing responsibility</p></th>
 </tr>
 </thead>
 <tbody>
@@ -225,8 +232,8 @@ returns the particle for a scalar step, subject to the configured error
 policy.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpuSpillParticles_</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">returnMemorySpills(...)</span></code> restores unfinished states to the native
-stack. Capacity pressure must not silently remove particles.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">returnMemorySpills(...)</span></code> applies the required native cut handling
+and restores unfinished states to the native stack for scalar processing.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Lepton <code class="docutils literal notranslate"><span class="pre">decayCandidates_</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">returnForcedDecays(...)</span></code> marks the corresponding scalar step to
@@ -239,34 +246,58 @@ on their device path and must not be counted again on host replay.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Checkpoint flags and counters</p></td>
 <td><p>Record small batches, workspace limits or exhausted history-ID ranges.
-A resident call can stop while the shower still has work to do.</p></td>
+They describe the end of this backend call, while the event can retain
+active particles elsewhere.</p></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="three-different-reasons-to-return-to-the-cpu">
-<h2>Three different reasons to return to the CPU<a class="headerlink" href="#three-different-reasons-to-return-to-the-cpu" title="Link to this heading"></a></h2>
-<p><strong>Small-batch expansion</strong> is a scheduling choice. If there is no pending
-resident work and the staging vector is below threshold, the router can
-import it back to the C8 stack. A history/step marker makes <code class="docutils literal notranslate"><span class="pre">canRoute</span></code> reject
-that next routing attempt so the scalar stepper actually advances it. A bounded
-number of expansion rounds and a no-progress check can force a device flush.</p>
-<p><strong>Specified reaction completion</strong> preserves an already selected interaction.
-The ordinary endpoint stores requests accepted by
+<section id="cpu-return-policies">
+<span id="three-different-reasons-to-return-to-the-cpu"></span><h2>CPU return policies<a class="headerlink" href="#cpu-return-policies" title="Link to this heading"></a></h2>
+<p>CPU returns serve distinct scheduling and physics requirements. Here a CPU
+return means resuming the native C8 scalar path, including when the backend
+uses OpenMP. The request type determines how the state is resumed.</p>
+<section id="small-batch-scalar-expansion">
+<h3>Small-batch scalar expansion<a class="headerlink" href="#small-batch-scalar-expansion" title="Link to this heading"></a></h3>
+<p>When staging is below threshold and no resident work is pending, the router
+can return those particles to the C8 stack for further scalar steps. This path
+also requires that no deferred reaction batch or forced-dispatch condition
+takes precedence. A history/step marker directs the next scheduling attempt to
+the scalar stepper. A limit on consecutive expansion rounds and a check for
+unchanged particle state can trigger backend dispatch even below threshold.</p>
+</section>
+<section id="selected-interaction-completion">
+<h3>Selected-interaction completion<a class="headerlink" href="#selected-interaction-completion" title="Link to this heading"></a></h3>
+<p>The standard path stores requests accepted by
 <code class="docutils literal notranslate"><span class="pre">ProposalCpuFallbackHandler::canHandle(...)</span></code> in <code class="docutils literal notranslate"><span class="pre">deferredFallbackEvents_</span></code>.
-Once host staging and the resident front drain, <code class="docutils literal notranslate"><span class="pre">flushDeferredFallbacks</span></code> calls
-<code class="docutils literal notranslate"><span class="pre">handle(stack,</span> <span class="pre">event)</span></code> to complete these vertices on the CPU. The request
-contains the particle and selected interaction information. It is not a request
-to resample an unrelated step. The new EM products can then return to the
-device path; a dedicated flag avoids another small-batch expansion cycle.</p>
-<p><strong>A generic scalar return, decay or memory spill</strong> has its own handling and
-history/step markers. Unexpected numerical or capability returns can be rejected
-by <code class="docutils literal notranslate"><span class="pre">failOnUnexpectedFallback</span></code> rather than silently retried. The reaction-level
-capabilities are defined in the physics layer; a low batch count alone does not
-mean that a reaction is unsupported.</p>
-<p>For maintenance, inspect both the producer of a returned state and its consumer.
-Changing only the kernel or only the router can otherwise leave a state
-unconsumed, execute a selected vertex twice or double-count an output record.</p>
+These requests preserve the particle state and the selected interaction.
+After host staging and resident queues are drained, <code class="docutils literal notranslate"><span class="pre">flushDeferredFallbacks</span></code>
+calls <code class="docutils literal notranslate"><span class="pre">handle(stack,</span> <span class="pre">event)</span></code> to complete the corresponding vertices on the
+CPU. Eligible products can then return to the backend. A dedicated flag sends
+the resulting staged batch to backend execution without another scalar
+expansion cycle.</p>
+</section>
+<section id="other-scalar-returns">
+<h3>Other scalar returns<a class="headerlink" href="#other-scalar-returns" title="Link to this heading"></a></h3>
+<p>Generic fallback states, decay candidates and memory spills use separate
+history/step markers. A decay marker forces the next scalar step to execute
+the pending decay. Generic fallback and spill markers allow the particle to
+receive a scalar step before routing is reconsidered.</p>
+<p>For a fallback request that no specified-reaction handler accepts, enabling
+<code class="docutils literal notranslate"><span class="pre">failOnUnexpectedFallback</span></code> rejects reasons outside the permitted set:
+<code class="docutils literal notranslate"><span class="pre">UnsupportedParticle</span></code>, <code class="docutils literal notranslate"><span class="pre">UnsupportedMedium</span></code> and <code class="docutils literal notranslate"><span class="pre">UnsupportedGeometry</span></code>.
+Thus an unexpected numerical failure can abort the event, while a permitted
+capability return continues through scalar transport. Small-batch expansion
+is a scheduling decision independent of these reaction capabilities.</p>
+</section>
+</section>
+<section id="maintenance-requirements">
+<h2>Maintenance requirements<a class="headerlink" href="#maintenance-requirements" title="Link to this heading"></a></h2>
+<p>Changes to a return record must update both its backend producer and router
+consumer. Each active particle needs exactly one continuation path, each
+selected interaction must complete once, and each output contribution must
+be accumulated once. Resident cross-species retention, host staging and CPU
+returns must preserve these invariants.</p>
 </section>
 </section>
 
@@ -274,8 +305,8 @@ unconsumed, execute a selected vertex twice or double-count an output record.</p
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="hybrid-loop.html" class="btn btn-neutral float-left" title="The hybrid event loop" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="coordinator.html" class="btn btn-neutral float-right" title="Parallel prefixes and GPU workers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="hybrid-loop.html" class="btn btn-neutral float-left" title="Hybrid event execution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="coordinator.html" class="btn btn-neutral float-right" title="Process coordination and worker lifecycle" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

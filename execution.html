@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="The hybrid event loop" href="execution/hybrid-loop.html" />
+    <link rel="next" title="Hybrid event execution" href="execution/hybrid-loop.html" />
     <link rel="prev" title="Event execution and results" href="application/event-execution.html" /> 
 </head>
 
@@ -70,9 +70,9 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Execution and scheduling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
@@ -117,22 +117,27 @@
              
   <section id="execution-and-scheduling">
 <h1>Execution and scheduling<a class="headerlink" href="#execution-and-scheduling" title="Link to this heading"></a></h1>
-<p>The application hands a configured event to <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>.
-This chapter follows the next steps: selecting particles from the C8 stack,
-collecting supported particles into batches, advancing those batches and
-returning unfinished work or output to the host. It then follows the optional
-coordinator that divides a shower among processes and GPUs.</p>
+<p>The scheduling layer advances a configured event by combining native C8
+particle steps with Kokkos batch execution. <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code> controls the
+local event loop, <code class="docutils literal notranslate"><span class="pre">EmRouter</span></code> transfers supported particles to the EM backend,
+and the backend advances them using the selected Kokkos execution space.
+An optional process coordinator distributes subshower work among CPU-prefix
+processes and GPU workers.</p>
+<p>This chapter documents these components, their interfaces and the conditions
+for event completion. The preceding <a class="reference internal" href="application/event-execution.html"><span class="doc">Event execution and results</span></a> page
+describes how the application supplies the event to
+<code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
-The main flow below describes <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> with the ordinary resident
-EM backend. Native C8 execution takes the separate <code class="docutils literal notranslate"><span class="pre">Cascade::run()</span></code> branch
-described in <a class="reference internal" href="application/event-execution.html"><span class="doc">Event execution and results</span></a>. EGS4 and optional cooperative
-CPU/device endpoints have additional paths; they are not interchangeable
-with this flow.</p>
+The execution flow below describes <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> with the standard
+resident EM backend. Native C8 execution uses <code class="docutils literal notranslate"><span class="pre">Cascade::run()</span></code>, as
+described in <a class="reference internal" href="application/event-execution.html"><span class="doc">Event execution and results</span></a>. The EGS4 backend and optional
+independent-subshower execution have additional scheduling paths outside
+the scope of this chapter.</p>
 </div>
-<section id="two-levels-of-scheduling">
-<h2>Two levels of scheduling<a class="headerlink" href="#two-levels-of-scheduling" title="Link to this heading"></a></h2>
+<section id="scheduling-hierarchy">
+<span id="two-levels-of-scheduling"></span><h2>Scheduling hierarchy<a class="headerlink" href="#scheduling-hierarchy" title="Link to this heading"></a></h2>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 24.0%" />
@@ -142,36 +147,80 @@ with this flow.</p>
 <thead>
 <tr class="row-odd"><th class="head"><p>Level</p></th>
 <th class="head"><p>Responsible code</p></th>
-<th class="head"><p>Unit of work</p></th>
+<th class="head"><p>Scheduling responsibility</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Within one process</p></td>
+<tr class="row-even"><td><p>Host event loop</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>, <code class="docutils literal notranslate"><span class="pre">CpuParticleScheduler</span></code> and <code class="docutils literal notranslate"><span class="pre">EmRouter</span></code></p></td>
-<td><p>A C8 particle step or a batch of supported particles. The backend runs
-Kokkos kernels on the selected execution space.</p></td>
+<td><p>Select a runnable stack particle, execute a scalar step or stage it for
+the backend, and process returned work.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Across processes</p></td>
+<tr class="row-odd"><td><p>Backend batch execution</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code> and the resident
+photon/lepton loops</p></td>
+<td><p>Advance supported particles in batches using Kokkos kernels on CPU
+threads or a GPU.</p></td>
+</tr>
+<tr class="row-even"><td><p>Process coordination</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">coordinator::run(...)</span></code> and its worker pool</p></td>
-<td><p>A static set of subshower roots assigned to each process. Each GPU worker
-uses the same local cascade and router interfaces.</p></td>
+<td><p>Assign static subshower roots to worker processes and merge their
+outputs. Each GPU worker uses the local event loop and backend.</p></td>
 </tr>
 </tbody>
 </table>
-<p>An OpenMP backend runs particle kernels on CPU threads. A CPU-prefix worker is
-a separate process running a native C8 prefix. These are different forms of
-parallelism. Likewise, one router call can advance several resident wavefronts;
-it does not represent one kernel launch or one complete shower.</p>
+<p>An OpenMP execution space parallelizes backend kernels across CPU threads.
+CPU-prefix parallelism distributes the initial shower work among separate
+processes. Their thread and process counts are configured independently.</p>
+</section>
+<section id="execution-terminology">
+<h2>Execution terminology<a class="headerlink" href="#execution-terminology" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 76.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Term</p></th>
+<th class="head"><p>Meaning in this chapter</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Batch</p></td>
+<td><p>A group of particle states supplied to, or processed by, the backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Transport wavefront</p></td>
+<td><p>The active particle set in one iteration of a resident transport loop.
+Particles retain their own step lengths and simulation times. One
+iteration can involve several kernel launches.</p></td>
+</tr>
+<tr class="row-even"><td><p>Resident state</p></td>
+<td><p>Particle queues, workspaces or accumulators retained in the backend’s
+execution-space memory between calls.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Frontier and root</p></td>
+<td><p>A frontier is a serialized list of particle states from which worker
+processes continue the shower. Each listed particle is a subshower root.</p></td>
+</tr>
+<tr class="row-even"><td><p>Worker</p></td>
+<td><p>A separate application process assigned CPU-prefix or GPU work. In the
+GPU phase, the coordinator assigns one worker to each selected GPU.</p></td>
+</tr>
+</tbody>
+</table>
+<p>One router call can execute several transport wavefronts before returning.
+Batch size, transport-wavefront count and GPU thread-block size describe
+different levels of execution.</p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l1"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l1"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </div>
-</section>
-<section id="source-file-map">
-<span id="execution-source-files"></span><h2>Source file map<a class="headerlink" href="#source-file-map" title="Link to this heading"></a></h2>
+<span id="source-file-map"></span></section>
+<section id="source-organization">
+<span id="execution-source-files"></span><h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
 <p>The trees below select the files used in this chapter. Public declarations are
 under <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/</span></code>, template implementations under
 <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/</span></code> and compiled implementations under <code class="docutils literal notranslate"><span class="pre">src/kokkos/</span></code>.
@@ -198,7 +247,7 @@ corsika/detail/kokkos/scheduling/
 src/kokkos/scheduling/
 ├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a>        process launch, worker pool and event orchestration
 └── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/StaticFrontierIO.cpp">StaticFrontierIO.cpp</a>            partition, join, validate and merge files</pre>
-<p>Connections to neighbouring modules:</p>
+<p>Dependencies in other modules:</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 47.0%" />
@@ -206,7 +255,7 @@ src/kokkos/scheduling/
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Source</p></th>
-<th class="head"><p>Boundary</p></th>
+<th class="head"><p>Interface responsibility</p></th>
 </tr>
 </thead>
 <tbody>
@@ -252,51 +301,33 @@ src/kokkos/scheduling/
 </tbody>
 </table>
 </section>
-<section id="from-the-application-handoff-to-particle-execution">
-<span id="execution-data-flow"></span><h2>From the application handoff to particle execution<a class="headerlink" href="#from-the-application-handoff-to-particle-execution" title="Link to this heading"></a></h2>
-<figure class="align-default" id="id1">
-<a class="reference external image-reference" href="_static/execution-data-flow.svg"><img alt="File and function flow from the application runner to the CPU scheduler, EM router, resident backend, CPU fallback and output sink." src="_images/execution-data-flow.svg" style="width: 100%;" />
-</a>
-<figcaption>
-<p><span class="caption-text">Solid arrows show calls and transfers; dashed arrows show returned work.
-The loop continues until the CPU stack, router and deferred work are drained.
-Open the full-size SVG to follow its source links.
-<a class="reference download internal" download="" href="_downloads/56f7f5df5c2d566cf10d21fe6f981054/execution-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
-<a class="reference download internal" download="" href="_downloads/bb871c99b5c862cb39df942665185c04/execution-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
-</figcaption>
-</figure>
-<p><code class="docutils literal notranslate"><span class="pre">HybridCascadeRunner.inl</span></code> constructs the router, fallback handler and output
-sink for the event. The backend session and its allocated resources can outlive
-this call. <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code> advances the event and invokes the router;
-the router calls the resident EM backend and consumes its results.
-The <a class="reference internal" href="execution/hybrid-loop.html"><span class="doc">The hybrid event loop</span></a> page follows these calls in order.</p>
-</section>
-<section id="where-this-chapter-hands-off">
-<h2>Where this chapter hands off<a class="headerlink" href="#where-this-chapter-hands-off" title="Link to this heading"></a></h2>
+<section id="related-modules">
+<span id="where-this-chapter-hands-off"></span><h2>Related modules<a class="headerlink" href="#related-modules" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>Particle conversion uses <code class="docutils literal notranslate"><span class="pre">particle_transfer::to_device_state(...)</span></code> and
-<code class="docutils literal notranslate"><span class="pre">import_particle(...)</span></code>. The <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a> chapter will describe units,
-coordinate systems, state fields and identity in detail.</p></li>
+<code class="docutils literal notranslate"><span class="pre">import_particle(...)</span></code> to translate particle state, units, coordinates and
+identity. This interface belongs to <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">run_photon_cascade(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">run_lepton_cascade(...)</span></code> are the entry
-points to the resident transport loops. The <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> chapter will
-follow their numerical kernels.</p></li>
+points to the resident transport loops. Their numerical physics kernels
+belong to <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a>.</p></li>
 <li><p>Transport records and CPU-produced tracks reach output writers and radio
-accumulators. The <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a> chapter will describe track projection and
-waveform accumulation.</p></li>
+accumulators. Track projection and waveform accumulation belong to
+<a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a>.</p></li>
 </ul>
 </section>
-<section id="maintenance-and-existing-checks">
-<h2>Maintenance and existing checks<a class="headerlink" href="#maintenance-and-existing-checks" title="Link to this heading"></a></h2>
-<p>The following source tests help locate the contracts affected by a scheduling
-change. They are existing tests, not a claim that a new physics or performance
-campaign was run for this documentation update.</p>
+<section id="validation-coverage">
+<span id="maintenance-and-existing-checks"></span><h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>The following tests cover scheduling and worker-session contracts. Changes to
+these interfaces should preserve particle identity, queue accounting, output
+contributions and the configured random-stream policy. Full-shower physics and
+performance comparisons require separate validation.</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 40.0%" />
 <col style="width: 60.0%" />
 </colgroup>
 <thead>
-<tr class="row-odd"><th class="head"><p>Existing test source</p></th>
+<tr class="row-odd"><th class="head"><p>Test source</p></th>
 <th class="head"><p>Contract covered</p></th>
 </tr>
 </thead>
@@ -316,6 +347,27 @@ campaign was run for this documentation update.</p>
 </tbody>
 </table>
 </section>
+<section id="control-and-data-flow">
+<span id="from-the-application-handoff-to-particle-execution"></span><span id="execution-data-flow"></span><h2>Control and data flow<a class="headerlink" href="#control-and-data-flow" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">HybridCascadeRunner.inl</span></code> constructs the router, CPU-fallback handler and
+output sink for each event. The backend session and its allocated resources
+can persist across events. <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code> advances the event through
+scalar steps and router calls, then finalizes output after all pending work
+has been processed. The <a class="reference internal" href="execution/hybrid-loop.html"><span class="doc">Hybrid event execution</span></a> page describes this
+sequence in detail.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/execution-data-flow.svg"><img alt="File and function flow from the application runner to the CPU scheduler, EM router, resident backend, CPU fallback, output accumulation and event finalization." src="_images/execution-data-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Solid arrows indicate calls and transfers; dashed arrows indicate returned
+work. The loop continues while the CPU scheduler, router or deferred
+interactions have pending work. Source links are available in the full-size
+SVG.
+<a class="reference download internal" download="" href="_downloads/56f7f5df5c2d566cf10d21fe6f981054/execution-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/bb871c99b5c862cb39df942665185c04/execution-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
 </section>
 
 
@@ -323,7 +375,7 @@ campaign was run for this documentation update.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="application/event-execution.html" class="btn btn-neutral float-left" title="Event execution and results" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="execution/hybrid-loop.html" class="btn btn-neutral float-right" title="The hybrid event loop" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="execution/hybrid-loop.html" class="btn btn-neutral float-right" title="Hybrid event execution" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

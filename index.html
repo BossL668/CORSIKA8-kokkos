@@ -69,9 +69,9 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
@@ -186,11 +186,12 @@ and maintenance.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#two-levels-of-scheduling">Two levels of scheduling</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#source-file-map">Source file map</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#from-the-application-handoff-to-particle-execution">From the application handoff to particle execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#where-this-chapter-hands-off">Where this chapter hands off</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution.html#maintenance-and-existing-checks">Maintenance and existing checks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#scheduling-hierarchy">Scheduling hierarchy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#execution-terminology">Execution terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#source-organization">Source organization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#related-modules">Related modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#validation-coverage">Validation coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html#control-and-data-flow">Control and data flow</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a><ul>

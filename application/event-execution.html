@@ -70,9 +70,9 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
@@ -358,7 +358,7 @@ process sequence, output manager and stack; apply the event configuration.</p></
 that records backend and cascade statistics.</p></li>
 </ol>
 <p>Both <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">run_cascade(...)</span></code> return <code class="docutils literal notranslate"><span class="pre">void</span></code>.
-The <a class="reference internal" href="../execution/hybrid-loop.html"><span class="doc">The hybrid event loop</span></a> page describes particle scheduling,
+The <a class="reference internal" href="../execution/hybrid-loop.html"><span class="doc">Hybrid event execution</span></a> page describes particle scheduling,
 CPU fallback and batch processing inside <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code>.</p>
 </section>
 <section id="output-lifecycle">
@@ -401,7 +401,7 @@ and <code class="docutils literal notranslate"><span class="pre">observationLeve
 of the event loop, <code class="docutils literal notranslate"><span class="pre">workerSession.close(output)</span></code> finalizes the output library.
 A resident worker also closes the preceding request’s library when accepting
 the next request. Worker coordination is described in
-<a class="reference internal" href="../execution/coordinator.html"><span class="doc">Parallel prefixes and GPU workers</span></a>.</p>
+<a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a>.</p>
 </section>
 <section id="failure-handling">
 <h2>Failure handling<a class="headerlink" href="#failure-handling" title="Link to this heading"></a></h2>

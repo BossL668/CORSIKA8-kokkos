@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Parallel prefixes and GPU workers &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Process coordination and worker lifecycle &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -24,7 +24,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Particle data and state" href="../particles.html" />
-    <link rel="prev" title="Batches, checkpoints and CPU returns" href="batches.html" /> 
+    <link rel="prev" title="Batch execution and CPU return paths" href="batches.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -70,9 +70,9 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="hybrid-loop.html">The hybrid event loop</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batches.html">Batches, checkpoints and CPU returns</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Parallel prefixes and GPU workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a></li>
@@ -106,7 +106,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../execution.html">Execution and scheduling</a></li>
-      <li class="breadcrumb-item active">Parallel prefixes and GPU workers</li>
+      <li class="breadcrumb-item active">Process coordination and worker lifecycle</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/execution/coordinator.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -116,56 +116,55 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="parallel-prefixes-and-gpu-workers">
-<h1>Parallel prefixes and GPU workers<a class="headerlink" href="#parallel-prefixes-and-gpu-workers" title="Link to this heading"></a></h1>
-<p>The coordinator organizes processes around the local execution described in
-<a class="reference internal" href="hybrid-loop.html"><span class="doc">The hybrid event loop</span></a>. It partitions a shower into static root lists, starts the
-native application in the required worker roles and merges their closed
-outputs. It does not run particle kernels in the parent coordinator process.</p>
-<section id="entry-and-configuration">
-<h2>Entry and configuration<a class="headerlink" href="#entry-and-configuration" title="Link to this heading"></a></h2>
-<p>The application’s early <code class="docutils literal notranslate"><span class="pre">select_execution(argc,</span> <span class="pre">argv)</span></code> branch enters
-<code class="docutils literal notranslate"><span class="pre">coordinator::main_entry(...)</span></code> when coordinated execution is requested.
-<code class="docutils literal notranslate"><span class="pre">main_entry</span></code> parses <code class="docutils literal notranslate"><span class="pre">CoordinatorOptions</span></code> and calls <code class="docutils literal notranslate"><span class="pre">run(options)</span></code>.
+  <section id="process-coordination-and-worker-lifecycle">
+<span id="parallel-prefixes-and-gpu-workers"></span><h1>Process coordination and worker lifecycle<a class="headerlink" href="#process-coordination-and-worker-lifecycle" title="Link to this heading"></a></h1>
+<p>The coordinator partitions a shower into static root lists, runs application
+processes in CPU-prefix and GPU-worker roles, and merges their completed
+outputs. Each GPU worker uses the local execution described in
+<a class="reference internal" href="hybrid-loop.html"><span class="doc">Hybrid event execution</span></a>. The parent coordinator manages these processes and their
+files; particle kernels execute in the workers.</p>
+<p>A <em>shard</em> is the subset of frontier roots assigned to one worker. Each root
+provides the initial state for a subshower continued by that worker.</p>
+<section id="execution-selection-and-configuration">
+<span id="entry-and-configuration"></span><h2>Execution selection and configuration<a class="headerlink" href="#execution-selection-and-configuration" title="Link to this heading"></a></h2>
+<p>The application’s early <code class="docutils literal notranslate"><span class="pre">select_execution(argc,</span> <span class="pre">argv)</span></code> call selects direct
+or coordinated execution. On the coordinated path, <code class="docutils literal notranslate"><span class="pre">runCoordinator(...)</span></code>
+enters <code class="docutils literal notranslate"><span class="pre">coordinator::main_entry(...)</span></code>, which parses <code class="docutils literal notranslate"><span class="pre">CoordinatorOptions</span></code>
+and calls <code class="docutils literal notranslate"><span class="pre">run(options)</span></code>.
 The options include the worker executable, physics arguments, selected devices,
 event count, seed, prefix-worker count, split energies, memory fraction and
-timeout. It returns a process exit status; <code class="docutils literal notranslate"><span class="pre">run</span></code> writes campaign/event records
-and returns <code class="docutils literal notranslate"><span class="pre">void</span></code> or throws on failure.</p>
-<p>Multiple selected GPUs or an explicit <code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code> option trigger
-coordinator selection. The ordinary direct single-GPU/OpenMP path stays in
-<code class="docutils literal notranslate"><span class="pre">main</span></code>. A coordinated shower can also use one GPU with a parallel CPU prefix.
-The current parallel-prefix and persistent-worker paths require
-<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>; selecting an arbitrary EM backend does not enable them.</p>
+timeout. <code class="docutils literal notranslate"><span class="pre">main_entry</span></code> returns a process exit status. <code class="docutils literal notranslate"><span class="pre">run</span></code> writes run-level
+and per-event records, returns <code class="docutils literal notranslate"><span class="pre">void</span></code> on success and throws on failure.</p>
+<p>When coordinator support is compiled in, multiple selected GPUs or an explicit
+<code class="docutils literal notranslate"><span class="pre">--prefix-workers</span></code> option trigger this selection. A valid coordinated run
+uses multiple GPUs, or one GPU with a positive prefix-worker count. Direct
+single-GPU and OpenMP execution remain in the application’s event loop.
+The parallel-prefix and persistent-worker paths currently require
+<code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>.</p>
 </section>
-<section id="follow-one-coordinated-event">
-<span id="execution-coordinator-flow"></span><h2>Follow one coordinated event<a class="headerlink" href="#follow-one-coordinated-event" title="Link to this heading"></a></h2>
-<figure class="align-default" id="id1">
-<a class="reference external image-reference" href="../_static/execution-coordinator-flow.svg"><img alt="Coordinator selects serial or parallel CPU prefix, joins and partitions the EM frontier, assigns roots and radio tracks to GPU workers, validates and merges outputs." src="../_images/execution-coordinator-flow.svg" style="width: 100%;" />
-</a>
-<figcaption>
-<p><span class="caption-text">Files cross process boundaries; each GPU worker reconstructs its local C8
-objects and uses the hybrid event loop. Arrow labels name the transferred
-data. Open the full-size SVG for source links.
-<a class="reference download internal" download="" href="../_downloads/e355d8d1c32066aac0fce47afa3103a4/execution-coordinator-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
-<a class="reference download internal" download="" href="../_downloads/ea066b9c89a67bb5d5c1bc28bc502574/execution-coordinator-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
-</figcaption>
-</figure>
+<section id="coordinated-event-lifecycle">
+<span id="follow-one-coordinated-event"></span><h2>Coordinated event lifecycle<a class="headerlink" href="#coordinated-event-lifecycle" title="Link to this heading"></a></h2>
+<p>Each event proceeds through prefix generation, work assignment, worker
+execution and output merging:</p>
 <ol class="arabic simple">
 <li><p><strong>Produce a frontier.</strong> With zero prefix workers, one CPU prefix advances
 the primary and writes <code class="docutils literal notranslate"><span class="pre">frontier.txt</span></code> through the capture-router path.
-With a parallel prefix, a bootstrap first writes <code class="docutils literal notranslate"><span class="pre">cpu_frontier.txt</span></code>;
-<code class="docutils literal notranslate"><span class="pre">partition(...)</span></code> assigns those roots to CPU-prefix processes. Each process
-advances its roots with the native C8 path and exports an EM frontier.
-<code class="docutils literal notranslate"><span class="pre">join_frontiers(...)</span></code> combines those compatible, closed frontier files.</p></li>
+With a parallel prefix, an initial CPU bootstrap advances the primary and
+writes eligible particle states to <code class="docutils literal notranslate"><span class="pre">cpu_frontier.txt</span></code> using the configured
+splitting-energy criterion. <code class="docutils literal notranslate"><span class="pre">partition(...)</span></code> assigns those roots to CPU-prefix
+processes. Each process advances its roots with native C8 physics and
+exports an EM frontier. <code class="docutils literal notranslate"><span class="pre">join_frontiers(...)</span></code> combines the completed,
+compatible frontier files.</p></li>
 <li><p><strong>Assign GPU work.</strong> <code class="docutils literal notranslate"><span class="pre">partition(frontier,</span> <span class="pre">shards)</span></code> assigns each root once
 to a static GPU shard and returns JSON audit data including counts and
 hashes. <code class="docutils literal notranslate"><span class="pre">partition_radio_tracks(...)</span></code> separately assigns prefix radio-track
 spools to workers. A worker may receive radio work even when its particle
 shard is empty.</p></li>
-<li><p><strong>Advance the shards.</strong> Each worker is a process using the same native
-executable. Its visibility environment exposes its assigned GPU, selected
-locally as device zero. It reads the shard and radio inputs, runs the local
-hybrid cascade and writes its event output.</p></li>
+<li><p><strong>Execute worker assignments.</strong> Each worker runs the same application
+executable. Its visibility environment exposes the assigned GPU, selected
+locally as device zero. It reads its shard and radio inputs, runs the local
+hybrid cascade and writes event output. Workers without particle or radio
+work are skipped.</p></li>
 <li><p><strong>Validate and merge.</strong> The coordinator checks process status, required
 outputs, consumed-root counts and immutable input hashes. It then calls
 <code class="docutils literal notranslate"><span class="pre">merge(parts,</span> <span class="pre">destination)</span></code> with the prefix and worker output directories
@@ -173,16 +172,17 @@ in order. Profiles and fields are combined and particle records are
 concatenated. <code class="docutils literal notranslate"><span class="pre">COMPLETE.json</span></code> is written after these steps; exceptions
 produce <code class="docutils literal notranslate"><span class="pre">INCOMPLETE.json</span></code>.</p></li>
 </ol>
-<p>This is a static decomposition. Workers do not continuously exchange live
-particles or steal subshowers from one another. Equal root counts also do not
-guarantee equal processing times. The CPU-prefix worker count and GPU worker
-count are separate configuration values.</p>
+<p>Assignments remain fixed during the event; there is no inter-worker particle
+exchange or work stealing. Root count alone does not determine processing
+time, because subshowers can have different transport and radio workloads.
+The CPU-prefix worker count and GPU worker count are independent configuration
+values.</p>
 </section>
-<section id="import-roots-in-bounded-blocks">
-<span id="execution-frontier-import"></span><h2>Import roots in bounded blocks<a class="headerlink" href="#import-roots-in-bounded-blocks" title="Link to this heading"></a></h2>
-<p>Inside a worker, <code class="docutils literal notranslate"><span class="pre">CascadeParticleInput</span></code> binds a <code class="docutils literal notranslate"><span class="pre">FrontierInput</span></code> to the event.
-<code class="docutils literal notranslate"><span class="pre">BufferedFrontierRouter</span></code> wraps the ordinary router and feeds another block
-only when its existing work has drained:</p>
+<section id="bounded-frontier-import">
+<span id="import-roots-in-bounded-blocks"></span><span id="execution-frontier-import"></span><h2>Bounded frontier import<a class="headerlink" href="#bounded-frontier-import" title="Link to this heading"></a></h2>
+<p>In the bounded-import path, <code class="docutils literal notranslate"><span class="pre">CascadeParticleInput</span></code> binds a <code class="docutils literal notranslate"><span class="pre">FrontierInput</span></code>
+to the event. <code class="docutils literal notranslate"><span class="pre">BufferedFrontierRouter</span></code> wraps <code class="docutils literal notranslate"><span class="pre">EmRouter</span></code> and gives existing
+backend work priority over importing another block:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">251</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">TBaseRouter</span><span class="o">::</span><span class="n">pending</span><span class="p">())</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">TBaseRouter</span><span class="o">::</span><span class="n">advanceOneWavefrontAndReturn</span><span class="p">(</span><span class="n">stack</span><span class="p">);</span>
 <span class="linenos">252</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">source_</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">source_</span><span class="o">-&gt;</span><span class="n">pending</span><span class="p">())</span>
 <span class="linenos">253</span><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">source_</span><span class="o">-&gt;</span><span class="n">refill</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">cs_</span><span class="p">,</span><span class="w"> </span><span class="n">limit_</span><span class="p">,</span><span class="w"> </span><span class="n">topology_</span><span class="p">);</span>
@@ -192,35 +192,37 @@ only when its existing work has drained:</p>
 <p><code class="docutils literal notranslate"><span class="pre">FrontierInput::refill(stack,</span> <span class="pre">cs,</span> <span class="pre">limit,</span> <span class="pre">topology)</span></code> reads numerical particle
 records, validates the environment and history identities, then imports them
 into the empty native stack. It returns the number of imported roots.
-The wrapper’s <code class="docutils literal notranslate"><span class="pre">pending()</span></code> also includes unread input, so an empty local EM
-queue cannot finish the shower while roots remain in the file.</p>
+The hybrid event loop reaches this refill path after the current scalar and
+router work has drained. The wrapper’s <code class="docutils literal notranslate"><span class="pre">pending()</span></code> also includes unread
+input, keeping the event active while roots remain in the file.</p>
 <p><code class="docutils literal notranslate"><span class="pre">C8_STATIC_FRONTIER_IMPORT_BATCH</span></code> overrides the import block, with an accepted
 range of 1–65536 roots. Without the override, the wrapper derives it from
-<code class="docutils literal notranslate"><span class="pre">minimumBatchSize()</span></code>, clamped to that range. This controls host input feeding;
-it does not change the number of GPU workers or directly set a kernel block
-size. <code class="docutils literal notranslate"><span class="pre">FRONTIER_FEED.json</span></code> records consumed roots and import batches.</p>
+<code class="docutils literal notranslate"><span class="pre">minimumBatchSize()</span></code>, clamped to that range. This controls the number of
+subshower roots introduced at a time; worker count and kernel launch
+configuration are separate controls. <code class="docutils literal notranslate"><span class="pre">FRONTIER_FEED.json</span></code> records consumed
+roots and import batches.</p>
 </section>
-<section id="reuse-across-events">
-<h2>Reuse across events<a class="headerlink" href="#reuse-across-events" title="Link to this heading"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">coordinator::run</span></code> keeps a <code class="docutils literal notranslate"><span class="pre">WorkerPool</span></code> for the campaign. Its current reuse
-condition is included directly from the implementation:</p>
+<section id="persistent-worker-lifecycle">
+<span id="reuse-across-events"></span><h2>Persistent-worker lifecycle<a class="headerlink" href="#persistent-worker-lifecycle" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">coordinator::run</span></code> keeps a <code class="docutils literal notranslate"><span class="pre">WorkerPool</span></code> across events when reuse is enabled:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">682</span><span class="w">      </span><span class="n">WorkerPool</span><span class="w"> </span><span class="n">pool</span><span class="p">;</span>
 <span class="linenos">683</span><span class="w">      </span><span class="kt">bool</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">reuse</span><span class="w"> </span><span class="o">=</span>
 <span class="linenos">684</span><span class="w">          </span><span class="n">o</span><span class="p">.</span><span class="n">persistentWorkers_</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">events_</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">emBackend_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">"kokkos-proposal"</span><span class="p">;</span>
 </pre></div>
 </div>
-<p>The pool starts after the first event’s CPU prefix, not ahead of it. Workers
-publish <code class="docutils literal notranslate"><span class="pre">READY.json</span></code> after their model setup. GPU initialization occurs on
-the first real request; subsequent requests reuse the session. Later prefixes
-run while those worker processes remain alive, but they are not a pipeline of
-concurrently advancing events.</p>
+<p>The pool starts after the first event’s CPU prefix. Workers publish
+<code class="docutils literal notranslate"><span class="pre">READY.json</span></code> after model setup; GPU initialization occurs on the first
+non-skipped request. Subsequent requests reuse the session and its allocated
+resources. Events execute sequentially: the coordinator completes the current
+event’s workers and merge before starting the next event. The GPU worker
+processes remain alive while that next prefix runs.</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 33.0%" />
 <col style="width: 67.0%" />
 </colgroup>
 <thead>
-<tr class="row-odd"><th class="head"><p>Control/data boundary</p></th>
+<tr class="row-odd"><th class="head"><p>Interface</p></th>
 <th class="head"><p>Data and operations</p></th>
 </tr>
 </thead>
@@ -247,22 +249,61 @@ waits for all assigned workers before validating and merging that event.</p></td
 </tbody>
 </table>
 <p>Native CPU random streams continue across requests, including streams retained
-by physics models. The session restores per-event decay flags and histograms
-without rewinding those streams. Device sampling uses the request seed and
-particle history. Therefore a persistent campaign is not promised to reproduce
-the values from launching an isolated fresh process for every event; validation
-must state which random-stream policy is being compared.</p>
+by physics models. The worker restores decay flags and resets interaction
+histograms without rewinding those streams. Device sampling uses the request
+seed and particle history. Reuse therefore changes random-stream progression
+relative to separate process launches. Reproducibility comparisons must specify
+the worker-lifetime and random-stream policies; statistical validation is
+required when those policies differ.</p>
 </section>
 <section id="completion-and-timing-records">
 <h2>Completion and timing records<a class="headerlink" href="#completion-and-timing-records" title="Link to this heading"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">TIMING.json</span></code> separates event wall time, the CPU-prefix phase, merge time and
-process/request records. Persistent-worker records must be read as requests,
-not as the entire lifetime of the worker. These wall times do not by themselves
-measure GPU kernel activity or CPU core-hours. See <a class="reference internal" href="../usage/outputs.html"><span class="doc">Outputs and run checks</span></a> for
-the output conventions.</p>
+<p>Timing records have distinct scopes:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34.0%" />
+<col style="width: 66.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Record</p></th>
+<th class="head"><p>Timing scope</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Per-event <code class="docutils literal notranslate"><span class="pre">TIMING.json</span></code></p></td>
+<td><p>Event wall time, CPU-prefix phase, output merging and process/request
+records. The first event includes worker startup when reuse is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Persistent-worker request</p></td>
+<td><p>One request’s elapsed time within an existing process. It includes
+backend initialization on the worker’s first non-skipped request.</p></td>
+</tr>
+<tr class="row-even"><td><p>Run-level <code class="docutils literal notranslate"><span class="pre">TIMING.json</span></code></p></td>
+<td><p>Elapsed time for the complete multi-event run and a list of event times.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These measurements are wall-clock intervals. GPU kernel activity and CPU
+core-hours require separate device or CPU-usage measurements. See
+<a class="reference internal" href="../usage/outputs.html"><span class="doc">Outputs and run checks</span></a> for output conventions.</p>
 <p><code class="docutils literal notranslate"><span class="pre">COMPLETE.json</span></code> establishes execution and output completion. Statistical
 physics agreement and performance acceptance require their own comparison;
 the coordinator’s file and counter checks do not establish either.</p>
+</section>
+<section id="coordination-data-flow">
+<span id="execution-coordinator-flow"></span><h2>Coordination data flow<a class="headerlink" href="#coordination-data-flow" title="Link to this heading"></a></h2>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="../_static/execution-coordinator-flow.svg"><img alt="Coordinator selects serial or parallel CPU prefix, joins and partitions the EM frontier, assigns roots and radio tracks to GPU workers, validates and merges outputs." src="../_images/execution-coordinator-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Workers exchange frontier files, radio-track files and control records with
+the coordinator. Each worker constructs its local C8 objects. Arrows identify
+the data transferred between stages; source links are available in the
+full-size SVG.
+<a class="reference download internal" download="" href="../_downloads/e355d8d1c32066aac0fce47afa3103a4/execution-coordinator-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="../_downloads/ea066b9c89a67bb5d5c1bc28bc502574/execution-coordinator-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -270,7 +311,7 @@ the coordinator’s file and counter checks do not establish either.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="batches.html" class="btn btn-neutral float-left" title="Batches, checkpoints and CPU returns" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="batches.html" class="btn btn-neutral float-left" title="Batch execution and CPU return paths" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="../particles.html" class="btn btn-neutral float-right" title="Particle data and state" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

@@ -32,51 +32,51 @@
 <!-- serial&#45;&gt;partition -->
 <g id="edge6" class="edge">
 <title>serial&#45;&gt;partition</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M147.56,-855.88C164.57,-786.24 200.17,-640.51 219.96,-559.46"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="222.43,-559.69 221.71,-552.31 217.67,-558.53 222.43,-559.69"/>
-<text text-anchor="middle" x="216" y="-701.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">frontier.txt</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M146.36,-855.88C161.25,-786.24 192.4,-640.51 209.72,-559.46"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="212.18,-559.66 211.25,-552.31 207.39,-558.64 212.18,-559.66"/>
+<text text-anchor="middle" x="210" y="-701.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">frontier.txt</text>
 </g>
 <!-- bootstrap&#45;&gt;cpus -->
 <g id="edge4" class="edge">
 <title>bootstrap&#45;&gt;cpus</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M471.43,-855.82C467.94,-842.9 464.03,-828.42 460.42,-815.04"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="462.75,-814.27 458.56,-808.15 458.02,-815.55 462.75,-814.27"/>
-<text text-anchor="middle" x="516" y="-829.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">cpu_roots_&lt;i&gt;.txt</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M478.58,-855.82C477.46,-843.02 476.21,-828.68 475.05,-815.4"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="477.47,-814.91 474.42,-808.15 472.59,-815.34 477.47,-814.91"/>
+<text text-anchor="middle" x="526" y="-829.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">cpu_roots_&lt;i&gt;.txt</text>
 </g>
 <!-- cpus&#45;&gt;join -->
 <g id="edge5" class="edge">
 <title>cpus&#45;&gt;join</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M436.81,-727.82C433.12,-714.9 428.98,-700.42 425.15,-687.04"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="427.47,-686.21 423.19,-680.15 422.75,-687.56 427.47,-686.21"/>
-<text text-anchor="middle" x="505" y="-701.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">cpu_prefix_&lt;i&gt;_frontier.txt</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M461.67,-727.82C458.6,-714.9 455.15,-700.42 451.96,-687.04"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="454.33,-686.39 450.32,-680.15 449.56,-687.53 454.33,-686.39"/>
+<text text-anchor="middle" x="530" y="-701.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">cpu_prefix_&lt;i&gt;_frontier.txt</text>
 </g>
 <!-- join&#45;&gt;partition -->
 <g id="edge7" class="edge">
 <title>join&#45;&gt;partition</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M360.99,-599.74C343.49,-586.27 323.57,-570.94 304.79,-556.48"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="306.04,-554.35 299,-552.03 303.05,-558.24 306.04,-554.35"/>
-<text text-anchor="middle" x="363" y="-573.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">frontier.txt</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M378.54,-599.92C356.63,-586.22 331.61,-570.57 308.11,-555.87"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="309.4,-553.78 302.17,-552.15 306.8,-557.94 309.4,-553.78"/>
+<text text-anchor="middle" x="374" y="-573.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">frontier.txt</text>
 </g>
 <!-- partition&#45;&gt;worker -->
 <g id="edge8" class="edge">
 <title>partition&#45;&gt;worker</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M234,-449.89C234,-436.87 234,-422.75 234,-409.39"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="236.45,-409.05 234,-402.05 231.55,-409.05 236.45,-409.05"/>
-<text text-anchor="middle" x="339.5" y="-423.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">roots_&lt;i&gt;.txt + assigned radio spools</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M222,-449.89C222,-436.87 222,-422.75 222,-409.39"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="224.45,-409.05 222,-402.05 219.55,-409.05 224.45,-409.05"/>
+<text text-anchor="middle" x="327.5" y="-423.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">roots_&lt;i&gt;.txt + assigned radio spools</text>
 </g>
 <!-- worker&#45;&gt;feed -->
 <g id="edge9" class="edge">
 <title>worker&#45;&gt;feed</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M234,-299.89C234,-286.87 234,-272.75 234,-259.39"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="236.45,-259.05 234,-252.05 231.55,-259.05 236.45,-259.05"/>
-<text text-anchor="middle" x="343.5" y="-273.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">request bindings / cold&#45;start arguments</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M222,-299.89C222,-286.87 222,-272.75 222,-259.39"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="224.45,-259.05 222,-252.05 219.55,-259.05 224.45,-259.05"/>
+<text text-anchor="middle" x="331.5" y="-273.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">request bindings / cold&#45;start arguments</text>
 </g>
 <!-- feed&#45;&gt;merge -->
 <g id="edge10" class="edge">
 <title>feed&#45;&gt;merge</title>
-<path fill="none" stroke="#36758d" stroke-width="1.4" d="M234,-149.89C234,-136.87 234,-122.75 234,-109.39"/>
-<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="236.45,-109.05 234,-102.05 231.55,-109.05 236.45,-109.05"/>
-<text text-anchor="middle" x="342.5" y="-123.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">closed worker outputs + prefix outputs</text>
+<path fill="none" stroke="#36758d" stroke-width="1.4" d="M222,-149.89C222,-136.87 222,-122.75 222,-109.39"/>
+<polygon fill="#36758d" stroke="#36758d" stroke-width="1.4" points="224.45,-109.05 222,-102.05 219.55,-109.05 224.45,-109.05"/>
+<text text-anchor="middle" x="330.5" y="-123.2" font-family="DejaVu Sans" font-size="11.00" fill="#36576b">closed worker outputs + prefix outputs</text>
 </g>
 <!-- main -->
 <g id="node1" class="node">
@@ -125,72 +125,72 @@
 <!-- cpus -->
 <g id="node5" class="node">
 <title>cpus</title>
-<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M592,-808C592,-808 304,-808 304,-808 298,-808 292,-802 292,-796 292,-796 292,-740 292,-740 292,-734 298,-728 304,-728 304,-728 592,-728 592,-728 598,-728 604,-734 604,-740 604,-740 604,-796 604,-796 604,-802 598,-808 592,-808"/>
+<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M615,-808C615,-808 327,-808 327,-808 321,-808 315,-802 315,-796 315,-796 315,-740 315,-740 315,-734 321,-728 327,-728 327,-728 615,-728 615,-728 621,-728 627,-734 627,-740 627,-740 627,-796 627,-796 627,-802 621,-808 615,-808"/>
 <g id="a_node5_4"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl#L60" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="306" y="-787.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">CascadeDriver.inl</text>
+<text text-anchor="start" x="329" y="-787.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">CascadeDriver.inl</text>
 </a>
 </g>
-<text text-anchor="start" x="306" y="-764.6" font-family="DejaVu Sans" font-size="13.00">CPU&#45;prefix processes advance static roots.</text>
-<text text-anchor="start" x="306" y="-742.6" font-family="DejaVu Sans" font-size="13.00">Each CaptureRouter writes an EM frontier.</text>
+<text text-anchor="start" x="329" y="-764.6" font-family="DejaVu Sans" font-size="13.00">CPU&#45;prefix processes advance static roots.</text>
+<text text-anchor="start" x="329" y="-742.6" font-family="DejaVu Sans" font-size="13.00">Each CaptureRouter writes an EM frontier.</text>
 </g>
 <!-- join -->
 <g id="node6" class="node">
 <title>join</title>
-<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M551,-680C551,-680 273,-680 273,-680 267,-680 261,-674 261,-668 261,-668 261,-612 261,-612 261,-606 267,-600 273,-600 273,-600 551,-600 551,-600 557,-600 563,-606 563,-612 563,-612 563,-668 563,-668 563,-674 557,-680 551,-680"/>
+<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M608.5,-680C608.5,-680 273.5,-680 273.5,-680 267.5,-680 261.5,-674 261.5,-668 261.5,-668 261.5,-612 261.5,-612 261.5,-606 267.5,-600 273.5,-600 273.5,-600 608.5,-600 608.5,-600 614.5,-600 620.5,-606 620.5,-612 620.5,-612 620.5,-668 620.5,-668 620.5,-674 614.5,-680 608.5,-680"/>
 <g id="a_node6_5"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp#L478" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="275" y="-659.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
+<text text-anchor="start" x="276" y="-659.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
 </a>
 </g>
-<text text-anchor="start" x="275" y="-636.6" font-family="DejaVu Sans" font-size="13.00">join_frontiers(...)</text>
-<text text-anchor="start" x="275" y="-614.6" font-family="DejaVu Sans" font-size="13.00">Combine compatible closed EM frontiers.</text>
+<text text-anchor="start" x="276" y="-636.6" font-family="DejaVu Sans" font-size="13.00">join_frontiers(...)</text>
+<text text-anchor="start" x="276" y="-614.6" font-family="DejaVu Sans" font-size="13.00">Combine completed, compatible EM frontier files.</text>
 </g>
 <!-- partition -->
 <g id="node7" class="node">
 <title>partition</title>
-<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M398.5,-552C398.5,-552 69.5,-552 69.5,-552 63.5,-552 57.5,-546 57.5,-540 57.5,-540 57.5,-462 57.5,-462 57.5,-456 63.5,-450 69.5,-450 69.5,-450 398.5,-450 398.5,-450 404.5,-450 410.5,-456 410.5,-462 410.5,-462 410.5,-540 410.5,-540 410.5,-546 404.5,-552 398.5,-552"/>
+<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M386.5,-552C386.5,-552 57.5,-552 57.5,-552 51.5,-552 45.5,-546 45.5,-540 45.5,-540 45.5,-462 45.5,-462 45.5,-456 51.5,-450 57.5,-450 57.5,-450 386.5,-450 386.5,-450 392.5,-450 398.5,-456 398.5,-462 398.5,-462 398.5,-540 398.5,-540 398.5,-546 392.5,-552 386.5,-552"/>
 <g id="a_node7_6"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp#L485" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="72" y="-531.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
+<text text-anchor="start" x="60" y="-531.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
 </a>
 </g>
-<text text-anchor="start" x="72" y="-508.6" font-family="DejaVu Sans" font-size="13.00">partition(frontier, shards)</text>
-<text text-anchor="start" x="72" y="-486.6" font-family="DejaVu Sans" font-size="13.00">partition_radio_tracks(spools, workers)</text>
-<text text-anchor="start" x="72" y="-464.6" font-family="DejaVu Sans" font-size="13.00">Record root counts and immutable&#45;input hashes.</text>
+<text text-anchor="start" x="60" y="-508.6" font-family="DejaVu Sans" font-size="13.00">partition(frontier, shards)</text>
+<text text-anchor="start" x="60" y="-486.6" font-family="DejaVu Sans" font-size="13.00">partition_radio_tracks(spools, workers)</text>
+<text text-anchor="start" x="60" y="-464.6" font-family="DejaVu Sans" font-size="13.00">Record root counts and immutable&#45;input hashes.</text>
 </g>
 <!-- worker -->
 <g id="node8" class="node">
 <title>worker</title>
-<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M418.5,-402C418.5,-402 49.5,-402 49.5,-402 43.5,-402 37.5,-396 37.5,-390 37.5,-390 37.5,-312 37.5,-312 37.5,-306 43.5,-300 49.5,-300 49.5,-300 418.5,-300 418.5,-300 424.5,-300 430.5,-306 430.5,-312 430.5,-312 430.5,-390 430.5,-390 430.5,-396 424.5,-402 418.5,-402"/>
+<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M403,-402C403,-402 41,-402 41,-402 35,-402 29,-396 29,-390 29,-390 29,-312 29,-312 29,-306 35,-300 41,-300 41,-300 403,-300 403,-300 409,-300 415,-306 415,-312 415,-312 415,-390 415,-390 415,-396 409,-402 403,-402"/>
 <g id="a_node8_7"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl#L107" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="52" y="-381.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">WorkerSession.inl</text>
+<text text-anchor="start" x="43" y="-381.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">WorkerSession.inl</text>
 </a>
 </g>
-<text text-anchor="start" x="52" y="-358.6" font-family="DejaVu Sans" font-size="13.00">GPU worker processes: same native executable</text>
-<text text-anchor="start" x="52" y="-336.6" font-family="DejaVu Sans" font-size="13.00">WorkerSession::next(...) for a persistent worker</text>
-<text text-anchor="start" x="52" y="-314.6" font-family="DejaVu Sans" font-size="13.00">Bind shard, radio inputs, event seed and output folder.</text>
+<text text-anchor="start" x="43" y="-358.6" font-family="DejaVu Sans" font-size="13.00">GPU workers: same application executable</text>
+<text text-anchor="start" x="43" y="-336.6" font-family="DejaVu Sans" font-size="13.00">WorkerSession::next(...) for a persistent worker</text>
+<text text-anchor="start" x="43" y="-314.6" font-family="DejaVu Sans" font-size="13.00">Set shard, radio inputs, event seed and output folder.</text>
 </g>
 <!-- feed -->
 <g id="node9" class="node">
 <title>feed</title>
-<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M408.5,-252C408.5,-252 59.5,-252 59.5,-252 53.5,-252 47.5,-246 47.5,-240 47.5,-240 47.5,-162 47.5,-162 47.5,-156 53.5,-150 59.5,-150 59.5,-150 408.5,-150 408.5,-150 414.5,-150 420.5,-156 420.5,-162 420.5,-162 420.5,-240 420.5,-240 420.5,-246 414.5,-252 408.5,-252"/>
+<path fill="#f1f7fa" stroke="#a6c6d2" stroke-width="1.2" d="M396.5,-252C396.5,-252 47.5,-252 47.5,-252 41.5,-252 35.5,-246 35.5,-240 35.5,-240 35.5,-162 35.5,-162 35.5,-156 41.5,-150 47.5,-150 47.5,-150 396.5,-150 396.5,-150 402.5,-150 408.5,-156 408.5,-162 408.5,-162 408.5,-240 408.5,-240 408.5,-246 402.5,-252 396.5,-252"/>
 <g id="a_node9_8"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/StaticFrontier.inl#L247" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="62" y="-231.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">StaticFrontier.inl</text>
+<text text-anchor="start" x="50" y="-231.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">StaticFrontier.inl</text>
 </a>
 </g>
-<text text-anchor="start" x="62" y="-208.6" font-family="DejaVu Sans" font-size="13.00">BufferedFrontierRouter &#45;&gt; FrontierInput::refill(...)</text>
-<text text-anchor="start" x="62" y="-186.6" font-family="DejaVu Sans" font-size="13.00">Import a bounded block into the local C8 stack.</text>
-<text text-anchor="start" x="62" y="-164.6" font-family="DejaVu Sans" font-size="13.00">HybridCascade + EmRouter advance it on one GPU.</text>
+<text text-anchor="start" x="50" y="-208.6" font-family="DejaVu Sans" font-size="13.00">BufferedFrontierRouter &#45;&gt; FrontierInput::refill(...)</text>
+<text text-anchor="start" x="50" y="-186.6" font-family="DejaVu Sans" font-size="13.00">Import a bounded block into the local C8 stack.</text>
+<text text-anchor="start" x="50" y="-164.6" font-family="DejaVu Sans" font-size="13.00">HybridCascade + EmRouter advance it on one GPU.</text>
 </g>
 <!-- merge -->
 <g id="node10" class="node">
 <title>merge</title>
-<path fill="#e3f3eb" stroke="#65a78a" stroke-width="1.2" d="M404,-102C404,-102 64,-102 64,-102 58,-102 52,-96 52,-90 52,-90 52,-12 52,-12 52,-6 58,0 64,0 64,0 404,0 404,0 410,0 416,-6 416,-12 416,-12 416,-90 416,-90 416,-96 410,-102 404,-102"/>
+<path fill="#e3f3eb" stroke="#65a78a" stroke-width="1.2" d="M392,-102C392,-102 52,-102 52,-102 46,-102 40,-96 40,-90 40,-90 40,-12 40,-12 40,-6 46,0 52,0 52,0 392,0 392,0 398,0 404,-6 404,-12 404,-12 404,-90 404,-90 404,-96 398,-102 392,-102"/>
 <g id="a_node10_9"><a xlink:href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp#L587" xlink:title="&lt;TABLE&gt;" target="_blank">
-<text text-anchor="start" x="66" y="-81.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
+<text text-anchor="start" x="54" y="-81.6" font-family="DejaVu Sans" font-weight="bold" font-size="13.00" fill="#136d88">AirShowerCoordinator.cpp</text>
 </a>
 </g>
-<text text-anchor="start" x="66" y="-58.6" font-family="DejaVu Sans" font-size="13.00">Validate consumed roots, radio replay and output.</text>
-<text text-anchor="start" x="66" y="-36.6" font-family="DejaVu Sans" font-size="13.00">merge(prefix and worker outputs, destination)</text>
-<text text-anchor="start" x="66" y="-14.6" font-family="DejaVu Sans" font-size="13.00">Write TIMING.json and COMPLETE.json.</text>
+<text text-anchor="start" x="54" y="-58.6" font-family="DejaVu Sans" font-size="13.00">Validate consumed roots, radio replay and output.</text>
+<text text-anchor="start" x="54" y="-36.6" font-family="DejaVu Sans" font-size="13.00">merge(prefix and worker outputs, destination)</text>
+<text text-anchor="start" x="54" y="-14.6" font-family="DejaVu Sans" font-size="13.00">Write TIMING.json and COMPLETE.json.</text>
 </g>
 </g>
 </svg>
