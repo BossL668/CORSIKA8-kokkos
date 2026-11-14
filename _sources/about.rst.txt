@@ -31,9 +31,10 @@ runtime ownership and portable device-code requirements. The
 statistical and timing methods; it does not claim that a new simulation
 campaign was performed. The :doc:`development` chapter documents repository
 conventions, extension work, compatibility and release review, distinguishing
-current contracts from recommendations. The remaining design-decision and API
-reference chapters are still outlines; an outline does not establish that a
-feature is implemented or validated.
+current contracts from recommendations. The :doc:`decisions` chapter records
+implemented design choices, integration alternatives and questions for review;
+it does not present proposed interfaces as approved or implemented. The API
+reference remains an outline.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

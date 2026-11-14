@@ -1,0 +1,401 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution granularity and algorithm ownership &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/decisions/execution-models.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API reference" href="../api.html" />
+    <link rel="prev" title="Application and data interface boundaries" href="interfaces.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../decisions.html">Design decisions and open questions</a></li>
+      <li class="breadcrumb-item active">Execution granularity and algorithm ownership</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/decisions/execution-models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="execution-granularity-and-algorithm-ownership">
+<h1>Execution granularity and algorithm ownership<a class="headerlink" href="#execution-granularity-and-algorithm-ownership" title="Link to this heading"></a></h1>
+<p>The integration separates the physical calculation from the mechanism that
+schedules it. That separation is incomplete across native C8 and the numerical
+backend: some operations share an implementation, while others reproduce the
+native algorithm through exported data. Maintenance decisions should identify
+which boundary is changing rather than treat all parallelization work as one
+choice.</p>
+<p>The implemented behavior below refers to <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">revision d5297c43</a>. Alternatives
+are discussion options, not implemented features or measured performance
+claims. The execution contracts and tests remain the acceptance criteria for
+any replacement.</p>
+<section id="batch-execution-and-persistent-particle-tasks">
+<span id="decision-execution-policy"></span><h2>Batch execution and persistent particle tasks<a class="headerlink" href="#batch-execution-and-persistent-particle-tasks" title="Link to this heading"></a></h2>
+<p><strong>Implemented.</strong> On its single-endpoint wavefront path, <code class="docutils literal notranslate"><span class="pre">EmRouter</span></code> separates
+photons from charged leptons, submits bounded inputs and consumes returned
+records. Resident loops can advance
+multiple wavefronts before a checkpoint; eligible particles and secondary
+queues can remain resident between calls. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonFront.inl">LeptonFront.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonFront.inl">PhotonFront.inl</a> launch selection, transport and final-state work, with
+stable scans assigning output slots. Photon final-state work is restricted
+to a compacted list of reached interaction vertices. This is not a transfer
+of every particle to the host after every physical step.</p>
+<p>The host <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/IEmBackend.hpp">IEmBackend</a> interface is independent of the execution-space
+implementation. CUDA and HIP factories instantiate the same
+<code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code>. Particle identity belongs
+to the state and random key, not to a permanently assigned hardware thread.
+The actual call and return paths are documented in <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a>.</p>
+<p>The current design provides explicit stage ordering, bounded storage and
+well-defined checkpoints for native completion and output. Its costs include
+kernel launches, scans, queue management and host observation at checkpoints.
+The relative cost depends on batch population and the physical workload;
+the existence of these operations does not establish that they dominate a
+complete shower.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 36.0%" />
+<col style="width: 39.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Discussion option</p></th>
+<th class="head"><p>Potential benefit to evaluate</p></th>
+<th class="head"><p>Additional obligations</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Retain wavefront execution; tune policies or combine compatible stages</p></td>
+<td><p>Reduce launch or intermediate-storage work while preserving the current
+scheduling boundary.</p></td>
+<td><p>Measure register/local-memory use, queue costs and complete-shower time.
+A combined kernel can execute more divergent work or reduce occupancy;
+compare it with the separated path on each intended device.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Persistent per-particle or per-subshower tasks</p></td>
+<td><p>Continue several steps locally and obtain another task from a device
+queue without returning through every existing stage boundary.</p></td>
+<td><p>Specify queue synchronization, termination, overflow, secondary
+ownership, CPU completion and output ordering. Measure branch divergence,
+register use and load imbalance; reduced launch count alone is not a
+performance result.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Open decision.</strong> Should a future scheduler retain the existing wavefront
+interface, or introduce a separate task-execution contract? A prototype should
+keep physical inputs fixed, account for every continuation and output once,
+and compare both representative large batches and sparse event tails.
+Persistent tasks inside a device are distinct from the existing persistent
+<em>process workers</em> described below. Neither approach assigns a scientific
+meaning to CUDA blocks, HIP workgroups or host thread identities.</p>
+<p>There is already an opt-in independent-subshower path in the host interface.
+<code class="docutils literal notranslate"><span class="pre">EmRouter</span></code> checks it before the ordinary photon/lepton split, and the
+CUDA/OpenMP cooperative implementation uses <code class="docutils literal notranslate"><span class="pre">IndependentSubshowerPump</span></code> to
+coordinate its endpoints. This existing host CPU/GPU cooperation does not
+implement the proposed persistent task queue inside one GPU. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/CooperativeBackend.cpp">CooperativeBackend.cpp</a>.</p>
+</section>
+<section id="shared-numerical-implementations">
+<span id="decision-shared-calculations"></span><h2>Shared numerical implementations<a class="headerlink" href="#shared-numerical-implementations" title="Link to this heading"></a></h2>
+<p><strong>Implemented.</strong> Backend factories share numerical stage interfaces, but native
+C8 and the Kokkos path do not universally call one implementation. A concrete
+shared example is <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a>: native and numerical
+wrappers supply different access adapters around the same ordered boundary
+selection body. It preserves selection logic without exposing native nodes,
+units and ownership to device compilation.</p>
+<p>The PROPOSAL path has a different boundary. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp">NativeTableExporter.cpp</a> copies
+configured interpolation data, while <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl">ProposalNativeQueries.inl</a> implements
+queries against the exported representation. Export is data reuse, not a
+runtime call to PROPOSAL inside a device kernel. Final-state capabilities also
+remain separate from the availability of rate and loss tables; see
+<a class="reference internal" href="../physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a> and <a class="reference internal" href="../transport/interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 37.0%" />
+<col style="width: 38.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Maintenance option</p></th>
+<th class="head"><p>Boundary</p></th>
+<th class="head"><p>Consequence</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Share an algorithm body through access adapters</p></td>
+<td><p>Native and numerical representations provide the operations required
+by one algorithm, as in boundary selection.</p></td>
+<td><p>Both adapters need compatible units, ordering, domains and failure
+semantics. Device compilation must reach only supported operations.
+Changes require tests through both representations.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Extract a device-callable numerical core</p></td>
+<td><p>Host model objects prepare immutable parameters; CPU and device paths
+call a common calculation with explicit state and results.</p></td>
+<td><p>Requires agreement on ownership, parameter representation, math
+dependencies and error reporting. An external library’s core needs its
+own maintainer agreement and portability work, not merely a local
+function annotation.</p></td>
+</tr>
+<tr class="row-even"><td><p>Retain a native reference and separate numerical implementation</p></td>
+<td><p>The native package remains authoritative; the backend exports its
+data and implements the specified operations.</p></td>
+<td><p>Preserves the present integration boundary but requires explicit
+dependency/version checks and regression coverage for every duplicated
+calculation. A shared physical model does not imply identical rounding.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Open decision.</strong> Which algorithms should become shared C8 infrastructure,
+and which should remain adapters to independently maintained dependencies?
+Start with a bounded operation whose inputs and result can be specified,
+rather than move an entire stateful model object into a kernel. Device-callable
+helpers need accessible data, a supported call graph and explicit ownership;
+<code class="docutils literal notranslate"><span class="pre">inline</span></code> or <code class="docutils literal notranslate"><span class="pre">KOKKOS_INLINE_FUNCTION</span></code> alone establishes none of those
+contracts. <a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a> describes the existing requirements.</p>
+<p>A shared implementation also needs an independent reference. Moving the test’s
+oracle to the same new helper can remove the comparison that detects a defect.
+Retain suitable native-model, analytic or frozen-reference checks, and document
+what each one establishes. Updating a dependency requires reviewing its export
+contract, tables and numerical tests together.</p>
+</section>
+<section id="native-completion-and-capability-ownership">
+<h2>Native completion and capability ownership<a class="headerlink" href="#native-completion-and-capability-ownership" title="Link to this heading"></a></h2>
+<p><strong>Implemented.</strong> <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/ProcessCapabilities.inl">ProcessCapabilities.inl</a> declares final-state support.
+Selected CPU interactions preserve the reached vertex and process information;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler</a> completes accepted requests through native C8
+processing. Small-batch scalar expansion, forced decay and memory-spill returns
+have different scheduling contracts. They must not be combined into a single
+“unsupported physics” category.</p>
+<p>Direct electron–positron pair production by electron/positron and muon
+projectiles currently uses CPU completion because the native energy-asymmetry
+CDF is unavailable. A rate table alone cannot supply that missing distribution.
+Other native models may depend on host libraries with their own runtime state.
+Keeping their completion on CPU is compatible with a parallel EM backend;
+it does not remove the reaction from the simulation.</p>
+<p><strong>Open decision.</strong> Should capability information become a common C8 service,
+or remain local to each execution implementation? A common description could
+make support discoverable before a run, but must distinguish configured model
+availability, selection support, final-state support and supported materials.
+The execution implementation still needs to enforce the declared domain and
+preserve the selected vertex when returning work. An unknown process or a
+numerical failure must not silently acquire a valid completion policy.</p>
+<p>A GPU implementation of an additional native model is separate work: audit
+its state, random-number source, dependencies and result construction, then
+validate the complete reaction. Replacing a CPU return with an approximate
+final state solely to reduce transfer time changes the physical calculation.</p>
+</section>
+<section id="worker-reuse-and-event-partitioning">
+<h2>Worker reuse and event partitioning<a class="headerlink" href="#worker-reuse-and-event-partitioning" title="Link to this heading"></a></h2>
+<p><strong>Implemented.</strong> <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator</a> partitions frontier roots into fixed
+worker assignments. Workers execute local hybrid cascades and the coordinator
+validates and merges their outputs. There is no inter-worker work stealing.
+CPU-prefix worker count and GPU worker count are separate settings. With
+persistent workers enabled, multiple <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code> events reuse worker
+processes and their initialized backend resources. GPU backend initialization
+occurs on the first non-skipped request; worker model setup occurs earlier.
+Events still execute sequentially through the
+coordinator. See <a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a>.</p>
+<p>Reuse retains native CPU random streams while device sampling uses the request
+seed and particle history. It is therefore not equivalent to launching a fresh
+process for each seed. Reuse also assumes compatible prepared inputs: ordinary
+sessions cannot be arbitrarily replaced after Kokkos finalization. Model,
+scene or cut changes require the lifecycle described in
+<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending models and execution paths</span></a>.</p>
+<p><strong>Open decision.</strong> Should multi-device scheduling continue to use static
+frontiers, add workload-based partitioning, or introduce dynamic redistribution?
+Static assignments provide explicit ownership and reproducible input artifacts,
+but unequal subshower costs can leave workers idle. Redistribution would need
+a transfer protocol for particle/random state and accumulated outputs,
+termination detection, capacity policy and recovery behavior. It must also
+separate particle work from radio work. No universal scaling claim follows
+from a balanced root count or a larger worker count.</p>
+</section>
+<section id="reproducibility-and-validation">
+<span id="decision-reproducibility-policy"></span><h2>Reproducibility and validation<a class="headerlink" href="#reproducibility-and-validation" title="Link to this heading"></a></h2>
+<p>Agree on the intended equivalence before implementation. Interface refactoring
+should preserve specified inputs, outputs and lifecycle behavior. Scheduling
+or random-policy changes may instead require a declared statistical comparison;
+allowing different histories does not waive conservation, process coverage,
+queue ownership or completion checks.</p>
+<p>For timing, compare the same physical configuration, resource allocation,
+initialization/reuse policy and output work. Report the complete event interval
+alongside the affected kernels or scheduling phases. Wall time, active device
+time and allocated device-hours answer different questions. The methods and
+existing checks are in <a class="reference internal" href="../validation/numerics.html"><span class="doc">Numerical and statistical validation</span></a>,
+<a class="reference internal" href="../validation/performance.html"><span class="doc">Performance measurement</span></a> and <a class="reference internal" href="../validation/tests.html"><span class="doc">Test coverage and execution</span></a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="interfaces.html" class="btn btn-neutral float-left" title="Application and data interface boundaries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api.html" class="btn btn-neutral float-right" title="API reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -125,7 +125,11 @@
 <li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">About this guide</a></li>
 </ul>
@@ -184,9 +188,10 @@ runtime ownership and portable device-code requirements. The
 statistical and timing methods; it does not claim that a new simulation
 campaign was performed. The <a class="reference internal" href="development.html"><span class="doc">Development and maintenance</span></a> chapter documents repository
 conventions, extension work, compatibility and release review, distinguishing
-current contracts from recommendations. The remaining design-decision and API
-reference chapters are still outlines; an outline does not establish that a
-feature is implemented or validated.
+current contracts from recommendations. The <a class="reference internal" href="decisions.html"><span class="doc">Design decisions and open questions</span></a> chapter records
+implemented design choices, integration alternatives and questions for review;
+it does not present proposed interfaces as approved or implemented. The API
+reference remains an outline.
 This site is not an official CORSIKA documentation release.</p>
 </section>
 <section id="writing-a-chapter">

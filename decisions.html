@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="API reference" href="api.html" />
+    <link rel="next" title="Application and data interface boundaries" href="decisions/interfaces.html" />
     <link rel="prev" title="Compatibility, diagnostics and release review" href="development/compatibility.html" /> 
 </head>
 
@@ -126,7 +126,11 @@
 <li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Design decisions and open questions</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
 </ul>
@@ -157,18 +161,165 @@
              
   <section id="design-decisions-and-open-questions">
 <h1>Design decisions and open questions<a class="headerlink" href="#design-decisions-and-open-questions" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>Why the current design was chosen and what remains open.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Decision records with context, alternatives and consequences.</p></li>
-<li><p>Current implementation versus proposed changes.</p></li>
-<li><p>Shared algorithms and responsibilities for maintenance.</p></li>
-<li><p>Interface questions for discussion with the CORSIKA developers.</p></li>
+<p>The integration combines native C8 scene and model construction with numerical
+data and execution services suitable for Kokkos. The important design
+boundaries are where objects are borrowed, data are converted, calculations
+are dispatched and results return to C8. Those boundaries determine both
+portability and the amount of code that must be maintained together.</p>
+<p>This chapter separates the design visible in the implementation from options
+for future integration. It records consequences and review questions rather
+than attributing undocumented intentions to earlier changes.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Implementation baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+<strong>Current implementation</strong> means the behavior found at this revision.
+<strong>Integration option</strong> means a candidate for discussion, not an implemented
+or approved upstream interface. Performance and validation requirements
+below are proposed evaluation criteria, not new benchmark results.</p>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
+</div>
+<section id="decision-map">
+<h2>Decision map<a class="headerlink" href="#decision-map" title="Link to this heading"></a></h2>
+<p>The component chapters document the actual calls, parameters and ownership.
+The pages in this chapter explain the design choices those interfaces expose.
+The identifiers below organize this guide; they are not upstream issue numbers.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 14.0%" />
+<col style="width: 39.0%" />
+<col style="width: 47.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Topic</p></th>
+<th class="head"><p>Current implementation</p></th>
+<th class="head"><p>Question for further integration</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>D1: application integration</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CascadeExtension</span></code> configures resources and binds native objects;
+<code class="docutils literal notranslate"><span class="pre">CascadeModule</span></code> and <code class="docutils literal notranslate"><span class="pre">CascadeEvent</span></code> provide run/event lifetimes.</p></td>
+<td><p>Which services belong in a common C8 execution interface, and which
+remain Kokkos-specific? See <a class="reference internal" href="decisions/interfaces.html#decision-application-interface"><span class="std std-ref">Application insertion point</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>D2: numerical data</p></td>
+<td><p>Native particle and environment objects are converted into explicitly
+owned numerical storage and borrowed views.</p></td>
+<td><p>Should native and accelerated algorithms share a common data-access
+contract, and how is its supported domain maintained?
+See <a class="reference internal" href="decisions/interfaces.html#decision-data-representation"><span class="std std-ref">Native objects and numerical data</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>D3: physics implementation</p></td>
+<td><p>Native tables and CPU model calls coexist with device-callable
+numerical routines. Some framework algorithms already share a body.</p></td>
+<td><p>Which calculations can share source across paths, and which need
+an external-library adapter? See <a class="reference internal" href="decisions/execution-models.html#decision-shared-calculations"><span class="std std-ref">Shared numerical implementations</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>D4: execution scheduling</p></td>
+<td><p>Resident particle batches use shared stage interfaces. Host routing
+and process coordination manage completion and event resources.</p></td>
+<td><p>Where should execution policy vary without duplicating physics?
+See <a class="reference internal" href="decisions/execution-models.html#decision-execution-policy"><span class="std std-ref">Batch execution and persistent particle tasks</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>D5: reproducibility</p></td>
+<td><p>Device random keys include particle history; persistent CPU workers
+continue their streams. Scheduling and process lifetime matter.</p></td>
+<td><p>Which changes require exact replay, numerical agreement or statistical
+agreement? See <a class="reference internal" href="decisions/execution-models.html#decision-reproducibility-policy"><span class="std std-ref">Reproducibility and validation</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>D6: public contracts</p></td>
+<td><p>Headers, exported targets, caches, worker formats and outputs have
+distinct compatibility rules.</p></td>
+<td><p>Which contracts should receive an explicit stability commitment, and
+which remain internal? See <a class="reference internal" href="#decision-interface-stability"><span class="std std-ref">Interface stability and maintenance ownership</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The integration does not currently reduce to one backend switch. In addition
+to cascade creation, <code class="docutils literal notranslate"><span class="pre">CascadeExtension</span></code> participates in CLI registration,
+model/writer construction, output registration and resource preparation.
+Making the application smaller should therefore start by assigning those
+responsibilities, rather than hiding the same parameter list behind a new
+name. The actual class declaration is in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp">CascadeExtensionOptions.hpp</a>; its
+application use is documented in <a class="reference internal" href="application.html"><span class="doc">Application integration</span></a>.</p>
+</section>
+<section id="interface-stability-and-maintenance-ownership">
+<span id="decision-interface-stability"></span><h2>Interface stability and maintenance ownership<a class="headerlink" href="#interface-stability-and-maintenance-ownership" title="Link to this heading"></a></h2>
+<p>The current <code class="docutils literal notranslate"><span class="pre">corsika/kokkos</span></code> headers and their included implementations are
+installed for consumers. This does not give every exported symbol or record
+an independent stability guarantee. Similarly, a cache version, CMake package
+version and worker protocol version cover different contracts. The existing
+checks are documented in <a class="reference internal" href="development/compatibility.html"><span class="doc">Compatibility, diagnostics and release review</span></a>.</p>
+<p>For upstream integration, agree on the intended consumers of each interface:</p>
+<ul class="simple">
+<li><p><strong>Applications:</strong> scene/model construction, execution selection and event
+lifecycle. Changes need native-only and accelerated application checks.</p></li>
+<li><p><strong>Model implementations:</strong> numerical inputs, results, domains and units.
+Changes need model references and physical validation as appropriate.</p></li>
+<li><p><strong>Execution implementations:</strong> memory ownership, queue capacities,
+completion and error propagation. Changes need backend and lifetime tests.</p></li>
+<li><p><strong>Analysis and operational tools:</strong> output schemas, timing definitions,
+metadata and completion records. Changes need reader/merger compatibility.</p></li>
+</ul>
+<p>A narrow public surface can reduce compatibility obligations, but it must
+still expose the capabilities required by its consumers. For example, a host
+execution interface may accept borrowed spans only if copying or completion
+rules make their lifetime unambiguous. A device view can remain a small value
+type while its owner handles allocation and synchronization. These are
+different responsibilities even when their names refer to the same data.</p>
+<p>The recommended maintenance agreement is to name the responsible component
+and reviewer role for each contract. No individuals or review groups are
+assigned by this guide. Discuss deprecation and migration before replacing a
+public entry point; record whether old applications, caches and output
+readers remain supported. A successful local application build cannot settle
+all of those compatibility questions.</p>
+</section>
+<section id="review-sequence-for-an-integration-proposal">
+<h2>Review sequence for an integration proposal<a class="headerlink" href="#review-sequence-for-an-integration-proposal" title="Link to this heading"></a></h2>
+<p>The following sequence keeps interface discussion connected to executable
+evidence. It is a proposed workflow, not an additional repository approval
+policy.</p>
+<ol class="arabic simple">
+<li><p><strong>Describe the boundary.</strong> Identify the existing caller, producer, consumer,
+ownership and result contract. Link a pinned declaration and implementation.
+State the concrete limitation the change addresses.</p></li>
+<li><p><strong>Compare implementable alternatives.</strong> Include retaining the current path
+when it remains viable. Describe affected files, dependencies, application
+changes and failure behavior. Distinguish a scheduling change from a
+numerical or physical change.</p></li>
+<li><p><strong>Prototype one complete use path.</strong> Connect configuration, preparation,
+execution and outputs. A short application snippet is insufficient if
+native fallback, final batches or event cleanup remain unconnected.</p></li>
+<li><p><strong>Evaluate the claimed scope.</strong> Check affected interfaces and installed
+consumers, numerical/reference results and complete events where needed.
+Compare performance on matched workloads and identify cold/warm lifecycle
+costs. Use <a class="reference internal" href="validation.html"><span class="doc">Validation and performance</span></a> rather than a single generic tolerance.</p></li>
+<li><p><strong>Record the reviewed decision.</strong> Link the implementation, evidence and
+review outcome. State limitations, remaining work and migration. Mark a
+superseded record explicitly rather than rewriting its historical result.</p></li>
+</ol>
+<p>For example, sharing one boundary-selection body requires checking both the
+native and numerical access adapters. It does not imply that all shape
+intersection solvers have become identical. The current
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a> illustrates this distinction;
+<a class="reference internal" href="environment/queries.html"><span class="doc">Environment queries and boundary selection</span></a> specifies the shared and separate parts.</p>
+</section>
+<section id="decision-record-template">
+<h2>Decision record template<a class="headerlink" href="#decision-record-template" title="Link to this heading"></a></h2>
+<p>Use the <a class="reference download internal" download="" href="_downloads/d690c56981a279d784c140a000d7b706/design-decision.rst.txt"><code class="xref download docutils literal notranslate"><span class="pre">design-decision</span> <span class="pre">template</span></code></a> to capture a concrete proposal. Its
+fields distinguish implementation status, reasoning, alternatives and
+evidence. An accepted status should cite the relevant review; a source
+inspection alone establishes observed behavior, not consensus.</p>
+<p>Keep the full numerical and performance evidence with the test report, then
+link the relevant result from the decision. Record the source revision,
+dependencies, device and execution mode. This allows later maintainers to
+revisit a decision when the constraints change without treating an old
+timing result as a permanent property of the algorithm or architecture.</p>
 </section>
 </section>
 
@@ -177,7 +328,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="development/compatibility.html" class="btn btn-neutral float-left" title="Compatibility, diagnostics and release review" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="api.html" class="btn btn-neutral float-right" title="API reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="decisions/interfaces.html" class="btn btn-neutral float-right" title="Application and data interface boundaries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
