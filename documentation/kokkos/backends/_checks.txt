@@ -1,0 +1,26 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 39 61
+
+   * - Source or registration
+     - Existing coverage
+   * - `test_install_helpers.py <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/build_tools/test_install_helpers.py>`_
+     - Installer commands, prerequisites and compiler/architecture selection using stub tools. No real GPU compilation or runtime execution.
+   * - `DeviceOptions.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/DeviceOptions.cpp>`_
+     - CUDA device-option parsing and visibility/argument contracts with controlled inputs.
+   * - `HipDeviceOptions.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/HipDeviceOptions.cpp>`_
+     - HIP device-list parsing, ordinal validation against synthetic listings, and help preserving visibility; not a hardware probe.
+   * - `testRuntime.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testRuntime.cpp>`_
+     - Owned, shared and borrowed lifetimes; invalid/conflicting settings, thread ownership and finalization. Lifecycle scenarios are separate processes.
+   * - `RuntimeContract.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/backend/RuntimeContract.cpp>`_
+     - Production owner, unavailable-backend and cooperative-lifetime contracts, plus primitive/queue/tiling probes for the selected execution space.
+   * - `CacheContract.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/backend/CacheContract.cpp>`_
+     - Tuning-cache compatibility against the retained implementation.
+   * - `testScanPrimitives.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testScanPrimitives.cpp>`_
+     - Bounded iteration and exact multi-column integer scans.
+   * - `testParticleQueues.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testParticleQueues.cpp>`_
+     - Queue growth, source ordering and wavefront storage contracts.
+   * - `testExecutionWait.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testExecutionWait.cpp>`_
+     - Execution-wait modes and, in CUDA builds, completion tickets and exceptional cleanup.
+   * - `BackendExecutionContracts.cmake <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendExecutionContracts.cmake>`_
+     - Registers real-table backend stage/router and session tests when their targets and export fixtures are available.

@@ -15,7 +15,7 @@ CORSIKA 8 with Kokkos
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
      <strong>Documentation in preparation</strong>
-     <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport and radio chapters are available. Further architecture and maintenance chapters are being developed.</span>
+     <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio and backend-portability chapters are available. Validation and maintenance chapters are being developed.</span>
    </div>
 
 Guide objectives
@@ -58,8 +58,9 @@ extension requirements. The :doc:`physics-data` chapter documents native model
 preparation, table storage and query contracts. The :doc:`transport` chapter
 follows candidate sampling, particle propagation and interaction final states.
 The :doc:`radio` chapter covers track collection, projection, waveform
-accumulation and propagation-specific interfaces. Further chapters will
-cover backend configuration, validation and maintenance.
+accumulation and propagation-specific interfaces. The :doc:`backends` chapter
+explains build selection, runtime ownership and device-code contracts. Further
+chapters will cover validation and maintenance.
 
 .. toctree::
    :maxdepth: 1

@@ -25,8 +25,10 @@ representation, resident ownership and query/extension contracts. The
 continuous processes and final-state/CPU completion contracts. The
 :doc:`radio` chapter documents track collection, observer data, parallel
 projection, accumulation and ordinary/firn propagation interfaces. The
-remaining backend and maintenance chapters are still outlines; an outline
-does not establish that a feature is implemented or validated.
+:doc:`backends` chapter covers build dependencies, execution selection,
+runtime ownership and portable device-code requirements. The remaining
+validation and maintenance chapters are still outlines; an outline does not
+establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

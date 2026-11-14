@@ -1,0 +1,43 @@
+.. parsed-literal::
+
+   tools/
+   └── `build_kokkos.sh <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh>`_  prerequisites, profile selection and backend-specific build/install
+
+   ./
+   └── `conanfile.py <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conanfile.py>`_  dependency requirements and Kokkos options
+
+   externals/conan/
+   └── `profiles <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles>`_  backend and architecture profiles
+
+   cmake/
+   ├── `BackendRuntimeSelection.cmake <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeSelection.cmake>`_  dependency-device combination to production runtime selection
+   ├── `BackendRuntimeTargets.cmake <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeTargets.cmake>`_  runtime libraries and device-compiler configuration
+   ├── `BackendApplicationTargets.cmake <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendApplicationTargets.cmake>`_  application support and EM backend factories
+   └── `corsikaConfig.cmake.in <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/corsikaConfig.cmake.in>`_  installed dependency and target discovery
+
+   corsika/kokkos/runtime/
+   ├── `Runtime.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/Runtime.hpp>`_  generic Kokkos lifetime contract
+   ├── `BackendRuntime.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/BackendRuntime.hpp>`_  production runtime and cooperative lease interface
+   ├── `RuntimeConfig.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeConfig.hpp>`_  execution request and resource configuration
+   ├── `RuntimeInfo.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RuntimeInfo.hpp>`_  resolved runtime metadata
+   └── `TuningParameters.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/TuningParameters.hpp>`_  launch and tile settings
+
+   src/kokkos/runtime/
+   ├── `Runtime.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/Runtime.cpp>`_  generic ownership and configuration checks
+   ├── `BackendRuntime.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp>`_  production initialization, metadata and probes
+   ├── `BackendSelection.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendSelection.cpp>`_  requested execution name to compiled implementation
+   └── `TuningCache.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/TuningCache.cpp>`_  configuration matching and cached tuning
+
+   src/kokkos/application/
+   ├── `DeviceSelection.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceSelection.cpp>`_  GPU discovery, selection and visibility mapping
+   ├── `DeviceCliOptions.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/DeviceCliOptions.cpp>`_  application option preparation
+   └── `BackendCli.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/application/BackendCli.cpp>`_  backend option parsing
+
+   src/kokkos/em/
+   ├── `EmBackend.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp>`_  host facade and execution-space factory dispatch
+   ├── `HipBackendInstance.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/HipBackendInstance.cpp>`_  HIP instantiation of the shared implementation
+   ├── `CudaBackendInstance.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/CudaBackendInstance.cpp>`_  CUDA instantiation of the shared implementation
+   └── `OpenMPBackendInstance.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/OpenMPBackendInstance.cpp>`_  OpenMP instantiation of the shared implementation
+
+   corsika/detail/kokkos/em/execution/
+   └── `BackendInstanceImplementation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl>`_  resident EM implementation for the selected execution space
