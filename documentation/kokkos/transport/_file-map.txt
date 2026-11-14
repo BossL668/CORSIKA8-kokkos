@@ -1,0 +1,40 @@
+.. parsed-literal::
+
+   corsika/kokkos/em/
+   ├── `InteractionRecord.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/InteractionRecord.hpp>`_  candidate and vertex state
+   ├── `LeptonTransportRecord.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/LeptonTransportRecord.hpp>`_  charged-lepton endpoints, limits and deposits
+   ├── `PhotonTransportRecord.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/PhotonTransportRecord.hpp>`_  photon endpoints and limiting process
+   └── `FallbackRequest.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/FallbackRequest.hpp>`_  CPU completion identity and diagnostics
+
+   corsika/kokkos/em/algorithms/
+   ├── `InteractionSelection.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionSelection.hpp>`_  candidate-depth interface
+   ├── `LeptonContinuousStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonContinuousStep.hpp>`_  continuous-step preparation and final energy
+   ├── `LeptonTransportStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonTransportStep.hpp>`_  charged-lepton propagation interface
+   ├── `MoliereStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/MoliereStep.hpp>`_  post-transport scattering stage
+   ├── `LeptonVertexSelection.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonVertexSelection.hpp>`_  post-loss acceptance and channel selection
+   ├── `PhotonTransportStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonTransportStep.hpp>`_  photon flight interface
+   ├── `LeptonFinalStateStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonFinalStateStep.hpp>`_  charged-lepton classification and materialization
+   └── `PhotonFinalStateStep.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonFinalStateStep.hpp>`_  photon classification and materialization
+
+   corsika/detail/kokkos/em/algorithms/
+   ├── `InteractionSelection.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/InteractionSelection.inl>`_  cuts, rate queries and candidate sampling
+   ├── `LeptonContinuousStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonContinuousStep.inl>`_  continuous depth and energy-loss queries
+   ├── `LeptonTransportStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonTransportStep.inl>`_  limit competition, magnetic advance and loss
+   ├── `MoliereStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/MoliereStep.inl>`_  projected-angle sampling and direction update
+   ├── `LeptonVertexSelection.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonVertexSelection.inl>`_  vertex acceptance and native selection
+   ├── `PhotonTransportStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonTransportStep.inl>`_  straight transport and vertex reachability
+   ├── `LeptonFinalStateStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonFinalStateStep.inl>`_  lepton products, LPM and thinning
+   ├── `PhotonFinalStateStep.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/PhotonFinalStateStep.inl>`_  photon products, LPM and thinning
+   └── `NativeMuonPairCutRecord.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/NativeMuonPairCutRecord.inl>`_  tagged below-rest-mass cut accounting
+
+   corsika/detail/kokkos/em/execution/
+   ├── `LeptonFront.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonFront.inl>`_  resident lepton kernels and output materialization
+   ├── `PhotonFront.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonFront.inl>`_  resident photon kernels and output materialization
+   ├── `LeptonCascade.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/LeptonCascade.inl>`_  lepton front iteration and checkpoint handling
+   └── `PhotonCascade.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhotonCascade.inl>`_  photon front iteration and checkpoint handling
+
+   corsika/detail/kokkos/em/proposal/
+   └── `ProposalCpuFallbackHandler.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl>`_  complete a specified native reaction
+
+   corsika/detail/kokkos/scheduling/
+   └── `EmRouter.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl>`_  consume results and dispatch CPU returns

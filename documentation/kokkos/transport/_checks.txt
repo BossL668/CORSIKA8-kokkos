@@ -1,0 +1,32 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 39 61
+
+   * - Test source
+     - Existing coverage
+   * - `testSelectionContracts.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testSelectionContracts.cpp>`_
+     - Controlled branch tests for cuts, invalid inputs, acceptance ties, continuation and deferred photon completion.
+   * - `testInteractionSelection.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testInteractionSelection.cpp>`_
+     - Real native-table sampling and post-loss selection, compared with the retained production reference on host and selected execution space.
+   * - `testContinuousQueries.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/testContinuousQueries.cpp>`_
+     - Native mass, range, step-limit and final-energy queries; corresponding device tests exercise the selected execution space.
+   * - `testLeptonTransport.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testLeptonTransport.cpp>`_
+     - Node-tree charged-lepton steps, limits, endpoints, deposits and failure records against the retained reference.
+   * - `testPhotonTransport.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testPhotonTransport.cpp>`_
+     - Straight photon transport, boundary/observation ordering, cuts, interaction reachability and deferred-completion metadata.
+   * - `testMoliereStep.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testMoliereStep.cpp>`_
+     - Scattering draws and directions, cut bypass and missing-muon-model behavior.
+   * - `testLeptonFinalState.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testLeptonFinalState.cpp>`_
+     - Charged-lepton classification and materialization, including native sampling, LPM, thinning and CPU-only channels.
+   * - `testPhotonFinalState.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testPhotonFinalState.cpp>`_
+     - Photon products and native pair sharing, suppression, thinning and tagged muon-pair cut behavior.
+   * - `testLeptonFront.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonFront.cpp>`_
+     - Resident lepton-stage outputs, histories, fallback records and projected records.
+   * - `testPhotonFront.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhotonFront.cpp>`_
+     - Resident photon outputs and records, stable ordering and execution-space comparison.
+   * - `testLeptonCascade.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonCascade.cpp>`_
+     - Lepton iteration and resumed-checkpoint consistency, including history allocation.
+   * - `testPhotonCascade.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhotonCascade.cpp>`_
+     - Photon iteration and resumed-checkpoint consistency, including history allocation.
+   * - `testCpuFallbackPhysics.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp>`_
+     - Specified CPU reactions with real PROPOSAL calculators and retained selection inputs.
