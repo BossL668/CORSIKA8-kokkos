@@ -29,9 +29,11 @@ projection, accumulation and ordinary/firn propagation interfaces. The
 runtime ownership and portable device-code requirements. The
 :doc:`validation` chapter maps available tests and documents numerical,
 statistical and timing methods; it does not claim that a new simulation
-campaign was performed. The remaining maintenance, design-decision and API
-reference chapters are still outlines; an outline does not establish that
-a feature is implemented or validated.
+campaign was performed. The :doc:`development` chapter documents repository
+conventions, extension work, compatibility and release review, distinguishing
+current contracts from recommendations. The remaining design-decision and API
+reference chapters are still outlines; an outline does not establish that a
+feature is implemented or validated.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

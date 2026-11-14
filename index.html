@@ -119,7 +119,12 @@
 <li class="toctree-l2"><a class="reference internal" href="validation/performance.html">Performance measurement</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
@@ -158,7 +163,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio, backend-portability and validation chapters are available. Maintenance and reference chapters are being developed.</span>
+  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio, backend-portability, validation and maintenance chapters are available. Design decisions and the API reference are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -197,8 +202,9 @@ The <a class="reference internal" href="radio.html"><span class="doc">Radio calc
 accumulation and propagation-specific interfaces. The <a class="reference internal" href="backends.html"><span class="doc">Build and backend portability</span></a> chapter
 explains build selection, runtime ownership and device-code contracts. The
 <a class="reference internal" href="validation.html"><span class="doc">Validation and performance</span></a> chapter documents executable tests, numerical and statistical
-comparisons, and performance measurement. Further chapters will cover
-maintenance, design decisions and the API reference.</p>
+comparisons, and performance measurement. The <a class="reference internal" href="development.html"><span class="doc">Development and maintenance</span></a> chapter
+describes contributor workflow, extension points, compatibility and release
+review. Further chapters will cover design decisions and the API reference.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>

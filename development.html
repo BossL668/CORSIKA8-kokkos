@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Design decisions and open questions" href="decisions.html" />
+    <link rel="next" title="Repository organization and coding workflow" href="development/workflow.html" />
     <link rel="prev" title="Performance measurement" href="validation/performance.html" /> 
 </head>
 
@@ -120,7 +120,12 @@
 <li class="toctree-l2"><a class="reference internal" href="validation/performance.html">Performance measurement</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Development and maintenance</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
@@ -152,21 +157,214 @@
              
   <section id="development-and-maintenance">
 <h1>Development and maintenance<a class="headerlink" href="#development-and-maintenance" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>Guidance for continued development, code review and long-term maintenance.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Development workflow, repository organization and coding conventions.</p></li>
-<li><p>Interface evolution, component responsibilities and the impact of changes.</p></li>
-<li><p>Design rationale, implementation constraints and recorded decisions.</p></li>
-<li><p>Compatibility with CORSIKA 8, dependency updates and backend support.</p></li>
-<li><p>Code review, regression testing and reproducible troubleshooting.</p></li>
-<li><p>Performance maintenance across hardware platforms and toolchains.</p></li>
-<li><p>Release procedures, deprecation and documentation updates.</p></li>
+<p>Maintenance of the Kokkos integration requires preserving the contracts
+between native C8 objects, numerical data, execution services and physics
+outputs. The application constructs the physical problem; library components
+convert its data, execute calculations and return results. A change should be
+implemented at the layer responsible for that behavior and reviewed against
+the components that depend on it.</p>
+<p>This chapter describes the source organization, extension points and review
+workflow for contributors. It complements <a class="reference internal" href="backends.html"><span class="doc">Build and backend portability</span></a> and
+<a class="reference internal" href="validation.html"><span class="doc">Validation and performance</span></a>, which document build/runtime requirements and how to test
+correctness and performance.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Implementation baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+Existing source contracts and recommended development practices are
+distinguished below. These recommendations do not establish an official
+CORSIKA integration policy or certify every file’s compliance with current
+upstream conventions. Changes intended for upstream should follow the
+target branch’s requirements and review process.</p>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
 </ul>
+</div>
+<section id="component-responsibilities">
+<h2>Component responsibilities<a class="headerlink" href="#component-responsibilities" title="Link to this heading"></a></h2>
+<p>The following boundaries identify where to begin a change. They also identify
+what should remain outside the component’s responsibility.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 23.0%" />
+<col style="width: 42.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Responsibility and source entry points</p></th>
+<th class="head"><p>Contract to preserve</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Application integration</p></td>
+<td><p>Native scene, models, process sequence and outputs in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">c8_air_shower.cpp</a>; library binding and execution in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtension.hpp">CascadeExtension.hpp</a>.</p></td>
+<td><p>Explicit configuration and object lifetimes. Particle scheduling and
+reaction-specific completion belong in library components.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Host conversion and preparation</p></td>
+<td><p>Native particle conversion, environment export and table preparation;
+see <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a>, <a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a> and <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a>.</p></td>
+<td><p>Physical units, coordinates, material and node identities, supported
+domains and immutable prepared inputs.</p></td>
+</tr>
+<tr class="row-even"><td><p>Numerical calculations</p></td>
+<td><p>Table queries, geometry, transport, final states and radio projection;
+see <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> and <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a>.</p></td>
+<td><p>Physics definitions, numerical domains, random inputs and result
+conventions. Numerical functions should not acquire process-global
+runtimes or own application objects.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Execution and resident storage</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a> and the runtime, queue and
+accumulator owners.</p></td>
+<td><p>Execution-instance ordering, valid memory access, ownership,
+capacities and completion before storage release.</p></td>
+</tr>
+<tr class="row-even"><td><p>Routing and coordination</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl">HybridCascade.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a>.</p></td>
+<td><p>Complete particle-state transfer, CPU/device handoff, static worker
+assignments, event completion and output merging.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Output and diagnostics</p></td>
+<td><p>Native output libraries and Kokkos record projection/reporting;
+see <a class="reference internal" href="usage/outputs.html"><span class="doc">Outputs and run checks</span></a> and <a class="reference internal" href="validation/performance.html"><span class="doc">Performance measurement</span></a>.</p></td>
+<td><p>Observable definitions, units, event identity, normalization,
+completion status and the actual scope of each measurement.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The public host interface <code class="docutils literal notranslate"><span class="pre">IEmBackend</span></code> separates the router from a selected
+execution implementation. The shared numerical implementation is instantiated
+for different execution spaces; narrow backend-specific adapters handle
+operations such as runtime queries and completion. A device optimization
+therefore need not introduce a second copy of the physical model. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/IEmBackend.hpp">IEmBackend.hpp</a> and <a class="reference internal" href="backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a>.</p>
+</section>
+<section id="review-the-kind-of-change-explicitly">
+<h2>Review the kind of change explicitly<a class="headerlink" href="#review-the-kind-of-change-explicitly" title="Link to this heading"></a></h2>
+<p>Separate a structural refactor from a change in numerical or physical
+behavior. File movement, interface simplification and target reorganization
+can still affect ownership, includes, compile definitions and instantiation.
+Retain fixed-input comparisons and installed-consumer checks for those
+changes. Do not silently modify a reference implementation to make a changed
+candidate pass.</p>
+<p>A numerical optimization needs a documented domain, reference, tolerance and
+performance workload. A scheduling change additionally needs a stated
+random-stream policy, queue-accounting checks and complete-shower validation
+when histories change. A new physics model needs independent physical
+validation; preserving an older implementation is only one source of
+evidence. The detailed selection of tests is in <a class="reference internal" href="validation.html"><span class="doc">Validation and performance</span></a>.</p>
+<p>When behavior changes intentionally, describe the previous and new behavior
+with a concrete input or configuration. Record the reason, expected output
+differences and compatibility impact. For a retained reference fixture,
+either preserve it as the old-behavior regression or update it with an
+explicit rationale and an independent check of the corrected behavior.</p>
+</section>
+<section id="interface-review">
+<h2>Interface review<a class="headerlink" href="#interface-review" title="Link to this heading"></a></h2>
+<p>Before changing a public declaration, transferred record or serialized
+format, identify its producer, owners, consumers and validation points.
+Review these contracts together:</p>
+<ul class="simple">
+<li><p><strong>Values:</strong> units, coordinate system, physical meaning, index domains,
+sentinel values and allowed numerical range.</p></li>
+<li><p><strong>Storage:</strong> owning versus borrowed data, memory space, object lifetime,
+transfer direction and invalidation after a resize or scene change.</p></li>
+<li><p><strong>Execution:</strong> permitted calling thread, execution instance, asynchronous
+completion, mutable state and session reuse.</p></li>
+<li><p><strong>Results:</strong> successful and failed outcomes, whether partial output is
+valid, CPU completion requests and associated counters.</p></li>
+<li><p><strong>Reproducibility:</strong> particle and event identities, random keys, stream
+progression, ordering and accumulation conventions.</p></li>
+<li><p><strong>Compatibility:</strong> exported headers/targets, dependencies, cache keys,
+on-disk formats and downstream analysis.</p></li>
+</ul>
+<p>These are recommended review checks, not a reason to repeat the same checks in
+every inner numerical operation. Validate configuration and persistent data
+at their entry points where possible; retain runtime checks required by the
+actual calculation or ownership contract. Changing a domain guard, fallback
+condition or overflow policy changes behavior and requires corresponding
+tests.</p>
+</section>
+<section id="source-and-installed-interfaces">
+<h2>Source and installed interfaces<a class="headerlink" href="#source-and-installed-interfaces" title="Link to this heading"></a></h2>
+<p>The directory layout separates public declarations, inline implementations,
+compiled libraries, application entry points and tests:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>applications/                     # Application entry points
+corsika/kokkos/                    # Public Kokkos integration interfaces
+corsika/detail/kokkos/             # Inline/template implementation bodies
+src/kokkos/                       # Compiled implementation and target definitions
+cmake/                            # Backend targets, package export, contract tests
+tests/kokkos/                     # Numerical, storage and execution checks
+tests/application_support/        # CLI, application and coordinator contracts
+documentation/kokkos/             # Maintainer and user documentation
+</pre></div>
+</div>
+<p>For the detailed naming and formatting rules, see <a class="reference internal" href="development/workflow.html"><span class="doc">Repository organization and coding workflow</span></a>.
+The implementation still has legacy identifiers and heterogeneous test
+fixtures; this layout is not evidence that every historical name satisfies
+all current conventions.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">src/kokkos/CMakeLists.txt</a> defines many public targets and includes the
+runtime/application target definitions. Exported names such as
+<code class="docutils literal notranslate"><span class="pre">CORSIKA8::NativeTableQueries</span></code> are part of the consumer interface. A new
+public target needs its dependencies, include directories, compile features
+and installation/export entry considered together.</p>
+<p>The top-level installation excludes <code class="docutils literal notranslate"><span class="pre">kokkos</span></code> from the unconditional native
+header copy. The enabled Kokkos subdirectory installs both
+<code class="docutils literal notranslate"><span class="pre">corsika/kokkos</span></code> and <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos</span></code> and adds its targets to
+<code class="docutils literal notranslate"><span class="pre">CORSIKA8PublicTargets</span></code>. The package publishes <code class="docutils literal notranslate"><span class="pre">corsikaTargets.cmake</span></code>
+under the <code class="docutils literal notranslate"><span class="pre">CORSIKA8::</span></code> namespace. Thus an included <code class="docutils literal notranslate"><span class="pre">.inl</span></code> is required by
+installed consumers even though it is an implementation file. A
+<code class="docutils literal notranslate"><span class="pre">detail</span></code> path is not a binary-compatibility boundary. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt">CMakeLists.txt</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/corsikaConfig.cmake.in">corsikaConfig.cmake.in</a> and the installed-consumer example
+in <a class="reference internal" href="validation/tests.html"><span class="doc">Test coverage and execution</span></a>.</p>
+</section>
+<section id="development-and-release-evidence">
+<h2>Development and release evidence<a class="headerlink" href="#development-and-release-evidence" title="Link to this heading"></a></h2>
+<p>A review should include the changed interfaces and implementation, affected
+callers and formats, updated tests, documentation and a reproducible result.
+Use the <a class="reference download internal" download="" href="_downloads/4e99afdc8be2f78b686eeee269650ff6/validation-manifest.json"><code class="xref download docutils literal notranslate"><span class="pre">comparison</span> <span class="pre">manifest</span></code></a> when the change needs numerical,
+statistical or performance evidence. Keep raw logs and analysis with the
+report rather than relying on a plot alone.</p>
+<p>Changes to a dependency, compiler or device architecture require the same
+care as changes to source code. Recheck availability, numerical behavior,
+resource lifetime and performance for the affected path. A compiled template
+instantiation or a passing documentation build does not establish execution
+on that device. <a class="reference internal" href="development/compatibility.html"><span class="doc">Compatibility, diagnostics and release review</span></a> describes the versioned data
+contracts, diagnostic entry points and a recommended release review.</p>
+<p>Documentation changes should retain their checked source revision and keep
+examples, file maps, interface descriptions and diagrams consistent. Use real
+source excerpts where possible. When a limitation is removed, update the
+corresponding supported-domain and test-coverage descriptions as part of the
+same change.</p>
+</section>
+<section id="source-to-consumer-dependency-flow">
+<h2>Source-to-consumer dependency flow<a class="headerlink" href="#source-to-consumer-dependency-flow" title="Link to this heading"></a></h2>
+<p>The diagram uses the native-table component to illustrate the public target
+and installation path. Build-tree and
+installed-consumer tests exercise different configurations of that path; both
+are needed when a change affects exports or transitive dependencies.
+Their registration depends on the configured capabilities: the installed
+real-backend execution tests require both <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> and the
+real native export bridge. Check the registered tests for the build being
+reviewed.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/maintenance-interface-flow.svg"><img alt="Public headers and inline or compiled implementation feed Kokkos library targets, then the CORSIKA package export and installed consumer. Source fixtures feed build-tree and installed-consumer contract tests, which check the corresponding interface path." src="_images/maintenance-interface-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Public interfaces, target definitions and consumer checks. Open the SVG for
+links to the corresponding source files.
+<a class="reference download internal" download="" href="_downloads/6361041b9c848809fab66e92ff78fe44/maintenance-interface-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/47cb5bf840b49a2559cedaaca7efe8db/maintenance-interface-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -175,7 +373,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="validation/performance.html" class="btn btn-neutral float-left" title="Performance measurement" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="decisions.html" class="btn btn-neutral float-right" title="Design decisions and open questions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="development/workflow.html" class="btn btn-neutral float-right" title="Repository organization and coding workflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

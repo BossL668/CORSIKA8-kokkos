@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extending models and execution paths &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/development/extensions.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Compatibility, diagnostics and release review" href="compatibility.html" />
+    <link rel="prev" title="Repository organization and coding workflow" href="workflow.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Development and maintenance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../development.html">Development and maintenance</a></li>
+      <li class="breadcrumb-item active">Extending models and execution paths</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/development/extensions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="extending-models-and-execution-paths">
+<h1>Extending models and execution paths<a class="headerlink" href="#extending-models-and-execution-paths" title="Link to this heading"></a></h1>
+<p>Start an extension at the interface that owns its meaning: a native model,
+a numerical query, a final-state implementation, a radio propagator or an
+execution-space adapter. Keep application code responsible for constructing
+the native C8 scene and configuring the run. Scheduler queues, table layouts
+and process-specific device dispatch belong below that application interface.</p>
+<p>This page maps recommended changes against the implementation at
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+An extension checklist does not imply that the new model or backend already
+works. The existing support limits are in <a class="reference internal" href="../environment/extension.html"><span class="doc">Supported models and extension requirements</span></a>,
+<a class="reference internal" href="../physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a>, <a class="reference internal" href="../radio/propagation.html"><span class="doc">Propagation models and medium-specific interfaces</span></a> and
+<a class="reference internal" href="../backends.html"><span class="doc">Build and backend portability</span></a>.</p>
+<section id="changing-prepared-inputs-and-runtime-lifetime">
+<h2>Changing prepared inputs and runtime lifetime<a class="headerlink" href="#changing-prepared-inputs-and-runtime-lifetime" title="Link to this heading"></a></h2>
+<p>Prepare changed scene, calculator or radio inputs for a new run. For an
+initialized ordinary <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code>, use a fresh process: its backend owns
+Kokkos initialization, a second ordinary owner is rejected while it is live,
+and releasing the final owner finalizes Kokkos. Initialization cannot be
+restarted after finalization. Destroying a session and constructing another
+in the same process is therefore not a supported reconfiguration recipe.
+A generic <code class="docutils literal notranslate"><span class="pre">Runtime</span></code> or external <code class="docutils literal notranslate"><span class="pre">Kokkos::ScopeGuard</span></code> does not remove
+that restriction; <code class="docutils literal notranslate"><span class="pre">BackendRuntime</span></code> does not adopt those owners.</p>
+<p>The explicit CUDA/OpenMP cooperative lease is a separate lifetime contract.
+Any extension implementing in-process backend replacement through that
+contract must retain a compatible live lease, complete outstanding work and
+release all dependent views before the final lease. This is not a general
+session-reconfiguration facility. See <a class="reference internal" href="../backends/runtime.html#backend-runtime-owner"><span class="std std-ref">Backend runtime lifetime</span></a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp">BackendRuntime.cpp</a>.</p>
+</section>
+<section id="environment-models-shapes-and-materials">
+<h2>Environment models, shapes and materials<a class="headerlink" href="#environment-models-shapes-and-materials" title="Link to this heading"></a></h2>
+<p>The current preparation chain is
+<code class="docutils literal notranslate"><span class="pre">prepare_cascade</span></code> → <code class="docutils literal notranslate"><span class="pre">prepare_environment_snapshot(environment,</span> <span class="pre">coordinates)</span></code>
+→ <code class="docutils literal notranslate"><span class="pre">EnvironmentSnapshot</span></code> → <code class="docutils literal notranslate"><span class="pre">export_shape</span></code> / <code class="docutils literal notranslate"><span class="pre">export_model</span></code>.
+It produces ordered host topology, shape, model and composition arrays;
+<code class="docutils literal notranslate"><span class="pre">bind_environment_data</span></code> borrows those arrays and
+<code class="docutils literal notranslate"><span class="pre">EnvironmentStorage&lt;TExecutionSpace&gt;</span></code> uploads them for queries.
+The native tree remains the source for host tracking and particle conversion.
+See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl">CascadePreparation.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentPreparation.inl">EnvironmentPreparation.inl</a>.</p>
+<p>For a new combination of already supported objects, retain this generic
+construction path. For a new representation, review the following chain.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 18.0%" />
+<col style="width: 40.0%" />
+<col style="width: 42.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Change</p></th>
+<th class="head"><p>Host export and records to extend</p></th>
+<th class="head"><p>Numerical operations and downstream impact</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Density law</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IDensityModelExport::exportDensity()</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">DensityModelParameters</span></code>; <code class="docutils literal notranslate"><span class="pre">export_model</span></code> converts these to
+<code class="docutils literal notranslate"><span class="pre">EnvironmentModel</span></code> in common coordinates.</p></td>
+<td><p>Extend <code class="docutils literal notranslate"><span class="pre">density(model,</span> <span class="pre">positionM)</span></code>,
+<code class="docutils literal notranslate"><span class="pre">grammage(model,</span> <span class="pre">positionM,</span> <span class="pre">direction,</span> <span class="pre">lengthM)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">arclength(model,</span> <span class="pre">positionM,</span> <span class="pre">direction,</span> <span class="pre">grammageGPerCm2)</span></code> together.
+Outputs are g/cm³, g/cm² and metres respectively. Preserve inverse
+domains and failure behavior, not just pointwise density.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Refractivity law</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IRefractivityModelExport::exportRefractivity()</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">RefractivityModelParameters</span></code>; extend the corresponding
+<code class="docutils literal notranslate"><span class="pre">EnvironmentModel</span></code> kind and conversion.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">refractive_index(model,</span> <span class="pre">positionM)</span></code> returns dimensionless index.
+Review any density coupling and the separate radio export/propagation
+path; an environment query does not install a radio propagator.</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape</p></td>
+<td><p>Extend <code class="docutils literal notranslate"><span class="pre">EnvironmentShape</span></code> and the exact-type conversion in
+<code class="docutils literal notranslate"><span class="pre">export_shape(volume,</span> <span class="pre">coordinates)</span></code>.</p></td>
+<td><p>Supply <code class="docutils literal notranslate"><span class="pre">contains</span></code>, <code class="docutils literal notranslate"><span class="pre">straight_intersect</span></code> and the required
+<code class="docutils literal notranslate"><span class="pre">CurvedBoundaryAccess::intersectShape</span></code> behavior. Retain ordered node
+traversal and boundary selection; a new shape alone need not change
+either algorithm.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Material/composition</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">export_model</span></code> exports the native medium identifier and ordered
+nuclear codes/number fractions into <code class="docutils literal notranslate"><span class="pre">EnvironmentComponent</span></code> records.</p></td>
+<td><p>Review scene policy, native calculator coverage, auxiliary data and
+CPU completion’s composition lookup together. Exporting a medium
+identifier does not supply its interaction tables.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The main edit locations are <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelConversion.inl">ModelConversion.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ShapeConversion.inl">ShapeConversion.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelEvaluation.inl">ModelEvaluation.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelGrammage.inl">ModelGrammage.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSearch.inl">EnvironmentSearch.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/StraightIntersections.inl">StraightIntersections.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/CurvedBoundaryAccess.inl">CurvedBoundaryAccess.inl</a>. The existing
+boundary selector uses <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a> beneath native and
+numerical adapters. Keep shared selection semantics there; do not add a
+second geometry search in the application to accommodate a model.</p>
+<p>Current restrictions still apply: arbitrary meshes are not exported shape
+kinds, and a box has no genuinely curved intersection implementation in this
+path. Cascade policies accept air, homogeneous ice or exponential firn under
+their documented constraints. The native table exporter and auxiliary builder
+also restrict the material physics they accept. General mixed-material
+transport therefore needs work beyond relaxing a scene-policy check.</p>
+<p>When adding fields, update <code class="docutils literal notranslate"><span class="pre">make_environment_snapshot_key</span></code> in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshotKey.inl">EnvironmentSnapshotKey.inl</a>: it explicitly enumerates parameters rather
+than hashing whole records. Its result is also used by
+<code class="docutils literal notranslate"><span class="pre">environment_snapshot_fingerprint</span></code>. Review storage transfer, byte accounting
+and frontier compatibility when adding arrays or changing record meaning.
+Rebuild the snapshot after changing native objects and prepare the new scene
+under the runtime-lifetime rules above; retaining an old snapshot does not
+refresh its parameters.</p>
+<p>Extend conversion, evaluation/grammage and boundary tests in
+<code class="docutils literal notranslate"><span class="pre">tests/kokkos/environment/</span></code>, including their device variants. Add transformed
+coordinates, surface/tangent cases, inverse round trips and unsupported-input
+cases. For changed fields, add a session-reuse rejection case in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/session/Session.cpp">Session.cpp</a>. The complete existing test map is in
+<a class="reference internal" href="../environment.html#environment-validation"><span class="std std-ref">Validation coverage</span></a>.</p>
+</section>
+<section id="physics-processes-native-tables-and-cpu-completion">
+<h2>Physics processes, native tables and CPU completion<a class="headerlink" href="#physics-processes-native-tables-and-cpu-completion" title="Link to this heading"></a></h2>
+<p>The current table chain is native calculator views →
+<code class="docutils literal notranslate"><span class="pre">export_proposal_native_tables(interactions,</span> <span class="pre">continuous)</span></code> →
+<code class="docutils literal notranslate"><span class="pre">ProposalNativeTableSet</span></code> → <code class="docutils literal notranslate"><span class="pre">validate_proposal_native_requirements</span></code> →
+<code class="docutils literal notranslate"><span class="pre">NativeTableStorage</span></code> → <code class="docutils literal notranslate"><span class="pre">ProposalNativeDeviceView</span></code> in <code class="docutils literal notranslate"><span class="pre">PhysicsContext</span></code>.
+The exporter copies the configured native interpolation state; it does not
+sample a replacement model. Its <code class="docutils literal notranslate"><span class="pre">classify_kinematic_model</span></code> accepts explicit
+process/PID/parametrization tuples and rejects unknown ones.</p>
+<p>For a new process, first decide whether the backend can select its interaction,
+complete its final state, or both. These are separate capabilities:</p>
+<ol class="arabic simple">
+<li><p>Extend the configured native model and export contract. In
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp">NativeTableExporter.cpp</a>, map the exact parametrization and its loss
+transform. If new records are required, change <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp">ProposalNativeData.hpp</a>,
+the owning table, validation/hash encoding and storage together. Update
+<code class="docutils literal notranslate"><span class="pre">validate_proposal_native_requirements</span></code> when the new routed species or
+table domain changes the required coverage.</p></li>
+<li><p>Implement the corresponding numerical queries in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl">ProposalNativeQueries.inl</a>. Preserve native units, total-rate distance
+sampling, ordered channel selection and stopping-power summation order.
+A cumulative-rate table is not automatically a normalized final-state CDF.</p></li>
+<li><p>Register final-state routing in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/ProcessCapabilities.inl">ProcessCapabilities.inl</a>. A device path
+must extend <code class="docutils literal notranslate"><span class="pre">classify_photon_final_state</span></code> or
+<code class="docutils literal notranslate"><span class="pre">classify_lepton_final_state</span></code> and its materializer: classification returns
+retained-child counts and outcome flags; materialization writes particles
+and records into assigned slots. Preserve random identities, ancestry,
+energy accounting, suppression and thinning conventions described in
+<a class="reference internal" href="../transport/interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p></li>
+<li><p>For a declared CPU completion, retain the reached vertex, selected process,
+component and random-selection information in the fallback record.
+Review <code class="docutils literal notranslate"><span class="pre">ProposalCpuFallbackHandler::canHandle</span></code> and <code class="docutils literal notranslate"><span class="pre">handle</span></code> in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler.inl</a>, the native <code class="docutils literal notranslate"><span class="pre">doSpecifiedInteraction</span></code>
+interface and the router’s acceptance policy. The handler executes native
+secondary processing; it must not resample the physical distance already
+traversed. An unknown process or a numerical error must not become an
+implicitly accepted CPU interaction.</p></li>
+</ol>
+<p>Direct electron–positron pair production by <code class="docutils literal notranslate"><span class="pre">e±</span></code> and <code class="docutils literal notranslate"><span class="pre">μ±</span></code> projectiles
+illustrates the current boundary: its rate and loss selection are available,
+but the missing native energy-asymmetry CDF keeps complete final states on
+CPU. Adding a device completion requires the missing physical information
+and validation, not only changing its capability entry.</p>
+<p>Representation changes must keep <code class="docutils literal notranslate"><span class="pre">ProposalNativeTableFormatVersion</span></code>
+(currently 7), <code class="docutils literal notranslate"><span class="pre">validate_proposal_native_table</span></code> and
+<code class="docutils literal notranslate"><span class="pre">calculate_proposal_native_hash</span></code> consistent. The hash covers canonical
+physics content and excludes cache-hit diagnostics. For auxiliary changes,
+review both <code class="docutils literal notranslate"><span class="pre">ProposalNativeAuxFormatVersion</span></code> (currently 4) and
+<code class="docutils literal notranslate"><span class="pre">ProposalNativeAuxAlgorithmVersion</span></code> plus key/payload generation in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/ProposalNativeAux.cpp">ProposalNativeAux.cpp</a>. Change the applicable identity when old cached data
+would no longer represent the new calculation; do not treat deleting one
+developer’s cache as a compatibility policy.</p>
+<p><code class="docutils literal notranslate"><span class="pre">EmRunSession::beginProposalNative</span></code> exports tables and auxiliary data only
+on its first initialization. Later calls compare environment/geometry keys
+and reset event state; they do not re-export changed calculators. Changed
+physics needs a newly initialized backend, with a fresh process for ordinary
+session ownership as described above. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>.</p>
+<p>Extend native export/storage/query tests, discrete/continuous contracts,
+final-state tests and CPU fallback tests according to the changed stage.
+Include cold/warm-cache identity, invalid-format/hash rejection and selected
+vertex replay. Real-table tests need the export-enabled build. Existing
+touchpoints are mapped in <a class="reference internal" href="../physics-data.html#physics-data-validation"><span class="std std-ref">Validation coverage</span></a> and
+<a class="reference internal" href="../transport.html"><span class="doc">Transport and interaction kernels</span></a>; a new physical model also needs independent physics
+validation and representative shower comparisons.</p>
+</section>
+<section id="radio-propagation">
+<h2>Radio propagation<a class="headerlink" href="#radio-propagation" title="Link to this heading"></a></h2>
+<p>The ordinary path exports a flat-atmosphere profile or homogeneous index,
+then <code class="docutils literal notranslate"><span class="pre">propagate(propagation,</span> <span class="pre">source,</span> <span class="pre">observer)</span></code> returns <code class="docutils literal notranslate"><span class="pre">RadioSignalPath</span></code>
+for CoREAS/ZHS projection. To extend that path, change the propagation record,
+host configuration/export, uploaded storage and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/algorithms/RadioProjection.inl">RadioProjection.inl</a>
+together. Keep the emission formalism, track weighting, time bins and output
+units explicit; changing ray propagation alone does not justify changing
+those contracts.</p>
+<p>For a distinct propagation engine, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/IRadioBackend.hpp">IRadioBackend.hpp</a> supplies a host
+submission boundary: <code class="docutils literal notranslate"><span class="pre">enqueueRadioTracks(span)</span></code> must copy borrowed
+<code class="docutils literal notranslate"><span class="pre">LeptonTransportRecord</span></code> inputs before returning;
+<code class="docutils literal notranslate"><span class="pre">downloadRadioWaveforms()</span></code> must finish pending work, including a partial
+batch, and return <code class="docutils literal notranslate"><span class="pre">RadioWaveforms</span></code>. Its general interface permits an
+implementation to own different optical data, but supplies no general
+geometry solver itself. Keep kernel dependencies and model preparation
+behind the adapter.</p>
+<p>Firn already has separate <code class="docutils literal notranslate"><span class="pre">IGeometricalOpticsAccumulator</span></code> and
+<code class="docutils literal notranslate"><span class="pre">IFullWaveAccumulator</span></code> interfaces. A new optical profile needs an explicit
+device representation and solver; the current GO solver accepts exponential
+parameters. A changed full-wave table contract must update both producer and
+consumer: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/radio/firn/FullWaveAccumulator.cpp">FullWaveAccumulator.cpp</a> checks schema 2, profile fingerprint,
+interpolation convention, NPZ checksum and array coverage. These interfaces
+do not make arbitrary transport interfaces or the host-only hybrid model
+available on devices.</p>
+<p>Review configuration reuse and merging as well as projection. Ordinary
+<code class="docutils literal notranslate"><span class="pre">RadioConfig</span></code> is prepared only before the backend exists, and
+<code class="docutils literal notranslate"><span class="pre">same_radio_physics</span></code> in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/CooperativeRadioMerge.inl">CooperativeRadioMerge.inl</a> explicitly compares
+propagation and observer fields. Extend that comparison for new physical
+parameters and prepare a new configured run under the lifetime rules above
+when those parameters change.
+Add projection/reference cases, accumulator tests, final-partial-batch replay
+and merge-mismatch cases; use the firn accumulator tests for its separate
+interfaces. See <a class="reference internal" href="../radio.html"><span class="doc">Radio calculation</span></a> for the existing test map.</p>
+</section>
+<section id="execution-backends">
+<h2>Execution backends<a class="headerlink" href="#execution-backends" title="Link to this heading"></a></h2>
+<p>An additional execution space should reuse the numerical stage interfaces.
+The current chain is build selection →
+<code class="docutils literal notranslate"><span class="pre">resolve_execution_backend(requested)</span></code> → <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> factory →
+<code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation&lt;TExecutionSpace&gt;</span></code>. The latter owns runtime,
+execution instance, tables, environment and event storage. A factory receives
+<code class="docutils literal notranslate"><span class="pre">RuntimeConfig</span></code> and returns a <code class="docutils literal notranslate"><span class="pre">BackendInstance</span></code>; it does not define a
+different physical model.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 48.0%" />
+<col style="width: 52.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Source to review</p></th>
+<th class="head"><p>Recommended extension work</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeSelection.cmake">BackendRuntimeSelection.cmake</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeTargets.cmake">BackendRuntimeTargets.cmake</a></p></td>
+<td><p>Recognize the supported Kokkos device combination, compile the runtime
+with the required compiler and export its target/dependencies.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendSelection.cpp">BackendSelection.cpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/BackendRuntime.cpp">BackendRuntime.cpp</a></p></td>
+<td><p>Resolve the requested backend; implement initialization, lifetime,
+device metadata and relevant resource queries.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendApplicationTargets.cmake">BackendApplicationTargets.cmake</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmBackend.cpp">EmBackend.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/CudaBackendInstance.cpp">CudaBackendInstance.cpp</a></p></td>
+<td><p>Register and dispatch a narrow factory for the new execution space.
+The CUDA file is an existing example of that boundary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/runtime/TuningCache.cpp">TuningCache.cpp</a></p></td>
+<td><p>Review memory budgeting, launch policies and tuning identity. Keep
+physical configuration in the existing model/session interfaces.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Audit native-operation branches such as scans and completion waits, memory
+accessibility, raw-view strides and execution-instance ordering. Retain the
+portable implementation where applicable. Register kernel-bearing tests with
+the correct device compiler, and exercise runtime lifetime, transfers, scans,
+resident execution and installed consumers on the intended backend. See
+<a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a> for these contracts. Factory compilation alone
+does not establish hardware support, cooperative execution or coordinator
+support; each has separate branches and tests.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="workflow.html" class="btn btn-neutral float-left" title="Repository organization and coding workflow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="compatibility.html" class="btn btn-neutral float-right" title="Compatibility, diagnostics and release review" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
