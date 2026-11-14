@@ -14,7 +14,9 @@ configuration and output. Their source baseline is recorded in the
 :doc:`usage/index`. The :doc:`application` chapter now follows concrete function
 calls, data contracts and event execution, using excerpts included from source.
 The :doc:`execution` chapter covers the hybrid loop, batch contracts and
-process coordination, with file maps and data-flow diagrams. The remaining
+process coordination, with file maps and data-flow diagrams. The
+:doc:`particles` chapter documents physical-value conventions, complete-state
+transfer and resident storage, with source excerpts and a test map. The remaining
 architecture and maintenance chapters are still outlines; an
 outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.

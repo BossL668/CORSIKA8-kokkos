@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Environment and geometry" href="environment.html" />
+    <link rel="next" title="Particle representation and numerical conventions" href="particles/representation.html" />
     <link rel="prev" title="Process coordination and worker lifecycle" href="execution/coordinator.html" /> 
 </head>
 
@@ -75,7 +75,12 @@
 <li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Particle data and state</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
@@ -117,19 +122,188 @@
              
   <section id="particle-data-and-state">
 <h1>Particle data and state<a class="headerlink" href="#particle-data-and-state" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How particle information crosses the host/device boundary.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>CORSIKA particle interfaces and backing storage.</p></li>
-<li><p>Energy definitions, units and coordinate systems.</p></li>
-<li><p>Device records, field arrays and state updates.</p></li>
-<li><p>Weights, particle identities and environment-node indices.</p></li>
-<li><p>Returning particles to the native stack and adding fields.</p></li>
+<p>The particle-data layer transfers C8 particle values into the numerical
+representation used by the Kokkos backend and restores returned particles to
+the native stack. Its contract includes energy definitions, units, coordinates,
+statistical weights, transport identities and logical environment nodes.</p>
+<p>The <a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> chapter describes when particles are routed or returned.
+This chapter describes the data carried by those operations, the conversion
+interfaces and the storage used during batch execution.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+The production transfer path documented here is the standard resident EM
+backend. The general value-conversion helpers have a separate, narrower
+contract; they are not wrappers called by the production router.</p>
+</div>
+<section id="data-representations">
+<h2>Data representations<a class="headerlink" href="#data-representations" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 28.0%" />
+<col style="width: 36.0%" />
+<col style="width: 36.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Representation</p></th>
+<th class="head"><p>Contents</p></th>
+<th class="head"><p>Role</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>C8 particle interface and stack</p></td>
+<td><p>Typed physical quantities, coordinate-aware geometry, weight and node
+extensions; transport identities in <code class="docutils literal notranslate"><span class="pre">setup::HybridStack</span></code>.</p></td>
+<td><p>Native tracking, process execution and output interfaces.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ParticleState</span></code></p></td>
+<td><p>Numerical values in a common coordinate system, integer identifiers
+and compatibility tags.</p></td>
+<td><p>A value record used in host staging, transfers and local kernel work.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ParticleSoA&lt;TMemorySpace&gt;</span></code></p></td>
+<td><p>Kokkos arrays storing the fields of many <code class="docutils literal notranslate"><span class="pre">ParticleState</span></code> records.</p></td>
+<td><p>Batch storage in the execution space’s memory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ParticleSoARawView</span></code></p></td>
+<td><p>Borrowed array addresses and strides, with device-callable
+<code class="docutils literal notranslate"><span class="pre">load</span></code> and <code class="docutils literal notranslate"><span class="pre">store</span></code> methods.</p></td>
+<td><p>Kernel access to an existing allocation; no ownership or copy.</p></td>
+</tr>
+</tbody>
+</table>
+<p>C8’s <code class="docutils literal notranslate"><span class="pre">VectorStackImpl</span></code> already stores particle fields in separate vectors.
+The Kokkos representation adds explicit numerical conventions and
+execution-space storage; it does not introduce field-based storage to an
+otherwise object-per-particle stack.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="particles/storage.html">Device storage and state updates</a></li>
 </ul>
+</div>
+</section>
+<section id="source-organization">
+<span id="particles-source-organization"></span><h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>The following files define the data and conversion contracts. Public
+declarations reside under <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/</span></code>; their template implementations
+reside under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/</span></code>. The links open the checked source
+revision.</p>
+<pre class="literal-block">corsika/kokkos/data/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleState.hpp">ParticleState.hpp</a>  numerical record and field conventions
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleConversion.hpp">ParticleConversion.hpp</a>  physical-value conversion interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/RouterParticleConversion.hpp">RouterParticleConversion.hpp</a>  complete production transfer interface
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleSoA.hpp">ParticleSoA.hpp</a>  owning arrays and borrowed kernel views
+
+corsika/detail/kokkos/data/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/ParticleConversion.inl">ParticleConversion.inl</a>  units and coordinate conversion
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/RouterParticleConversion.inl">RouterParticleConversion.inl</a>  identity, logical nodes and stack insertion
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/ParticleSoA.inl">ParticleSoA.inl</a>  allocation, load, store and memory accounting
+
+corsika/kokkos/scheduling/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/WavefrontQueue.hpp">WavefrontQueue.hpp</a>  current/next fronts and transfer buffers
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/PendingParticleQueue.hpp">PendingParticleQueue.hpp</a>  pending numerical records
+
+corsika/detail/kokkos/scheduling/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/WavefrontQueue.inl">WavefrontQueue.inl</a>  upload, download, scans and buffer swaps
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/PendingParticleQueue.inl">PendingParticleQueue.inl</a>  append, prefix access and consumption
+
+corsika/kokkos/runtime/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RawView.hpp">RawView.hpp</a>  borrowed pointers and vector-field strides</pre>
+<p>Native interfaces and integration points:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 43.0%" />
+<col style="width: 57.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Source</p></th>
+<th class="head"><p>Responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/VectorStack.hpp">VectorStack.hpp</a></p></td>
+<td><p>Native particle accessors and backing field vectors.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/setup/SetupStack.hpp">SetupStack.hpp</a></p></td>
+<td><p>Select native and hybrid stack compositions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp">TransportIdentityStackExtension.hpp</a></p></td>
+<td><p>Stable identity and ancestry attached to native entries.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/stack/TransportIdentityStackExtension.inl">TransportIdentityStackExtension.inl</a></p></td>
+<td><p>Identity allocation, import and step-counter updates.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp">EnvironmentTopology.hpp</a></p></td>
+<td><p>Native node-address/index mapping used during transfer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a></p></td>
+<td><p>Stage records, populate the medium ID and process returns.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/StaticFrontier.inl">StaticFrontier.inl</a></p></td>
+<td><p>Versioned frontier fields and environment validation.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="validation-coverage">
+<span id="particles-validation"></span><h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>The tests below exercise data transfer and storage contracts. They are not a
+substitute for full-shower physics or performance validation. In particular,
+converting a hadron or a nucleus into a numerical record does not establish
+that the EM backend can transport it.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39.0%" />
+<col style="width: 61.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Test source</p></th>
+<th class="head"><p>Contract exercised</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/testParticleConversion.cpp">testParticleConversion.cpp</a></p></td>
+<td><p>PDG and total/kinetic energy conversion; units, translated/rotated frames, unchanged source and metadata; weight support and invalid inputs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testParticleTransfer.cpp">testParticleTransfer.cpp</a></p></td>
+<td><p>Complete transfer for photons, electrons, positrons and muons; preserved identity and logical nodes; separate air, ice, rock and firn transfer fixtures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/stack/testTransportIdentity.cpp">testTransportIdentity.cpp</a></p></td>
+<td><p>Identity preservation under native stack compaction and ancestry; ID reservation, import and overflow behavior.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testParticleQueues.cpp">testParticleQueues.cpp</a></p></td>
+<td><p>Upload/download, stable compaction, secondary offsets, buffer swaps, pending-prefix order, growth and synchronization guards.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/ParticleStateHeader.cpp">ParticleStateHeader.cpp</a></p></td>
+<td><p>Standalone inclusion and record alignment. This is a compile check, not transport validation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/ParticleSoAHeader.cpp">ParticleSoAHeader.cpp</a></p></td>
+<td><p>Standalone inclusion of the array-storage interface.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="particle-state-data-flow">
+<span id="particles-data-flow"></span><h2>Particle-state data flow<a class="headerlink" href="#particle-state-data-flow" title="Link to this heading"></a></h2>
+<p>Host conversion produces records before queue upload. Device kernels then
+load and store numerical fields without invoking the C8 particle interface.
+Surviving particles can remain in backend memory across transport wavefronts;
+only states that require host processing cross the return boundary. Particle
+tracks and output contributions use separate result records, described in
+<a class="reference internal" href="execution/batches.html#returned-data-and-its-consumers"><span class="std std-ref">Result contracts</span></a>.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/particles-data-flow.svg"><img alt="C8 stack particles are exported through the router into numerical records, uploaded to Kokkos field arrays, advanced in resident queues and imported when native processing is required." src="_images/particles-data-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Data conversion and storage boundaries. The return arrow applies to
+particles resumed on the native path, not to every backend step. Open the
+SVG for links to the corresponding implementation.
+<a class="reference download internal" download="" href="_downloads/7fe31db5a4f5d24082b9ecf306796c6f/particles-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/df6cd53b38c2f8170eb9c3c2f643d2d6/particles-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -138,7 +312,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="execution/coordinator.html" class="btn btn-neutral float-left" title="Process coordination and worker lifecycle" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="environment.html" class="btn btn-neutral float-right" title="Environment and geometry" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="particles/representation.html" class="btn btn-neutral float-right" title="Particle representation and numerical conventions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

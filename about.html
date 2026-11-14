@@ -74,7 +74,12 @@
 <li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a></li>
+<li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a></li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
@@ -127,7 +132,9 @@ configuration and output. Their source baseline is recorded in the
 <a class="reference internal" href="usage/index.html"><span class="doc">User guide</span></a>. The <a class="reference internal" href="application.html"><span class="doc">Application integration</span></a> chapter now follows concrete function
 calls, data contracts and event execution, using excerpts included from source.
 The <a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a> chapter covers the hybrid loop, batch contracts and
-process coordination, with file maps and data-flow diagrams. The remaining
+process coordination, with file maps and data-flow diagrams. The
+<a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a> chapter documents physical-value conventions, complete-state
+transfer and resident storage, with source excerpts and a test map. The remaining
 architecture and maintenance chapters are still outlines; an
 outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.</p>

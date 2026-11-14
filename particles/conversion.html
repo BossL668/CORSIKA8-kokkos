@@ -1,0 +1,327 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host and backend conversion &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/particles/conversion.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Device storage and state updates" href="storage.html" />
+    <link rel="prev" title="Particle representation and numerical conventions" href="representation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../particles.html">Particle data and state</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../particles.html">Particle data and state</a></li>
+      <li class="breadcrumb-item active">Host and backend conversion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/particles/conversion.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="host-and-backend-conversion">
+<h1>Host and backend conversion<a class="headerlink" href="#host-and-backend-conversion" title="Link to this heading"></a></h1>
+<p>Two host-side interfaces convert particle data. The general helpers update
+physical values in an existing record or particle. The production router’s
+transfer functions additionally handle identity, logical nodes and native
+stack insertion. Both use the numerical conventions in
+<a class="reference internal" href="representation.html"><span class="doc">Particle representation and numerical conventions</span></a>; neither performs a transport step.</p>
+<section id="value-conversion-interface">
+<h2>Value-conversion interface<a class="headerlink" href="#value-conversion-interface" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleConversion.hpp">ParticleConversion.hpp</a> declares the following template functions, implemented
+in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/ParticleConversion.inl">ParticleConversion.inl</a>:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 35.0%" />
+<col style="width: 33.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Inputs</p></th>
+<th class="head"><p>Result and mutation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">export_particle_values</span></code></p></td>
+<td><p>Native particle, common <code class="docutils literal notranslate"><span class="pre">CoordinateSystemPtr</span></code>, existing
+<code class="docutils literal notranslate"><span class="pre">ParticleState&amp;</span></code>.</p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. Replaces PID, total energy, position, direction,
+time and weight; preserves all metadata fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">import_particle_values</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ParticleState</span> <span class="pre">const&amp;</span></code>, the record’s coordinate system, existing
+native particle reference.</p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. Updates physical values, converting total to kinetic
+energy; does not insert an entry or restore identity/node metadata.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The export’s unit and coordinate conversion is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">51</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">particle</span><span class="p">.</span><span class="n">getPosition</span><span class="p">().</span><span class="n">getCoordinates</span><span class="p">(</span><span class="n">coordinateSystem</span><span class="p">);</span>
+<span class="linenos">52</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">direction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">particle</span><span class="p">.</span><span class="n">getDirection</span><span class="p">().</span><span class="n">getComponents</span><span class="p">(</span><span class="n">coordinateSystem</span><span class="p">);</span>
+<span class="linenos">53</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">particle</span><span class="p">.</span><span class="n">getPDG</span><span class="p">());</span>
+<span class="linenos">54</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">energy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">particle</span><span class="p">.</span><span class="n">getEnergy</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_GeV</span><span class="p">;</span>
+<span class="linenos">55</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">particle</span><span class="p">.</span><span class="n">getTime</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">second</span><span class="p">;</span>
+<span class="linenos">56</span><span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.</span><span class="p">;</span>
+<span class="linenos">57</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="p">(</span><span class="n">particle_conversion</span><span class="o">::</span><span class="n">HasWeightGetter</span><span class="o">&lt;</span><span class="n">TParticle</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">58</span><span class="w">      </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">particle</span><span class="p">.</span><span class="n">getWeight</span><span class="p">();</span>
+<span class="linenos">59</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">60</span>
+<span class="linenos">61</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">pid_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid</span><span class="p">;</span>
+<span class="linenos">62</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">energyGeV_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">energy</span><span class="p">;</span>
+<span class="linenos">63</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">64</span><span class="w">      </span><span class="n">state</span><span class="p">.</span><span class="n">positionM_</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">position</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">meter</span><span class="p">;</span>
+<span class="linenos">65</span><span class="w">      </span><span class="n">state</span><span class="p">.</span><span class="n">direction_</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">direction</span><span class="p">[</span><span class="n">axis</span><span class="p">].</span><span class="n">magnitude</span><span class="p">();</span>
+<span class="linenos">66</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">67</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">timeS_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">time</span><span class="p">;</span>
+<span class="linenos">68</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">weight_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Both helpers require a non-null coordinate system. Import checks the PDG
+conversion, rejects total energy below the C8 rest mass, and rejects a
+non-unit weight when the destination has no weight setter. Those checks
+precede physical-value mutation. Finite values and appropriate directions
+remain caller preconditions; this is not a complete particle validator.</p>
+</section>
+<section id="complete-production-transfer">
+<h2>Complete production transfer<a class="headerlink" href="#complete-production-transfer" title="Link to this heading"></a></h2>
+<p>The following functions belong to <code class="docutils literal notranslate"><span class="pre">corsika::kokkos::particle_transfer</span></code> in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/RouterParticleConversion.hpp">RouterParticleConversion.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/RouterParticleConversion.inl">RouterParticleConversion.inl</a>. They
+implement the production transfer directly rather than calling the general
+helpers above.</p>
+<section id="to-device-state">
+<h3><code class="docutils literal notranslate"><span class="pre">to_device_state</span></code><a class="headerlink" href="#to-device-state" title="Link to this heading"></a></h3>
+<p>The function receives a native particle, the common coordinate system,
+explicit <code class="docutils literal notranslate"><span class="pre">historyId</span></code>, <code class="docutils literal notranslate"><span class="pre">parentHistoryId</span></code>, <code class="docutils literal notranslate"><span class="pre">generation</span></code> and <code class="docutils literal notranslate"><span class="pre">stepId</span></code>
+values, and an <code class="docutils literal notranslate"><span class="pre">EnvironmentTopology</span></code>. It returns a <code class="docutils literal notranslate"><span class="pre">ParticleState</span></code> by value
+without changing or removing the source particle.</p>
+<p>It exports physical values, copies the supplied identity and calls
+<code class="docutils literal notranslate"><span class="pre">export_logical_node</span></code>. That function maps <code class="docutils literal notranslate"><span class="pre">particle.getNode()</span></code> to the
+exported tree’s index and rejects a missing or unmapped node. It does not
+repeat a position-containment search.</p>
+<p><code class="docutils literal notranslate"><span class="pre">mediumId_</span></code> is not populated by this conversion function. After checking
+the environment state, <code class="docutils literal notranslate"><span class="pre">EmRouter::stage</span></code> obtains it from the selected node’s
+model. The end of that staging operation is:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">129</span><span class="w">      </span><span class="n">state</span><span class="p">.</span><span class="n">mediumId_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">environment_</span><span class="p">.</span><span class="n">getModel</span><span class="p">(</span><span class="n">state</span><span class="p">.</span><span class="n">environmentNode_</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">mediumId_</span><span class="p">;</span>
+<span class="linenos">130</span><span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">previous</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lastCpuExpansionStates_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">state</span><span class="p">.</span><span class="n">historyId_</span><span class="p">);</span>
+<span class="linenos">131</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">previous</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">lastCpuExpansionStates_</span><span class="p">.</span><span class="n">end</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="linenos">132</span><span class="w">          </span><span class="n">sameTransportState</span><span class="p">(</span><span class="n">previous</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">133</span><span class="w">        </span><span class="n">forceSmallBatchToGpu_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="linenos">134</span><span class="w">      </span><span class="p">}</span>
+<span class="linenos">135</span><span class="w">      </span><span class="n">staged_</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">state</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The host loop erases the native stack entry after staging succeeds. See
+<a class="reference internal" href="../execution/hybrid-loop.html"><span class="doc">Hybrid event execution</span></a> for the routing and ownership transition.</p>
+</section>
+<section id="import-particle">
+<h3><code class="docutils literal notranslate"><span class="pre">import_particle</span></code><a class="headerlink" href="#import-particle" title="Link to this heading"></a></h3>
+<p>This function receives the destination stack, a numerical record, its common
+coordinate system and the matching topology. It converts the PDG code,
+checks the rest-mass boundary, constructs C8 geometry values, inserts a new
+stack entry and restores identity, weight and the native node pointer. It
+returns the newly inserted particle handle.</p>
+<p>The final insertion and metadata restoration are:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 96</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">particle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stack</span><span class="p">.</span><span class="n">addParticle</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">make_tuple</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">totalEnergy</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mass</span><span class="p">,</span><span class="w"> </span><span class="n">direction</span><span class="p">,</span>
+<span class="linenos"> 97</span><span class="w">                                                      </span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">timeS_</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">second</span><span class="p">));</span>
+<span class="linenos"> 98</span><span class="w">    </span><span class="n">particle</span><span class="p">.</span><span class="n">setTransportIdentity</span><span class="p">(</span><span class="n">transport</span><span class="o">::</span><span class="n">TransportIdentity</span><span class="p">{</span>
+<span class="linenos"> 99</span><span class="w">        </span><span class="n">state</span><span class="p">.</span><span class="n">historyId_</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">parentHistoryId_</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">generation_</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">stepId_</span><span class="p">});</span>
+<span class="linenos">100</span><span class="w">    </span><span class="n">set_weight_if_supported</span><span class="p">(</span><span class="n">particle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">weight_</span><span class="p">);</span>
+<span class="linenos">101</span><span class="w">    </span><span class="n">import_logical_node</span><span class="p">(</span><span class="n">particle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">tree</span><span class="p">);</span>
+<span class="linenos">102</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">particle</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This operation requires a valid record and matching topology. It is not a
+transactional validator: node restoration and some metadata checks occur
+after insertion. The value-only helper’s pre-mutation checks must not be
+assumed to apply to this complete-transfer function.</p>
+</section>
+</section>
+<section id="logical-nodes-and-environment-lifetime">
+<h2>Logical nodes and environment lifetime<a class="headerlink" href="#logical-nodes-and-environment-lifetime" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">EnvironmentTopology</span></code> maps native node addresses to exported indices and
+back. Import restores the recorded logical node, even when the position
+could geometrically belong to another nested node. Recomputing the node from
+position alone would discard the tracking state carried across a boundary.</p>
+<p>The native environment and topology must remain valid throughout transfer.
+Node indices have meaning only within the corresponding exported tree;
+<code class="docutils literal notranslate"><span class="pre">mediumId_</span></code> cannot reconstruct a native node. Coordinator frontier import
+also checks the exported environment fingerprint before accepting logical
+indices; see <a class="reference internal" href="../execution/coordinator.html#execution-frontier-import"><span class="std std-ref">Bounded frontier import</span></a>.</p>
+</section>
+<section id="transport-identity-and-step-state">
+<h2>Transport identity and step state<a class="headerlink" href="#transport-identity-and-step-state" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/stack/TransportIdentityStackExtension.inl">TransportIdentityStackExtension.inl</a> assigns each primary a history ID and
+assigns each secondary a new ID, its parent’s ID and the next generation.
+Copy and swap operations move the identity with the particle. Import restores
+the supplied identity and advances the allocator when necessary to avoid
+reusing an imported ID.</p>
+<p>The step counter has a specific convention:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">151</span><span class="w">  </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">TParentStack</span><span class="o">&gt;</span>
+<span class="linenos">152</span><span class="w">  </span><span class="kr">inline</span><span class="w"> </span><span class="n">StepId</span><span class="w"> </span><span class="n">TransportIdentityDataInterface</span><span class="o">&lt;</span><span class="n">TParentStack</span><span class="o">&gt;::</span><span class="n">beginTransportStep</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">153</span><span class="w">    </span><span class="n">StepId</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">currentStep</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getStepId</span><span class="p">();</span>
+<span class="linenos">154</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">currentStep</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="n">StepId</span><span class="o">&gt;::</span><span class="n">max</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">155</span><span class="w">      </span><span class="k">throw</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">overflow_error</span><span class="p">(</span><span class="s">"Transport step ID space exhausted"</span><span class="p">);</span>
+<span class="linenos">156</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">157</span><span class="w">    </span><span class="n">getStackData</span><span class="p">().</span><span class="n">setStepId</span><span class="p">(</span><span class="n">getIndex</span><span class="p">(),</span><span class="w"> </span><span class="n">currentStep</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="linenos">158</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">currentStep</span><span class="p">;</span>
+<span class="linenos">159</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">beginTransportStep()</span></code> increments the stored counter and returns its previous
+value. <code class="docutils literal notranslate"><span class="pre">CpuParticleScheduler::acquireNext</span></code> carries that returned value in
+the scheduled particle; the router receives it explicitly. Replacing it with
+a later call to <code class="docutils literal notranslate"><span class="pre">getStepId()</span></code> would change the exported step identifier.</p>
+<p>History IDs are not stack indices, queue indices or thread identifiers. They
+support ancestry, step tracking and random-stream selection across routing
+and compaction. Preserving them is necessary for reproducibility, but does
+not by itself guarantee identical histories after changing the scheduling
+or random-stream policy.</p>
+</section>
+<section id="return-path-responsibilities">
+<h2>Return-path responsibilities<a class="headerlink" href="#return-path-responsibilities" title="Link to this heading"></a></h2>
+<p>The caller determines whether a returned state requires a native step,
+completion of a selected interaction, a forced decay or cut processing.
+These policies are described in <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a>; conversion
+does not make that decision.</p>
+<p>In particular, a compatibility-tagged muon-pair product below its rest mass
+must receive the existing native-cut handling before ordinary stack import.
+<code class="docutils literal notranslate"><span class="pre">reserved_</span></code> does not relax the importer’s rest-mass check. Conversion also
+does not normalize a direction, draw a random number or repair a physical
+state; those actions belong to their explicitly defined transport or
+validation paths.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="representation.html" class="btn btn-neutral float-left" title="Particle representation and numerical conventions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="storage.html" class="btn btn-neutral float-right" title="Device storage and state updates" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
