@@ -1,0 +1,51 @@
+Decision title
+==============
+
+Status
+------
+
+State whether this is an observed implementation, a proposal, a reviewed
+decision or a superseded record. For a reviewed decision, link the review
+outcome; do not infer acceptance from the existence of code.
+
+Record the date, source baseline, affected interfaces and component responsible
+for maintenance. If superseded, link the replacement and retain the original
+context.
+
+Context and required behavior
+-----------------------------
+
+Describe the concrete problem and current callers/consumers. State inputs,
+outputs, units, ownership, execution/memory accessibility and failure behavior.
+Identify which physics and reproducibility contracts must be preserved.
+
+Alternatives
+------------
+
+Compare the current implementation and viable alternatives. For each, explain
+the source changes, dependencies, expected benefits, limitations and migration
+cost. Separate measured results from predictions and unresolved questions.
+
+Decision or proposed direction
+------------------------------
+
+State the selected or proposed interface and why it addresses the problem.
+Identify any intentionally changed behavior and the consumers affected.
+Do not describe an unimplemented option as available functionality.
+
+Evidence
+--------
+
+Link pinned source declarations and implementations, test selection and logs,
+independent numerical/physics references where required, and performance
+reports. Record toolchain, backend, device, workload, lifecycle and timing
+definitions. State which requirements the evidence covers and what remains
+unverified.
+
+Consequences and follow-up
+-------------------------
+
+Describe compatibility with existing applications, installed packages,
+snapshots/caches, worker protocols and output readers. Record migration or
+deprecation steps, maintenance responsibilities and conditions for revisiting
+the decision. Link any remaining work rather than treating it as complete.
