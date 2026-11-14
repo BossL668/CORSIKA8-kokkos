@@ -16,7 +16,9 @@ calls, data contracts and event execution, using excerpts included from source.
 The :doc:`execution` chapter covers the hybrid loop, batch contracts and
 process coordination, with file maps and data-flow diagrams. The
 :doc:`particles` chapter documents physical-value conventions, complete-state
-transfer and resident storage, with source excerpts and a test map. The remaining
+transfer and resident storage, with source excerpts and a test map. The
+:doc:`environment` chapter covers scene export, ownership, numerical queries,
+shared boundary selection and model-extension requirements. The remaining
 architecture and maintenance chapters are still outlines; an
 outline does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.

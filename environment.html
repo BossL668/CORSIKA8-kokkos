@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Physics models and table preparation" href="physics-data.html" />
+    <link rel="next" title="Scene construction and snapshot export" href="environment/export.html" />
     <link rel="prev" title="Device storage and state updates" href="particles/storage.html" /> 
 </head>
 
@@ -81,7 +81,12 @@
 <li class="toctree-l2"><a class="reference internal" href="particles/storage.html">Device storage and state updates</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Environment and geometry</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
@@ -122,19 +127,217 @@
              
   <section id="environment-and-geometry">
 <h1>Environment and geometry<a class="headerlink" href="#environment-and-geometry" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How one scene supplies host and device calculations.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Native environment construction and node relationships.</p></li>
-<li><p>Snapshot export, data ownership and device access.</p></li>
-<li><p>Density, field, composition and geometry representations.</p></li>
-<li><p>Node selection and boundary crossing.</p></li>
-<li><p>Adding an environment model or a shape; air, ice and firn examples.</p></li>
+<p>The application builds a native C8 environment. The Kokkos backend exports
+its topology and supported model parameters into numerical records, uploads
+them to execution-space memory, and queries those records during transport.
+The native scene remains available for C8 tracking and CPU process execution.</p>
+<p>This chapter follows that interface from scene construction to device queries.
+It distinguishes support in the environment representation from the more
+restricted combinations accepted by each application and physics backend.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+The documented production path uses the exported environment tree.
+Legacy sphere-layer and convex-polyhedron compatibility paths are outside
+this chapter’s interface contract.</p>
+</div>
+<section id="representation-and-responsibilities">
+<h2>Representation and responsibilities<a class="headerlink" href="#representation-and-responsibilities" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Representation</p></th>
+<th class="head"><p>Responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Native C8 scene</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Environment</span></code>, <code class="docutils literal notranslate"><span class="pre">VolumeTreeNode</span></code>, volumes and model objects.</p></td>
+<td><p>Scene construction, native tracking and process interfaces.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Host snapshot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentTopology</span></code> and <code class="docutils literal notranslate"><span class="pre">EnvironmentSnapshot</span></code>.</p></td>
+<td><p>Preserve ordered node relationships; export shapes and model parameters
+in one coordinate system.</p></td>
+</tr>
+<tr class="row-even"><td><p>Backend storage</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentStorage&lt;TExecutionSpace&gt;</span></code>.</p></td>
+<td><p>Own the uploaded arrays in the selected execution space.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Query interface</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentView</span></code> or <code class="docutils literal notranslate"><span class="pre">EnvironmentBorrowedView</span></code>.</p></td>
+<td><p>Read topology and numerical models without calling native host objects.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Scene construction is shared. Device evaluation is explicit: existing host
+objects are not passed directly into GPU kernels. Point location follows
+C8’s search order through a numerical implementation; ordered boundary
+selection uses an implementation body shared with the native path.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment/extension.html">Supported models and extension requirements</a></li>
 </ul>
+</div>
+</section>
+<section id="source-organization">
+<span id="environment-source-organization"></span><h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>Public contracts are under <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/environment/</span></code> and template
+implementations under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/environment/</span></code>. Native model
+export interfaces remain with the media interfaces they extend.</p>
+<pre class="literal-block">corsika/media/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/Environment.hpp">Environment.hpp</a>  native scene owner
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/VolumeTreeNode.hpp">VolumeTreeNode.hpp</a>  volumes, models and node relationships
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IDensityModelExport.hpp">IDensityModelExport.hpp</a>  density parameter export
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IUniformMagneticFieldExport.hpp">IUniformMagneticFieldExport.hpp</a>  uniform-field export
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IRefractivityModelExport.hpp">IRefractivityModelExport.hpp</a>  refractivity parameter export
+
+corsika/kokkos/environment/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp">EnvironmentTopology.hpp</a>  ordered graph and native-index mapping
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentSnapshot.hpp">EnvironmentSnapshot.hpp</a>  owning host parameter records
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentDataView.hpp">EnvironmentDataView.hpp</a>  borrowed pointer/count interface
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentStorage.hpp">EnvironmentStorage.hpp</a>  owning execution-space arrays
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentView.hpp">EnvironmentView.hpp</a>  managed read-only queries
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentBorrowedView.hpp">EnvironmentBorrowedView.hpp</a>  queries over borrowed arrays
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentQuery.hpp">EnvironmentQuery.hpp</a>  transport query contracts
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentLeptonBoundary.hpp">EnvironmentLeptonBoundary.hpp</a>  charged-particle boundary adapter
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp">TransportGeometryConfig.hpp</a>  query configuration and observation plane
+
+corsika/detail/kokkos/environment/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentPreparation.inl">EnvironmentPreparation.inl</a>  snapshot and observation export
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshot.inl">EnvironmentSnapshot.inl</a>  topology, shape and model assembly
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ShapeConversion.inl">ShapeConversion.inl</a>  native volume conversion
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelConversion.inl">ModelConversion.inl</a>  native model conversion
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshotKey.inl">EnvironmentSnapshotKey.inl</a>  reuse key and compatibility fingerprint
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentStorage.inl">EnvironmentStorage.inl</a>  allocation, copies and views
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSearch.inl">EnvironmentSearch.inl</a>  point containment and node location
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelEvaluation.inl">ModelEvaluation.inl</a>  density and refractive-index evaluation
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelGrammage.inl">ModelGrammage.inl</a>  line integrals and inverses
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/NextEnvironmentBoundary.inl">NextEnvironmentBoundary.inl</a>  shared boundary-selection entry
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/CurvedBoundaryAccess.inl">CurvedBoundaryAccess.inl</a>  trajectory intersection adapter
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/firn/FirnModel.inl">firn/FirnModel.inl</a>  firn profile and grammage operations
+
+corsika/detail/framework/geometry/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a>  common native/Kokkos selection body</pre>
+<p>Application and session integration:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 42.0%" />
+<col style="width: 58.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Source</p></th>
+<th class="head"><p>Responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl">CascadeExtension.inl</a></p></td>
+<td><p>Retain the native environment reference in cascade inputs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl">CascadePreparation.inl</a></p></td>
+<td><p>Export the scene, validate its policy and bind host data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a></p></td>
+<td><p>Pass environment and geometry into the EM session.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a></p></td>
+<td><p>Initialize or reuse a session with matching scene data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a></p></td>
+<td><p>Own uploaded arrays and expose the borrowed query view.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="validation-coverage">
+<span id="environment-validation"></span><h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>The following source tests cover representation, queries and native-path
+comparisons. Their presence is not a claim that every test has run on every
+GPU architecture. Tests using <code class="docutils literal notranslate"><span class="pre">Kokkos::DefaultExecutionSpace</span></code> exercise the
+backend selected by that build; full-shower validation remains a separate
+requirement.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 23.0%" />
+<col style="width: 42.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Area</p></th>
+<th class="head"><p>Tests in <code class="docutils literal notranslate"><span class="pre">tests/kokkos/environment/</span></code></p></th>
+<th class="head"><p>Scope</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Topology and host export</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentTopology.cpp">testEnvironmentTopology.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSnapshot.cpp">testEnvironmentSnapshot.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testShapeConversion.cpp">testShapeConversion.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelConversion.cpp">testModelConversion.cpp</a>.</p></td>
+<td><p>Node order, ownership, native identities, coordinate conversion and rejection of unsupported exports.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Array transfer and ownership</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentStorage.cpp">testEnvironmentStorage.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSnapshotData.cpp">testEnvironmentSnapshotData.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentTransfer.cpp">testEnvironmentTransfer.cpp</a>.</p></td>
+<td><p>Uploaded records, borrowed views and transfer contracts.</p></td>
+</tr>
+<tr class="row-even"><td><p>Point location and query results</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSearch.cpp">testEnvironmentSearch.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSearchDevice.cpp">testEnvironmentSearchDevice.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentQuery.cpp">testEnvironmentQuery.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentQueryDevice.cpp">testEnvironmentQueryDevice.cpp</a>.</p></td>
+<td><p>Native/reference comparisons, logical-node handling and query statuses.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Model evaluation and grammage</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelEvaluation.cpp">testModelEvaluation.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelEvaluationDevice.cpp">testModelEvaluationDevice.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelGrammage.cpp">testModelGrammage.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelGrammageDevice.cpp">testModelGrammageDevice.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testFirnEnvironment.cpp">testFirnEnvironment.cpp</a>.</p></td>
+<td><p>Density and refractive index, line-integral/inverse behavior, transformed firn profiles and surface-domain handling.</p></td>
+</tr>
+<tr class="row-even"><td><p>Boundary intersections</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testStraightBoundary.cpp">testStraightBoundary.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testStraightBoundaryDevice.cpp">testStraightBoundaryDevice.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testCurvedBoundary.cpp">testCurvedBoundary.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testCurvedBoundaryDevice.cpp">testCurvedBoundaryDevice.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testLeptonBoundary.cpp">testLeptonBoundary.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testLeptonBoundaryDevice.cpp">testLeptonBoundaryDevice.cpp</a>.</p></td>
+<td><p>Ordered boundary results, trajectory adapters and intersection failure flags.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Borrowed views in transport</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentBorrowedQuery.cpp">testEnvironmentBorrowedQuery.cpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentBorrowedTransport.cpp">testEnvironmentBorrowedTransport.cpp</a>.</p></td>
+<td><p>Queries and transport calls using the non-owning environment representation.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="environment-data-flow">
+<span id="id1"></span><h2>Environment data flow<a class="headerlink" href="#environment-data-flow" title="Link to this heading"></a></h2>
+<p>The application supplies the native environment and common coordinates through
+the cascade integration interface. Preparation exports a host snapshot;
+backend initialization uploads its arrays. Transport then accesses the
+resident representation. The native-node mapping is retained on the host for
+particle transfer, as described in <a class="reference internal" href="particles/conversion.html"><span class="doc">Host and backend conversion</span></a>.</p>
+<figure class="align-default" id="id2">
+<a class="reference external image-reference" href="_static/environment-data-flow.svg"><img alt="The native C8 environment passes through cascade preparation, snapshot export and backend storage into environment queries; observation-plane data follows a separate geometry configuration path." src="_images/environment-data-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Environment preparation and query interfaces. The observation plane is
+separate from the material tree. Open the SVG to follow links to source.
+<a class="reference download internal" download="" href="_downloads/a599fd4c17c34f34113b7707eaf711bc/environment-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/d70efe00d9fda15f2d8c79668cc37d64/environment-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -143,7 +346,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="particles/storage.html" class="btn btn-neutral float-left" title="Device storage and state updates" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="physics-data.html" class="btn btn-neutral float-right" title="Physics models and table preparation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="environment/export.html" class="btn btn-neutral float-right" title="Scene construction and snapshot export" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -1,0 +1,370 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supported models and extension requirements &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/environment/extension.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Physics models and table preparation" href="../physics-data.html" />
+    <link rel="prev" title="Environment queries and boundary selection" href="queries.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../environment.html">Environment and geometry</a></li>
+      <li class="breadcrumb-item active">Supported models and extension requirements</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/environment/extension.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="supported-models-and-extension-requirements">
+<h1>Supported models and extension requirements<a class="headerlink" href="#supported-models-and-extension-requirements" title="Link to this heading"></a></h1>
+<p>The native scene can supply both CPU and Kokkos calculations without being
+constructed twice. Device execution still requires supported representations
+and callable operations. This page records the current implementation limits
+and the work needed to extend them.</p>
+<section id="device-access-requirements">
+<h2>Device-access requirements<a class="headerlink" href="#device-access-requirements" title="Link to this heading"></a></h2>
+<p>The native environment is a host object graph. <code class="docutils literal notranslate"><span class="pre">VolumeTreeNode</span></code> owns volumes
+and children through smart pointers, keeps node links as references, and calls
+polymorphic volume and model interfaces. Its coordinate-aware operations also
+refer to native coordinate systems. Copying the top-level object would not
+copy the pointed-to allocations or make its methods device-callable.</p>
+<p>Three requirements must hold for a GPU query:</p>
+<ul class="simple">
+<li><p>Every referenced allocation must be accessible in that execution space and
+remain alive until the query completes.</p></li>
+<li><p>Every function reached by the query must have a device-callable implementation,
+including its numerical and coordinate operations.</p></li>
+<li><p>Dynamic dispatch, when used, must refer to valid device implementations.
+A host-constructed virtual-function table cannot be made device-callable
+by copying the object bytes.</p></li>
+</ul>
+<p>GPUs can use classes and pointers; arrays are an implementation choice rather
+than the only possible representation. Device-side virtual calls are possible
+on some backends with additional construction and lifetime requirements, but
+are not uniformly portable. Shared memory accessibility alone does not repair
+host virtual-function dispatch. The <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/Kokkos-and-Virtual-Functions.html">Kokkos virtual-function documentation</a>
+describes these constraints.</p>
+<p>The current implementation keeps native scene construction on the host and
+uses indices, tagged parameter records and device-callable functions for
+queries. Kokkos views provide allocation and transfer facilities; Kokkos does
+not automatically convert arbitrary C8 objects or functions into device code.
+See the <a class="reference external" href="https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/View.html">Kokkos View documentation</a> for allocation and memory-space semantics.</p>
+</section>
+<section id="shape-support">
+<h2>Shape support<a class="headerlink" href="#shape-support" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">export_shape</span></code> recognizes exact native types. An unknown type, including a
+subclass that might override a supported shape’s behavior, is rejected instead
+of being reduced silently to a base shape. Coordinates are transformed through
+C8 before numerical parameters are exported.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 26.0%" />
+<col style="width: 30.0%" />
+<col style="width: 44.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Shape</p></th>
+<th class="head"><p>Point location and straight intersection</p></th>
+<th class="head"><p>Curved intersection</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Universe</span></code></p></td>
+<td><p>Contains all points; no finite enclosing boundary.</p></td>
+<td><p>No finite enclosing boundary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Sphere</span></code></p></td>
+<td><p>Supported.</p></td>
+<td><p>Supported through the leapfrog sphere-intersection polynomial.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Box</span></code></p></td>
+<td><p>Supported, including its transformed local axes.</p></td>
+<td><p>Unsupported for a genuinely curved trajectory; the linear branch
+remains available.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SeparationPlane</span></code></p></td>
+<td><p>Supported as a half-space.</p></td>
+<td><p>Supported through the leapfrog plane intersection.</p></td>
+</tr>
+</tbody>
+</table>
+<p>An arbitrary mesh or convex polyhedron is not an exported shape kind in this
+tree interface. A separate compatibility implementation elsewhere in the
+repository does not establish support in this path. The precise conversion
+and intersection policies are in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ShapeConversion.inl">ShapeConversion.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/CurvedBoundaryAccess.inl">CurvedBoundaryAccess.inl</a>.</p>
+</section>
+<section id="model-support">
+<h2>Model support<a class="headerlink" href="#model-support" title="Link to this heading"></a></h2>
+<p>Each exported native model must provide density, uniform-field and refractivity
+export interfaces, together with its medium and nuclear composition. These
+interfaces expose parameters; they do not invoke numerical sampling to
+approximate an otherwise unsupported function.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Numerical representation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Density</p></td>
+<td><p>Homogeneous, sliding-planar exponential, flat exponential or exponential
+firn.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Magnetic field</p></td>
+<td><p>One uniform three-component field per model, expressed in the common
+coordinate system.</p></td>
+</tr>
+<tr class="row-even"><td><p>Refractive index</p></td>
+<td><p>Uniform, Gladstone–Dale or exponential firn. The representation also
+carries an unavailable state; that state does not provide a usable
+refractive-index evaluation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Material composition</p></td>
+<td><p>Native medium identifier and an ordered list of nuclear codes and
+number fractions.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Spatially varying magnetic fields and other density laws require additional
+representations and evaluators. A linear-density or tabulated model cannot be
+made compatible by relabeling its parameters as an exponential. Missing export
+interfaces and unsupported kinds are rejected during snapshot construction.</p>
+<p>The required native interfaces are <code class="docutils literal notranslate"><span class="pre">IDensityModelExport</span></code>,
+<code class="docutils literal notranslate"><span class="pre">IUniformMagneticFieldExport</span></code> and <code class="docutils literal notranslate"><span class="pre">IRefractivityModelExport</span></code>. If a derived
+model overrides the underlying physical behavior, its exporter must describe
+that behavior as well; inheriting an incompatible base exporter is insufficient.
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelConversion.inl">ModelConversion.inl</a> implements their conversion and validation.</p>
+</section>
+<section id="application-and-physics-constraints">
+<h2>Application and physics constraints<a class="headerlink" href="#application-and-physics-constraints" title="Link to this heading"></a></h2>
+<p>A successful snapshot export is necessary but not sufficient to run a new
+scene. Current cascade preparation also applies these application policies:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 76.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Scene policy</p></th>
+<th class="head"><p>Current requirement</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Atmosphere</p></td>
+<td><p>Every exported model has medium <code class="docutils literal notranslate"><span class="pre">AirDry1Atm</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Homogeneous ice</p></td>
+<td><p>Exactly one exported model: <code class="docutils literal notranslate"><span class="pre">WaterIce</span></code>, homogeneous density and
+uniform refractive index.</p></td>
+</tr>
+<tr class="row-even"><td><p>Firn</p></td>
+<td><p>Exactly one exported model: <code class="docutils literal notranslate"><span class="pre">WaterIce</span></code>, exponential-firn density
+and exponential-firn refractive index.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These checks appear in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/atmosphere/AtmospherePolicy.inl">AtmospherePolicy.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/ice/HomogeneousIcePolicy.inl">HomogeneousIcePolicy.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/firn/FirnPolicy.inl">FirnPolicy.inl</a>. Several nodes may share one model; the single-model
+requirement is not a single-node requirement.</p>
+<p>The physics tables must cover the material and requested processes. Radio
+propagation also has its own medium and geometry requirements. Exporting a
+new medium does not by itself supply cross sections, enable mixed-material
+transport or validate its radio calculation. Those integrations must be
+checked separately from environment queries.</p>
+</section>
+<section id="adding-or-changing-an-environment">
+<h2>Adding or changing an environment<a class="headerlink" href="#adding-or-changing-an-environment" title="Link to this heading"></a></h2>
+<p>For a scene composed entirely of supported shapes and models, retain the
+native C8 construction and export it through the existing interface. Check
+the application’s scene policy and physics/radio configuration before
+assuming the new combination is runnable. New geometry need not imply a
+new search algorithm.</p>
+<p>For a new shape or model kind, the implementation work is:</p>
+<ol class="arabic simple">
+<li><p>Define the native semantics and export contract: units, coordinates,
+parameter domain, boundary conventions and ownership.</p></li>
+<li><p>Extend the numerical record and exporter. A new shape needs containment
+and all required intersection operations. A new density law needs local
+evaluation, line-integrated grammage and its inverse; refractivity and
+field behavior require their corresponding evaluators.</p></li>
+<li><p>Review snapshot transfer, memory accounting, numerical keys and frontier
+compatibility whenever records change. Extend session validation if new
+geometry configuration affects queries. Rebuild the snapshot and session
+after changing an active scene.</p></li>
+<li><p>Connect the appropriate material tables and scene policy. Validate radio
+propagation separately when enabled. Keep these policies outside the
+generic node-search implementation.</p></li>
+<li><p>Add native-versus-numerical tests for transformed coordinates, interface
+points, node ordering, inverse domains and failures. Run them on each
+supported execution space, followed by full-shower physics and performance
+regression tests for the intended application.</p></li>
+</ol>
+<p>The existing firn implementation illustrates the separation: it adds exported
+profile parameters and numerical evaluation while retaining the same topology,
+storage and node-search interfaces. Its surface-domain and inverse-grammage
+behavior require their own tests; using the common tree does not eliminate
+model-specific validation.</p>
+</section>
+<section id="shared-implementation-and-maintenance">
+<h2>Shared implementation and maintenance<a class="headerlink" href="#shared-implementation-and-maintenance" title="Link to this heading"></a></h2>
+<p>The current boundary selector already shares one implementation body through
+native and numerical access adapters. Point location retains equivalent
+ordering in separate implementations, and model evaluation remains separate
+from the host polymorphic methods. Changes to those separate implementations
+must be reviewed together with their equivalence tests.</p>
+<p>A further maintenance direction is to share small numerical functions beneath
+the native and device adapters where their contracts match. Such a change
+would require device-callable dependencies and explicit decisions about units,
+rounding and domain handling. It is a development option, not a claim that
+all current environment algorithms already have a single implementation.</p>
+<p>The existing tests are mapped in <a class="reference internal" href="../environment.html#environment-validation"><span class="std std-ref">Validation coverage</span></a>. Preserve
+coverage of failure paths as well as successful queries, and distinguish
+matching node decisions from numerical agreement of intersection distances.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="queries.html" class="btn btn-neutral float-left" title="Environment queries and boundary selection" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../physics-data.html" class="btn btn-neutral float-right" title="Physics models and table preparation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

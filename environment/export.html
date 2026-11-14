@@ -1,0 +1,369 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scene construction and snapshot export &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/environment/export.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Environment queries and boundary selection" href="queries.html" />
+    <link rel="prev" title="Environment and geometry" href="../environment.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../environment.html">Environment and geometry</a></li>
+      <li class="breadcrumb-item active">Scene construction and snapshot export</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/environment/export.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="scene-construction-and-snapshot-export">
+<h1>Scene construction and snapshot export<a class="headerlink" href="#scene-construction-and-snapshot-export" title="Link to this heading"></a></h1>
+<p>The native environment is the source of scene information for both execution
+paths. Export changes its representation, not the application’s ownership of
+the scene. The resulting arrays contain topology, shape parameters and material
+parameters; they do not contain native object addresses or virtual-function
+tables.</p>
+<section id="native-environment-construction">
+<h2>Native environment construction<a class="headerlink" href="#native-environment-construction" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Environment&lt;T&gt;</span></code> owns the universe node and provides <code class="docutils literal notranslate"><span class="pre">createNode</span></code> for
+constructing volumes. Each <code class="docutils literal notranslate"><span class="pre">VolumeTreeNode</span></code> owns its volume and child nodes,
+shares its model object through a smart pointer, and holds non-owning parent
+and exclusion references. The interfaces are defined in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/Environment.hpp">Environment.hpp</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/VolumeTreeNode.hpp">VolumeTreeNode.hpp</a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">addChild</span></code> establishes ownership and the child’s parent. In contrast,
+<code class="docutils literal notranslate"><span class="pre">excludeOverlapWith</span></code> records a directed, non-owning relationship: a volume
+can be excluded from another without becoming its child. Reciprocal exclusions
+must be specified explicitly. The order of children and exclusions matters
+for point location and boundary selection.</p>
+<p>A node can have no model, and several nodes can share one model object.
+Neither export nor the numerical query interface implicitly inherits model
+properties from a parent. A model-free universe is therefore valid topology,
+but is not itself a transport medium.</p>
+</section>
+<section id="application-handoff">
+<h2>Application handoff<a class="headerlink" href="#application-handoff" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeExtension::geometry(env,</span> <span class="pre">coordinates,</span> <span class="pre">...)</span></code> retains the environment
+reference and coordinate-system handle in the cascade inputs. When the
+accelerated run is prepared, <code class="docutils literal notranslate"><span class="pre">prepare_cascade</span></code> receives those native objects.
+The caller must keep them alive throughout the run. See
+<a class="reference internal" href="../application/data-contracts.html"><span class="doc">Application data and lifetime contracts</span></a> for the surrounding application interface.</p>
+<p>The environment preparation helper constructs a snapshot from the complete
+universe and the supplied common coordinate system:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">11</span><span class="w">  </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">TEnvironment</span><span class="o">&gt;</span>
+<span class="linenos">12</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">prepare_environment_snapshot</span><span class="p">(</span><span class="n">TEnvironment</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">environment</span><span class="p">,</span>
+<span class="linenos">13</span><span class="w">                                    </span><span class="n">CoordinateSystemPtr</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">coordinates</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">model_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">TEnvironment</span><span class="o">::</span><span class="n">BaseNodeType</span><span class="o">::</span><span class="n">IModelProperties</span><span class="p">;</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">EnvironmentSnapshot</span><span class="o">&lt;</span><span class="n">model_type</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="o">*</span><span class="n">environment</span><span class="p">.</span><span class="n">getUniverse</span><span class="p">(),</span>
+<span class="linenos">16</span><span class="w">                                                             </span><span class="n">coordinates</span><span class="p">);</span>
+<span class="linenos">17</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The production caller then checks the scene policy and binds a host view:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">42</span><span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">exported</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prepare_environment_snapshot</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span><span class="w"> </span><span class="n">rootCoordinates</span><span class="p">);</span>
+<span class="linenos">43</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">event</span><span class="p">.</span><span class="n">scene_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">CascadeScene</span><span class="o">::</span><span class="n">Atmosphere</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">44</span><span class="w">        </span><span class="n">atmosphere</span><span class="o">::</span><span class="n">require_air_materials</span><span class="p">(</span><span class="o">*</span><span class="n">exported</span><span class="p">);</span>
+<span class="linenos">45</span><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">event</span><span class="p">.</span><span class="n">scene_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">CascadeScene</span><span class="o">::</span><span class="n">Firn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">46</span><span class="w">        </span><span class="n">firn</span><span class="o">::</span><span class="n">require_firn</span><span class="p">(</span><span class="o">*</span><span class="n">exported</span><span class="p">);</span>
+<span class="linenos">47</span><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">48</span><span class="w">        </span><span class="n">ice</span><span class="o">::</span><span class="n">require_homogeneous_ice</span><span class="p">(</span><span class="o">*</span><span class="n">exported</span><span class="p">);</span>
+<span class="linenos">49</span><span class="w">      </span><span class="p">}</span>
+<span class="linenos">50</span><span class="w">      </span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentStorage_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exported</span><span class="p">;</span>
+<span class="linenos">51</span><span class="w">      </span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentData_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">bind_environment_data</span><span class="p">(</span><span class="o">*</span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentStorage_</span><span class="p">);</span>
+<span class="linenos">52</span><span class="w">      </span><span class="n">prepared</span><span class="p">.</span><span class="n">geometry_</span><span class="p">.</span><span class="n">query_</span><span class="p">.</span><span class="n">maximumMagneticDeflectionRad_</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">53</span><span class="w">          </span><span class="n">event</span><span class="p">.</span><span class="n">maximumMagneticDeflectionRad_</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Despite its name, <code class="docutils literal notranslate"><span class="pre">prepared.environmentStorage_</span></code> here owns a <strong>host snapshot</strong>
+through a shared pointer. It is distinct from
+<code class="docutils literal notranslate"><span class="pre">EnvironmentStorage&lt;TExecutionSpace&gt;</span></code>, which owns the backend arrays.
+<code class="docutils literal notranslate"><span class="pre">bind_environment_data</span></code> only exposes host addresses and counts; it does not
+upload memory.</p>
+</section>
+<section id="topology-and-identity">
+<h2>Topology and identity<a class="headerlink" href="#topology-and-identity" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">EnvironmentTopology&lt;TModelProperties&gt;</span></code> traverses the owning tree in preorder
+and assigns integer indices. Root index <code class="docutils literal notranslate"><span class="pre">0</span></code> has parent <code class="docutils literal notranslate"><span class="pre">-1</span></code>. Child and
+exclusion lists retain their native ordering, including explicitly repeated
+references. Every exclusion must refer to a node in the same ownership tree.
+Malformed parent links, duplicate ownership and external exclusions are
+rejected during construction.</p>
+<p>Model indices identify native model objects. Shared objects receive one index;
+distinct objects with equal values remain distinct. <code class="docutils literal notranslate"><span class="pre">modelIndex_</span> <span class="pre">==</span> <span class="pre">-1</span></code> means
+that the node has no model. The topology also keeps host-only mappings:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 36.0%" />
+<col style="width: 64.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interface</p></th>
+<th class="head"><p>Result and contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">getNodeIndex(nativeNode)</span></code></p></td>
+<td><p>Snapshot index for the supplied native node; an absent node maps to
+<code class="docutils literal notranslate"><span class="pre">-1</span></code>. An unknown node is rejected.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">getNativeNode(index)</span></code></p></td>
+<td><p>Native node reference for an exported index; <code class="docutils literal notranslate"><span class="pre">-1</span></code> denotes no node.
+Other invalid indices are rejected.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Indices are local to one snapshot. They are not persistent identifiers across
+tree edits. The mappings borrow native objects, so those objects must outlive
+uses of the mappings. Particle export/import must use the matching topology.</p>
+</section>
+<section id="numerical-records">
+<h2>Numerical records<a class="headerlink" href="#numerical-records" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">EnvironmentSnapshot</span></code> combines that topology with shape and model records.
+<code class="docutils literal notranslate"><span class="pre">export_shape</span></code> converts each volume to the common coordinates;
+<code class="docutils literal notranslate"><span class="pre">export_model</span></code> reads the native model’s export interfaces. Both operate on
+stored parameters rather than sampling or fitting the original functions.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.0%" />
+<col style="width: 73.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Record</p></th>
+<th class="head"><p>Preserved information</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentNode</span></code></p></td>
+<td><p>Parent and model indices, plus offsets and counts into ordered child
+and exclusion arrays. The shape array uses the same index as the node.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentShape</span></code></p></td>
+<td><p>Shape kind, center, dimensions, axes or normal. Lengths are in metres;
+vector components refer to the snapshot’s common coordinate system.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentModel</span></code></p></td>
+<td><p>Density and refractivity kinds and parameters, uniform magnetic field
+in tesla, native medium identifier, and a composition range.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EnvironmentComponent</span></code></p></td>
+<td><p>Native C8 nuclear <code class="docutils literal notranslate"><span class="pre">Code</span></code> and number fraction, in the supplied order.
+Fractions are neither renormalized nor merged during export.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Density is represented in g/cm³, geometry in metres and grammage in g/cm².
+Model records retain the scale lengths, anchors, axes and coefficients needed
+to evaluate density or refractive index at a position. An exponential density
+is therefore stored as a function’s parameters, not as one constant density
+or a sampled three-dimensional grid.</p>
+<p><code class="docutils literal notranslate"><span class="pre">modelIndex_</span></code> selects an exported model record. <code class="docutils literal notranslate"><span class="pre">mediumId_</span></code> identifies a
+native physical medium; these are different index spaces. For refractivity,
+the uniform form stores the refractive index itself, whereas the
+Gladstone–Dale form stores the reference refractivity and density scaling.
+See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentModel.hpp">EnvironmentModel.hpp</a> for the precise field conventions.</p>
+</section>
+<section id="device-upload-and-ownership">
+<h2>Device upload and ownership<a class="headerlink" href="#device-upload-and-ownership" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeRunner</span></code> passes <code class="docutils literal notranslate"><span class="pre">prepared.environmentData_</span></code> and
+<code class="docutils literal notranslate"><span class="pre">prepared.geometry_</span></code> to <code class="docutils literal notranslate"><span class="pre">EmRunSession::beginProposalNative</span></code>. On first use,
+the session initializes the EM backend. Its implementation constructs
+<code class="docutils literal notranslate"><span class="pre">EnvironmentStorage&lt;TExecutionSpace&gt;</span></code> and obtains a borrowed view of the
+uploaded arrays. The storage constructor copies the six arrays:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">26</span><span class="w">  </span><span class="n">EnvironmentStorage</span><span class="o">&lt;</span><span class="n">TExecutionSpace</span><span class="o">&gt;::</span><span class="n">EnvironmentStorage</span><span class="p">(</span>
+<span class="linenos">27</span><span class="w">      </span><span class="n">EnvironmentDataView</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">host</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">nodes_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment nodes"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">nodes_</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">nodeCount_</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">shapes_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment shapes"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">shapes_</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">nodeCount_</span><span class="p">);</span>
+<span class="linenos">30</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">children_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment children"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">children_</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">childCount_</span><span class="p">);</span>
+<span class="linenos">31</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">exclusions_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment exclusions"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">exclusions_</span><span class="p">,</span>
+<span class="linenos">32</span><span class="w">           </span><span class="n">host</span><span class="p">.</span><span class="n">exclusionCount_</span><span class="p">);</span>
+<span class="linenos">33</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">models_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment models"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">models_</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">modelCount_</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">    </span><span class="n">upload</span><span class="p">(</span><span class="n">composition_</span><span class="p">,</span><span class="w"> </span><span class="s">"full environment composition"</span><span class="p">,</span><span class="w"> </span><span class="n">host</span><span class="p">.</span><span class="n">composition_</span><span class="p">,</span>
+<span class="linenos">35</span><span class="w">           </span><span class="n">host</span><span class="p">.</span><span class="n">componentCount_</span><span class="p">);</span>
+<span class="linenos">36</span><span class="w">  </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Each upload allocates a Kokkos view, fills a host mirror and calls
+<code class="docutils literal notranslate"><span class="pre">Kokkos::deep_copy</span></code>. <code class="docutils literal notranslate"><span class="pre">getView()</span></code> returns a managed read-only view sharing
+the allocations. <code class="docutils literal notranslate"><span class="pre">getDataView()</span></code> returns borrowed pointers and counts;
+<code class="docutils literal notranslate"><span class="pre">EnvironmentBorrowedView</span></code> provides the query accessors around those pointers.
+The memory accessibility of a data view depends on its owner: a host-bound
+view does not become device-accessible merely by passing the struct to a kernel.</p>
+<p>Finish pending execution before replacing or releasing the last allocation
+owner, and release device owners before Kokkos finalization. Copying the
+snapshot struct’s bytes is not an interchange or serialization format.</p>
+</section>
+<section id="session-reuse-and-scene-changes">
+<h2>Session reuse and scene changes<a class="headerlink" href="#session-reuse-and-scene-changes" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code> compares the exported numerical environment, observation plane
+and magnetic-deflection limit with its initial configuration. A changed
+environment in an initialized session raises an exception requesting a new
+session; it is not silently re-uploaded. With matching configuration, the
+backend retains allocations and begins a new shower.</p>
+<p>Changes to native geometry or models require a new export and a compatible
+backend session. Mutating the native scene alone does not update resident
+arrays. <code class="docutils literal notranslate"><span class="pre">make_environment_snapshot_key</span></code> compares numerical fields rather
+than native addresses; the separate snapshot fingerprint is a compatibility
+tag, not a cryptographic integrity check.</p>
+</section>
+<section id="observation-geometry">
+<h2>Observation geometry<a class="headerlink" href="#observation-geometry" title="Link to this heading"></a></h2>
+<p>The observation level is passed separately. <code class="docutils literal notranslate"><span class="pre">CascadeRunner</span></code> calls
+<code class="docutils literal notranslate"><span class="pre">export_observation_plane(observationLevel.getPlane(),</span> <span class="pre">rootCS)</span></code> and supplies
+the resulting point and normal to preparation. The point is in metres and
+the normal is dimensionless, both in the common coordinate system. The
+normal is validated rather than silently normalized.</p>
+<p><code class="docutils literal notranslate"><span class="pre">TransportGeometryConfig::observation_</span></code> stores this plane. It is not inserted
+into the material tree and does not acquire a material model. Preparation’s
+horizontal-plane fallback is used only when no explicit observation plane
+is supplied. Its distance competes with other step limits in transport.</p>
+</section>
+<section id="implementation-references">
+<h2>Implementation references<a class="headerlink" href="#implementation-references" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentTopology.inl">EnvironmentTopology.inl</a>: ordered flattening and native-index mappings.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshot.inl">EnvironmentSnapshot.inl</a>: assembled export and lifetime relationships.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a>: actual observation plane and session handoff.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>: owning backend allocation and borrowed view.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>: initialization, reuse and environment-change rejection.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../environment.html" class="btn btn-neutral float-left" title="Environment and geometry" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="queries.html" class="btn btn-neutral float-right" title="Environment queries and boundary selection" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
