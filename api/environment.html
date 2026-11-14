@@ -1,0 +1,764 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Environment preparation and queries &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=d7e4d8cd" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/api/environment.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=dd985633"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Physics tables and transport stages" href="physics.html" />
+    <link rel="prev" title="Particle records and conversion" href="particles.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API reference</a></li>
+      <li class="breadcrumb-item active">Environment preparation and queries</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/environment.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="environment-preparation-and-queries">
+<h1>Environment preparation and queries<a class="headerlink" href="#environment-preparation-and-queries" title="Link to this heading"></a></h1>
+<p>The environment interfaces separate native-scene export, numerical storage
+and per-query results. Host preparation accepts the existing C8 tree and
+coordinate system; device queries operate on accessible exported arrays.
+The declarations below are generated from the public headers. Supported
+shapes, model kinds and shared search semantics are described in
+<a class="reference internal" href="../environment/export.html"><span class="doc">Scene construction and snapshot export</span></a>, <a class="reference internal" href="../environment/queries.html"><span class="doc">Environment queries and boundary selection</span></a> and
+<a class="reference internal" href="../environment/extension.html"><span class="doc">Supported models and extension requirements</span></a>.</p>
+<section id="host-snapshot-and-topology">
+<h2>Host snapshot and topology<a class="headerlink" href="#host-snapshot-and-topology" title="Link to this heading"></a></h2>
+<p>The snapshot owns independent numerical records in one common coordinate
+system. Its topology also retains borrowed mappings to native nodes and
+models. Exporting the numerical arrays does not transfer those host pointers
+to the device. Keep the native objects alive and unchanged while their
+mappings are used; rebuild after changing the scene.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentSnapshot.hpp">EnvironmentSnapshot.hpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp">EnvironmentTopology.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentPreparation.hpp">EnvironmentPreparation.hpp</a>.</p>
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos19EnvironmentSnapshotE">
+<span id="_CPPv3I0EN7corsika6kokkos19EnvironmentSnapshotE"></span><span id="_CPPv2I0EN7corsika6kokkos19EnvironmentSnapshotE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentSnapshot</span></span></span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentSnapshotE" title="Link to this definition"></a><br /></dt>
+<dd><p>Host-owned assembly of topology, shapes and exact native model parameters.</p>
+<p>Each node has one shape at the same index in <a class="reference internal" href="#classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a3857a191381e34611afd37387a081291"><span class="std std-ref">getShapes()</span></a>. A nonnegative <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentNode.hpp#L29">EnvironmentNode::modelIndex_</a> addresses <a class="reference internal" href="#classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a9c78b0826e5ad95d096c19dc6a747fa1"><span class="std std-ref">getModels()</span></a>; -1 means no model, with no automatic inheritance from the parent. Model indices follow first occurrence in native preorder. Nodes sharing the same property object share one model and composition range; equal-valued distinct objects stay distinct. Child and exclusion ordering, including repeated references, is preserved.</p>
+<p>Numeric records are independent copies in one caller-selected coordinate system. The topology still borrows native node/model pointers: keep the source tree and model assignments alive and unchanged while using those mappings. Copies retain the same borrowed source and shared coordinate system. Rebuild after changing geometry, models or their coordinate systems. Only the numeric arrays, not this host object or its pointers, may be copied to a device. Their layout is not a portable serialization format.</p>
+<p>Performs no containment search, density evaluation, boundary intersection or observation-surface construction. Unsupported inputs fail explicitly; nodes and models are never silently omitted or replaced by approximations. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-types">Public Types</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentSnapshot13topology_typeE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentSnapshot13topology_typeE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentSnapshot13topology_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a458b640d81ece588e294d1f28686c5c8"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">topology_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology"><span class="n"><span class="pre">EnvironmentTopology</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentSnapshotE" title="corsika::kokkos::EnvironmentSnapshot::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot13topology_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentSnapshot9node_typeE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentSnapshot9node_typeE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentSnapshot9node_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1adff850c85555eb07b3377119b0a3a0a8"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">node_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot13topology_typeE" title="corsika::kokkos::EnvironmentSnapshot::topology_type"><span class="n"><span class="pre">topology_type</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp#L40"><span class="n"><span class="pre">node_type</span></span></a><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot9node_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentSnapshot19EnvironmentSnapshotERK9node_typeRK19CoordinateSystemPtr">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentSnapshot19EnvironmentSnapshotERK9node_typeRK19CoordinateSystemPtr"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentSnapshot19EnvironmentSnapshotERK9node_typeRK19CoordinateSystemPtr"></span><span id="corsika::kokkos::EnvironmentSnapshot::EnvironmentSnapshot__node_typeCR.CoordinateSystemPtrCR"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a98bec3acafab49dc0c2d55c635469b8d"></span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentSnapshot</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot9node_typeE" title="corsika::kokkos::EnvironmentSnapshot::node_type"><span class="n"><span class="pre">node_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">root</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">coordinateSystem</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot19EnvironmentSnapshotERK9node_typeRK19CoordinateSystemPtr" title="Link to this definition"></a><br /></dt>
+<dd><p>Assemble the complete rooted environment without modifying native objects.</p>
+<p>Uses <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/ShapeConversion.hpp#L32">export_shape()</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/ModelConversion.hpp#L49">export_model()</a> with their existing support and unit/frame conversion contracts. Construction either succeeds completely or throws; no partial snapshot or component array is published.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The model type must meet the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/ModelConversion.hpp#L49">export_model()</a> requirements even when individual nodes have no model properties. No Kokkos runtime is required. </p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>root</strong> – Complete ownership-tree root, normally the C8 universe. </p></li>
+<li><p><strong>coordinateSystem</strong> – Common coordinate system retained by this object. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Throws<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">invalid_argument</span></span></span> – For a null coordinate system, a node without a volume, or unsupported topology, shapes or model export interfaces. </p></li>
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">length_error</span></span></span> – If a topology or composition index range is exceeded. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentSnapshot11getTopologyEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentSnapshot11getTopologyEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentSnapshot11getTopologyEv"></span><span id="corsika::kokkos::EnvironmentSnapshot::getTopologyC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a269ef83a7bdf9e8ffe62ecd3d405439b"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentSnapshot13topology_typeE" title="corsika::kokkos::EnvironmentSnapshot::topology_type"><span class="n"><span class="pre">topology_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getTopology</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot11getTopologyEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getShapesEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentSnapshot9getShapesEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentSnapshot9getShapesEv"></span><span id="corsika::kokkos::EnvironmentSnapshot::getShapesC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a3857a191381e34611afd37387a081291"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentShape.hpp#L27"><span class="n"><span class="pre">EnvironmentShape</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getShapes</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getShapesEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getModelsEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentSnapshot9getModelsEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentSnapshot9getModelsEv"></span><span id="corsika::kokkos::EnvironmentSnapshot::getModelsC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a9c78b0826e5ad95d096c19dc6a747fa1"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentModel.hpp#L29"><span class="n"><span class="pre">EnvironmentModel</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getModels</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getModelsEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentSnapshot14getCompositionEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentSnapshot14getCompositionEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentSnapshot14getCompositionEv"></span><span id="corsika::kokkos::EnvironmentSnapshot::getCompositionC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1aebd8d08901c867441e9d9130942500f2"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentComponent.hpp#L21"><span class="n"><span class="pre">EnvironmentComponent</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getComposition</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot14getCompositionEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentSnapshot19getCoordinateSystemEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentSnapshot19getCoordinateSystemEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentSnapshot19getCoordinateSystemEv"></span><span id="corsika::kokkos::EnvironmentSnapshot::getCoordinateSystemC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentSnapshot_1a06479309ac3baf3613e9e4485cb8b2e6"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getCoordinateSystem</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot19getCoordinateSystemEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE">
+<span id="_CPPv3I0EN7corsika6kokkos19EnvironmentTopologyE"></span><span id="_CPPv2I0EN7corsika6kokkos19EnvironmentTopologyE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentTopology</span></span></span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="Link to this definition"></a><br /></dt>
+<dd><p>Host-only export of C8’s ownership tree and ordered exclusion references.</p>
+<p>Owns the numeric arrays, but borrows the native node and model pointers. The source tree and its model assignments must remain alive and unchanged while this mapping is used; rebuild it after modifying the environment. Indices are deterministic preorder indices within this snapshot, not IDs that survive edits of the source tree. Copies retain the same borrowed source. Only the numeric arrays, never this object, may be copied to a GPU.</p>
+<p>All nodes are retained, including nodes without model properties. Distinct nodes sharing a property object share a model index but keep separate node indices. Equal-valued but distinct models are not merged. Exclusion edges remain directed and ordered, including repetitions or reciprocal edges. No containment search or geometrical validity check is performed here. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-types">Public Types</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentTopology9node_typeE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentTopology9node_typeE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentTopology9node_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1ad73fd49b6b992205d4f8e9f0ffea12ea"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">node_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/VolumeTreeNode.hpp#L18"><span class="n"><span class="pre">VolumeTreeNode</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology9node_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentTopology19node_reference_typeE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentTopology19node_reference_typeE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentTopology19node_reference_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1a2145231f3901b05be360bd5f3d76e2c4"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">node_reference_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><a class="reference external" href="https://www.boost.org/libraries/"><span class="n"><span class="pre">boost</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://www.boost.org/doc/libs/1_86_0/libs/optional/doc/html/index.html"><span class="n"><span class="pre">optional</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology9node_typeE" title="corsika::kokkos::EnvironmentTopology::node_type"><span class="n"><span class="pre">node_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="p"><span class="pre">&amp;</span></span><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology19node_reference_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentTopology20model_reference_typeE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentTopology20model_reference_typeE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentTopology20model_reference_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1ac4b5fa231a7650ef09e206e4b4f1d725"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">model_reference_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><a class="reference external" href="https://www.boost.org/libraries/"><span class="n"><span class="pre">boost</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://www.boost.org/doc/libs/1_86_0/libs/optional/doc/html/index.html"><span class="n"><span class="pre">optional</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="p"><span class="pre">&amp;</span></span><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology20model_reference_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentTopology19EnvironmentTopologyERK9node_type">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentTopology19EnvironmentTopologyERK9node_type"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentTopology19EnvironmentTopologyERK9node_type"></span><span id="corsika::kokkos::EnvironmentTopology::EnvironmentTopology__node_typeCR"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1aed2f5d80d14a063595e3efa99f3ce9a9"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentTopology</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology9node_typeE" title="corsika::kokkos::EnvironmentTopology::node_type"><span class="n"><span class="pre">node_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">root</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology19EnvironmentTopologyERK9node_type" title="Link to this definition"></a><br /></dt>
+<dd><p>Export a complete rooted ownership tree without modifying it.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Does not inspect volumes or model parameters; support for a shape or a physical model is not implied by successful topology export. </p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>root</strong> – Root with no parent (normally the C8 universe). </p>
+</dd>
+<dt class="field-even">Throws<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">invalid_argument</span></span></span> – For a non-root input, inconsistent child ownership, or null/external exclusion references. No partial snapshot is returned. Excluded nodes must belong to this same ownership tree. </p></li>
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">length_error</span></span></span> – If the fixed-width index range is exceeded. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology8getNodesEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology8getNodesEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology8getNodesEv"></span><span id="corsika::kokkos::EnvironmentTopology::getNodesC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1ab656b68f2db72851713fc034fed0c465"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentNode.hpp#L27"><span class="n"><span class="pre">EnvironmentNode</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getNodes</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology8getNodesEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Exported node records, in deterministic ownership-tree order. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology11getChildrenEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology11getChildrenEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology11getChildrenEv"></span><span id="corsika::kokkos::EnvironmentTopology::getChildrenC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1af420a7ed2603901279f408e47aa33eb2"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getChildren</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology11getChildrenEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Child indices grouped by each node’s offset and count. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology13getExclusionsEv">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology13getExclusionsEv"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology13getExclusionsEv"></span><span id="corsika::kokkos::EnvironmentTopology::getExclusionsC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1a3de6cd5f21ecaab17d66bf7c63a11fc3"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getExclusions</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getExclusionsEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Ordered exclusion indices, preserving directed native references. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology12getNodeIndexE19node_reference_type">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology12getNodeIndexE19node_reference_type"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology12getNodeIndexE19node_reference_type"></span><span id="corsika::kokkos::EnvironmentTopology::getNodeIndex__node_reference_typeC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1a6956e6a1eb504fc3c5cd77064364cbd4"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getNodeIndex</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology19node_reference_typeE" title="corsika::kokkos::EnvironmentTopology::node_reference_type"><span class="n"><span class="pre">node_reference_type</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">node</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology12getNodeIndexE19node_reference_type" title="Link to this definition"></a><br /></dt>
+<dd><p>Borrowed node to index; an absent reference maps to -1 (outside). </p>
+<dl class="field-list simple">
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">out_of_range</span></span></span> – If the referenced node is not in this snapshot. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology13getNativeNodeENSt7int32_tE">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology13getNativeNodeENSt7int32_tE"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology13getNativeNodeENSt7int32_tE"></span><span id="corsika::kokkos::EnvironmentTopology::getNativeNode__std::int32_tC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1a13b8e2805faa94d3306a9bf3e8c69fbf"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology19node_reference_typeE" title="corsika::kokkos::EnvironmentTopology::node_reference_type"><span class="n"><span class="pre">node_reference_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getNativeNode</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getNativeNodeENSt7int32_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Node index to a borrowed reference; only -1 yields no reference. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">out_of_range</span></span></span> – For every other invalid index, including the unassigned <a class="reference internal" href="particles.html#structcorsika_1_1kokkos_1_1ParticleState"><span class="std std-ref">ParticleState</span></a> sentinel -3. Never silently select the root. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology13getModelIndexE20model_reference_type">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology13getModelIndexE20model_reference_type"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology13getModelIndexE20model_reference_type"></span><span id="corsika::kokkos::EnvironmentTopology::getModelIndex__model_reference_typeC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1aa5cf9c75be3a5be61e6ed9f51b5dbf58"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getModelIndex</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology20model_reference_typeE" title="corsika::kokkos::EnvironmentTopology::model_reference_type"><span class="n"><span class="pre">model_reference_type</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">model</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getModelIndexE20model_reference_type" title="Link to this definition"></a><br /></dt>
+<dd><p>Borrowed model to index; an absent reference maps to -1. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">out_of_range</span></span></span> – If the referenced properties were not exported. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos19EnvironmentTopology14getNativeModelENSt7int32_tE">
+<span id="_CPPv3NK7corsika6kokkos19EnvironmentTopology14getNativeModelENSt7int32_tE"></span><span id="_CPPv2NK7corsika6kokkos19EnvironmentTopology14getNativeModelENSt7int32_tE"></span><span id="corsika::kokkos::EnvironmentTopology::getNativeModel__std::int32_tC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentTopology_1a42a4070e7fc3bc83a811dca4ba5664ae"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentTopology20model_reference_typeE" title="corsika::kokkos::EnvironmentTopology::model_reference_type"><span class="n"><span class="pre">model_reference_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getNativeModel</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos19EnvironmentTopology14getNativeModelENSt7int32_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Model index to a borrowed reference; only -1 yields no reference. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">out_of_range</span></span></span> – For every other invalid index. </p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos28prepare_environment_snapshotEDaRK12TEnvironmentRK19CoordinateSystemPtr">
+<span id="_CPPv3I0EN7corsika6kokkos28prepare_environment_snapshotERK12TEnvironmentRK19CoordinateSystemPtr"></span><span id="_CPPv2I0EN7corsika6kokkos28prepare_environment_snapshotERK12TEnvironmentRK19CoordinateSystemPtr"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironment</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1a27c10953b618738d54ee014021eafb6b"></span><span class="kt"><span class="pre">auto</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">prepare_environment_snapshot</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos28prepare_environment_snapshotEDaRK12TEnvironmentRK19CoordinateSystemPtr" title="corsika::kokkos::prepare_environment_snapshot::TEnvironment"><span class="n"><span class="pre">TEnvironment</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="p"><span class="pre">&amp;</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="p"><span class="pre">&amp;</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos28prepare_environment_snapshotEDaRK12TEnvironmentRK19CoordinateSystemPtr" title="Link to this definition"></a><br /></dt>
+<dd><p>Export the caller’s tree, models and materials without choosing a scene. Unsupported exact model/shape exports throw before a snapshot is published. Material-table compatibility remains a separate session-level requirement. </p>
+</dd></dl>
+
+</section>
+<section id="resident-ownership-and-data-views">
+<h2>Resident ownership and data views<a class="headerlink" href="#resident-ownership-and-data-views" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">bind_environment_data</span></code> borrows host addresses from a snapshot.
+<code class="docutils literal notranslate"><span class="pre">EnvironmentStorage</span></code> uploads those arrays and owns the resident allocations.
+The same <code class="docutils literal notranslate"><span class="pre">EnvironmentDataView</span></code> type can contain host or device addresses;
+the type itself does not establish accessibility. Its owner must outlive all
+operations using the view. See <a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a> for ordering and
+memory-space requirements.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentDataView.hpp">EnvironmentDataView.hpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentSnapshotData.hpp">EnvironmentSnapshotData.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentStorage.hpp">EnvironmentStorage.hpp</a>.</p>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataViewE">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataViewE"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataViewE"></span><span id="corsika::kokkos::EnvironmentDataView"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentDataView</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataViewE" title="Link to this definition"></a><br /></dt>
+<dd><p>Borrowed numeric arrays of one exported environment, without native pointers.</p>
+<p>Nodes and shapes have the same count and index order. All arrays must belong to one valid snapshot and be accessible from the execution space using them. This record neither owns storage nor extends its lifetime. Its owner must remain alive and unchanged until all work using the record has completed. Native byte layout is not a portable serialization format. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView6nodes_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView6nodes_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView6nodes_E"></span><span id="corsika::kokkos::EnvironmentDataView::nodes___EnvironmentNodeCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a77fdae00efc24aaa664b4058804396a4"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentNode.hpp#L27"><span class="n"><span class="pre">EnvironmentNode</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">nodes_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView6nodes_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView7shapes_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView7shapes_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView7shapes_E"></span><span id="corsika::kokkos::EnvironmentDataView::shapes___EnvironmentShapeCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1ae8d8970b6fb227302ba489bbcbe56ad4"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentShape.hpp#L27"><span class="n"><span class="pre">EnvironmentShape</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">shapes_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView7shapes_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView9children_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView9children_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView9children_E"></span><span id="corsika::kokkos::EnvironmentDataView::children___std::int32_tCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a91d7721650b2011c75bb325a5706c586"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">children_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView9children_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView11exclusions_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView11exclusions_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView11exclusions_E"></span><span id="corsika::kokkos::EnvironmentDataView::exclusions___std::int32_tCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1abb54251a5d87415720993dcf7528c294"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">exclusions_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView11exclusions_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView7models_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView7models_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView7models_E"></span><span id="corsika::kokkos::EnvironmentDataView::models___EnvironmentModelCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a987f8d846c75f7884b6a477cb168c26e"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentModel.hpp#L29"><span class="n"><span class="pre">EnvironmentModel</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">models_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView7models_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView12composition_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView12composition_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView12composition_E"></span><span id="corsika::kokkos::EnvironmentDataView::composition___EnvironmentComponentCP"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a192fd6a7f00f88eec30af844dc33a5f8"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentComponent.hpp#L21"><span class="n"><span class="pre">EnvironmentComponent</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">composition_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView12composition_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView10nodeCount_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView10nodeCount_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView10nodeCount_E"></span><span id="corsika::kokkos::EnvironmentDataView::nodeCount___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a99b70d3e04ef2a1cbfe9a410db99191a"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nodeCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView10nodeCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView11childCount_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView11childCount_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView11childCount_E"></span><span id="corsika::kokkos::EnvironmentDataView::childCount___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1af64090e1d6f88d5d04f33318ad1ac502"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">childCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView11childCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView15exclusionCount_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView15exclusionCount_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView15exclusionCount_E"></span><span id="corsika::kokkos::EnvironmentDataView::exclusionCount___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a80a212235540595e97fcc99b6e7bc136"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">exclusionCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView15exclusionCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView11modelCount_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView11modelCount_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView11modelCount_E"></span><span id="corsika::kokkos::EnvironmentDataView::modelCount___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1af49d83082c6b9cb4b150ed660da798df"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">modelCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView11modelCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos19EnvironmentDataView15componentCount_E">
+<span id="_CPPv3N7corsika6kokkos19EnvironmentDataView15componentCount_E"></span><span id="_CPPv2N7corsika6kokkos19EnvironmentDataView15componentCount_E"></span><span id="corsika::kokkos::EnvironmentDataView::componentCount___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentDataView_1a447964e679897e1064ab7408ab54d4f5"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">componentCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos19EnvironmentDataView15componentCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos21bind_environment_dataE19EnvironmentDataViewRK19EnvironmentSnapshotI16TModelPropertiesE">
+<span id="_CPPv3I0EN7corsika6kokkos21bind_environment_dataERK19EnvironmentSnapshotI16TModelPropertiesE"></span><span id="_CPPv2I0EN7corsika6kokkos21bind_environment_dataERK19EnvironmentSnapshotI16TModelPropertiesE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1a2835de7015fd45ff6ed409b74c8eee94"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentDataViewE" title="corsika::kokkos::EnvironmentDataView"><span class="n"><span class="pre">EnvironmentDataView</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">bind_environment_data</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos19EnvironmentSnapshotE" title="corsika::kokkos::EnvironmentSnapshot"><span class="n"><span class="pre">EnvironmentSnapshot</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos21bind_environment_dataE19EnvironmentDataViewRK19EnvironmentSnapshotI16TModelPropertiesE" title="corsika::kokkos::bind_environment_data::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">snapshot</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos21bind_environment_dataE19EnvironmentDataViewRK19EnvironmentSnapshotI16TModelPropertiesE" title="Link to this definition"></a><br /></dt>
+<dd><p>Borrow the host numerical arrays of an already exported native environment.</p>
+<p>No allocation, re-export, coordinate conversion or topology search occurs. The snapshot guarantees valid counts and same-index node/shape arrays. Native node/model pointers and coordinate-system handles are not included. Keep the snapshot alive and unchanged until the synchronous storage upload finishes. The returned pointers are host addresses, not device addresses. </p>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos18EnvironmentStorageE">
+<span id="_CPPv3I0EN7corsika6kokkos18EnvironmentStorageE"></span><span id="_CPPv2I0EN7corsika6kokkos18EnvironmentStorageE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TExecutionSpace</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentStorage</span></span></span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos18EnvironmentStorageE" title="Link to this definition"></a><br /></dt>
+<dd><p>Own the device arrays uploaded from an already exported host environment.</p>
+<p>Retains production FullEnvironmentOwner’s allocation, mirror and deep-copy sequence. Shapes are a separate same-index array in the receiving layout. No topology search, model evaluation or environment re-export happens here. Copies share Kokkos allocations; borrowed data views do not own them. Drain the caller’s execution before replacing or releasing the last owner, and release all owners before Kokkos finalization. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-types">Public Types</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18EnvironmentStorage17memory_space_typeE">
+<span id="_CPPv3N7corsika6kokkos18EnvironmentStorage17memory_space_typeE"></span><span id="_CPPv2N7corsika6kokkos18EnvironmentStorage17memory_space_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a29d984a89be8a1ebc25f141f7045abb0"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">memory_space_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos18EnvironmentStorageE" title="corsika::kokkos::EnvironmentStorage::TExecutionSpace"><span class="n"><span class="pre">TExecutionSpace</span></span></a><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">memory_space</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage17memory_space_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18EnvironmentStorage9view_typeE">
+<span id="_CPPv3N7corsika6kokkos18EnvironmentStorage9view_typeE"></span><span id="_CPPv2N7corsika6kokkos18EnvironmentStorage9view_typeE"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a024d5ff5a720b5f5f967baebe1fde1fe"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">view_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentView.hpp#L31"><span class="n"><span class="pre">EnvironmentView</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage17memory_space_typeE" title="corsika::kokkos::EnvironmentStorage::memory_space_type"><span class="n"><span class="pre">memory_space_type</span></span></a><span class="p"><span class="pre">&gt;</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage9view_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageEv">
+<span id="_CPPv3N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageEv"></span><span id="_CPPv2N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageEv"></span><span id="corsika::kokkos::EnvironmentStorage::EnvironmentStorage"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a0374c3756980e1cb3df485d6f0b88dc2"></span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentStorage</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageERK19EnvironmentDataView">
+<span id="_CPPv3N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageERK19EnvironmentDataView"></span><span id="_CPPv2N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageERK19EnvironmentDataView"></span><span id="corsika::kokkos::EnvironmentStorage::EnvironmentStorage__EnvironmentDataViewCR"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1aadc7b1676125c730c1fd7895565e2dd0"></span><span class="k"><span class="pre">explicit</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentStorage</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentDataViewE" title="corsika::kokkos::EnvironmentDataView"><span class="n"><span class="pre">EnvironmentDataView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">host</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageERK19EnvironmentDataView" title="Link to this definition"></a><br /></dt>
+<dd><p>Upload host-accessible arrays without changing values or index order. Each nonempty array requires a nonnull pointer; the exported snapshot is responsible for valid topology, shapes, model indices and array lengths. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18EnvironmentStorage7getViewEv">
+<span id="_CPPv3NK7corsika6kokkos18EnvironmentStorage7getViewEv"></span><span id="_CPPv2NK7corsika6kokkos18EnvironmentStorage7getViewEv"></span><span id="corsika::kokkos::EnvironmentStorage::getViewC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a308d8a0bdda15445468a670010b19dd7"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos18EnvironmentStorage9view_typeE" title="corsika::kokkos::EnvironmentStorage::view_type"><span class="n"><span class="pre">view_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getView</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18EnvironmentStorage7getViewEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Managed read-only view; shares ownership of the existing arrays. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18EnvironmentStorage11getDataViewEv">
+<span id="_CPPv3NK7corsika6kokkos18EnvironmentStorage11getDataViewEv"></span><span id="_CPPv2NK7corsika6kokkos18EnvironmentStorage11getDataViewEv"></span><span id="corsika::kokkos::EnvironmentStorage::getDataViewC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a3fcae771e7420740ec226de86773ea24"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos19EnvironmentDataViewE" title="corsika::kokkos::EnvironmentDataView"><span class="n"><span class="pre">EnvironmentDataView</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDataView</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18EnvironmentStorage11getDataViewEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Borrowed pointer/count record for a device context; does not own arrays. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18EnvironmentStorage14getDeviceBytesEv">
+<span id="_CPPv3NK7corsika6kokkos18EnvironmentStorage14getDeviceBytesEv"></span><span id="_CPPv2NK7corsika6kokkos18EnvironmentStorage14getDeviceBytesEv"></span><span id="corsika::kokkos::EnvironmentStorage::getDeviceBytesC"></span><span class="target" id="classcorsika_1_1kokkos_1_1EnvironmentStorage_1a9b5bb459b5d9418b6dd95e88e7409926"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDeviceBytes</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18EnvironmentStorage14getDeviceBytesEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Allocated numerical payload bytes, including the separate shapes. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="query-configuration-and-results">
+<h2>Query configuration and results<a class="headerlink" href="#query-configuration-and-results" title="Link to this heading"></a></h2>
+<p>Environment queries return status with the numerical result. Preserve both:
+a failure or out-of-range status may retain a nonfinite raw value. Node
+indices refer to this snapshot, not to a medium identifier. Positions and
+lengths use metres; density uses g/cm³ and grammage uses g/cm². The grammage
+result record is also used for inverse length queries, as its declaration
+specifies.</p>
+<p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentQuery.hpp">EnvironmentQuery.hpp</a>.</p>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE">
+<span id="_CPPv3N7corsika6kokkos22EnvironmentQueryConfigE"></span><span id="_CPPv2N7corsika6kokkos22EnvironmentQueryConfigE"></span><span id="corsika::kokkos::EnvironmentQueryConfig"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentQueryConfig"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="Link to this definition"></a><br /></dt>
+<dd><p>Caller-owned transport configuration used by the environment queries. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22EnvironmentQueryConfig29maximumMagneticDeflectionRad_E">
+<span id="_CPPv3N7corsika6kokkos22EnvironmentQueryConfig29maximumMagneticDeflectionRad_E"></span><span id="_CPPv2N7corsika6kokkos22EnvironmentQueryConfig29maximumMagneticDeflectionRad_E"></span><span id="corsika::kokkos::EnvironmentQueryConfig::maximumMagneticDeflectionRad___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentQueryConfig_1a54c5882756ee38c383cab3e76b994b90"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">maximumMagneticDeflectionRad_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">0.2</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfig29maximumMagneticDeflectionRad_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp enum-class">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatusE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatusE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatusE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3e"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentStatus</span></span></span><span class="w"> </span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="Link to this definition"></a><br /></dt>
+<dd><p>Production query states; BelowObservationSurface is unused for a node tree. </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus7SuccessE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus7SuccessE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus7SuccessE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3ea505a83f220c02df2f85c3810cd9ceb38"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">Success</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus7SuccessE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3ead7b42f4e18168c7f679b78f5ede89610"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">InvalidSnapshot</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus14NonFiniteInputE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus14NonFiniteInputE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus14NonFiniteInputE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3ea21ae32494c3baf76d7a186e0086b45d3"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">NonFiniteInput</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus14NonFiniteInputE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus18OutsideEnvironmentE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus18OutsideEnvironmentE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus18OutsideEnvironmentE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3ea1a08788530b9fc347182b662797927f1"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OutsideEnvironment</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus18OutsideEnvironmentE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus23BelowObservationSurfaceE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus23BelowObservationSurfaceE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus23BelowObservationSurfaceE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3eacd9ace805f1d4256176875581f4ba4a9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BelowObservationSurface</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus23BelowObservationSurfaceE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus21NoForwardIntersectionE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus21NoForwardIntersectionE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus21NoForwardIntersectionE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3eac279a52a44e8fa27469dea4aa50ae8c4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">NoForwardIntersection</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus21NoForwardIntersectionE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17EnvironmentStatus18GrammageOutOfRangeE">
+<span id="_CPPv3N7corsika6kokkos17EnvironmentStatus18GrammageOutOfRangeE"></span><span id="_CPPv2N7corsika6kokkos17EnvironmentStatus18GrammageOutOfRangeE"></span><span class="target" id="namespacecorsika_1_1kokkos_1af7ec3d79f25b3ff5c76912dd479cbf3ea17293e55faa22649c00356df6e997088"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">GrammageOutOfRange</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus18GrammageOutOfRangeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos21EnvironmentLayerQueryE">
+<span id="_CPPv3N7corsika6kokkos21EnvironmentLayerQueryE"></span><span id="_CPPv2N7corsika6kokkos21EnvironmentLayerQueryE"></span><span id="corsika::kokkos::EnvironmentLayerQuery"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentLayerQuery"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentLayerQuery</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQueryE" title="Link to this definition"></a><br /></dt>
+<dd><p>Node and local density; the retained radius diagnostic is zero in this domain. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos21EnvironmentLayerQuery7status_E">
+<span id="_CPPv3N7corsika6kokkos21EnvironmentLayerQuery7status_E"></span><span id="_CPPv2N7corsika6kokkos21EnvironmentLayerQuery7status_E"></span><span id="corsika::kokkos::EnvironmentLayerQuery::status___EnvironmentStatus"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentLayerQuery_1aeb2b76ad9c24641f9d79fdc7d8c4aedf"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">status_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE" title="corsika::kokkos::EnvironmentStatus::InvalidSnapshot"><span class="n"><span class="pre">InvalidSnapshot</span></span></a><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery7status_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos21EnvironmentLayerQuery10nodeIndex_E">
+<span id="_CPPv3N7corsika6kokkos21EnvironmentLayerQuery10nodeIndex_E"></span><span id="_CPPv2N7corsika6kokkos21EnvironmentLayerQuery10nodeIndex_E"></span><span id="corsika::kokkos::EnvironmentLayerQuery::nodeIndex___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentLayerQuery_1ab91c296d930ad27ad5c4637e88bc111e"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nodeIndex_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery10nodeIndex_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos21EnvironmentLayerQuery8radiusM_E">
+<span id="_CPPv3N7corsika6kokkos21EnvironmentLayerQuery8radiusM_E"></span><span id="_CPPv2N7corsika6kokkos21EnvironmentLayerQuery8radiusM_E"></span><span id="corsika::kokkos::EnvironmentLayerQuery::radiusM___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentLayerQuery_1a4a004b8b39163463825ccfe577e656c2"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">radiusM_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery8radiusM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos21EnvironmentLayerQuery15densityGPerCm3_E">
+<span id="_CPPv3N7corsika6kokkos21EnvironmentLayerQuery15densityGPerCm3_E"></span><span id="_CPPv2N7corsika6kokkos21EnvironmentLayerQuery15densityGPerCm3_E"></span><span id="corsika::kokkos::EnvironmentLayerQuery::densityGPerCm3___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentLayerQuery_1a63175c5a74d2e72e9eb36dcec9c5f2bd"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">densityGPerCm3_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery15densityGPerCm3_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQueryE">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQueryE"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQueryE"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentBoundaryQuery</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQueryE" title="Link to this definition"></a><br /></dt>
+<dd><p>Straight boundary distance and destination, with the original failure values. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery7status_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQuery7status_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQuery7status_E"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery::status___EnvironmentStatus"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery_1ab90c1944bf97eb0b4e8ccabb91437552"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">status_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE" title="corsika::kokkos::EnvironmentStatus::InvalidSnapshot"><span class="n"><span class="pre">InvalidSnapshot</span></span></a><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery7status_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10nodeIndex_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQuery10nodeIndex_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQuery10nodeIndex_E"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery::nodeIndex___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery_1a7bbfcbb2c96c17e0246f68cc1d77788e"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nodeIndex_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10nodeIndex_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10distanceM_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQuery10distanceM_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQuery10distanceM_E"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery::distanceM___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery_1a6e878a580c7b1d78f932cae2d6c3b406"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">distanceM_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10distanceM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery8radiusM_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQuery8radiusM_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQuery8radiusM_E"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery::radiusM___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery_1a2d83c4e2a5457ff79608cafe6229d254"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">radiusM_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery8radiusM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery9nextNode_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentBoundaryQuery9nextNode_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentBoundaryQuery9nextNode_E"></span><span id="corsika::kokkos::EnvironmentBoundaryQuery::nextNode___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentBoundaryQuery_1a3b297ce189bf539f11a38893207211ab"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nextNode_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery9nextNode_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentGrammageQueryE"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentGrammageQueryE"></span><span id="corsika::kokkos::EnvironmentGrammageQuery"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentGrammageQuery"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">EnvironmentGrammageQuery</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE" title="Link to this definition"></a><br /></dt>
+<dd><p>value_ is grammage in g/cm^2, or trajectory length in metres for the inverse query. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery7status_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentGrammageQuery7status_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentGrammageQuery7status_E"></span><span id="corsika::kokkos::EnvironmentGrammageQuery::status___EnvironmentStatus"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentGrammageQuery_1a2ed55bbf6fb44553f9ee89e55e3c7522"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">status_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatusE" title="corsika::kokkos::EnvironmentStatus"><span class="n"><span class="pre">EnvironmentStatus</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE" title="corsika::kokkos::EnvironmentStatus::InvalidSnapshot"><span class="n"><span class="pre">InvalidSnapshot</span></span></a><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery7status_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery9reserved_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentGrammageQuery9reserved_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentGrammageQuery9reserved_E"></span><span id="corsika::kokkos::EnvironmentGrammageQuery::reserved___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentGrammageQuery_1a8c5806f771a5ae5102076d6a5edbfe11"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reserved_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery9reserved_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery6value_E">
+<span id="_CPPv3N7corsika6kokkos24EnvironmentGrammageQuery6value_E"></span><span id="_CPPv2N7corsika6kokkos24EnvironmentGrammageQuery6value_E"></span><span id="corsika::kokkos::EnvironmentGrammageQuery::value___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1EnvironmentGrammageQuery_1a7da6cfbe6641b0d8ad3bb118982dd029"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">value_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery6value_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="numerical-queries">
+<h2>Numerical queries<a class="headerlink" href="#numerical-queries" title="Link to this heading"></a></h2>
+<p>These functions assume valid exported arrays. The logical-node argument
+distinguishes an already assigned node from a request for point location.
+The straight-boundary query does not include the independent observation
+plane. Grammage and its inverse do not truncate their segment at a boundary;
+step-limit competition remains the caller’s responsibility.</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos17query_environmentE21EnvironmentLayerQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdPKdNSt7int32_tE">
+<span id="_CPPv3I0EN7corsika6kokkos17query_environmentERK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdPKdNSt7int32_tE"></span><span id="_CPPv2I0EN7corsika6kokkos17query_environmentERK16TEnvironmentViewRK22EnvironmentQueryConfigRA3_KdPKdNSt7int32_tE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1a273789d2f75cc19aebbe0882a59c2ab7"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos21EnvironmentLayerQueryE" title="corsika::kokkos::EnvironmentLayerQuery"><span class="n"><span class="pre">EnvironmentLayerQuery</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">query_environment</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos17query_environmentE21EnvironmentLayerQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdPKdNSt7int32_tE" title="corsika::kokkos::query_environment::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="corsika::kokkos::EnvironmentQueryConfig"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">positionM</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">direction</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">nullptr</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">logicalNode</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">3</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos17query_environmentE21EnvironmentLayerQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdPKdNSt7int32_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Query a node and its local density in an exported environment tree.</p>
+<p>
+A node without its own model is outside the supported material environment; no parent properties are inherited. This API covers exported node trees, not the legacy sphere-layer or convex-polyhedron compatibility paths. Callers must explicitly route unsupported environments through their original path. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>environment</strong> – Complete read-only exported arrays, with valid topology, supported shapes and model kinds. No per-query scan validates those arrays. </p></li>
+<li><p><strong>config</strong> – Maximum magnetic deflection must be finite and in (0, pi/2). </p></li>
+<li><p><strong>positionM</strong> – Position in metres in the snapshot’s common coordinate system. </p></li>
+<li><p><strong>direction</strong> – Optional finite, unit direction in the same system. </p></li>
+<li><p><strong>logicalNode</strong> – -3 requests location from the root. Any other value is an already-assigned node identity and is not replaced by geometric location. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Original status, logical node and density, including failure values.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos32distance_to_environment_boundaryE24EnvironmentBoundaryQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdRAL3E_KdNSt7int32_tE">
+<span id="_CPPv3I0EN7corsika6kokkos32distance_to_environment_boundaryERK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdRAL3E_KdNSt7int32_tE"></span><span id="_CPPv2I0EN7corsika6kokkos32distance_to_environment_boundaryERK16TEnvironmentViewRK22EnvironmentQueryConfigRA3_KdRA3_KdNSt7int32_tE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1af6177dcbe48bf517e09503bc487d0784"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQueryE" title="corsika::kokkos::EnvironmentBoundaryQuery"><span class="n"><span class="pre">EnvironmentBoundaryQuery</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">distance_to_environment_boundary</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos32distance_to_environment_boundaryE24EnvironmentBoundaryQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdRAL3E_KdNSt7int32_tE" title="corsika::kokkos::distance_to_environment_boundary::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="corsika::kokkos::EnvironmentQueryConfig"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">positionM</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">direction</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">logicalNode</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">3</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos32distance_to_environment_boundaryE24EnvironmentBoundaryQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdRAL3E_KdNSt7int32_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Query the same node, then select its nearest ordered straight boundary.</p>
+<p>positionM, direction and logicalNode follow <a class="reference internal" href="#namespacecorsika_1_1kokkos_1a273789d2f75cc19aebbe0882a59c2ab7"><span class="std std-ref">query_environment()</span></a>. The unit direction makes the trajectory parameter a length in metres, not time. The independent observation plane does not participate in this search. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos20environment_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">
+<span id="_CPPv3I0EN7corsika6kokkos20environment_grammageERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd"></span><span id="_CPPv2I0EN7corsika6kokkos20environment_grammageERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERA3_KdRA3_Kdd"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1ab0b18a625f476f6c345a638d247d173c"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE" title="corsika::kokkos::EnvironmentGrammageQuery"><span class="n"><span class="pre">EnvironmentGrammageQuery</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">environment_grammage</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos20environment_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="corsika::kokkos::environment_grammage::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="corsika::kokkos::EnvironmentQueryConfig"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">nodeIndex</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">positionM</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">direction</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">distanceM</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos20environment_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="Link to this definition"></a><br /></dt>
+<dd><p>Integrate one assigned model along a straight segment, in g/cm^2.</p>
+<p>nodeIndex selects a model without location or inheritance. positionM is in metres, direction is dimensionless and unit length, and distanceM must be finite and nonnegative. The sliding-planar radial axis is frozen at the starting point. No boundary clipping or additional position check is made. Preserve status and value together: an out-of-range result retains its raw value, which may be nonfinite. A selected physical step needs a finite value. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos21environment_arclengthE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">
+<span id="_CPPv3I0EN7corsika6kokkos21environment_arclengthERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd"></span><span id="_CPPv2I0EN7corsika6kokkos21environment_arclengthERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERA3_KdRA3_Kdd"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1ab0e6ae9cf3dc10e3af8ff4e3c9834f76"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE" title="corsika::kokkos::EnvironmentGrammageQuery"><span class="n"><span class="pre">EnvironmentGrammageQuery</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">environment_arclength</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos21environment_arclengthE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="corsika::kokkos::environment_arclength::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="corsika::kokkos::EnvironmentQueryConfig"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">nodeIndex</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">positionM</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">direction</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">grammageGPerCm2</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos21environment_arclengthE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="Link to this definition"></a><br /></dt>
+<dd><p>Invert the same assigned model’s grammage, returning length in metres.</p>
+<p>Coordinates and direction follow <a class="reference internal" href="#namespacecorsika_1_1kokkos_1ab0b18a625f476f6c345a638d247d173c"><span class="std std-ref">environment_grammage()</span></a>; grammageGPerCm2 must be finite and nonnegative. No boundary truncation is performed. An unreachable finite length returns GrammageOutOfRange and the original raw inverse result, rather than silently substituting zero or a finite limit. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos29geometry_competition_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">
+<span id="_CPPv3I0EN7corsika6kokkos29geometry_competition_grammageERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd"></span><span id="_CPPv2I0EN7corsika6kokkos29geometry_competition_grammageERK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERA3_KdRA3_Kdd"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1af73c3e4a86213a252994353755e742f7"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE" title="corsika::kokkos::EnvironmentGrammageQuery"><span class="n"><span class="pre">EnvironmentGrammageQuery</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">geometry_competition_grammage</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos29geometry_competition_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="corsika::kokkos::geometry_competition_grammage::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE" title="corsika::kokkos::EnvironmentQueryConfig"><span class="n"><span class="pre">EnvironmentQueryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">nodeIndex</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">positionM</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">direction</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">distanceM</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos29geometry_competition_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd" title="Link to this definition"></a><br /></dt>
+<dd><p>Grammage of a geometry candidate, retaining the production overflow sentinel.</p>
+<p>Only the original positive, growing exponential conditions permit a finite candidate length with infinite grammage to return Success. Positive infinity is a comparison sentinel, not an acceptable traversed depth for a selected physical step. The ordinary <a class="reference internal" href="#namespacecorsika_1_1kokkos_1ab0b18a625f476f6c345a638d247d173c"><span class="std std-ref">environment_grammage()</span></a> policy remains unchanged. This node-tree rule is independent of any external-boundary enable flag; legacy non-tree external-boundary options are outside this API’s domain. </p>
+</dd></dl>
+
+<p>The geometry-candidate function retains the production positive-infinity
+comparison sentinel under its documented exponential-profile conditions.
+That sentinel must not be consumed as the finite traversed depth of a
+selected physical step. Curved boundary selection and the observation-plane
+path are documented separately in <a class="reference internal" href="../environment/queries.html"><span class="doc">Environment queries and boundary selection</span></a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="particles.html" class="btn btn-neutral float-left" title="Particle records and conversion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="physics.html" class="btn btn-neutral float-right" title="Physics tables and transport stages" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

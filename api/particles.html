@@ -1,0 +1,711 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Particle records and conversion &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=d7e4d8cd" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/api/particles.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=dd985633"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Environment preparation and queries" href="environment.html" />
+    <link rel="prev" title="Runtime and execution interfaces" href="execution.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API reference</a></li>
+      <li class="breadcrumb-item active">Particle records and conversion</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/particles.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="particle-records-and-conversion">
+<h1>Particle records and conversion<a class="headerlink" href="#particle-records-and-conversion" title="Link to this heading"></a></h1>
+<p>These declarations define the numerical particle state, storage views and
+native C8 transfer boundary. Signatures and member descriptions are generated
+from the public headers at the API reference’s source baseline. The transfer
+operations are host functions; storage accessors marked for device use still
+require accessible allocations and valid indices.</p>
+<p>The behavioral descriptions are in <a class="reference internal" href="../particles/representation.html"><span class="doc">Particle representation and numerical conventions</span></a>,
+<a class="reference internal" href="../particles/conversion.html"><span class="doc">Host and backend conversion</span></a> and <a class="reference internal" href="../particles/storage.html"><span class="doc">Device storage and state updates</span></a>.</p>
+<section id="value-records">
+<h2>Value records<a class="headerlink" href="#value-records" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">ParticleState</span></code> stores total energy in GeV, positions in metres, time in
+seconds and dimensionless directions in the selected common coordinate
+system. Its history and logical-node fields are part of the transport state.
+<code class="docutils literal notranslate"><span class="pre">StepRecord</span></code> carries an output segment, with unweighted deposits; it does
+not update a profile or apply the statistical weight by being copied.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleState.hpp">ParticleState.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/StepRecord.hpp">StepRecord.hpp</a>.</p>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleStateE">
+<span id="_CPPv3N7corsika6kokkos13ParticleStateE"></span><span id="_CPPv2N7corsika6kokkos13ParticleStateE"></span><span id="corsika::kokkos::ParticleState"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ParticleState</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="Link to this definition"></a><br /></dt>
+<dd><p>Value-only particle data at the host/device transport boundary.</p>
+<p>Positions and directions use the common coordinate system selected by the conversion boundary. This record stores neither coordinate-system objects nor host pointers, and performs no conversion, normalization or physics operation. Public members deliberately retain aggregate initialization and direct device access. The type is standard-layout and trivially copyable, but its padding and native byte order are not a portable serialization format. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState4pid_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState4pid_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState4pid_E"></span><span id="corsika::kokkos::ParticleState::pid___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a2e81c501a41f72d7e782a826357882d9"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">pid_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState4pid_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Signed PDG identifier, not CORSIKA’s Code enum. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState9mediumId_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState9mediumId_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState9mediumId_E"></span><span id="corsika::kokkos::ParticleState::mediumId___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a8a766a58669f4b09dc921cb617f838db"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">mediumId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState9mediumId_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Medium/model identifier, not an environment node. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState11generation_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState11generation_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState11generation_E"></span><span id="corsika::kokkos::ParticleState::generation___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a3b0a28fc5b93387f425739f0c141f8c4"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">generation_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState11generation_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState9reserved_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState9reserved_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState9reserved_E"></span><span id="corsika::kokkos::ParticleState::reserved___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a5a0ee9aa98ea6bf65bc786e2598d9239"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reserved_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState9reserved_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Preserved compatibility tags; not unused storage. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState10energyGeV_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState10energyGeV_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState10energyGeV_E"></span><span id="corsika::kokkos::ParticleState::energyGeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1af9901ead960510328b1eacf269d532a9"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">energyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState10energyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Total energy, including rest mass, in GeV. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState10positionM_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState10positionM_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState10positionM_E"></span><span id="corsika::kokkos::ParticleState::positionM___doubleA"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a2513817d305acc9c97bb149667adfdc0"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">positionM_</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState10positionM_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Position in metres in the common coordinate system. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState10direction_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState10direction_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState10direction_E"></span><span id="corsika::kokkos::ParticleState::direction___doubleA"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1af11460d862960f96b3445012b90f0b3f"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">direction_</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState10direction_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Dimensionless direction in that coordinate system. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState6timeS_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState6timeS_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState6timeS_E"></span><span id="corsika::kokkos::ParticleState::timeS___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a4d29f8d711673df625d1dd731f6b77f7"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">timeS_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState6timeS_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Time in seconds. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState7weight_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState7weight_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState7weight_E"></span><span id="corsika::kokkos::ParticleState::weight___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1aca769f3855b077b052bd092ea4856b28"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">weight_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="m"><span class="pre">1.</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState7weight_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Statistical particle weight. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState10historyId_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState10historyId_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState10historyId_E"></span><span id="corsika::kokkos::ParticleState::historyId___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a291bbc29f48416611bbed65da5308772"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">historyId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState10historyId_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Stable particle history; zero is unassigned. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState16parentHistoryId_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState16parentHistoryId_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState16parentHistoryId_E"></span><span id="corsika::kokkos::ParticleState::parentHistoryId___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a4ab5359ad81974b961152a9682970b6b"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">parentHistoryId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState16parentHistoryId_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Zero denotes no parent history. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState7stepId_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState7stepId_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState7stepId_E"></span><span id="corsika::kokkos::ParticleState::stepId___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1aa45e313ac9b9f8a69ecd432bc290d68b"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">stepId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState7stepId_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Step identifier within this history. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos13ParticleState16environmentNode_E">
+<span id="_CPPv3N7corsika6kokkos13ParticleState16environmentNode_E"></span><span id="_CPPv2N7corsika6kokkos13ParticleState16environmentNode_E"></span><span id="corsika::kokkos::ParticleState::environmentNode___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleState_1a52927c4396e847c5b1e23e1977998ef7"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">environmentNode_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="o"><span class="pre">-</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos13ParticleState16environmentNode_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Logical tree node, independent of mediumId_. Distinct nodes can share a medium. Minus three denotes legacy/unassigned; minus one denotes outside the exported tree. Copying the record does not assign a node or history. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecordE">
+<span id="_CPPv3N7corsika6kokkos10StepRecordE"></span><span id="_CPPv2N7corsika6kokkos10StepRecordE"></span><span id="corsika::kokkos::StepRecord"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">StepRecord</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecordE" title="Link to this definition"></a><br /></dt>
+<dd><p>Value-only transport segment for host/device exchange and output adapters.</p>
+<p>Endpoint positions use the same common coordinate system as <a class="reference internal" href="#structcorsika_1_1kokkos_1_1ParticleState"><span class="std std-ref">ParticleState</span></a>. Energies are in GeV, positions in metres and times in seconds. Deposits are unweighted; the output adapter applies weight_ once. Copying a record neither deposits energy nor allocates a particle/step identifier.</p>
+<p>Public members preserve aggregate access. This standard-layout, trivially copyable type has no explicit alignment requirement beyond its members and is not a portable wire format. No Kokkos or physics-library header is required. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord10historyId_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord10historyId_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord10historyId_E"></span><span id="corsika::kokkos::StepRecord::historyId___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a6c90370c4e71d0dc869110c9164449e1"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">historyId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord10historyId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord7stepId_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord7stepId_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord7stepId_E"></span><span id="corsika::kokkos::StepRecord::stepId___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a48338053cf4d11bf94a28205c0bf7654"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">stepId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord7stepId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord4pid_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord4pid_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord4pid_E"></span><span id="corsika::kokkos::StepRecord::pid___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1aaf9f99463dfad7bd0d20e8e74b395d24"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">pid_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord4pid_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Signed PDG identifier. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord10processId_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord10processId_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord10processId_E"></span><span id="corsika::kokkos::StepRecord::processId___std::int32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1afe21a3df1fc5009b4d745dff8fc26a29"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">processId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord10processId_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Producer’s process identifier; zero if unselected. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord15startPositionM_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord15startPositionM_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord15startPositionM_E"></span><span id="corsika::kokkos::StepRecord::startPositionM___doubleA"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a54787e8bfda2648822ee4317ca38f0e5"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">startPositionM_</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord15startPositionM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord13endPositionM_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord13endPositionM_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord13endPositionM_E"></span><span id="corsika::kokkos::StepRecord::endPositionM___doubleA"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a44f9bfe5969e497c55939ef83ed178fc"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">endPositionM_</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord13endPositionM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord11startTimeS_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord11startTimeS_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord11startTimeS_E"></span><span id="corsika::kokkos::StepRecord::startTimeS___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1aad6fd6e38c8d4c8bac4a6621338ff9bc"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">startTimeS_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord11startTimeS_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord9endTimeS_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord9endTimeS_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord9endTimeS_E"></span><span id="corsika::kokkos::StepRecord::endTimeS___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a1052c42beffb04b45105cc231039f1e5"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">endTimeS_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord9endTimeS_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord15startEnergyGeV_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord15startEnergyGeV_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord15startEnergyGeV_E"></span><span id="corsika::kokkos::StepRecord::startEnergyGeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a15f4cf9c63aa4babd85ad4afc7e85594"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">startEnergyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord15startEnergyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Total energy, including rest mass. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord13endEnergyGeV_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord13endEnergyGeV_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord13endEnergyGeV_E"></span><span id="corsika::kokkos::StepRecord::endEnergyGeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a718233056902a8de2db2b071d4c9a940"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">endEnergyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord13endEnergyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Total energy, including rest mass. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord19depositedEnergyGeV_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord19depositedEnergyGeV_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord19depositedEnergyGeV_E"></span><span id="corsika::kokkos::StepRecord::depositedEnergyGeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a566661fdc0aea5c00650bf36ba85a0b5"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">depositedEnergyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord19depositedEnergyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord7weight_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord7weight_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord7weight_E"></span><span id="corsika::kokkos::StepRecord::weight___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1ac0c798a0788ba5a7228c1b8d7c513506"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">weight_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord7weight_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Preserved zero default; unlike <a class="reference internal" href="#structcorsika_1_1kokkos_1_1ParticleState"><span class="std std-ref">ParticleState</span></a>’s unit weight. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord22cutDepositedEnergyGeV_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord22cutDepositedEnergyGeV_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord22cutDepositedEnergyGeV_E"></span><span id="corsika::kokkos::StepRecord::cutDepositedEnergyGeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a0cc2bf55fae6e0154965a53eb12b6ae2"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cutDepositedEnergyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord22cutDepositedEnergyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Already included in depositedEnergyGeV_; written at the endpoint instead of spread along the preceding segment. The existing tagged native muon-pair cut can carry a signed kinetic-energy residual in a zero-length record. Neither deposit field therefore imposes a nonnegative-value constraint. </p>
+</dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos10StepRecord18nativeMuonPairCut_E">
+<span id="_CPPv3N7corsika6kokkos10StepRecord18nativeMuonPairCut_E"></span><span id="_CPPv2N7corsika6kokkos10StepRecord18nativeMuonPairCut_E"></span><span id="corsika::kokkos::StepRecord::nativeMuonPairCut___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1StepRecord_1a7ee0d6b4dbe40c138c6654abc071bd11"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nativeMuonPairCut_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos10StepRecord18nativeMuonPairCut_E" title="Link to this definition"></a><br /></dt>
+<dd><p>Preserve the producer’s compatibility tag. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="field-storage-and-borrowed-access">
+<h2>Field storage and borrowed access<a class="headerlink" href="#field-storage-and-borrowed-access" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">ParticleSoA</span></code> owns field arrays in the requested memory space. Its raw view
+borrows the same allocations and preserves vector-field strides. A raw view
+neither transfers data nor retains the storage owner. Complete outstanding
+uses before releasing or replacing that storage. Queue progression is a
+separate responsibility described in <a class="reference internal" href="../particles/storage.html"><span class="doc">Device storage and state updates</span></a>.</p>
+<p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleSoA.hpp">ParticleSoA.hpp</a>.</p>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos11ParticleSoAE">
+<span id="_CPPv3I0EN7corsika6kokkos11ParticleSoAE"></span><span id="_CPPv2I0EN7corsika6kokkos11ParticleSoAE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TMemorySpace</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ParticleSoA</span></span></span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="Link to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-types">Public Types</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA20execution_space_typeE">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA20execution_space_typeE"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA20execution_space_typeE"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a2a1ebe70c18598c62d2f0b7f27a8e1e1"></span><span class="k"><span class="pre">using</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">execution_space_type</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">execution_space</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA20execution_space_typeE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAEv">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA11ParticleSoAEv"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA11ParticleSoAEv"></span><span id="corsika::kokkos::ParticleSoA::ParticleSoA"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1afad3369e6ea9a2e6e4bd6f8ba4364c0c"></span><span class="sig-name descname"><span class="n"><span class="pre">ParticleSoA</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">default</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tE">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tE"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tE"></span><span id="corsika::kokkos::ParticleSoA::ParticleSoA__ssCR.std::sC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a1b9c712c58b4834471c6de6c4dc6c244"></span><span class="sig-name descname"><span class="n"><span class="pre">ParticleSoA</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">label</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tERK20execution_space_type">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tERK20execution_space_type"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tERK20execution_space_type"></span><span id="corsika::kokkos::ParticleSoA::ParticleSoA__ssCR.std::sC.execution_space_typeCR"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a7758a0a2762acec5bde1fd93264123cc"></span><span class="sig-name descname"><span class="n"><span class="pre">ParticleSoA</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">label</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos11ParticleSoA20execution_space_typeE" title="corsika::kokkos::ParticleSoA::execution_space_type"><span class="n"><span class="pre">execution_space_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">execution</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tERK20execution_space_type" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos11ParticleSoA4loadEKNSt6size_tE">
+<span id="_CPPv3NK7corsika6kokkos11ParticleSoA4loadEKNSt6size_tE"></span><span id="_CPPv2NK7corsika6kokkos11ParticleSoA4loadEKNSt6size_tE"></span><span id="corsika::kokkos::ParticleSoA::load__std::sCC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a17e96f340f9096d2924f9c518e2da5f1"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">load</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos11ParticleSoA4loadEKNSt6size_tE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos11ParticleSoA5storeEKNSt6size_tERK13ParticleState">
+<span id="_CPPv3NK7corsika6kokkos11ParticleSoA5storeEKNSt6size_tERK13ParticleState"></span><span id="_CPPv2NK7corsika6kokkos11ParticleSoA5storeEKNSt6size_tERK13ParticleState"></span><span id="corsika::kokkos::ParticleSoA::store__std::sC.ParticleStateCRC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a181ea6eb0c0ba3ccfd1d42eb8c088ce0"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">store</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos11ParticleSoA5storeEKNSt6size_tERK13ParticleState" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos11ParticleSoA13rawDeviceViewEv">
+<span id="_CPPv3NK7corsika6kokkos11ParticleSoA13rawDeviceViewEv"></span><span id="_CPPv2NK7corsika6kokkos11ParticleSoA13rawDeviceViewEv"></span><span id="corsika::kokkos::ParticleSoA::rawDeviceViewC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a5808ffc4222968093743e5c86820230a"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos18ParticleSoARawViewE" title="corsika::kokkos::ParticleSoARawView"><span class="n"><span class="pre">ParticleSoARawView</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">rawDeviceView</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos11ParticleSoA13rawDeviceViewEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos11ParticleSoA11deviceBytesEv">
+<span id="_CPPv3NK7corsika6kokkos11ParticleSoA11deviceBytesEv"></span><span id="_CPPv2NK7corsika6kokkos11ParticleSoA11deviceBytesEv"></span><span id="corsika::kokkos::ParticleSoA::deviceBytesC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1ab281f139e50ebafff88f7836884a6665"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">deviceBytes</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos11ParticleSoA11deviceBytesEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA4pid_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA4pid_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA4pid_E"></span><span id="corsika::kokkos::ParticleSoA::pid___Kokkos::View:std::int32_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a274aeb0997580448cf677a48821b81c1"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">pid_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA4pid_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA9mediumId_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA9mediumId_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA9mediumId_E"></span><span id="corsika::kokkos::ParticleSoA::mediumId___Kokkos::View:std::int32_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1ad2d0974a4aa0f350dd074e6c5bce694c"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">mediumId_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA9mediumId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA16environmentNode_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA16environmentNode_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA16environmentNode_E"></span><span id="corsika::kokkos::ParticleSoA::environmentNode___Kokkos::View:std::int32_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a21d6ca23e2fd032f3e4f6ae239cb133a"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">environmentNode_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA16environmentNode_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA11generation_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA11generation_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA11generation_E"></span><span id="corsika::kokkos::ParticleSoA::generation___Kokkos::View:std::uint32_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a28a21e75533469905fa25550bd601b32"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">generation_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA11generation_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA9reserved_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA9reserved_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA9reserved_E"></span><span id="corsika::kokkos::ParticleSoA::reserved___Kokkos::View:std::uint32_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1aae48a626b96c608f20f313b1e05e7347"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reserved_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA9reserved_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA10energyGeV_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA10energyGeV_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA10energyGeV_E"></span><span id="corsika::kokkos::ParticleSoA::energyGeV___Kokkos::View:doubleP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a05c054b55924136da0f9143b860d7f85"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">energyGeV_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA10energyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA10positionM_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA10positionM_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA10positionM_E"></span><span id="corsika::kokkos::ParticleSoA::positionM___Kokkos::View:doublePA.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a7f7176fda14952a5819a5e155adc74e4"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">positionM_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA10positionM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA10direction_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA10direction_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA10direction_E"></span><span id="corsika::kokkos::ParticleSoA::direction___Kokkos::View:doublePA.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a33830b44d6db29b8a2483dd47d52c90a"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">3</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">direction_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA10direction_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA6timeS_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA6timeS_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA6timeS_E"></span><span id="corsika::kokkos::ParticleSoA::timeS___Kokkos::View:doubleP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a3b52e8988b45a2c2b10bb9eb17bde3ef"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">timeS_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA6timeS_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA7weight_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA7weight_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA7weight_E"></span><span id="corsika::kokkos::ParticleSoA::weight___Kokkos::View:doubleP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a12ea18ab47c1a244654432391f20f90b"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">weight_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA7weight_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA10historyId_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA10historyId_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA10historyId_E"></span><span id="corsika::kokkos::ParticleSoA::historyId___Kokkos::View:std::uint64_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a002ba9b825fca3c759cd7e762ecbba34"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">historyId_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA10historyId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA16parentHistoryId_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA16parentHistoryId_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA16parentHistoryId_E"></span><span id="corsika::kokkos::ParticleSoA::parentHistoryId___Kokkos::View:std::uint64_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a62215649e76efce91c187cd80308eaed"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">parentHistoryId_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA16parentHistoryId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA7stepId_E">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA7stepId_E"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA7stepId_E"></span><span id="corsika::kokkos::ParticleSoA::stepId___Kokkos::View:std::uint64_tP.TMemorySpace:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a8d436b115f6e3f59519743ccbb0668df"></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core-index.html"><span class="n"><span class="pre">Kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/view/view.html"><span class="n"><span class="pre">View</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos11ParticleSoAE" title="corsika::kokkos::ParticleSoA::TMemorySpace"><span class="n"><span class="pre">TMemorySpace</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">stepId_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA7stepId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-static-functions">Public Static Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos11ParticleSoA22deviceBytesForCapacityEKNSt6size_tE">
+<span id="_CPPv3N7corsika6kokkos11ParticleSoA22deviceBytesForCapacityEKNSt6size_tE"></span><span id="_CPPv2N7corsika6kokkos11ParticleSoA22deviceBytesForCapacityEKNSt6size_tE"></span><span id="corsika::kokkos::ParticleSoA::deviceBytesForCapacity__std::sC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoA_1a4a03fc430b409247d9abb1191dc7fbad"></span><span class="k"><span class="pre">static</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">deviceBytesForCapacity</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos11ParticleSoA22deviceBytesForCapacityEKNSt6size_tE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawViewE">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawViewE"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawViewE"></span><span id="corsika::kokkos::ParticleSoARawView"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ParticleSoARawView</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawViewE" title="Link to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18ParticleSoARawView4loadEKNSt6size_tE">
+<span id="_CPPv3NK7corsika6kokkos18ParticleSoARawView4loadEKNSt6size_tE"></span><span id="_CPPv2NK7corsika6kokkos18ParticleSoARawView4loadEKNSt6size_tE"></span><span id="corsika::kokkos::ParticleSoARawView::load__std::sCC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a33729f0678fbb3f576d3ec9ef6d62fd1"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">load</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18ParticleSoARawView4loadEKNSt6size_tE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18ParticleSoARawView5storeEKNSt6size_tERK13ParticleState">
+<span id="_CPPv3NK7corsika6kokkos18ParticleSoARawView5storeEKNSt6size_tERK13ParticleState"></span><span id="_CPPv2NK7corsika6kokkos18ParticleSoARawView5storeEKNSt6size_tERK13ParticleState"></span><span id="corsika::kokkos::ParticleSoARawView::store__std::sC.ParticleStateCRC"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a0b272047699879925f74d27028e2e2c8"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">store</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">index</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18ParticleSoARawView5storeEKNSt6size_tERK13ParticleState" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView4pid_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView4pid_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView4pid_E"></span><span id="corsika::kokkos::ParticleSoARawView::pid___std::int32_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a7e7d4660824b46ba6af5c6a23df8d0ca"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">pid_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView4pid_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView9mediumId_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView9mediumId_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView9mediumId_E"></span><span id="corsika::kokkos::ParticleSoARawView::mediumId___std::int32_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1ad77a4d8df28121d2d6ae8b481cd79544"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">mediumId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView9mediumId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView16environmentNode_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView16environmentNode_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView16environmentNode_E"></span><span id="corsika::kokkos::ParticleSoARawView::environmentNode___std::int32_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a3218b36b31322765635eefb291d95f9f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">environmentNode_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView16environmentNode_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView11generation_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView11generation_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView11generation_E"></span><span id="corsika::kokkos::ParticleSoARawView::generation___std::uint32_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1aebc0b91db5957cacea31a5abd4b87c4b"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">generation_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView11generation_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView9reserved_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView9reserved_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView9reserved_E"></span><span id="corsika::kokkos::ParticleSoARawView::reserved___std::uint32_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a54f7bbf1cbaea69a6fbc1247fb83437e"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">reserved_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView9reserved_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView10energyGeV_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView10energyGeV_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView10energyGeV_E"></span><span id="corsika::kokkos::ParticleSoARawView::energyGeV___doubleP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a257c990d1b90306776e0eb5567179f86"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">energyGeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView10energyGeV_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView10positionM_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView10positionM_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView10positionM_E"></span><span id="corsika::kokkos::ParticleSoARawView::positionM___RawView2D:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a8ca83200fb482e4c80ec2b05cd4b9170"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RawView.hpp#L32"><span class="n"><span class="pre">RawView2D</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">positionM_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView10positionM_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView10direction_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView10direction_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView10direction_E"></span><span id="corsika::kokkos::ParticleSoARawView::direction___RawView2D:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1aacf9e96a433b0ec7fe63cbacc91fde93"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RawView.hpp#L32"><span class="n"><span class="pre">RawView2D</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">direction_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView10direction_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView6timeS_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView6timeS_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView6timeS_E"></span><span id="corsika::kokkos::ParticleSoARawView::timeS___doubleP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1ae41b14bcf98a25506627cd9e992ab5f6"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">timeS_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView6timeS_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView7weight_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView7weight_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView7weight_E"></span><span id="corsika::kokkos::ParticleSoARawView::weight___doubleP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1aa21e9b1dc2829b38769da7ec9208d4e3"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">weight_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView7weight_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView10historyId_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView10historyId_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView10historyId_E"></span><span id="corsika::kokkos::ParticleSoARawView::historyId___std::uint64_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a40aa48bce09445b72a357029d4b4ae3e"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">historyId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView10historyId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView16parentHistoryId_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView16parentHistoryId_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView16parentHistoryId_E"></span><span id="corsika::kokkos::ParticleSoARawView::parentHistoryId___std::uint64_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a589cca1469cd10ff2f9428a391377146"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">parentHistoryId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView16parentHistoryId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18ParticleSoARawView7stepId_E">
+<span id="_CPPv3N7corsika6kokkos18ParticleSoARawView7stepId_E"></span><span id="_CPPv2N7corsika6kokkos18ParticleSoARawView7stepId_E"></span><span id="corsika::kokkos::ParticleSoARawView::stepId___std::uint64_tP"></span><span class="target" id="structcorsika_1_1kokkos_1_1ParticleSoARawView_1a5746a3b8a7e19f53de54dd401025100c"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">stepId_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18ParticleSoARawView7stepId_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="physical-value-conversion">
+<h2>Physical-value conversion<a class="headerlink" href="#physical-value-conversion" title="Link to this heading"></a></h2>
+<p>These host functions convert values into or out of an existing record or
+native particle. They do not allocate transport identities or establish the
+logical-node mapping. The production transfer operations below cover those
+additional responsibilities.</p>
+<p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleConversion.hpp">ParticleConversion.hpp</a>.</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos22export_particle_valuesEvRK9TParticleRK19CoordinateSystemPtrR13ParticleState">
+<span id="_CPPv3I0EN7corsika6kokkos22export_particle_valuesERK9TParticleRK19CoordinateSystemPtrR13ParticleState"></span><span id="_CPPv2I0EN7corsika6kokkos22export_particle_valuesERK9TParticleRK19CoordinateSystemPtrR13ParticleState"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TParticle</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1a68d56f03836a5b056306f14d60926fc0"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">export_particle_values</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos22export_particle_valuesEvRK9TParticleRK19CoordinateSystemPtrR13ParticleState" title="corsika::kokkos::export_particle_values::TParticle"><span class="n"><span class="pre">TParticle</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">coordinateSystem</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos22export_particle_valuesEvRK9TParticleRK19CoordinateSystemPtrR13ParticleState" title="Link to this definition"></a><br /></dt>
+<dd><p>Export particle values to the numerical representation used by transport.</p>
+<p>This host-only conversion uses C8’s coordinate transformations and units: total energy in GeV, position in metres, time in seconds and dimensionless direction components. A particle without a weight getter has unit weight. No direction normalization, cut, random draw or identity allocation occurs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Template Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>TParticle</strong> – C8 particle interface providing getPDG, getEnergy, getPosition, getDirection and getTime; getWeight is optional. </p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>particle</strong> – Source particle, not modified by coordinate conversion. </p></li>
+<li><p><strong>coordinateSystem</strong> – Non-null common coordinate system for the output. </p></li>
+<li><p><strong>state</strong> – Existing record whose value fields are replaced. Identity, generation, compatibility tags, medium and logical-node fields are preserved. </p></li>
+</ul>
+</dd>
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">invalid_argument</span></span></span> – If the common coordinate system is null. </p>
+</dd>
+<dt class="field-even">Pre<span class="colon">:</span></dt>
+<dd class="field-even"><p>The particle has a supported PDG code and finite physical values. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos22import_particle_valuesEvRK13ParticleStateRK19CoordinateSystemPtrR9TParticle">
+<span id="_CPPv3I0EN7corsika6kokkos22import_particle_valuesERK13ParticleStateRK19CoordinateSystemPtrR9TParticle"></span><span id="_CPPv2I0EN7corsika6kokkos22import_particle_valuesERK13ParticleStateRK19CoordinateSystemPtrR9TParticle"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TParticle</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1a89ce54a248ef64011a00de27bd1ab157"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">import_particle_values</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">coordinateSystem</span></span>, <a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos22import_particle_valuesEvRK13ParticleStateRK19CoordinateSystemPtrR9TParticle" title="corsika::kokkos::import_particle_values::TParticle"><span class="n"><span class="pre">TParticle</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos22import_particle_valuesEvRK13ParticleStateRK19CoordinateSystemPtrR9TParticle" title="Link to this definition"></a><br /></dt>
+<dd><p>Import numerical values into an existing C8 particle, without adding a particle.</p>
+<p>The record’s total energy is converted to kinetic energy using C8’s particle mass. Direction components are copied without normalization. This operation neither reads nor changes transport identity, logical-node or medium fields; their mapping belongs to the caller, not to this value conversion.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A tagged native muon-pair cut must be handled before calling this ordinary on-shell conversion; compatibility tags do not relax its mass check. </p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Template Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>TParticle</strong> – C8 particle interface providing setPID, setKineticEnergy, setDirection, setPosition and setTime; setWeight is optional. </p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>state</strong> – Numerical input with energy in GeV, position in metres and time in seconds. The record is not modified. </p></li>
+<li><p><strong>coordinateSystem</strong> – Non-null common coordinate system of the record. </p></li>
+<li><p><strong>particle</strong> – Existing destination particle; its stack size is unchanged. </p></li>
+</ul>
+</dd>
+<dt class="field-odd">Throws<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">invalid_argument</span></span></span> – If the coordinate system is null or the PDG code is unknown. Other unsupported PDG codes retain C8’s conversion errors. </p></li>
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">runtime_error</span></span></span> – If total energy is below the C8 rest mass or a non-unit weight would be lost. These checks precede destination mutation. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Pre<span class="colon">:</span></dt>
+<dd class="field-even"><p>Values are finite and the PDG code is supported by C8. Direction is already appropriate for the caller’s transport algorithm. </p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="production-state-transfer">
+<h2>Production state transfer<a class="headerlink" href="#production-state-transfer" title="Link to this heading"></a></h2>
+<p>These templates use the topology associated with the current snapshot to
+retain the native particle’s logical node across the transfer. That topology
+and its native scene must remain alive and unchanged. <code class="docutils literal notranslate"><span class="pre">to_device_state</span></code>
+constructs a numerical record; <code class="docutils literal notranslate"><span class="pre">import_particle</span></code> inserts a native stack
+particle. Importing the logical node alone does not import physical values.</p>
+<p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/RouterParticleConversion.hpp">RouterParticleConversion.hpp</a>. The complete identity, cut and stack
+insertion contract is documented in <a class="reference internal" href="../particles/conversion.html"><span class="doc">Host and backend conversion</span></a>.</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I00EN7corsika6kokkos17particle_transfer15to_device_stateE13ParticleStateRK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE">
+<span id="_CPPv3I00EN7corsika6kokkos17particle_transfer15to_device_stateERK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE"></span><span id="_CPPv2I00EN7corsika6kokkos17particle_transfer15to_device_stateERK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TParticle</span></span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1_1particle__transfer_1a8a59e4623c79b330323cd7b1f9286ca5"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data"><span class="n"><span class="pre">particle_transfer</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">to_device_state</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15to_device_stateE13ParticleStateRK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::to_device_state::TParticle"><span class="n"><span class="pre">TParticle</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">coordinateSystem</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L18"><span class="n"><span class="pre">transport</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L20"><span class="n"><span class="pre">HistoryId</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">historyId</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L18"><span class="n"><span class="pre">transport</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L20"><span class="n"><span class="pre">HistoryId</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">parentHistoryId</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L18"><span class="n"><span class="pre">transport</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L22"><span class="n"><span class="pre">Generation</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">generation</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L18"><span class="n"><span class="pre">transport</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp#L21"><span class="n"><span class="pre">StepId</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">stepId</span></span>, <a class="reference internal" href="environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology"><span class="n"><span class="pre">EnvironmentTopology</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15to_device_stateE13ParticleStateRK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::to_device_state::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">tree</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15to_device_stateE13ParticleStateRK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I00EN7corsika6kokkos17particle_transfer15import_particleEDaR6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE">
+<span id="_CPPv3I00EN7corsika6kokkos17particle_transfer15import_particleER6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE"></span><span id="_CPPv2I00EN7corsika6kokkos17particle_transfer15import_particleER6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TStack</span></span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1_1particle__transfer_1a888f82271a8ff0a20d4b23376f600452"></span><span class="kt"><span class="pre">auto</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data"><span class="n"><span class="pre">particle_transfer</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">import_particle</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15import_particleEDaR6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::import_particle::TStack"><span class="n"><span class="pre">TStack</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">stack</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/geometry/CoordinateSystem.hpp#L34"><span class="n"><span class="pre">CoordinateSystemPtr</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">coordinateSystem</span></span>, <a class="reference internal" href="environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology"><span class="n"><span class="pre">EnvironmentTopology</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15import_particleEDaR6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::import_particle::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">tree</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer15import_particleEDaR6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I00EN7corsika6kokkos17particle_transfer19export_logical_nodeEvRK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE">
+<span id="_CPPv3I00EN7corsika6kokkos17particle_transfer19export_logical_nodeERK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE"></span><span id="_CPPv2I00EN7corsika6kokkos17particle_transfer19export_logical_nodeERK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TParticle</span></span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1_1particle__transfer_1a7b940e2e13ab859e08a5aad93914277e"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data"><span class="n"><span class="pre">particle_transfer</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">export_logical_node</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19export_logical_nodeEvRK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::export_logical_node::TParticle"><span class="n"><span class="pre">TParticle</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span>, <a class="reference internal" href="environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology"><span class="n"><span class="pre">EnvironmentTopology</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19export_logical_nodeEvRK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::export_logical_node::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">tree</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19export_logical_nodeEvRK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I00EN7corsika6kokkos17particle_transfer19import_logical_nodeEvR9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE">
+<span id="_CPPv3I00EN7corsika6kokkos17particle_transfer19import_logical_nodeER9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE"></span><span id="_CPPv2I00EN7corsika6kokkos17particle_transfer19import_logical_nodeER9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TParticle</span></span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TModelProperties</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1_1particle__transfer_1a5ce994f876927b84b499f2dd8f4a39d1"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data"><span class="n"><span class="pre">particle_transfer</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">import_logical_node</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19import_logical_nodeEvR9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::import_logical_node::TParticle"><span class="n"><span class="pre">TParticle</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span>, <a class="reference internal" href="#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">state</span></span>, <a class="reference internal" href="environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE" title="corsika::kokkos::EnvironmentTopology"><span class="n"><span class="pre">EnvironmentTopology</span></span></a><span class="p"><span class="pre">&lt;</span></span><a class="reference internal" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19import_logical_nodeEvR9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="corsika::kokkos::particle_transfer::import_logical_node::TModelProperties"><span class="n"><span class="pre">TModelProperties</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">tree</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I00EN7corsika6kokkos17particle_transfer19import_logical_nodeEvR9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="execution.html" class="btn btn-neutral float-left" title="Runtime and execution interfaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="environment.html" class="btn btn-neutral float-right" title="Environment preparation and queries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

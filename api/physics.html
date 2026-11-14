@@ -1,0 +1,577 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physics tables and transport stages &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=d7e4d8cd" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/api/physics.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=dd985633"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Radio inputs, accumulation and propagation" href="radio.html" />
+    <link rel="prev" title="Environment preparation and queries" href="environment.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API reference</a></li>
+      <li class="breadcrumb-item active">Physics tables and transport stages</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/physics.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="physics-tables-and-transport-stages">
+<h1>Physics tables and transport stages<a class="headerlink" href="#physics-tables-and-transport-stages" title="Link to this heading"></a></h1>
+<p>These declarations connect configured native models to numerical queries and
+individual particle stages. They are generated from the public headers at the
+baseline recorded in <a class="reference internal" href="../api.html"><span class="doc">API reference</span></a>. Host preparation owns and validates data;
+numerical functions borrow accessible arrays and return records or status.
+They do not own the surrounding scheduler.</p>
+<p>For the complete preparation chain, supported processes and array layout, see
+<a class="reference internal" href="../physics-data.html"><span class="doc">Physics models and table preparation</span></a>. For the ordering of sampling, propagation, scattering,
+vertex selection and final-state production, see <a class="reference internal" href="../transport.html"><span class="doc">Transport and interaction kernels</span></a>.</p>
+<section id="native-export-and-ownership">
+<h2>Native export and ownership<a class="headerlink" href="#native-export-and-ownership" title="Link to this heading"></a></h2>
+<p>The exporter receives views of native calculators already configured by C8.
+The resulting host table owns the copied interpolation state. Uploading it
+creates a separate execution-space owner; the returned numerical view borrows
+that owner’s arrays. A table-view name does not imply that its pointers are
+accessible on every device.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/NativeTableExporter.hpp">NativeTableExporter.hpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeTable.hpp">ProposalNativeTable.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/NativeTableStorage.hpp">NativeTableStorage.hpp</a>. Cache identity and runtime lifetime are described
+in <a class="reference internal" href="../physics-data/preparation.html"><span class="doc">Model selection, preparation and reuse</span></a> and <a class="reference internal" href="../physics-data/storage.html"><span class="doc">Table representation and device storage</span></a>.</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos29export_proposal_native_tablesERKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE">
+<span id="_CPPv3N7corsika6kokkos29export_proposal_native_tablesERKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE"></span><span id="_CPPv2N7corsika6kokkos29export_proposal_native_tablesERKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE"></span><span id="corsika::kokkos::export_proposal_native_tables__std::vector:proposal::NativeInteractionCalculatorView:CR.std::vector:proposal::NativeContinuousCalculatorView:CR"></span><span class="target" id="namespacecorsika_1_1kokkos_1a9e8ccded578587768337287c09854db7"></span><a class="reference internal" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE" title="corsika::kokkos::ProposalNativeTableSet"><span class="n"><span class="pre">ProposalNativeTableSet</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">export_proposal_native_tables</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal"><span class="n"><span class="pre">proposal</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal/NativeCalculatorView.hpp#L36"><span class="n"><span class="pre">NativeInteractionCalculatorView</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">interactions</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal"><span class="n"><span class="pre">proposal</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal/NativeCalculatorView.hpp#L101"><span class="n"><span class="pre">NativeContinuousCalculatorView</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">continuous</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos29export_proposal_native_tablesERKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE" title="Link to this definition"></a><br /></dt>
+<dd><p>Copy immutable interpolation state from calculators already owned by CORSIKA.</p>
+<p>This host-only bridge requires the version-locked read-only PROPOSAL export API. It neither parses private cache files nor samples a replacement physics table. The existing single-composition and calculator-selection rules are retained. </p>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSetE">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSetE"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSetE"></span><span id="corsika::kokkos::ProposalNativeTableSet"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">ProposalNativeTableSet</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE" title="Link to this definition"></a><br /></dt>
+<dd><p>Owning host-only canonical export; values retain PROPOSAL’s MeV-based units. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet14formatVersion_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet14formatVersion_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet14formatVersion_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::formatVersion___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a59f3370a2b3a3e06dc3fa7b5ed38a934"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">formatVersion_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L35"><span class="n"><span class="pre">ProposalNativeTableFormatVersion</span></span></a><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet14formatVersion_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet16proposalVersion_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet16proposalVersion_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet16proposalVersion_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::proposalVersion___ss"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a1958847b47d501c97d7a0116f2fb02c2"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">proposalVersion_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet16proposalVersion_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet26cubicInterpolationVersion_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet26cubicInterpolationVersion_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet26cubicInterpolationVersion_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::cubicInterpolationVersion___ss"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a74520d249297a78d9bc4ed4adb80ac2b"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">string</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cubicInterpolationVersion_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet26cubicInterpolationVersion_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet10constants_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet10constants_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet10constants_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::constants___NativePhysicalConstants"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1ac0d0a201a9d2067a0456cad2e7938713"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L201"><span class="n"><span class="pre">NativePhysicalConstants</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">constants_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet10constants_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet17stochasticCutMeV_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet17stochasticCutMeV_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet17stochasticCutMeV_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::stochasticCutMeV___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a462e097b2677c7c97aa2762e6a47caa8"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">stochasticCutMeV_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet17stochasticCutMeV_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet12contentHash_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet12contentHash_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet12contentHash_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::contentHash___sha256_digest_type"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a4a91893e7251180afb57c39e98856dc1"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/utility/Sha256.hpp#L18"><span class="n"><span class="pre">sha256_digest_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">contentHash_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12contentHash_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet24proposalCacheTableCount_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet24proposalCacheTableCount_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet24proposalCacheTableCount_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::proposalCacheTableCount___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1ad00fbe181ee1351dbf40e457578bde1f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">proposalCacheTableCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24proposalCacheTableCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet22proposalCacheHitCount_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet22proposalCacheHitCount_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet22proposalCacheHitCount_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::proposalCacheHitCount___std::uint64_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a87ed622cbbed14ffdd629abc533fa700"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">proposalCacheHitCount_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22proposalCacheHitCount_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet20proposalCacheAllHit_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet20proposalCacheAllHit_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet20proposalCacheAllHit_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::proposalCacheAllHit___b"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a13eba3d19a9b308c6a85d5c258dfaf9d"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">proposalCacheAllHit_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet20proposalCacheAllHit_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet22interactionIdentities_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet22interactionIdentities_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet22interactionIdentities_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::interactionIdentities___std::vector:NativeInteractionIdentity:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a93ca552c2acfd176ab6f682e69abad1f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L212"><span class="n"><span class="pre">NativeInteractionIdentity</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">interactionIdentities_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22interactionIdentities_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dndxColumns_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet12dndxColumns_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet12dndxColumns_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::dndxColumns___std::vector:NativeDndxColumn:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1ae20c9bd468fcbaeb8ec8c0c5ef4c3d0b"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L130"><span class="n"><span class="pre">NativeDndxColumn</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dndxColumns_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dndxColumns_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet17totalRateColumns_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet17totalRateColumns_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet17totalRateColumns_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::totalRateColumns___std::vector:NativeTotalRateColumn:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a16e366023a0205ee883abadcbe7f4515"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L162"><span class="n"><span class="pre">NativeTotalRateColumn</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">totalRateColumns_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet17totalRateColumns_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet23selectionColumnIndices_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet23selectionColumnIndices_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet23selectionColumnIndices_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::selectionColumnIndices___std::vector:std::uint32_t:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1abc0d2eeca4351a8e6edd69d90c3468ea"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">selectionColumnIndices_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet23selectionColumnIndices_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dedxColumns_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet12dedxColumns_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet12dedxColumns_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::dedxColumns___std::vector:NativeDedxColumn:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1aaabcd9d01045f82ead454e0e03b9371f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L172"><span class="n"><span class="pre">NativeDedxColumn</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dedxColumns_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dedxColumns_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet24dedxAccumulationIndices_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet24dedxAccumulationIndices_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet24dedxAccumulationIndices_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::dedxAccumulationIndices___std::vector:std::uint32_t:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a19db0c9a041cbc7a71457b591cf15eab"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">dedxAccumulationIndices_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24dedxAccumulationIndices_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet15utilityColumns_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet15utilityColumns_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet15utilityColumns_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::utilityColumns___std::vector:NativeUtilityColumn:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a899ce0d900fd012975a1864e47061bb4"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L190"><span class="n"><span class="pre">NativeUtilityColumn</span></span></a><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">utilityColumns_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet15utilityColumns_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet14bicubicValues_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet14bicubicValues_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet14bicubicValues_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::bicubicValues___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a7d112dfc5803badc8b3f5e8afb75738c"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bicubicValues_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet14bicubicValues_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet24bicubicDerivativeEnergy_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet24bicubicDerivativeEnergy_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet24bicubicDerivativeEnergy_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::bicubicDerivativeEnergy___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1ad73c4b06fa4624473ab46e06f3afc854"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bicubicDerivativeEnergy_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24bicubicDerivativeEnergy_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet22bicubicDerivativeLoss_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet22bicubicDerivativeLoss_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet22bicubicDerivativeLoss_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::bicubicDerivativeLoss___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1af656232521b85b3c553a72fd0da9d0bf"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bicubicDerivativeLoss_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22bicubicDerivativeLoss_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet23bicubicMixedDerivative_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet23bicubicMixedDerivative_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet23bicubicMixedDerivative_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::bicubicMixedDerivative___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a22810cd9783a7d4b8a3e47fcda9a0acd"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bicubicMixedDerivative_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet23bicubicMixedDerivative_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet30bicubicPolynomialCoefficients_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet30bicubicPolynomialCoefficients_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet30bicubicPolynomialCoefficients_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::bicubicPolynomialCoefficients___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1a64d89135bc41135c18c404550dd97892"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bicubicPolynomialCoefficients_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet30bicubicPolynomialCoefficients_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet12cubicValues_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet12cubicValues_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet12cubicValues_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::cubicValues___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1ad144893132a985e8c08ea5d0514888bd"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cubicValues_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12cubicValues_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos22ProposalNativeTableSet21cubicNodeDerivatives_E">
+<span id="_CPPv3N7corsika6kokkos22ProposalNativeTableSet21cubicNodeDerivatives_E"></span><span id="_CPPv2N7corsika6kokkos22ProposalNativeTableSet21cubicNodeDerivatives_E"></span><span id="corsika::kokkos::ProposalNativeTableSet::cubicNodeDerivatives___std::vector:double:"></span><span class="target" id="structcorsika_1_1kokkos_1_1ProposalNativeTableSet_1abd82dfabc8469b8182338334caf4982f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">&lt;</span></span><span class="kt"><span class="pre">double</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cubicNodeDerivatives_</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSet21cubicNodeDerivatives_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos30validate_proposal_native_tableERK22ProposalNativeTableSet">
+<span id="_CPPv3N7corsika6kokkos30validate_proposal_native_tableERK22ProposalNativeTableSet"></span><span id="_CPPv2N7corsika6kokkos30validate_proposal_native_tableERK22ProposalNativeTableSet"></span><span id="corsika::kokkos::validate_proposal_native_table__ProposalNativeTableSetCR"></span><span class="target" id="namespacecorsika_1_1kokkos_1a0194fd1d217f04796ea3a5917d799e37"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">validate_proposal_native_table</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE" title="corsika::kokkos::ProposalNativeTableSet"><span class="n"><span class="pre">ProposalNativeTableSet</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">table</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos30validate_proposal_native_tableERK22ProposalNativeTableSet" title="Link to this definition"></a><br /></dt>
+<dd><p>Validate the original format, dependency identities, ordering and coefficient layout. </p>
+</dd></dl>
+
+<dl class="cpp class">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos18NativeTableStorageE">
+<span id="_CPPv3I0EN7corsika6kokkos18NativeTableStorageE"></span><span id="_CPPv2I0EN7corsika6kokkos18NativeTableStorageE"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TExecutionSpace</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage"></span><span class="k"><span class="pre">class</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">NativeTableStorage</span></span></span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos18NativeTableStorageE" title="Link to this definition"></a><br /></dt>
+<dd><p>Own an immutable native-table copy in one execution space’s memory.</p>
+<p>Initialization validates the canonical export and its content hash before checking the memory budget or allocating arrays. It publishes a numerical view only after the original upload order and completion fence. Allocation failure resets partial storage. No PROPOSAL object enters device memory.</p>
+<p>Initialize the Kokkos runtime before constructing this storage, and keep it initialized until the storage is destroyed. A copied storage object shares immutable allocations; a returned view does not own them. Finish all kernels using a view before resetting or releasing its last owner. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-functions">Public Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18NativeTableStorage10initializeERK22ProposalNativeTableSetNSt6size_tE">
+<span id="_CPPv3N7corsika6kokkos18NativeTableStorage10initializeERK22ProposalNativeTableSetNSt6size_tE"></span><span id="_CPPv2N7corsika6kokkos18NativeTableStorage10initializeERK22ProposalNativeTableSetNSt6size_tE"></span><span id="corsika::kokkos::NativeTableStorage::initialize__ProposalNativeTableSetCR.std::s"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1a8a0f48f7a42fa8976c6f3c320c2286b6"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">initialize</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE" title="corsika::kokkos::ProposalNativeTableSet"><span class="n"><span class="pre">ProposalNativeTableSet</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">source</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">maximumBytes</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">numeric_limits</span></span><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="p"><span class="pre">&gt;</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">max</span></span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">)</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18NativeTableStorage10initializeERK22ProposalNativeTableSetNSt6size_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Validate and upload exactly once, until <a class="reference internal" href="#classcorsika_1_1kokkos_1_1NativeTableStorage_1aee0224e4bacda05fe43d106134ddc0d0"><span class="std std-ref">reset()</span></a> is called.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> – Canonical format-v7 export with a matching content hash. </p></li>
+<li><p><strong>maximumBytes</strong> – Upper bound on the original array-byte accounting. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Throws<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">logic_error</span></span></span> – If this owner is already initialized. </p></li>
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">invalid_argument</span></span></span> – For invalid exported data or a hash mismatch. </p></li>
+<li><p><span><span class="cpp-expr sig sig-inline cpp"><span class="n">std</span><span class="p">::</span><span class="n">runtime_error</span></span></span> – If the configured budget is insufficient. </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18NativeTableStorage5resetEv">
+<span id="_CPPv3N7corsika6kokkos18NativeTableStorage5resetEv"></span><span id="_CPPv2N7corsika6kokkos18NativeTableStorage5resetEv"></span><span id="corsika::kokkos::NativeTableStorage::reset"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1aee0224e4bacda05fe43d106134ddc0d0"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">reset</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18NativeTableStorage5resetEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Release owned allocations; the caller must have completed their queries. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18NativeTableStorage13isInitializedEv">
+<span id="_CPPv3NK7corsika6kokkos18NativeTableStorage13isInitializedEv"></span><span id="_CPPv2NK7corsika6kokkos18NativeTableStorage13isInitializedEv"></span><span id="corsika::kokkos::NativeTableStorage::isInitializedC"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1a43bd897487b638aa20ef50aa9d4a3996"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">isInitialized</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18NativeTableStorage13isInitializedEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18NativeTableStorage14getDeviceBytesEv">
+<span id="_CPPv3NK7corsika6kokkos18NativeTableStorage14getDeviceBytesEv"></span><span id="_CPPv2NK7corsika6kokkos18NativeTableStorage14getDeviceBytesEv"></span><span id="corsika::kokkos::NativeTableStorage::getDeviceBytesC"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1af1bc21e98e598b86b4df4cc75c25c20f"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDeviceBytes</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="k"><span class="pre">noexcept</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18NativeTableStorage14getDeviceBytesEv" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18NativeTableStorage20getSourceContentHashEv">
+<span id="_CPPv3NK7corsika6kokkos18NativeTableStorage20getSourceContentHashEv"></span><span id="_CPPv2NK7corsika6kokkos18NativeTableStorage20getSourceContentHashEv"></span><span id="corsika::kokkos::NativeTableStorage::getSourceContentHashC"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1a78d076746489932a2cbd5ae690a6fedb"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/utility/Sha256.hpp#L18"><span class="n"><span class="pre">sha256_digest_type</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">getSourceContentHash</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18NativeTableStorage20getSourceContentHashEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Return the uploaded hash; reject access before initialization. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4NK7corsika6kokkos18NativeTableStorage13getDeviceViewEv">
+<span id="_CPPv3NK7corsika6kokkos18NativeTableStorage13getDeviceViewEv"></span><span id="_CPPv2NK7corsika6kokkos18NativeTableStorage13getDeviceViewEv"></span><span id="corsika::kokkos::NativeTableStorage::getDeviceViewC"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1a3d01265d1bb38ea842e02055907cb0d6"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L261"><span class="n"><span class="pre">ProposalNativeDeviceView</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">getDeviceView</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><span class="w"> </span><span class="k"><span class="pre">const</span></span><a class="headerlink" href="#_CPPv4NK7corsika6kokkos18NativeTableStorage13getDeviceViewEv" title="Link to this definition"></a><br /></dt>
+<dd><p>Return a non-owning view; reject access before initialization. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-static-functions">Public Static Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos18NativeTableStorage20projectedDeviceBytesERK22ProposalNativeTableSet">
+<span id="_CPPv3N7corsika6kokkos18NativeTableStorage20projectedDeviceBytesERK22ProposalNativeTableSet"></span><span id="_CPPv2N7corsika6kokkos18NativeTableStorage20projectedDeviceBytesERK22ProposalNativeTableSet"></span><span id="corsika::kokkos::NativeTableStorage::projectedDeviceBytes__ProposalNativeTableSetCR"></span><span class="target" id="classcorsika_1_1kokkos_1_1NativeTableStorage_1a60403a8eadbd408ed4f0d8d7ebd7b4bf"></span><span class="k"><span class="pre">static</span></span><span class="w"> </span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">projectedDeviceBytes</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE" title="corsika::kokkos::ProposalNativeTableSet"><span class="n"><span class="pre">ProposalNativeTableSet</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">source</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos18NativeTableStorage20projectedDeviceBytesERK22ProposalNativeTableSet" title="Link to this definition"></a><br /></dt>
+<dd><p>Return the production allocation budget for all exported arrays. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+<section id="native-query-results-and-units">
+<h2>Native query results and units<a class="headerlink" href="#native-query-results-and-units" title="Link to this heading"></a></h2>
+<p>The following queries use total energies in MeV and grammage in g/cm².
+Rates are per g/cm²; the loss-fraction result is dimensionless. These units
+are distinct from particle-state total energies in GeV. Callers inspect the
+returned status before using the value. Query records also retain iteration
+diagnostics; they do not own table storage.</p>
+<p>The cumulative-rate query takes the table’s transformed loss coordinate.
+The inverse query instead takes a quantile and returns a physical loss or
+secondary-energy fraction according to its <code class="docutils literal notranslate"><span class="pre">photon_split</span></code> argument. The
+independent total-rate spline is used for distance sampling; ordered channel
+selection has its own rate-summation query. See
+<a class="reference internal" href="../physics-data/storage.html"><span class="doc">Table representation and device storage</span></a> for those distinctions.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp">ProposalNativeData.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeQueries.hpp">ProposalNativeQueries.hpp</a>. The
+declarations below select the principal query boundaries; the header also
+provides individual-column, stopping-power, range and selection-total queries.</p>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17NativeQueryResultE">
+<span id="_CPPv3N7corsika6kokkos17NativeQueryResultE"></span><span id="_CPPv2N7corsika6kokkos17NativeQueryResultE"></span><span id="corsika::kokkos::NativeQueryResult"></span><span class="target" id="structcorsika_1_1kokkos_1_1NativeQueryResult"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">NativeQueryResult</span></span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17NativeQueryResultE" title="Link to this definition"></a><br /></dt>
+<dd><p>Original status, solver counts and result; inspect the complete outcome. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17NativeQueryResult7status_E">
+<span id="_CPPv3N7corsika6kokkos17NativeQueryResult7status_E"></span><span id="_CPPv2N7corsika6kokkos17NativeQueryResult7status_E"></span><span id="corsika::kokkos::NativeQueryResult::status___NativeQueryStatus"></span><span class="target" id="structcorsika_1_1kokkos_1_1NativeQueryResult_1a848d993976e72df4201e93f82315a25a"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L78"><span class="n"><span class="pre">NativeQueryStatus</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">status_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L78"><span class="n"><span class="pre">NativeQueryStatus</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L78"><span class="n"><span class="pre">InvalidView</span></span></a><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17NativeQueryResult7status_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17NativeQueryResult17newtonIterations_E">
+<span id="_CPPv3N7corsika6kokkos17NativeQueryResult17newtonIterations_E"></span><span id="_CPPv2N7corsika6kokkos17NativeQueryResult17newtonIterations_E"></span><span id="corsika::kokkos::NativeQueryResult::newtonIterations___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1NativeQueryResult_1add1b2867222125e6c1e88593ec57bc86"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">newtonIterations_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17NativeQueryResult17newtonIterations_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17NativeQueryResult20bisectionIterations_E">
+<span id="_CPPv3N7corsika6kokkos17NativeQueryResult20bisectionIterations_E"></span><span id="_CPPv2N7corsika6kokkos17NativeQueryResult20bisectionIterations_E"></span><span id="corsika::kokkos::NativeQueryResult::bisectionIterations___std::uint32_t"></span><span class="target" id="structcorsika_1_1kokkos_1_1NativeQueryResult_1a819d8a6e4335e386bab4f1e93d48abd2"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bisectionIterations_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17NativeQueryResult20bisectionIterations_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos17NativeQueryResult6value_E">
+<span id="_CPPv3N7corsika6kokkos17NativeQueryResult6value_E"></span><span id="_CPPv2N7corsika6kokkos17NativeQueryResult6value_E"></span><span id="corsika::kokkos::NativeQueryResult::value___double"></span><span class="target" id="structcorsika_1_1kokkos_1_1NativeQueryResult_1ae7d4c5343c0371d3c3c1c70b488811ec"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">value_</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><a class="headerlink" href="#_CPPv4N7corsika6kokkos17NativeQueryResult6value_E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos32query_proposal_native_total_rateERK24ProposalNativeDeviceViewNSt7int32_tEd">
+<span id="_CPPv3N7corsika6kokkos32query_proposal_native_total_rateERK24ProposalNativeDeviceViewNSt7int32_tEd"></span><span id="_CPPv2N7corsika6kokkos32query_proposal_native_total_rateERK24ProposalNativeDeviceViewNSt7int32_tEd"></span><span id="corsika::kokkos::query_proposal_native_total_rate__ProposalNativeDeviceViewCR.std::int32_t.double"></span><span class="target" id="namespacecorsika_1_1kokkos_1a8d3d0db10e537469c14f23f7573c2b90"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17NativeQueryResultE" title="corsika::kokkos::NativeQueryResult"><span class="n"><span class="pre">NativeQueryResult</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">query_proposal_native_total_rate</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L261"><span class="n"><span class="pre">ProposalNativeDeviceView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">view</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pdg_id</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">energy_MeV</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos32query_proposal_native_total_rateERK24ProposalNativeDeviceViewNSt7int32_tEd" title="Link to this definition"></a><br /></dt>
+<dd><p>Evaluate the independent total-rate spline used by interaction-distance sampling. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos37query_proposal_native_cumulative_rateERK24ProposalNativeDeviceViewRK16NativeDndxColumndd">
+<span id="_CPPv3N7corsika6kokkos37query_proposal_native_cumulative_rateERK24ProposalNativeDeviceViewRK16NativeDndxColumndd"></span><span id="_CPPv2N7corsika6kokkos37query_proposal_native_cumulative_rateERK24ProposalNativeDeviceViewRK16NativeDndxColumndd"></span><span id="corsika::kokkos::query_proposal_native_cumulative_rate__ProposalNativeDeviceViewCR.NativeDndxColumnCR.double.double"></span><span class="target" id="namespacecorsika_1_1kokkos_1ab32047fe1a9c1aba35e83e46c4c555c0"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17NativeQueryResultE" title="corsika::kokkos::NativeQueryResult"><span class="n"><span class="pre">NativeQueryResult</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">query_proposal_native_cumulative_rate</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L261"><span class="n"><span class="pre">ProposalNativeDeviceView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">view</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L130"><span class="n"><span class="pre">NativeDndxColumn</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">column</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">energy_MeV</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">transformed_loss</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos37query_proposal_native_cumulative_rateERK24ProposalNativeDeviceViewRK16NativeDndxColumndd" title="Link to this definition"></a><br /></dt>
+<dd><p>Evaluate the cumulative spline divided by componentWeight_, with native clipping. transformed_loss is the spline’s transformed coordinate, not the physical loss. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos35query_proposal_native_loss_fractionERK24ProposalNativeDeviceViewNSt7int32_tENSt7int32_tENSt8uint64_tEddb">
+<span id="_CPPv3N7corsika6kokkos35query_proposal_native_loss_fractionERK24ProposalNativeDeviceViewNSt7int32_tENSt7int32_tENSt8uint64_tEddb"></span><span id="_CPPv2N7corsika6kokkos35query_proposal_native_loss_fractionERK24ProposalNativeDeviceViewNSt7int32_tENSt7int32_tENSt8uint64_tEddb"></span><span id="corsika::kokkos::query_proposal_native_loss_fraction__ProposalNativeDeviceViewCR.std::int32_t.std::int32_t.std::uint64_t.double.double.b"></span><span class="target" id="namespacecorsika_1_1kokkos_1a9958d3f4c02545ab4e291644d38d2076"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17NativeQueryResultE" title="corsika::kokkos::NativeQueryResult"><span class="n"><span class="pre">NativeQueryResult</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">query_proposal_native_loss_fraction</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L261"><span class="n"><span class="pre">ProposalNativeDeviceView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">view</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pdg_id</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">process_id</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">component_hash</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">energy_MeV</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">quantile</span></span>, <span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">photon_split</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="k"><span class="pre">false</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos35query_proposal_native_loss_fractionERK24ProposalNativeDeviceViewNSt7int32_tENSt7int32_tENSt8uint64_tEddb" title="Link to this definition"></a><br /></dt>
+<dd><p>Invert the raw CDF with the original six-point derivative and Newton/bisection. quantile is in [0, 1]. Normally value_ is the stochastic energy-loss fraction. With photon_split, it is the electron fraction for photon pair production, or the positive-muon fraction for BKK muon-pair production. These explicit secondary queries reuse the original rate column, without adding a process. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos50query_proposal_native_energy_after_continuous_lossERK24ProposalNativeDeviceViewNSt7int32_tEdd">
+<span id="_CPPv3N7corsika6kokkos50query_proposal_native_energy_after_continuous_lossERK24ProposalNativeDeviceViewNSt7int32_tEdd"></span><span id="_CPPv2N7corsika6kokkos50query_proposal_native_energy_after_continuous_lossERK24ProposalNativeDeviceViewNSt7int32_tEdd"></span><span id="corsika::kokkos::query_proposal_native_energy_after_continuous_loss__ProposalNativeDeviceViewCR.std::int32_t.double.double"></span><span class="target" id="namespacecorsika_1_1kokkos_1a9ac589a42a65e46a4e877ba5992a2b1a"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N7corsika6kokkos17NativeQueryResultE" title="corsika::kokkos::NativeQueryResult"><span class="n"><span class="pre">NativeQueryResult</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">query_proposal_native_energy_after_continuous_loss</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp#L261"><span class="n"><span class="pre">ProposalNativeDeviceView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">view</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pdg_id</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">initial_energy_MeV</span></span>, <span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">grammage_g_per_cm2</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos50query_proposal_native_energy_after_continuous_lossERK24ProposalNativeDeviceViewNSt7int32_tEdd" title="Link to this definition"></a><br /></dt>
+<dd><p>Invert continuous loss over [lower energy, initial energy], retaining the original fallback. </p>
+</dd></dl>
+
+</section>
+<section id="selection-and-propagation">
+<h2>Selection and propagation<a class="headerlink" href="#selection-and-propagation" title="Link to this heading"></a></h2>
+<p>Selection produces a candidate interaction record without advancing the
+particle. Transport then resolves the competing limits and returns the
+completed step or an explicit failure/completion request. The charged-lepton
+transport function does not itself execute multiple scattering or a discrete
+final state. Its <code class="docutils literal notranslate"><span class="pre">applyMoliere</span></code> argument also controls the zero-length-cut
+status consumed by the later scattering stage.</p>
+<p>These functions are numerical entry points, not host queue-submission calls.
+The caller supplies exclusive output slots and keeps all borrowed table and
+environment data alive in accessible memory. The meaning of partial records
+and return flags is part of the interface; a fallback record does not execute
+the CPU handler. See <a class="reference internal" href="../transport/selection.html"><span class="doc">Candidate sampling and vertex selection</span></a>,
+<a class="reference internal" href="../transport/lepton-step.html"><span class="doc">Charged-lepton propagation</span></a> and <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a>.</p>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionSelection.hpp">InteractionSelection.hpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonTransportStep.hpp">LeptonTransportStep.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonTransportStep.hpp">PhotonTransportStep.hpp</a>.</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4N7corsika6kokkos27select_discrete_interactionERK22InteractionPhysicsViewRK13ParticleStateKNSt8uint64_tEKNSt8uint64_tEKNSt8uint64_tE">
+<span id="_CPPv3N7corsika6kokkos27select_discrete_interactionERK22InteractionPhysicsViewRK13ParticleStateKNSt8uint64_tEKNSt8uint64_tEKNSt8uint64_tE"></span><span id="_CPPv2N7corsika6kokkos27select_discrete_interactionERK22InteractionPhysicsViewRK13ParticleStateKNSt8uint64_tEKNSt8uint64_tEKNSt8uint64_tE"></span><span id="corsika::kokkos::select_discrete_interaction__InteractionPhysicsViewCR.ParticleStateCR.std::uint64_tC.std::uint64_tC.std::uint64_tC"></span><span class="target" id="namespacecorsika_1_1kokkos_1a05b1766bd7abe204c9c4da831dce5ae4"></span><span class="k"><span class="pre">inline</span></span><span class="w"> </span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionSelection.hpp#L21"><span class="n"><span class="pre">InteractionSelectionOutcome</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">select_discrete_interaction</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/InteractionPhysicsView.hpp#L20"><span class="n"><span class="pre">InteractionPhysicsView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">physics</span></span>, <a class="reference internal" href="particles.html#_CPPv4N7corsika6kokkos13ParticleStateE" title="corsika::kokkos::ParticleState"><span class="n"><span class="pre">ParticleState</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">particle</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">input_index</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">random_seed</span></span>, <span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint64_t</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">shower_id</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N7corsika6kokkos27select_discrete_interactionERK22InteractionPhysicsViewRK13ParticleStateKNSt8uint64_tEKNSt8uint64_tEKNSt8uint64_tE" title="Link to this definition"></a><br /></dt>
+<dd><p>Sample interaction grammage and preserve production random provenance. Charged particles defer channel selection until after continuous loss. Photon CPU completions may be recorded as pending, but must first reach their vertex. This function advances neither particle position/time nor any execution queue. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input_index</strong> – Stable caller index, not an RNG input. </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interaction/fallback records and the original native inverse counters. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos16transport_leptonENSt8uint32_tERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary">
+<span id="_CPPv3I0EN7corsika6kokkos16transport_leptonERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary"></span><span id="_CPPv2I0EN7corsika6kokkos16transport_leptonERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1abcc6297006100f1176d8dfc71c5f71ad"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">uint32_t</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">transport_lepton</span></span></span><span class="sig-paren">(</span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ContinuousPhysicsQueries.hpp#L38"><span class="n"><span class="pre">ContinuousPhysicsView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">table</span></span>, <span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">applyMoliere</span></span>, <a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos16transport_leptonENSt8uint32_tERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary" title="corsika::kokkos::transport_lepton::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp#L23"><span class="n"><span class="pre">TransportGeometryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/InteractionRecord.hpp#L48"><span class="n"><span class="pre">InteractionRecord</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">interaction</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/LeptonTransportRecord.hpp#L38"><span class="n"><span class="pre">LeptonTransportRecord</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">record</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/FallbackRequest.hpp#L68"><span class="n"><span class="pre">FallbackRequest</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">fallback</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp#L35"><span class="n"><span class="pre">ExternalTransportBoundary</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">external</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos16transport_leptonENSt8uint32_tERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary" title="Link to this definition"></a><br /></dt>
+<dd><p>Advance one charged lepton using the production environment-tree path. The caller provides read-only native continuous tables, an exported tree and an independently configured observation plane in one coordinate system. table and environment owners must outlive the call/kernel in accessible memory. Step competition uses start-tangent grammage; continuous loss uses the completed endpoint chord. No scattering draw, discrete final state or CPU handler runs here.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table</strong> – Borrowed native continuous tables and kinetic transport cuts in MeV. </p></li>
+<li><p><strong>applyMoliere</strong> – Whether the later split scattering stage will run. </p></li>
+<li><p><strong>environment</strong> – Read-only, validated C8 environment-tree snapshot view. </p></li>
+<li><p><strong>config</strong> – Query limits, separate observation plane and diagnostic origin. </p></li>
+<li><p><strong>interaction</strong> – Previous sampled-distance, selected, no-interaction or cut record. </p></li>
+<li><p><strong>record</strong> – Exclusive output slot; retained unchanged or partly written on failure. </p></li>
+<li><p><strong>fallback</strong> – Exclusive failure slot; only written when returning 1. </p></li>
+<li><p><strong>external</strong> – Optional non-absorbing material-interface distance candidate. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 for success, 1 for explicit CPU fallback, or 2 for a successful zero-length cut that must bypass split scattering (then be normalized to 0). Input and output objects must not alias. Inspect the return value before using record; no new rollback or output clearing is added to the production policy. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos16transport_photonE22PhotonTransportOutcomeRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary">
+<span id="_CPPv3I0EN7corsika6kokkos16transport_photonERK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary"></span><span id="_CPPv2I0EN7corsika6kokkos16transport_photonERK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary"></span><span class="k"><span class="pre">template</span></span><span class="p"><span class="pre">&lt;</span></span><span class="k"><span class="pre">typename</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">TEnvironmentView</span></span></span><span class="p"><span class="pre">&gt;</span></span><br /><span class="target" id="namespacecorsika_1_1kokkos_1aeb6ea2623748818005be654b0f33c132"></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonTransportStep.hpp#L23"><span class="n"><span class="pre">PhotonTransportOutcome</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika"><span class="n"><span class="pre">corsika</span></span></a><span class="p"><span class="pre">::</span></span><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos"><span class="n"><span class="pre">kokkos</span></span></a><span class="p"><span class="pre">::</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">transport_photon</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN7corsika6kokkos16transport_photonE22PhotonTransportOutcomeRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary" title="corsika::kokkos::transport_photon::TEnvironmentView"><span class="n"><span class="pre">TEnvironmentView</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">environment</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp#L23"><span class="n"><span class="pre">TransportGeometryConfig</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">config</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/InteractionRecord.hpp#L48"><span class="n"><span class="pre">InteractionRecord</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="n sig-param"><span class="pre">interaction</span></span>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp#L35"><span class="n"><span class="pre">ExternalTransportBoundary</span></span></a><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">external</span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="p"><span class="pre">{</span></span><span class="p"><span class="pre">}</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN7corsika6kokkos16transport_photonE22PhotonTransportOutcomeRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary" title="Link to this definition"></a><br /></dt>
+<dd><p>Advance one selected photon on the production environment-tree path.</p>
+<p>
+Input state and geometry are read-only. The step retains original boundary competition, same-value ordering, straight grammage inversion and time cuts. No RNG draw, reaction final state, observation output or CPU replay is executed. On failure a partial record may exist: callers must inspect fallbackFlag_. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>environment</strong> – Validated snapshot arrays, alive throughout the call/kernel. </p></li>
+<li><p><strong>config</strong> – Query parameters, independent observation plane and diagnostic origin. </p></li>
+<li><p><strong>interaction</strong> – Selected, no-discrete-interaction or pre-cut record. </p></li>
+<li><p><strong>external</strong> – Optional external straight material interface. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Complete step or the unchanged production fallback reason/diagnostics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Final-state classification and materialization are separate public stage
+interfaces in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/LeptonFinalStateStep.hpp">LeptonFinalStateStep.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/algorithms/PhotonFinalStateStep.hpp">PhotonFinalStateStep.hpp</a>.
+Their counting, exclusive-slot assignment, CPU completion and energy-accounting
+contracts are documented in <a class="reference internal" href="../transport/interactions.html"><span class="doc">Photon transport and interaction completion</span></a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="environment.html" class="btn btn-neutral float-left" title="Environment preparation and queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="radio.html" class="btn btn-neutral float-right" title="Radio inputs, accumulation and propagation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

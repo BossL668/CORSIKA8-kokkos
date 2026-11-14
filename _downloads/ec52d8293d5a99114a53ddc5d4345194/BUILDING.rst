@@ -2,8 +2,9 @@ Building the Kokkos developer guide
 ===================================
 
 Run from the repository root. Python 3.11 or newer is required by the pinned
-Sphinx version. This builds documentation only; no CORSIKA binary, FLUKA,
-PROPOSAL or GPU toolchain is required.
+Sphinx version; Doxygen generates the public API declarations. This procedure
+has been checked with Doxygen 1.9.8. It builds documentation only; no CORSIKA
+binary, FLUKA, PROPOSAL or GPU toolchain is required.
 
 The chapters use ``literalinclude`` to read excerpts from tracked C++ and CMake
 files. In a sparse checkout, retain the referenced files under
@@ -13,7 +14,12 @@ No compilation is involved. Stored SVG diagrams are ready to use; their
 adjacent DOT sources are only needed when editing the diagrams, with Graphviz's
 ``dot -Tsvg`` command.
 
-Local preview::
+Install Doxygen through the system package manager. For example, on an Ubuntu
+release that supplies the checked version::
+
+   sudo apt-get install doxygen
+
+Then build and preview::
 
    python3 -m venv build/kokkos-docs-env
    build/kokkos-docs-env/bin/python -m pip install -r documentation/kokkos/requirements.txt
@@ -32,7 +38,7 @@ links and anchors. To use another output location::
 Public hosting
 --------------
 
-The initial site is published from the ``gh-pages`` branch. That branch contains
+The site is published from the ``gh-pages`` branch. That branch contains
 only the checked static HTML output, including ``.nojekyll``; editable sources
 stay in ``documentation/kokkos`` on the main development branch. In repository
 Settings > Pages, select "Deploy from a branch", ``gh-pages``, and the root
@@ -46,9 +52,10 @@ workflow permission. To also deploy through Actions, switch the Pages source
 to GitHub Actions and run that workflow on the default branch with ``publish``
 enabled. The workflow template itself is not active.
 
-For Read the Docs, use documentation/kokkos/conf.py as the Sphinx configuration
-and documentation/kokkos/requirements.txt as the dependency list. This provides
-the same source content without a second copy of the guide.
+Other hosting services need the same Doxygen and Python dependencies. Run the
+build helper before publishing its output; pointing a service at ``conf.py``
+alone does not generate the API XML. The editable content remains shared with
+the repository's documentation.
 
 The chapters are ordinary reStructuredText and are linked from the parent
 documentation/index.rst. When incorporating this guide in the official site,
@@ -57,6 +64,22 @@ reuse its theme and review the standalone presentation settings separately.
 API reference
 -------------
 
-Set C8_DOCS_DOXYGEN_XML to an existing Doxygen XML directory when adding Breathe
-API directives. The initial scaffold does not generate API pages. This keeps
-the preview independent of a full project build.
+``tools/build_kokkos_docs.py`` parses every public header under
+``corsika/kokkos`` using ``documentation/kokkos/Doxyfile``. It generates XML
+and a header-hash manifest under ``api-doxygen`` beside the chosen HTML output,
+then supplies ``C8_DOCS_DOXYGEN_XML`` to Sphinx. The API pages select the relevant
+declarations with Breathe directives. No dependency include search or compiler
+invocation is involved. ``DOXYGEN`` can select another Doxygen executable.
+
+The builder regenerates XML so deleted declarations cannot remain from an old
+build, and copies ``api-inputs.json`` into the site. The generated files stay
+outside the documentation source. Missing parameter descriptions in existing
+headers do not prevent extraction; malformed documentation and Sphinx warnings
+still fail the build. This is a documentation check, not a code-compilation or
+physics-validation result.
+
+When changing the documented source baseline, update its pinned links and
+``api_source_revision`` in ``conf.py`` together. Review the generated signatures
+and source comments, source-link resolution, overload selection and public
+member visibility. Rebuild the whole guide and check the relevant rendered
+pages at desktop and mobile widths.

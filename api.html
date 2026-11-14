@@ -10,20 +10,20 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=d7e4d8cd" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/api.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=32839c3e"></script>
+      <script src="_static/documentation_options.js?v=dd985633"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="About this guide" href="about.html" />
+    <link rel="next" title="Application interfaces" href="api/application.html" />
     <link rel="prev" title="Execution granularity and algorithm ownership" href="decisions/execution-models.html" /> 
 </head>
 
@@ -131,7 +131,15 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">API reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
 </ul>
 
@@ -161,18 +169,104 @@
              
   <section id="api-reference">
 <h1>API reference<a class="headerlink" href="#api-reference" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>Entry point for generated public-interface documentation.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Application and execution interfaces.</p></li>
-<li><p>Particle and environment data interfaces.</p></li>
-<li><p>Transport, scheduling and radio interfaces.</p></li>
-<li><p>Links to generated Doxygen reference pages.</p></li>
+<p>This reference presents the main integration interfaces directly from their
+C++ headers. Doxygen extracts declarations and comments; Breathe renders them
+in the guide. Function names, template parameters, argument types, defaults
+and return types come from source rather than manually copied signatures.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+These are the implementation’s current interfaces, not an upstream API
+proposal or a blanket compatibility guarantee. Available implementations
+depend on the configured targets and execution backends.</p>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
 </ul>
+</div>
+<section id="reference-organization">
+<h2>Reference organization<a class="headerlink" href="#reference-organization" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29.0%" />
+<col style="width: 38.0%" />
+<col style="width: 33.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interfaces</p></th>
+<th class="head"><p>Main responsibility</p></th>
+<th class="head"><p>Behavioral documentation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="api/application.html"><span class="doc">Application interfaces</span></a></p></td>
+<td><p>Application bindings, execution selection and event configuration.</p></td>
+<td><p><a class="reference internal" href="application.html"><span class="doc">Application integration</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/execution.html"><span class="doc">Runtime and execution interfaces</span></a></p></td>
+<td><p>Runtime ownership, backend submission, run sessions and coordination.</p></td>
+<td><p><a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a>, <a class="reference internal" href="backends/runtime.html"><span class="doc">Runtime selection and ownership</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="api/particles.html"><span class="doc">Particle records and conversion</span></a></p></td>
+<td><p>Particle and step records, numerical conversion and storage.</p></td>
+<td><p><a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/environment.html"><span class="doc">Environment preparation and queries</span></a></p></td>
+<td><p>Native scene export, topology, resident data and numerical queries.</p></td>
+<td><p><a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="api/physics.html"><span class="doc">Physics tables and transport stages</span></a></p></td>
+<td><p>Native table preparation, queries and particle transport stages.</p></td>
+<td><p><a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a>, <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/radio.html"><span class="doc">Radio inputs, accumulation and propagation</span></a></p></td>
+<td><p>Track input, observer/configuration data, projection and accumulation.</p></td>
+<td><p><a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a></p></td>
+</tr>
+</tbody>
+</table>
+<p>The pages select the interfaces used to connect components and explain their
+roles before the generated declarations. They do not reproduce every helper
+or every diagnostic member. Source links provide the complete headers;
+the component chapters describe call order, memory accessibility, units,
+ownership and supported domains. The alphabetical index and site search
+include the rendered API names.</p>
+</section>
+<section id="interpreting-a-declaration">
+<h2>Interpreting a declaration<a class="headerlink" href="#interpreting-a-declaration" title="Link to this heading"></a></h2>
+<p>A reference or pointer does not transfer ownership. Check the documented
+lifetime of the referred object and whether the function is a host adapter,
+a data transfer or a device-callable calculation. Similarly, a result record
+may require checking a status before its numerical values are valid. A
+header’s presence does not establish that a particular optional target has
+been built or validated on a device.</p>
+<p>The API pages retain source comments and add links to the relevant component
+contracts. Where a source declaration lacks detailed parameter documentation,
+use those contracts and the implementation; no additional behavior is inferred
+from the function name. In particular, validation batch wrappers and resident
+production execution can expose similar calculations with different storage
+and completion costs.</p>
+</section>
+<section id="building-and-updating-the-reference">
+<h2>Building and updating the reference<a class="headerlink" href="#building-and-updating-the-reference" title="Link to this heading"></a></h2>
+<p>The documentation build extracts the public <code class="docutils literal notranslate"><span class="pre">corsika/kokkos</span></code> headers without
+compiling the application or its physics dependencies. It does not execute
+the interfaces. Use the <a class="reference download internal" download="" href="_downloads/ec52d8293d5a99114a53ddc5d4345194/BUILDING.rst"><code class="xref download docutils literal notranslate"><span class="pre">documentation</span> <span class="pre">build</span> <span class="pre">instructions</span></code></a> for the tool requirements and commands.</p>
+<p>The <a class="reference external" href="api-inputs.json">generated-header manifest</a> records the Doxygen version,
+input-header hashes and extraction configuration hash for this build. Types
+with their own reference entry link within the guide; additional implementation
+types link to their source declarations where the reference can be resolved.</p>
+<p>When adding or changing an interface, update its declaration-level contract
+and the relevant API page together. Regenerate the reference and review
+overloads, template signatures, public member visibility and links. The
+source extraction and the semantic guide answer different questions; both
+must remain consistent with the implementation.</p>
 </section>
 </section>
 
@@ -181,7 +275,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="decisions/execution-models.html" class="btn btn-neutral float-left" title="Execution granularity and algorithm ownership" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="about.html" class="btn btn-neutral float-right" title="About this guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="api/application.html" class="btn btn-neutral float-right" title="Application interfaces" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

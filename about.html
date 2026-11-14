@@ -10,20 +10,20 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=d7e4d8cd" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/about.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=32839c3e"></script>
+      <script src="_static/documentation_options.js?v=dd985633"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="#" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="API reference" href="api.html" /> 
+    <link rel="prev" title="Radio inputs, accumulation and propagation" href="api/radio.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -130,7 +130,15 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">About this guide</a></li>
 </ul>
 
@@ -190,8 +198,11 @@ campaign was performed. The <a class="reference internal" href="development.html
 conventions, extension work, compatibility and release review, distinguishing
 current contracts from recommendations. The <a class="reference internal" href="decisions.html"><span class="doc">Design decisions and open questions</span></a> chapter records
 implemented design choices, integration alternatives and questions for review;
-it does not present proposed interfaces as approved or implemented. The API
-reference remains an outline.
+it does not present proposed interfaces as approved or implemented. The
+<a class="reference internal" href="api.html"><span class="doc">API reference</span></a> presents source-generated declarations for the main public
+interfaces, linked to component contracts. Source extraction documents the
+interfaces; it does not demonstrate a successful build or physics validation
+on every recognized backend.
 This site is not an official CORSIKA documentation release.</p>
 </section>
 <section id="writing-a-chapter">
@@ -205,8 +216,8 @@ interface contract. Define responsibilities, inputs, outputs and ownership in
 direct terms, retaining the original source identifiers. Prefer established
 software terminology over conversational questions or reading instructions.</p>
 <p>Short source examples should be included from the repository with Sphinx’s
-<code class="docutils literal notranslate"><span class="pre">literalinclude</span></code> directive. Public API descriptions can be included from
-Doxygen XML through Breathe when the API reference is populated.</p>
+<code class="docutils literal notranslate"><span class="pre">literalinclude</span></code> directive. Public API declarations and comments are generated from Doxygen XML through
+Breathe. Update the source contract and its semantic explanation together.</p>
 </section>
 <section id="reading-and-navigation">
 <h2>Reading and navigation<a class="headerlink" href="#reading-and-navigation" title="Link to this heading"></a></h2>
@@ -220,7 +231,7 @@ the same navigation.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="api.html" class="btn btn-neutral float-left" title="API reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api/radio.html" class="btn btn-neutral float-left" title="Radio inputs, accumulation and propagation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

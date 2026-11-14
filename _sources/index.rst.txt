@@ -14,8 +14,8 @@ CORSIKA 8 with Kokkos
 
    <div class="guide-status" role="note">
      <span class="status-dot" aria-hidden="true"></span>
-     <strong>Documentation in preparation</strong>
-     <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio, backend-portability, validation, maintenance and design-decision chapters are available. The API reference is being developed.</span>
+     <strong>Source-based implementation guide</strong>
+     <span>User instructions, implementation chapters, maintenance guidance and a generated API reference, with source revisions and validation scope stated throughout.</span>
    </div>
 
 Guide objectives
@@ -64,8 +64,8 @@ explains build selection, runtime ownership and device-code contracts. The
 comparisons, and performance measurement. The :doc:`development` chapter
 describes contributor workflow, extension points, compatibility and release
 review. The :doc:`decisions` chapter separates implemented design choices from
-integration options and their evaluation requirements. The API reference is
-being prepared.
+integration options and their evaluation requirements. The :doc:`api` provides
+generated declarations with links to the relevant behavioral contracts.
 
 .. toctree::
    :maxdepth: 1

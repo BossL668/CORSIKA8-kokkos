@@ -10,13 +10,13 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=d7e4d8cd" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/index.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=32839c3e"></script>
+      <script src="_static/documentation_options.js?v=dd985633"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -130,7 +130,15 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
 </ul>
 
@@ -166,8 +174,8 @@ with Kokkos.</p>
 </div>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
-  <strong>Documentation in preparation</strong>
-  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport, radio, backend-portability, validation, maintenance and design-decision chapters are available. The API reference is being developed.</span>
+  <strong>Source-based implementation guide</strong>
+  <span>User instructions, implementation chapters, maintenance guidance and a generated API reference, with source revisions and validation scope stated throughout.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -209,8 +217,8 @@ explains build selection, runtime ownership and device-code contracts. The
 comparisons, and performance measurement. The <a class="reference internal" href="development.html"><span class="doc">Development and maintenance</span></a> chapter
 describes contributor workflow, extension points, compatibility and release
 review. The <a class="reference internal" href="decisions.html"><span class="doc">Design decisions and open questions</span></a> chapter separates implemented design choices from
-integration options and their evaluation requirements. The API reference is
-being prepared.</p>
+integration options and their evaluation requirements. The <a class="reference internal" href="api.html"><span class="doc">API reference</span></a> provides
+generated declarations with links to the relevant behavioral contracts.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>

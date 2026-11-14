@@ -44,6 +44,11 @@ body { color: var(--guide-ink); }
 .rst-content .admonition { border-radius: 5px; overflow: hidden; }
 .rst-content code { white-space: normal; overflow-wrap: anywhere; }
 .rst-content pre code { white-space: pre; }
+/* Allow long C++ names and template signatures to wrap on narrow screens. */
+.rst-content dl.cpp dt.sig { max-width: 100%; overflow-wrap: anywhere; }
+.rst-content dl.cpp dt.sig .pre { white-space: normal; }
+.rst-content .genindextable { width: 100%; table-layout: fixed; }
+.rst-content .genindextable td { overflow-wrap: anywhere; padding-right: 16px; }
 .rst-content .wy-table-responsive table.docutils { width: 100%; table-layout: fixed; }
 .rst-content .wy-table-responsive table.docutils td,
 .rst-content .wy-table-responsive table.docutils th { white-space: normal; overflow-wrap: anywhere; }
@@ -60,6 +65,11 @@ footer { color: var(--guide-muted); font-size: 12px; }
   .wy-nav-content { padding: 24px 20px; }
   .guide-cards { grid-template-columns: 1fr; }
   .rst-content h1 { font-size: 29px; }
+  .rst-content dl.cpp dd { margin-left: 12px; }
+  .rst-content dl.cpp dl.field-list { display: block; }
+  .rst-content dl.cpp dl.field-list > dt { padding-bottom: 6px; }
+  .rst-content dl.cpp dl.field-list > dd { margin-left: 0; padding-left: 0; }
+  .rst-content .genindextable td { display: block; width: 100% !important; padding-right: 0; }
   .wy-nav-content-wrap.shift { left: 288px; }
 }
 @media print {

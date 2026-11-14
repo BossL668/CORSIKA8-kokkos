@@ -33,8 +33,11 @@ campaign was performed. The :doc:`development` chapter documents repository
 conventions, extension work, compatibility and release review, distinguishing
 current contracts from recommendations. The :doc:`decisions` chapter records
 implemented design choices, integration alternatives and questions for review;
-it does not present proposed interfaces as approved or implemented. The API
-reference remains an outline.
+it does not present proposed interfaces as approved or implemented. The
+:doc:`api` presents source-generated declarations for the main public
+interfaces, linked to component contracts. Source extraction documents the
+interfaces; it does not demonstrate a successful build or physics validation
+on every recognized backend.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter
@@ -51,8 +54,8 @@ direct terms, retaining the original source identifiers. Prefer established
 software terminology over conversational questions or reading instructions.
 
 Short source examples should be included from the repository with Sphinx's
-``literalinclude`` directive. Public API descriptions can be included from
-Doxygen XML through Breathe when the API reference is populated.
+``literalinclude`` directive. Public API declarations and comments are generated from Doxygen XML through
+Breathe. Update the source contract and its semantic explanation together.
 
 Reading and navigation
 ----------------------

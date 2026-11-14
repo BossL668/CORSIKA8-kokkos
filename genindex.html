@@ -9,13 +9,13 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
-      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=9cc0ee68" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=d7e4d8cd" />
 
   
     <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/genindex.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=32839c3e"></script>
+      <script src="_static/documentation_options.js?v=dd985633"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -128,7 +128,15 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
 </ul>
 
@@ -159,8 +167,925 @@
 <h1 id="index">Index</h1>
 
 <div class="genindex-jumpbox">
+ <a href="#C"><strong>C</strong></a>
  
 </div>
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/application.html#_CPPv4I00000EN7corsika6kokkos11application14CascadeContextE">corsika::kokkos::application::CascadeContext (C++ struct)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application14CascadeContext12diagnostics_E">corsika::kokkos::application::CascadeContext::diagnostics_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application14CascadeContext10execution_E">corsika::kokkos::application::CascadeContext::execution_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application14CascadeContext9geometry_E">corsika::kokkos::application::CascadeContext::geometry_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application14CascadeContext8outputs_E">corsika::kokkos::application::CascadeContext::outputs_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application14CascadeContext10processes_E">corsika::kokkos::application::CascadeContext::processes_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I000EN7corsika6kokkos11application12CascadeEventE">corsika::kokkos::application::CascadeEvent (C++ class)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I00EN7corsika6kokkos11application12CascadeEvent10addPrimaryEvR6TStackRK8TPrimary">corsika::kokkos::application::CascadeEvent::addPrimary (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I000000EN7corsika6kokkos11application12CascadeEvent7cascadeEDaR9TTrackingR9TSequenceR7TOutputR6TStackR10TInspectorR9TThinning13HEPEnergyTyped">corsika::kokkos::application::CascadeEvent::cascade (C++ function)</a>, <a href="api/application.html#_CPPv4I0000EN7corsika6kokkos11application12CascadeEvent7cascadeEDaR9TTrackingR9TSequenceR7TOutputR6TStack13HEPEnergyTyped">[1]</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEvent12CascadeEventER7TDriverRK14BackendOptionsRK20CascadeWorkerOptionsRK9TGeometry9TMonitorsNSt8uint64_tEid">corsika::kokkos::application::CascadeEvent::CascadeEvent (C++ function)</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEvent12CascadeEventERK12CascadeEvent">[1]</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEvent12CascadeEventERR12CascadeEvent">[2]</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEventaSERK12CascadeEvent">corsika::kokkos::application::CascadeEvent::operator= (C++ function)</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEventaSERR12CascadeEvent">[1]</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application12CascadeEventD0Ev">corsika::kokkos::application::CascadeEvent::~CascadeEvent (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfigE">corsika::kokkos::application::CascadeEventConfig (C++ struct)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig13atmosphereId_E">corsika::kokkos::application::CascadeEventConfig::atmosphereId_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig23automaticMaximumWeight_E">corsika::kokkos::application::CascadeEventConfig::automaticMaximumWeight_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig9beamCode_E">corsika::kokkos::application::CascadeEventConfig::beamCode_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig27configuredPrimaryEnergyMax_E">corsika::kokkos::application::CascadeEventConfig::configuredPrimaryEnergyMax_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig6emCut_E">corsika::kokkos::application::CascadeEventConfig::emCut_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig19emThinningFraction_E">corsika::kokkos::application::CascadeEventConfig::emThinningFraction_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig24highEnergyHadronicModel_E">corsika::kokkos::application::CascadeEventConfig::highEnergyHadronicModel_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig28highEnergyHadronicThreshold_E">corsika::kokkos::application::CascadeEventConfig::highEnergyHadronicThreshold_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig24keepZeroWeightParticles_E">corsika::kokkos::application::CascadeEventConfig::keepZeroWeightParticles_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig29maximumMagneticDeflectionRad_E">corsika::kokkos::application::CascadeEventConfig::maximumMagneticDeflectionRad_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig14maximumWeight_E">corsika::kokkos::application::CascadeEventConfig::maximumWeight_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig8muonCut_E">corsika::kokkos::application::CascadeEventConfig::muonCut_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig15outputShowerId_E">corsika::kokkos::application::CascadeEventConfig::outputShowerId_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig19primaryTotalEnergy_E">corsika::kokkos::application::CascadeEventConfig::primaryTotalEnergy_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig20productionThreshold_E">corsika::kokkos::application::CascadeEventConfig::productionThreshold_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig16radioZhsEnabled_E">corsika::kokkos::application::CascadeEventConfig::radioZhsEnabled_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig6scene_E">corsika::kokkos::application::CascadeEventConfig::scene_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig5seed_E">corsika::kokkos::application::CascadeEventConfig::seed_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig14showerOrdinal_E">corsika::kokkos::application::CascadeEventConfig::showerOrdinal_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18CascadeEventConfig34thinningCanActivateFromUnitWeight_E">corsika::kokkos::application::CascadeEventConfig::thinningCanActivateFromUnitWeight_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtensionE">corsika::kokkos::application::CascadeExtension (C++ class)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtension17assignWorkerInputENSt6stringEjNSt6vectorINSt6stringEEE">corsika::kokkos::application::CascadeExtension::assignWorkerInput (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtension16CascadeExtensionERN3CLI3AppE12CascadeScene">corsika::kokkos::application::CascadeExtension::CascadeExtension (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtension9configureERK20RunEnvironmentConfig">corsika::kokkos::application::CascadeExtension::configure (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I00EN7corsika6kokkos11application16CascadeExtension16energyLossWriterEDaRK5TAxisRK6TDepth">corsika::kokkos::application::CascadeExtension::energyLossWriter (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I00000000EN7corsika6kokkos11application16CascadeExtension9executionEDa2TG18CascadeEventConfigR3TEMR2TPR2TCR2TZR2THR2TLR2TO">corsika::kokkos::application::CascadeExtension::execution (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0000000ENK7corsika6kokkos11application16CascadeExtension8geometryEDaR2TERK2TCRK2TPRK2TSRK5TStepRK2TARK2TX">corsika::kokkos::application::CascadeExtension::geometry (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I000EN7corsika6kokkos11application16CascadeExtension11interactionEDaRK2TER2TLR2TH13HEPEnergyType">corsika::kokkos::application::CascadeExtension::interaction (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0EN7corsika6kokkos11application16CascadeExtension18interactionCounterEDaR6TModel">corsika::kokkos::application::CascadeExtension::interactionCounter (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I00EN7corsika6kokkos11application16CascadeExtension18longitudinalWriterEDaRK5TAxisRK6TDepth">corsika::kokkos::application::CascadeExtension::longitudinalWriter (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtension7prepareERK15DeviceSelectionPKc">corsika::kokkos::application::CascadeExtension::prepare (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16CascadeExtension14registerOutputER13OutputManager">corsika::kokkos::application::CascadeExtension::registerOutput (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0000000EN7corsika6kokkos11application15CascadeGeometryE">corsika::kokkos::application::CascadeGeometry (C++ struct)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry12coordinates_E">corsika::kokkos::application::CascadeGeometry::coordinates_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry7coreXM_E">corsika::kokkos::application::CascadeGeometry::coreXM_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry7coreYM_E">corsika::kokkos::application::CascadeGeometry::coreYM_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry10depthStep_E">corsika::kokkos::application::CascadeGeometry::depthStep_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry12environment_E">corsika::kokkos::application::CascadeGeometry::environment_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry18injectionPosition_E">corsika::kokkos::application::CascadeGeometry::injectionPosition_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry15magneticFieldT_E">corsika::kokkos::application::CascadeGeometry::magneticFieldT_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry19observationHeightM_E">corsika::kokkos::application::CascadeGeometry::observationHeightM_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry16propagationStep_E">corsika::kokkos::application::CascadeGeometry::propagationStep_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry11showerAxis_E">corsika::kokkos::application::CascadeGeometry::showerAxis_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15CascadeGeometry8surface_E">corsika::kokkos::application::CascadeGeometry::surface_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0000EN7corsika6kokkos11application13CascadeModuleE">corsika::kokkos::application::CascadeModule (C++ class)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0EN7corsika6kokkos11application13CascadeModule13CascadeModuleER14CascadeRuntimeRK14BackendOptionsRK20CascadeWorkerOptions18CascadeEventConfig2TG2TO2TM2TDR7TOutputi">corsika::kokkos::application::CascadeModule::CascadeModule (C++ function)</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModule13CascadeModuleERK13CascadeModule">[1]</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModule13CascadeModuleERR13CascadeModule">[2]</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModuleaSERK13CascadeModule">corsika::kokkos::application::CascadeModule::operator= (C++ function)</a>, <a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModuleaSERR13CascadeModule">[1]</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModule13setWorkerSeedENSt8uint64_tE">corsika::kokkos::application::CascadeModule::setWorkerSeed (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModule6showerENSt8uint64_tE">corsika::kokkos::application::CascadeModule::shower (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application13CascadeModuleD0Ev">corsika::kokkos::application::CascadeModule::~CascadeModule (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application18ExecutionSelectionE">corsika::kokkos::application::ExecutionSelection (C++ class)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4NK7corsika6kokkos11application18ExecutionSelection7devicesEv">corsika::kokkos::application::ExecutionSelection::devices (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4NK7corsika6kokkos11application18ExecutionSelection13isCoordinatedEv">corsika::kokkos::application::ExecutionSelection::isCoordinated (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4NK7corsika6kokkos11application18ExecutionSelection14runCoordinatorEiPPcb">corsika::kokkos::application::ExecutionSelection::runCoordinator (C++ function)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4I0EN7corsika6kokkos11application15PreparedCascadeE">corsika::kokkos::application::PreparedCascade (C++ struct)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade14backendConfig_E">corsika::kokkos::application::PreparedCascade::backendConfig_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade16environmentData_E">corsika::kokkos::application::PreparedCascade::environmentData_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade19environmentStorage_E">corsika::kokkos::application::PreparedCascade::environmentStorage_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade9geometry_E">corsika::kokkos::application::PreparedCascade::geometry_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade20physicsRequirements_E">corsika::kokkos::application::PreparedCascade::physicsRequirements_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade22proposalStochasticCut_E">corsika::kokkos::application::PreparedCascade::proposalStochasticCut_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application15PreparedCascade13radioEnabled_E">corsika::kokkos::application::PreparedCascade::radioEnabled_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfigE">corsika::kokkos::application::RunEnvironmentConfig (C++ struct)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig10altitudeM_E">corsika::kokkos::application::RunEnvironmentConfig::altitudeM_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig12antennaFile_E">corsika::kokkos::application::RunEnvironmentConfig::antennaFile_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig17geomagneticModel_E">corsika::kokkos::application::RunEnvironmentConfig::geomagneticModel_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig16geomagneticYear_E">corsika::kokkos::application::RunEnvironmentConfig::geomagneticYear_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig12latitudeDeg_E">corsika::kokkos::application::RunEnvironmentConfig::latitudeDeg_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig13longitudeDeg_E">corsika::kokkos::application::RunEnvironmentConfig::longitudeDeg_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig15magneticFieldT_E">corsika::kokkos::application::RunEnvironmentConfig::magneticFieldT_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig29maximumMagneticDeflectionRad_E">corsika::kokkos::application::RunEnvironmentConfig::maximumMagneticDeflectionRad_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig23observationPlanePointM_E">corsika::kokkos::application::RunEnvironmentConfig::observationPlanePointM_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application20RunEnvironmentConfig6scene_E">corsika::kokkos::application::RunEnvironmentConfig::scene_ (C++ member)</a>
+</li>
+      <li><a href="api/application.html#_CPPv4N7corsika6kokkos11application16select_executionEiPPc">corsika::kokkos::application::select_execution (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntimeE">corsika::kokkos::BackendRuntime (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntime14BackendRuntimeERK13RuntimeConfig">corsika::kokkos::BackendRuntime::BackendRuntime (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntime14BackendRuntimeERK14BackendRuntime">[1]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntime14BackendRuntimeERR14BackendRuntime">[2]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos14BackendRuntime7getInfoEv">corsika::kokkos::BackendRuntime::getInfo (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntimeaSERK14BackendRuntime">corsika::kokkos::BackendRuntime::operator= (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntimeaSERR14BackendRuntime">[1]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos14BackendRuntime17runPrimitiveProbeENSt6size_tENSt6size_tE">corsika::kokkos::BackendRuntime::runPrimitiveProbe (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos14BackendRuntime13runQueueProbeENSt6size_tE">corsika::kokkos::BackendRuntime::runQueueProbe (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos14BackendRuntime14runTilingProbeENSt6size_tENSt6size_tENSt6size_tENSt6size_tENSt6size_tE">corsika::kokkos::BackendRuntime::runTilingProbe (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos14BackendRuntime24shareCooperativeLifetimeEv">corsika::kokkos::BackendRuntime::shareCooperativeLifetime (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos14BackendRuntimeD0Ev">corsika::kokkos::BackendRuntime::~BackendRuntime (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos21bind_environment_dataE19EnvironmentDataViewRK19EnvironmentSnapshotI16TModelPropertiesE">corsika::kokkos::bind_environment_data (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptionsE">corsika::kokkos::coordinator::CoordinatorOptions (C++ struct)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions8devices_E">corsika::kokkos::coordinator::CoordinatorOptions::devices_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions11egs4Stepfc_E">corsika::kokkos::coordinator::CoordinatorOptions::egs4Stepfc_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions10emBackend_E">corsika::kokkos::coordinator::CoordinatorOptions::emBackend_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions7energy_E">corsika::kokkos::coordinator::CoordinatorOptions::energy_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions7events_E">corsika::kokkos::coordinator::CoordinatorOptions::events_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions15frontierEnergy_E">corsika::kokkos::coordinator::CoordinatorOptions::frontierEnergy_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions15memoryFraction_E">corsika::kokkos::coordinator::CoordinatorOptions::memoryFraction_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions7output_E">corsika::kokkos::coordinator::CoordinatorOptions::output_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions18persistentWorkers_E">corsika::kokkos::coordinator::CoordinatorOptions::persistentWorkers_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions8physics_E">corsika::kokkos::coordinator::CoordinatorOptions::physics_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions18prefixSplitEnergy_E">corsika::kokkos::coordinator::CoordinatorOptions::prefixSplitEnergy_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions14prefixWorkers_E">corsika::kokkos::coordinator::CoordinatorOptions::prefixWorkers_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions5seed_E">corsika::kokkos::coordinator::CoordinatorOptions::seed_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions8timeout_E">corsika::kokkos::coordinator::CoordinatorOptions::timeout_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator18CoordinatorOptions7worker_E">corsika::kokkos::coordinator::CoordinatorOptions::worker_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos11coordinator3runERK18CoordinatorOptions">corsika::kokkos::coordinator::run (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos32distance_to_environment_boundaryE24EnvironmentBoundaryQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdRAL3E_KdNSt7int32_tE">corsika::kokkos::distance_to_environment_boundary (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackendE">corsika::kokkos::EmBackend (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend9EmBackendERK13RuntimeConfig">corsika::kokkos::EmBackend::EmBackend (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend9EmBackendERK9EmBackend">[1]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend9EmBackendERR9EmBackend">[2]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend38generateLeptonFinalStatesForValidationERKNSt6vectorI17InteractionRecordEENSt8uint64_tE">corsika::kokkos::EmBackend::generateLeptonFinalStatesForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend38generatePhotonFinalStatesForValidationERKNSt6vectorI17InteractionRecordEENSt8uint64_tE">corsika::kokkos::EmBackend::generatePhotonFinalStatesForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend10initializeERK19EnvironmentDataViewRK23TransportGeometryConfigRK22ProposalNativeTableSetRK21ProposalNativeAuxDataRK13BackendConfig">corsika::kokkos::EmBackend::initialize (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend25projectRadioForValidationERKNSt6vectorI21LeptonTransportRecordEE">corsika::kokkos::EmBackend::projectRadioForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend47reselectLeptonInteractionsAtVertexForValidationERKNSt6vectorI17InteractionRecordEE">corsika::kokkos::EmBackend::reselectLeptonInteractionsAtVertexForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos9EmBackend11runtimeInfoEv">corsika::kokkos::EmBackend::runtimeInfo (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend31selectInteractionsForValidationERKNSt6vectorI13ParticleStateEE">corsika::kokkos::EmBackend::selectInteractionsForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend33selectLeptonVerticesForValidationERKNSt6vectorI17InteractionRecordEE">corsika::kokkos::EmBackend::selectLeptonVerticesForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend29transportLeptonsForValidationERKNSt6vectorI17InteractionRecordEE">corsika::kokkos::EmBackend::transportLeptonsForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos9EmBackend29transportPhotonsForValidationERKNSt6vectorI17InteractionRecordEE">corsika::kokkos::EmBackend::transportPhotonsForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSessionE">corsika::kokkos::EmRunSession (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSession19beginProposalNativeERK19EnvironmentDataViewRK23TransportGeometryConfigRK13BackendConfigRK19PhysicsRequirementsRKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE">corsika::kokkos::EmRunSession::beginProposalNative (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSession12EmRunSessionERK12EmRunSession">corsika::kokkos::EmRunSession::EmRunSession (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSession12EmRunSessionERK13RuntimeConfigNSt10filesystem4pathE">[1]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSession12EmRunSessionERR12EmRunSession">[2]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSession10getBackendEv">corsika::kokkos::EmRunSession::getBackend (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos12EmRunSession20getLoadedNativeTableEv">corsika::kokkos::EmRunSession::getLoadedNativeTable (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos12EmRunSession13isInitializedEv">corsika::kokkos::EmRunSession::isInitialized (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSessionaSERK12EmRunSession">corsika::kokkos::EmRunSession::operator= (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSessionaSERR12EmRunSession">[1]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos12EmRunSessionD0Ev">corsika::kokkos::EmRunSession::~EmRunSession (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos21environment_arclengthE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">corsika::kokkos::environment_arclength (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos20environment_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">corsika::kokkos::environment_grammage (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQueryE">corsika::kokkos::EnvironmentBoundaryQuery (C++ struct)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10distanceM_E">corsika::kokkos::EnvironmentBoundaryQuery::distanceM_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery9nextNode_E">corsika::kokkos::EnvironmentBoundaryQuery::nextNode_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery10nodeIndex_E">corsika::kokkos::EnvironmentBoundaryQuery::nodeIndex_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery8radiusM_E">corsika::kokkos::EnvironmentBoundaryQuery::radiusM_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentBoundaryQuery7status_E">corsika::kokkos::EnvironmentBoundaryQuery::status_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataViewE">corsika::kokkos::EnvironmentDataView (C++ struct)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView11childCount_E">corsika::kokkos::EnvironmentDataView::childCount_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView9children_E">corsika::kokkos::EnvironmentDataView::children_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView15componentCount_E">corsika::kokkos::EnvironmentDataView::componentCount_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView12composition_E">corsika::kokkos::EnvironmentDataView::composition_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView15exclusionCount_E">corsika::kokkos::EnvironmentDataView::exclusionCount_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView11exclusions_E">corsika::kokkos::EnvironmentDataView::exclusions_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView11modelCount_E">corsika::kokkos::EnvironmentDataView::modelCount_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView7models_E">corsika::kokkos::EnvironmentDataView::models_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView10nodeCount_E">corsika::kokkos::EnvironmentDataView::nodeCount_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView6nodes_E">corsika::kokkos::EnvironmentDataView::nodes_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentDataView7shapes_E">corsika::kokkos::EnvironmentDataView::shapes_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentGrammageQueryE">corsika::kokkos::EnvironmentGrammageQuery (C++ struct)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery9reserved_E">corsika::kokkos::EnvironmentGrammageQuery::reserved_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery7status_E">corsika::kokkos::EnvironmentGrammageQuery::status_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos24EnvironmentGrammageQuery6value_E">corsika::kokkos::EnvironmentGrammageQuery::value_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos21EnvironmentLayerQueryE">corsika::kokkos::EnvironmentLayerQuery (C++ struct)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery15densityGPerCm3_E">corsika::kokkos::EnvironmentLayerQuery::densityGPerCm3_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery10nodeIndex_E">corsika::kokkos::EnvironmentLayerQuery::nodeIndex_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery8radiusM_E">corsika::kokkos::EnvironmentLayerQuery::radiusM_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos21EnvironmentLayerQuery7status_E">corsika::kokkos::EnvironmentLayerQuery::status_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos22EnvironmentQueryConfigE">corsika::kokkos::EnvironmentQueryConfig (C++ struct)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos22EnvironmentQueryConfig29maximumMagneticDeflectionRad_E">corsika::kokkos::EnvironmentQueryConfig::maximumMagneticDeflectionRad_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentSnapshotE">corsika::kokkos::EnvironmentSnapshot (C++ class)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentSnapshot19EnvironmentSnapshotERK9node_typeRK19CoordinateSystemPtr">corsika::kokkos::EnvironmentSnapshot::EnvironmentSnapshot (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot14getCompositionEv">corsika::kokkos::EnvironmentSnapshot::getComposition (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot19getCoordinateSystemEv">corsika::kokkos::EnvironmentSnapshot::getCoordinateSystem (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getModelsEv">corsika::kokkos::EnvironmentSnapshot::getModels (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot9getShapesEv">corsika::kokkos::EnvironmentSnapshot::getShapes (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentSnapshot11getTopologyEv">corsika::kokkos::EnvironmentSnapshot::getTopology (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentSnapshot9node_typeE">corsika::kokkos::EnvironmentSnapshot::node_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentSnapshot13topology_typeE">corsika::kokkos::EnvironmentSnapshot::topology_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatusE">corsika::kokkos::EnvironmentStatus (C++ enum)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus23BelowObservationSurfaceE">corsika::kokkos::EnvironmentStatus::BelowObservationSurface (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus18GrammageOutOfRangeE">corsika::kokkos::EnvironmentStatus::GrammageOutOfRange (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus15InvalidSnapshotE">corsika::kokkos::EnvironmentStatus::InvalidSnapshot (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus21NoForwardIntersectionE">corsika::kokkos::EnvironmentStatus::NoForwardIntersection (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus14NonFiniteInputE">corsika::kokkos::EnvironmentStatus::NonFiniteInput (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus18OutsideEnvironmentE">corsika::kokkos::EnvironmentStatus::OutsideEnvironment (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos17EnvironmentStatus7SuccessE">corsika::kokkos::EnvironmentStatus::Success (C++ enumerator)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos18EnvironmentStorageE">corsika::kokkos::EnvironmentStorage (C++ class)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageERK19EnvironmentDataView">corsika::kokkos::EnvironmentStorage::EnvironmentStorage (C++ function)</a>, <a href="api/environment.html#_CPPv4N7corsika6kokkos18EnvironmentStorage18EnvironmentStorageEv">[1]</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos18EnvironmentStorage11getDataViewEv">corsika::kokkos::EnvironmentStorage::getDataView (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos18EnvironmentStorage14getDeviceBytesEv">corsika::kokkos::EnvironmentStorage::getDeviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos18EnvironmentStorage7getViewEv">corsika::kokkos::EnvironmentStorage::getView (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos18EnvironmentStorage17memory_space_typeE">corsika::kokkos::EnvironmentStorage::memory_space_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos18EnvironmentStorage9view_typeE">corsika::kokkos::EnvironmentStorage::view_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos19EnvironmentTopologyE">corsika::kokkos::EnvironmentTopology (C++ class)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentTopology19EnvironmentTopologyERK9node_type">corsika::kokkos::EnvironmentTopology::EnvironmentTopology (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology11getChildrenEv">corsika::kokkos::EnvironmentTopology::getChildren (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getExclusionsEv">corsika::kokkos::EnvironmentTopology::getExclusions (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getModelIndexE20model_reference_type">corsika::kokkos::EnvironmentTopology::getModelIndex (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology14getNativeModelENSt7int32_tE">corsika::kokkos::EnvironmentTopology::getNativeModel (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology13getNativeNodeENSt7int32_tE">corsika::kokkos::EnvironmentTopology::getNativeNode (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology12getNodeIndexE19node_reference_type">corsika::kokkos::EnvironmentTopology::getNodeIndex (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4NK7corsika6kokkos19EnvironmentTopology8getNodesEv">corsika::kokkos::EnvironmentTopology::getNodes (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentTopology20model_reference_typeE">corsika::kokkos::EnvironmentTopology::model_reference_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentTopology19node_reference_typeE">corsika::kokkos::EnvironmentTopology::node_reference_type (C++ type)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4N7corsika6kokkos19EnvironmentTopology9node_typeE">corsika::kokkos::EnvironmentTopology::node_type (C++ type)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I0EN7corsika6kokkos22export_particle_valuesEvRK9TParticleRK19CoordinateSystemPtrR13ParticleState">corsika::kokkos::export_particle_values (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos29export_proposal_native_tablesERKNSt6vectorIN8proposal31NativeInteractionCalculatorViewEEERKNSt6vectorIN8proposal30NativeContinuousCalculatorViewEEE">corsika::kokkos::export_proposal_native_tables (C++ function)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos29geometry_competition_grammageE24EnvironmentGrammageQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigNSt7int32_tERAL3E_KdRAL3E_Kdd">corsika::kokkos::geometry_competition_grammage (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4I00000EN7corsika6kokkos13HybridCascadeE">corsika::kokkos::HybridCascade (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade28configureHadronicProcessPoolER19HadronicProcessPoolRK26HybridHadronicWorkerConfig">corsika::kokkos::HybridCascade::configureHadronicProcessPool (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade35configureHadronicWorkClassificationERK28HadronicWorkClassifierConfig">corsika::kokkos::HybridCascade::configureHadronicWorkClassification (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade31enableScalarDetailedPhaseTimingEKb">corsika::kokkos::HybridCascade::enableScalarDetailedPhaseTiming (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade10forceDecayEv">corsika::kokkos::HybridCascade::forceDecay (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade16forceInteractionEv">corsika::kokkos::HybridCascade::forceInteraction (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade13HybridCascadeERK11EnvironmentI21medium_interface_typeER9TTrackingR12TProcessListR7TOutputR6TStack">corsika::kokkos::HybridCascade::HybridCascade (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade13HybridCascadeERK11EnvironmentI21medium_interface_typeER9TTrackingR12TProcessListR7TOutputR6TStackR9TEmRouter">[1]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade13HybridCascadeERK13HybridCascade">[2]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade13HybridCascadeERR13HybridCascade">[3]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade13HybridCascadeEv">[4]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascadeaSERK13HybridCascade">corsika::kokkos::HybridCascade::operator= (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade3runEv">corsika::kokkos::HybridCascade::run (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos13HybridCascade19schedulerStatisticsEv">corsika::kokkos::HybridCascade::schedulerStatistics (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascade8setNodesEv">corsika::kokkos::HybridCascade::setNodes (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos13HybridCascade16timingStatisticsEv">corsika::kokkos::HybridCascade::timingStatistics (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13HybridCascadeD0Ev">corsika::kokkos::HybridCascade::~HybridCascade (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackendE">corsika::kokkos::IEmBackend (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend28advanceIndependentSubshowersERKNSt6vectorI13ParticleStateEERK18SubshowerCallbacks">corsika::kokkos::IEmBackend::advanceIndependentSubshowers (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend34batchIndependentSpecifiedFallbacksEv">corsika::kokkos::IEmBackend::batchIndependentSpecifiedFallbacks (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend11beginShowerERK12ShowerConfig">corsika::kokkos::IEmBackend::beginShower (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend12canTransportERK13ParticleState">corsika::kokkos::IEmBackend::canTransport (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend12capabilitiesEv">corsika::kokkos::IEmBackend::capabilities (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend32downloadFirstInteractionSnapshotEv">corsika::kokkos::IEmBackend::downloadFirstInteractionSnapshot (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend15downloadProfileEv">corsika::kokkos::IEmBackend::downloadProfile (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend22downloadRadioWaveformsEv">corsika::kokkos::IEmBackend::downloadRadioWaveforms (C++ function)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend18enqueueRadioTracksEN5boost4spanIK21LeptonTransportRecordEE">corsika::kokkos::IEmBackend::enqueueRadioTracks (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend17gpuProfileEnabledEv">corsika::kokkos::IEmBackend::gpuProfileEnabled (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend15gpuRadioEnabledEv">corsika::kokkos::IEmBackend::gpuRadioEnabled (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend16hasProposalTableEv">corsika::kokkos::IEmBackend::hasProposalTable (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend28independentSubshowersEnabledEv">corsika::kokkos::IEmBackend::independentSubshowersEnabled (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend26independentSubshowersReadyEv">corsika::kokkos::IEmBackend::independentSubshowersReady (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend29maximumResidentInputBatchSizeEv">corsika::kokkos::IEmBackend::maximumResidentInputBatchSize (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend30maximumResidentLeptonBatchSizeEv">corsika::kokkos::IEmBackend::maximumResidentLeptonBatchSize (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend30maximumResidentPhotonBatchSizeEv">corsika::kokkos::IEmBackend::maximumResidentPhotonBatchSize (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend16minimumBatchSizeEv">corsika::kokkos::IEmBackend::minimumBatchSize (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend18pendingLeptonCountEv">corsika::kokkos::IEmBackend::pendingLeptonCount (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend18pendingPhotonCountEv">corsika::kokkos::IEmBackend::pendingPhotonCount (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend18runLeptonWavefrontERKNSt6vectorI13ParticleStateEENSt8uint64_tENSt6size_tENSt8uint64_tENSt6size_tE">corsika::kokkos::IEmBackend::runLeptonWavefront (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend18runPhotonWavefrontERKNSt6vectorI13ParticleStateEENSt8uint64_tENSt6size_tENSt6size_tE">corsika::kokkos::IEmBackend::runPhotonWavefront (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend37runResidentLeptonCascadeForValidationERKNSt6vectorI13ParticleStateEEKNSt8uint64_tEKNSt6size_tEKNSt8uint64_tEKNSt6size_tE">corsika::kokkos::IEmBackend::runResidentLeptonCascadeForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackend37runResidentPhotonCascadeForValidationERKNSt6vectorI13ParticleStateEEKNSt8uint64_tEKNSt6size_tEKNSt6size_tE">corsika::kokkos::IEmBackend::runResidentPhotonCascadeForValidation (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos10IEmBackend10statisticsEv">corsika::kokkos::IEmBackend::statistics (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos10IEmBackendD0Ev">corsika::kokkos::IEmBackend::~IEmBackend (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I0EN7corsika6kokkos22import_particle_valuesEvRK13ParticleStateRK19CoordinateSystemPtrR9TParticle">corsika::kokkos::import_particle_values (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos17NativeQueryResultE">corsika::kokkos::NativeQueryResult (C++ struct)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos17NativeQueryResult20bisectionIterations_E">corsika::kokkos::NativeQueryResult::bisectionIterations_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos17NativeQueryResult17newtonIterations_E">corsika::kokkos::NativeQueryResult::newtonIterations_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos17NativeQueryResult7status_E">corsika::kokkos::NativeQueryResult::status_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos17NativeQueryResult6value_E">corsika::kokkos::NativeQueryResult::value_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4I0EN7corsika6kokkos18NativeTableStorageE">corsika::kokkos::NativeTableStorage (C++ class)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4NK7corsika6kokkos18NativeTableStorage14getDeviceBytesEv">corsika::kokkos::NativeTableStorage::getDeviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4NK7corsika6kokkos18NativeTableStorage13getDeviceViewEv">corsika::kokkos::NativeTableStorage::getDeviceView (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4NK7corsika6kokkos18NativeTableStorage20getSourceContentHashEv">corsika::kokkos::NativeTableStorage::getSourceContentHash (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos18NativeTableStorage10initializeERK22ProposalNativeTableSetNSt6size_tE">corsika::kokkos::NativeTableStorage::initialize (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4NK7corsika6kokkos18NativeTableStorage13isInitializedEv">corsika::kokkos::NativeTableStorage::isInitialized (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos18NativeTableStorage20projectedDeviceBytesERK22ProposalNativeTableSet">corsika::kokkos::NativeTableStorage::projectedDeviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos18NativeTableStorage5resetEv">corsika::kokkos::NativeTableStorage::reset (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I00EN7corsika6kokkos17particle_transfer19export_logical_nodeEvRK9TParticleR13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE">corsika::kokkos::particle_transfer::export_logical_node (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I00EN7corsika6kokkos17particle_transfer19import_logical_nodeEvR9TParticleRK13ParticleStateRK19EnvironmentTopologyI16TModelPropertiesE">corsika::kokkos::particle_transfer::import_logical_node (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I00EN7corsika6kokkos17particle_transfer15import_particleEDaR6TStackRK13ParticleStateRK19CoordinateSystemPtrRK19EnvironmentTopologyI16TModelPropertiesE">corsika::kokkos::particle_transfer::import_particle (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I00EN7corsika6kokkos17particle_transfer15to_device_stateE13ParticleStateRK9TParticleRK19CoordinateSystemPtrN9transport9HistoryIdEN9transport9HistoryIdEN9transport10GenerationEN9transport6StepIdERK19EnvironmentTopologyI16TModelPropertiesE">corsika::kokkos::particle_transfer::to_device_state (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4I0EN7corsika6kokkos11ParticleSoAE">corsika::kokkos::ParticleSoA (C++ struct)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos11ParticleSoA11deviceBytesEv">corsika::kokkos::ParticleSoA::deviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA22deviceBytesForCapacityEKNSt6size_tE">corsika::kokkos::ParticleSoA::deviceBytesForCapacity (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA10direction_E">corsika::kokkos::ParticleSoA::direction_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA10energyGeV_E">corsika::kokkos::ParticleSoA::energyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA16environmentNode_E">corsika::kokkos::ParticleSoA::environmentNode_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA20execution_space_typeE">corsika::kokkos::ParticleSoA::execution_space_type (C++ type)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA11generation_E">corsika::kokkos::ParticleSoA::generation_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA10historyId_E">corsika::kokkos::ParticleSoA::historyId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos11ParticleSoA4loadEKNSt6size_tE">corsika::kokkos::ParticleSoA::load (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA9mediumId_E">corsika::kokkos::ParticleSoA::mediumId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA16parentHistoryId_E">corsika::kokkos::ParticleSoA::parentHistoryId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tE">corsika::kokkos::ParticleSoA::ParticleSoA (C++ function)</a>, <a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAERKNSt6stringEKNSt6size_tERK20execution_space_type">[1]</a>, <a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA11ParticleSoAEv">[2]</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA4pid_E">corsika::kokkos::ParticleSoA::pid_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA10positionM_E">corsika::kokkos::ParticleSoA::positionM_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos11ParticleSoA13rawDeviceViewEv">corsika::kokkos::ParticleSoA::rawDeviceView (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA9reserved_E">corsika::kokkos::ParticleSoA::reserved_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA7stepId_E">corsika::kokkos::ParticleSoA::stepId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos11ParticleSoA5storeEKNSt6size_tERK13ParticleState">corsika::kokkos::ParticleSoA::store (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA6timeS_E">corsika::kokkos::ParticleSoA::timeS_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos11ParticleSoA7weight_E">corsika::kokkos::ParticleSoA::weight_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawViewE">corsika::kokkos::ParticleSoARawView (C++ struct)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView10direction_E">corsika::kokkos::ParticleSoARawView::direction_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView10energyGeV_E">corsika::kokkos::ParticleSoARawView::energyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView16environmentNode_E">corsika::kokkos::ParticleSoARawView::environmentNode_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView11generation_E">corsika::kokkos::ParticleSoARawView::generation_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView10historyId_E">corsika::kokkos::ParticleSoARawView::historyId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos18ParticleSoARawView4loadEKNSt6size_tE">corsika::kokkos::ParticleSoARawView::load (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView9mediumId_E">corsika::kokkos::ParticleSoARawView::mediumId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView16parentHistoryId_E">corsika::kokkos::ParticleSoARawView::parentHistoryId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView4pid_E">corsika::kokkos::ParticleSoARawView::pid_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView10positionM_E">corsika::kokkos::ParticleSoARawView::positionM_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView9reserved_E">corsika::kokkos::ParticleSoARawView::reserved_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView7stepId_E">corsika::kokkos::ParticleSoARawView::stepId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4NK7corsika6kokkos18ParticleSoARawView5storeEKNSt6size_tERK13ParticleState">corsika::kokkos::ParticleSoARawView::store (C++ function)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView6timeS_E">corsika::kokkos::ParticleSoARawView::timeS_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos18ParticleSoARawView7weight_E">corsika::kokkos::ParticleSoARawView::weight_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleStateE">corsika::kokkos::ParticleState (C++ struct)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState10direction_E">corsika::kokkos::ParticleState::direction_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState10energyGeV_E">corsika::kokkos::ParticleState::energyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState16environmentNode_E">corsika::kokkos::ParticleState::environmentNode_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState11generation_E">corsika::kokkos::ParticleState::generation_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState10historyId_E">corsika::kokkos::ParticleState::historyId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState9mediumId_E">corsika::kokkos::ParticleState::mediumId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState16parentHistoryId_E">corsika::kokkos::ParticleState::parentHistoryId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState4pid_E">corsika::kokkos::ParticleState::pid_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState10positionM_E">corsika::kokkos::ParticleState::positionM_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState9reserved_E">corsika::kokkos::ParticleState::reserved_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState7stepId_E">corsika::kokkos::ParticleState::stepId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState6timeS_E">corsika::kokkos::ParticleState::timeS_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos13ParticleState7weight_E">corsika::kokkos::ParticleState::weight_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos28prepare_environment_snapshotEDaRK12TEnvironmentRK19CoordinateSystemPtr">corsika::kokkos::prepare_environment_snapshot (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSetE">corsika::kokkos::ProposalNativeTableSet (C++ struct)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24bicubicDerivativeEnergy_E">corsika::kokkos::ProposalNativeTableSet::bicubicDerivativeEnergy_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22bicubicDerivativeLoss_E">corsika::kokkos::ProposalNativeTableSet::bicubicDerivativeLoss_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet23bicubicMixedDerivative_E">corsika::kokkos::ProposalNativeTableSet::bicubicMixedDerivative_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet30bicubicPolynomialCoefficients_E">corsika::kokkos::ProposalNativeTableSet::bicubicPolynomialCoefficients_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet14bicubicValues_E">corsika::kokkos::ProposalNativeTableSet::bicubicValues_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet10constants_E">corsika::kokkos::ProposalNativeTableSet::constants_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12contentHash_E">corsika::kokkos::ProposalNativeTableSet::contentHash_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet26cubicInterpolationVersion_E">corsika::kokkos::ProposalNativeTableSet::cubicInterpolationVersion_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet21cubicNodeDerivatives_E">corsika::kokkos::ProposalNativeTableSet::cubicNodeDerivatives_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12cubicValues_E">corsika::kokkos::ProposalNativeTableSet::cubicValues_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24dedxAccumulationIndices_E">corsika::kokkos::ProposalNativeTableSet::dedxAccumulationIndices_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dedxColumns_E">corsika::kokkos::ProposalNativeTableSet::dedxColumns_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet12dndxColumns_E">corsika::kokkos::ProposalNativeTableSet::dndxColumns_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet14formatVersion_E">corsika::kokkos::ProposalNativeTableSet::formatVersion_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22interactionIdentities_E">corsika::kokkos::ProposalNativeTableSet::interactionIdentities_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet20proposalCacheAllHit_E">corsika::kokkos::ProposalNativeTableSet::proposalCacheAllHit_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet22proposalCacheHitCount_E">corsika::kokkos::ProposalNativeTableSet::proposalCacheHitCount_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet24proposalCacheTableCount_E">corsika::kokkos::ProposalNativeTableSet::proposalCacheTableCount_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet16proposalVersion_E">corsika::kokkos::ProposalNativeTableSet::proposalVersion_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet23selectionColumnIndices_E">corsika::kokkos::ProposalNativeTableSet::selectionColumnIndices_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet17stochasticCutMeV_E">corsika::kokkos::ProposalNativeTableSet::stochasticCutMeV_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet17totalRateColumns_E">corsika::kokkos::ProposalNativeTableSet::totalRateColumns_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos22ProposalNativeTableSet15utilityColumns_E">corsika::kokkos::ProposalNativeTableSet::utilityColumns_ (C++ member)</a>
+</li>
+      <li><a href="api/environment.html#_CPPv4I0EN7corsika6kokkos17query_environmentE21EnvironmentLayerQueryRK16TEnvironmentViewRK22EnvironmentQueryConfigRAL3E_KdPKdNSt7int32_tE">corsika::kokkos::query_environment (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos37query_proposal_native_cumulative_rateERK24ProposalNativeDeviceViewRK16NativeDndxColumndd">corsika::kokkos::query_proposal_native_cumulative_rate (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos50query_proposal_native_energy_after_continuous_lossERK24ProposalNativeDeviceViewNSt7int32_tEdd">corsika::kokkos::query_proposal_native_energy_after_continuous_loss (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos35query_proposal_native_loss_fractionERK24ProposalNativeDeviceViewNSt7int32_tENSt7int32_tENSt8uint64_tEddb">corsika::kokkos::query_proposal_native_loss_fraction (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos32query_proposal_native_total_rateERK24ProposalNativeDeviceViewNSt7int32_tEd">corsika::kokkos::query_proposal_native_total_rate (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4I0EN7corsika6kokkos5radio18accumulate_co_reasEvRK20RadioTrackKinematicsRK20RadioPropagationViewRK17RadioObserverViewRK17RadioWaveformViewP13RadioCounters">corsika::kokkos::radio::accumulate_co_reas (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4I0EN7corsika6kokkos5radio14accumulate_zhsEvRK20RadioTrackKinematicsRK20RadioPropagationViewRK17RadioObserverViewRK17RadioWaveformViewP13RadioCounters">corsika::kokkos::radio::accumulate_zhs (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulatorE">corsika::kokkos::radio::firn::IFullWaveAccumulator (C++ class)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulator6appendERK20FullWaveChildSegment">corsika::kokkos::radio::firn::IFullWaveAccumulator::append (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn20IFullWaveAccumulator6coversERK11vector_typeRK11vector_type">corsika::kokkos::radio::firn::IFullWaveAccumulator::covers (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulator8downloadEv">corsika::kokkos::radio::firn::IFullWaveAccumulator::download (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn20IFullWaveAccumulator18executionSpaceNameEv">corsika::kokkos::radio::firn::IFullWaveAccumulator::executionSpaceName (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulator5flushEv">corsika::kokkos::radio::firn::IFullWaveAccumulator::flush (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn20IFullWaveAccumulator17opticalPathMetersERK11vector_typeRK11vector_type">corsika::kokkos::radio::firn::IFullWaveAccumulator::opticalPathMeters (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulator5resetEv">corsika::kokkos::radio::firn::IFullWaveAccumulator::reset (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn20IFullWaveAccumulator21sourceRefractiveIndexEd">corsika::kokkos::radio::firn::IFullWaveAccumulator::sourceRefractiveIndex (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn20IFullWaveAccumulator10statisticsEv">corsika::kokkos::radio::firn::IFullWaveAccumulator::statistics (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn20IFullWaveAccumulatorD0Ev">corsika::kokkos::radio::firn::IFullWaveAccumulator::~IFullWaveAccumulator (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulatorE">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator (C++ class)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator6appendERK22GeometricalOpticsTrack">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::append (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator8downloadEv">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::download (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator18executionSpaceNameEv">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::executionSpaceName (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator5flushEv">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::flush (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator5pathsERKNSt6vectorI11vector_typeEE">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::paths (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator5resetEv">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::reset (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulator10statisticsEv">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::statistics (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn29IGeometricalOpticsAccumulatorD0Ev">corsika::kokkos::radio::firn::IGeometricalOpticsAccumulator::~IGeometricalOpticsAccumulator (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn26make_full_wave_accumulatorERKNSt10filesystem4pathERKNSt6stringENSt6vectorI11vector_typeEE20FullWaveDeviceConfigii">corsika::kokkos::radio::firn::make_full_wave_accumulator (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio4firn35make_geometrical_optics_accumulatorE28ExponentialOpticalParametersNSt6vectorI11vector_typeEE23GeometricalOpticsConfigiib">corsika::kokkos::radio::firn::make_geometrical_optics_accumulator (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13IRadioBackendE">corsika::kokkos::radio::IRadioBackend (C++ class)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13IRadioBackend22downloadRadioWaveformsEv">corsika::kokkos::radio::IRadioBackend::downloadRadioWaveforms (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13IRadioBackend18enqueueRadioTracksEN5boost4spanIK21LeptonTransportRecordEE">corsika::kokkos::radio::IRadioBackend::enqueueRadioTracks (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio13IRadioBackend15gpuRadioEnabledEv">corsika::kokkos::radio::IRadioBackend::gpuRadioEnabled (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13IRadioBackendD0Ev">corsika::kokkos::radio::IRadioBackend::~IRadioBackend (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio22make_host_radio_recordERKN7corsika5radio17RadioTrackSegmentE">corsika::kokkos::radio::make_host_radio_record (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4I0EN7corsika6kokkos5radio16RadioAccumulatorE">corsika::kokkos::radio::RadioAccumulator (C++ class)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator22accumulateLeptonTracksERK21track_input_view_typeKNSt6size_tERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::accumulateLeptonTracks (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio16RadioAccumulator11deviceBytesEv">corsika::kokkos::radio::RadioAccumulator::deviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator8downloadERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::download (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator13downloadFixedERKNSt6stringE19CooperativeEndpointRK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::downloadFixed (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio16RadioAccumulator7enabledEv">corsika::kokkos::radio::RadioAccumulator::enabled (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator23enqueueHostLeptonTracksEPKN7corsika6kokkos21LeptonTransportRecordENSt6size_tERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::enqueueHostLeptonTracks (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator21flushHostLeptonTracksERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::flushHostLeptonTracks (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator10initializeERK11RadioConfigRKN7corsika6kokkos16TuningParametersERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::initialize (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator20projectedDeviceBytesERK11RadioConfig">corsika::kokkos::radio::RadioAccumulator::projectedDeviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio16RadioAccumulator22projectedTrackCapacityEKNSt6size_tE">corsika::kokkos::radio::RadioAccumulator::projectedTrackCapacity (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator20reserveTrackCapacityEKNSt6size_tERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::reserveTrackCapacity (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio16RadioAccumulator5resetERK15TExecutionSpace">corsika::kokkos::radio::RadioAccumulator::reset (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio16RadioAccumulator23staticHostToDeviceBytesEv">corsika::kokkos::radio::RadioAccumulator::staticHostToDeviceBytes (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4NK7corsika6kokkos5radio16RadioAccumulator10statisticsEv">corsika::kokkos::radio::RadioAccumulator::statistics (C++ function)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfigE">corsika::kokkos::radio::RadioConfig (C++ struct)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig14coreasEnabled_E">corsika::kokkos::radio::RadioConfig::coreasEnabled_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig16coreasObservers_E">corsika::kokkos::radio::RadioConfig::coreasObservers_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig14deterministic_E">corsika::kokkos::radio::RadioConfig::deterministic_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig8enabled_E">corsika::kokkos::radio::RadioConfig::enabled_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig26fixedPointFieldLimitVPerM_E">corsika::kokkos::radio::RadioConfig::fixedPointFieldLimitVPerM_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig12propagation_E">corsika::kokkos::radio::RadioConfig::propagation_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig17trackDiagnostics_E">corsika::kokkos::radio::RadioConfig::trackDiagnostics_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig11zhsEnabled_E">corsika::kokkos::radio::RadioConfig::zhsEnabled_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig13zhsObservers_E">corsika::kokkos::radio::RadioConfig::zhsObservers_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio11RadioConfig22zhsSubtrackRefinement_E">corsika::kokkos::radio::RadioConfig::zhsSubtrackRefinement_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshotE">corsika::kokkos::radio::RadioObserverSnapshot (C++ struct)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshot10durationS_E">corsika::kokkos::radio::RadioObserverSnapshot::durationS_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshot13numberOfBins_E">corsika::kokkos::radio::RadioObserverSnapshot::numberOfBins_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshot10positionM_E">corsika::kokkos::radio::RadioObserverSnapshot::positionM_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshot13sampleRateHz_E">corsika::kokkos::radio::RadioObserverSnapshot::sampleRateHz_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio21RadioObserverSnapshot11startTimeS_E">corsika::kokkos::radio::RadioObserverSnapshot::startTimeS_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13RadioWaveformE">corsika::kokkos::radio::RadioWaveform (C++ struct)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13RadioWaveform2x_E">corsika::kokkos::radio::RadioWaveform::x_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13RadioWaveform2y_E">corsika::kokkos::radio::RadioWaveform::y_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio13RadioWaveform2z_E">corsika::kokkos::radio::RadioWaveform::z_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio14RadioWaveformsE">corsika::kokkos::radio::RadioWaveforms (C++ struct)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio14RadioWaveforms7coreas_E">corsika::kokkos::radio::RadioWaveforms::coreas_ (C++ member)</a>
+</li>
+      <li><a href="api/radio.html#_CPPv4N7corsika6kokkos5radio14RadioWaveforms4zhs_E">corsika::kokkos::radio::RadioWaveforms::zhs_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos7RuntimeE">corsika::kokkos::Runtime (C++ class)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos7Runtime11getDeviceIdEv">corsika::kokkos::Runtime::getDeviceId (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos7Runtime21getExecutionSpaceNameEv">corsika::kokkos::Runtime::getExecutionSpaceName (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos7Runtime13getNumThreadsEv">corsika::kokkos::Runtime::getNumThreads (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos7RuntimeaSERK7Runtime">corsika::kokkos::Runtime::operator= (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos7RuntimeaSERR7Runtime">[1]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4NK7corsika6kokkos7Runtime18ownsInitializationEv">corsika::kokkos::Runtime::ownsInitialization (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos7Runtime7RuntimeERK7Runtime">corsika::kokkos::Runtime::Runtime (C++ function)</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos7Runtime7RuntimeERR7Runtime">[1]</a>, <a href="api/execution.html#_CPPv4N7corsika6kokkos7Runtime7RuntimeEii">[2]</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos7RuntimeD0Ev">corsika::kokkos::Runtime::~Runtime (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfigE">corsika::kokkos::RuntimeConfig (C++ struct)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig17cooperativeOwner_E">corsika::kokkos::RuntimeConfig::cooperativeOwner_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig18cooperativePolicy_E">corsika::kokkos::RuntimeConfig::cooperativePolicy_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig25cooperativeSliceObserver_E">corsika::kokkos::RuntimeConfig::cooperativeSliceObserver_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig7device_E">corsika::kokkos::RuntimeConfig::device_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig17executionBackend_E">corsika::kokkos::RuntimeConfig::executionBackend_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig14requireTuning_E">corsika::kokkos::RuntimeConfig::requireTuning_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig13runtimeLease_E">corsika::kokkos::RuntimeConfig::runtimeLease_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig8threads_E">corsika::kokkos::RuntimeConfig::threads_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos13RuntimeConfig12tuningCache_E">corsika::kokkos::RuntimeConfig::tuningCache_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos27select_discrete_interactionERK22InteractionPhysicsViewRK13ParticleStateKNSt8uint64_tEKNSt8uint64_tEKNSt8uint64_tE">corsika::kokkos::select_discrete_interaction (C++ function)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos18SessionBeginResultE">corsika::kokkos::SessionBeginResult (C++ struct)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos18SessionBeginResult8backend_E">corsika::kokkos::SessionBeginResult::backend_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos18SessionBeginResult23muonTransportAvailable_E">corsika::kokkos::SessionBeginResult::muonTransportAvailable_ (C++ member)</a>
+</li>
+      <li><a href="api/execution.html#_CPPv4N7corsika6kokkos18SessionBeginResult7reused_E">corsika::kokkos::SessionBeginResult::reused_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecordE">corsika::kokkos::StepRecord (C++ struct)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord22cutDepositedEnergyGeV_E">corsika::kokkos::StepRecord::cutDepositedEnergyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord19depositedEnergyGeV_E">corsika::kokkos::StepRecord::depositedEnergyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord13endEnergyGeV_E">corsika::kokkos::StepRecord::endEnergyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord13endPositionM_E">corsika::kokkos::StepRecord::endPositionM_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord9endTimeS_E">corsika::kokkos::StepRecord::endTimeS_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord10historyId_E">corsika::kokkos::StepRecord::historyId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord18nativeMuonPairCut_E">corsika::kokkos::StepRecord::nativeMuonPairCut_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord4pid_E">corsika::kokkos::StepRecord::pid_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord10processId_E">corsika::kokkos::StepRecord::processId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord15startEnergyGeV_E">corsika::kokkos::StepRecord::startEnergyGeV_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord15startPositionM_E">corsika::kokkos::StepRecord::startPositionM_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord11startTimeS_E">corsika::kokkos::StepRecord::startTimeS_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord7stepId_E">corsika::kokkos::StepRecord::stepId_ (C++ member)</a>
+</li>
+      <li><a href="api/particles.html#_CPPv4N7corsika6kokkos10StepRecord7weight_E">corsika::kokkos::StepRecord::weight_ (C++ member)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4I0EN7corsika6kokkos16transport_leptonENSt8uint32_tERK21ContinuousPhysicsViewbRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordR21LeptonTransportRecordR15FallbackRequestK25ExternalTransportBoundary">corsika::kokkos::transport_lepton (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4I0EN7corsika6kokkos16transport_photonE22PhotonTransportOutcomeRK16TEnvironmentViewRK23TransportGeometryConfigRK17InteractionRecordK25ExternalTransportBoundary">corsika::kokkos::transport_photon (C++ function)</a>
+</li>
+      <li><a href="api/physics.html#_CPPv4N7corsika6kokkos30validate_proposal_native_tableERK22ProposalNativeTableSet">corsika::kokkos::validate_proposal_native_table (C++ function)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 
 
            </div>

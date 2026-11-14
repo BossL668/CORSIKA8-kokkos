@@ -65,8 +65,10 @@ Where to start
 For the implementation, continue with :doc:`application`: it traces the function
 calls, arguments, ownership and results of the application interface. Continue
 with :doc:`execution` for particle routing, batch execution and process
-coordination. The remaining architecture and maintenance chapters are being written. Implementation
-availability, numerical validation and performance measurements are separate;
+coordination. The component chapters cover data preparation and numerical
+execution; :doc:`development` covers contribution and maintenance, and
+:doc:`api` provides source-generated declarations. Implementation availability,
+numerical validation and performance measurements are separate;
 a build profile does not establish scientific validation on every device it
 can target.
 
