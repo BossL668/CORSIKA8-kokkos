@@ -1,0 +1,55 @@
+.. parsed-literal::
+
+   corsika/media/
+   ├── `Environment.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/Environment.hpp>`_  native scene owner
+   ├── `VolumeTreeNode.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/VolumeTreeNode.hpp>`_  volumes, models and node relationships
+   ├── `IDensityModelExport.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IDensityModelExport.hpp>`_  density parameter export
+   ├── `IUniformMagneticFieldExport.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IUniformMagneticFieldExport.hpp>`_  uniform-field export
+   └── `IRefractivityModelExport.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/media/IRefractivityModelExport.hpp>`_  refractivity parameter export
+
+   corsika/kokkos/environment/
+   ├── `EnvironmentTopology.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp>`_  ordered graph and native-index mapping
+   ├── `EnvironmentSnapshot.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentSnapshot.hpp>`_  owning host parameter records
+   ├── `EnvironmentDataView.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentDataView.hpp>`_  borrowed pointer/count interface
+   ├── `EnvironmentStorage.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentStorage.hpp>`_  owning execution-space arrays
+   ├── `EnvironmentView.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentView.hpp>`_  managed read-only queries
+   ├── `EnvironmentBorrowedView.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentBorrowedView.hpp>`_  queries over borrowed arrays
+   ├── `EnvironmentQuery.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentQuery.hpp>`_  transport query contracts
+   ├── `EnvironmentLeptonBoundary.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentLeptonBoundary.hpp>`_  charged-particle boundary adapter
+   └── `TransportGeometryConfig.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/TransportGeometryConfig.hpp>`_  query configuration and observation plane
+
+   corsika/detail/kokkos/environment/
+   ├── `EnvironmentPreparation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentPreparation.inl>`_  snapshot and observation export
+   ├── `EnvironmentSnapshot.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshot.inl>`_  topology, shape and model assembly
+   ├── `ShapeConversion.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ShapeConversion.inl>`_  native volume conversion
+   ├── `ModelConversion.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelConversion.inl>`_  native model conversion
+   ├── `EnvironmentSnapshotKey.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSnapshotKey.inl>`_  reuse key and compatibility fingerprint
+   ├── `EnvironmentStorage.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentStorage.inl>`_  allocation, copies and views
+   ├── `EnvironmentSearch.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/EnvironmentSearch.inl>`_  point containment and node location
+   ├── `ModelEvaluation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelEvaluation.inl>`_  density and refractive-index evaluation
+   ├── `ModelGrammage.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/ModelGrammage.inl>`_  line integrals and inverses
+   ├── `NextEnvironmentBoundary.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/NextEnvironmentBoundary.inl>`_  shared boundary-selection entry
+   ├── `CurvedBoundaryAccess.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/CurvedBoundaryAccess.inl>`_  trajectory intersection adapter
+   └── `firn/FirnModel.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/firn/FirnModel.inl>`_  firn profile and grammage operations
+
+   corsika/detail/framework/geometry/
+   └── `NextEnvironmentBoundaryBody.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl>`_  common native/Kokkos selection body
+
+Application and session integration:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 42 58
+
+   * - Source
+     - Responsibility
+   * - `CascadeExtension.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl>`_
+     - Retain the native environment reference in cascade inputs.
+   * - `CascadePreparation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl>`_
+     - Export the scene, validate its policy and bind host data.
+   * - `CascadeRunner.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl>`_
+     - Pass environment and geometry into the EM session.
+   * - `EmRunSession.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp>`_
+     - Initialize or reuse a session with matching scene data.
+   * - `BackendInstanceImplementation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl>`_
+     - Own uploaded arrays and expose the borrowed query view.

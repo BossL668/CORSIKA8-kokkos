@@ -1,0 +1,43 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 23 42 35
+
+   * - Area
+     - Tests in ``tests/kokkos/environment/``
+     - Scope
+   * - Topology and host export
+     - `testEnvironmentTopology.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentTopology.cpp>`_,
+       `testEnvironmentSnapshot.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSnapshot.cpp>`_,
+       `testShapeConversion.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testShapeConversion.cpp>`_,
+       `testModelConversion.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelConversion.cpp>`_.
+     - Node order, ownership, native identities, coordinate conversion and rejection of unsupported exports.
+   * - Array transfer and ownership
+     - `testEnvironmentStorage.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentStorage.cpp>`_,
+       `testEnvironmentSnapshotData.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSnapshotData.cpp>`_,
+       `testEnvironmentTransfer.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentTransfer.cpp>`_.
+     - Uploaded records, borrowed views and transfer contracts.
+   * - Point location and query results
+     - `testEnvironmentSearch.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSearch.cpp>`_,
+       `testEnvironmentSearchDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentSearchDevice.cpp>`_,
+       `testEnvironmentQuery.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentQuery.cpp>`_,
+       `testEnvironmentQueryDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentQueryDevice.cpp>`_.
+     - Native/reference comparisons, logical-node handling and query statuses.
+   * - Model evaluation and grammage
+     - `testModelEvaluation.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelEvaluation.cpp>`_,
+       `testModelEvaluationDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelEvaluationDevice.cpp>`_,
+       `testModelGrammage.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelGrammage.cpp>`_,
+       `testModelGrammageDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testModelGrammageDevice.cpp>`_,
+       `testFirnEnvironment.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testFirnEnvironment.cpp>`_.
+     - Density and refractive index, line-integral/inverse behavior, transformed firn profiles and surface-domain handling.
+   * - Boundary intersections
+     - `testStraightBoundary.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testStraightBoundary.cpp>`_,
+       `testStraightBoundaryDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testStraightBoundaryDevice.cpp>`_,
+       `testCurvedBoundary.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testCurvedBoundary.cpp>`_,
+       `testCurvedBoundaryDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testCurvedBoundaryDevice.cpp>`_,
+       `testLeptonBoundary.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testLeptonBoundary.cpp>`_,
+       `testLeptonBoundaryDevice.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testLeptonBoundaryDevice.cpp>`_.
+     - Ordered boundary results, trajectory adapters and intersection failure flags.
+   * - Borrowed views in transport
+     - `testEnvironmentBorrowedQuery.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentBorrowedQuery.cpp>`_,
+       `testEnvironmentBorrowedTransport.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentBorrowedTransport.cpp>`_.
+     - Queries and transport calls using the non-owning environment representation.
