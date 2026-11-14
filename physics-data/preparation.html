@@ -1,0 +1,423 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model selection, preparation and reuse &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/physics-data/preparation.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Table representation and device storage" href="storage.html" />
+    <link rel="prev" title="Physics models and table preparation" href="../physics-data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../physics-data.html">Physics models and table preparation</a></li>
+      <li class="breadcrumb-item active">Model selection, preparation and reuse</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/physics-data/preparation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="model-selection-preparation-and-reuse">
+<h1>Model selection, preparation and reuse<a class="headerlink" href="#model-selection-preparation-and-reuse" title="Link to this heading"></a></h1>
+<p>The application constructs the native C8 physics models before the accelerated
+backend starts. The PROPOSAL bridge then reads their existing calculators and
+creates owned numerical data for the backend. Model construction, disk-cache
+reuse and reuse of an initialized backend are separate stages.</p>
+<section id="application-configuration-and-native-calculators">
+<h2>Application configuration and native calculators<a class="headerlink" href="#application-configuration-and-native-calculators" title="Link to this heading"></a></h2>
+<p>In <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">c8_air_shower.cpp</a>, the environment is a five-layer <code class="docutils literal notranslate"><span class="pre">USStdBK</span></code> atmosphere
+with <code class="docutils literal notranslate"><span class="pre">Medium::AirDry1Atm</span></code>. The application chooses the low- and high-energy
+hadronic models and their transition energy, then supplies those objects to
+<code class="docutils literal notranslate"><span class="pre">backend.interaction(env,</span> <span class="pre">sophia,</span> <span class="pre">sibyll-&gt;getHadronInteractionModel(),</span> <span class="pre">threshold)</span></code>.
+This returns the application’s <code class="docutils literal notranslate"><span class="pre">proposal::AirShowerInteraction</span></code> adapter.
+<code class="docutils literal notranslate"><span class="pre">proposal::ContinuousProcess(env,</span> <span class="pre">dEdX)</span></code> supplies continuous losses for the
+non-hadronic branch; hadrons use <code class="docutils literal notranslate"><span class="pre">BetheBlochPDG</span></code>. Selecting a Kokkos execution
+backend does not itself select a new set of PROPOSAL parametrizations.</p>
+<p>The four tracking cuts are kinetic-energy thresholds. Their minimum becomes
+the production threshold passed to the native PROPOSAL setup:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">604</span><span class="w">  </span><span class="c1">// tell proposal that we are interested in all energy losses above the particle cut</span>
+<span class="linenos">605</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">prod_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">({</span><span class="n">emcut</span><span class="p">,</span><span class="w"> </span><span class="n">hadcut</span><span class="p">,</span><span class="w"> </span><span class="n">mucut</span><span class="p">,</span><span class="w"> </span><span class="n">taucut</span><span class="p">});</span>
+<span class="linenos">606</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">Electron</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">607</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">Positron</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">608</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">Photon</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">609</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">MuMinus</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">610</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">MuPlus</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">611</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">TauMinus</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+<span class="linenos">612</span><span class="w">  </span><span class="n">set_energy_production_threshold</span><span class="p">(</span><span class="n">Code</span><span class="o">::</span><span class="n">TauPlus</span><span class="p">,</span><span class="w"> </span><span class="n">prod_threshold</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The tracking cut and the PROPOSAL stochastic-loss cut have different roles.
+<code class="docutils literal notranslate"><span class="pre">ProposalProcessBase::getOptimizedEmCut(code)</span></code> reads the particle’s production
+threshold and selects the largest configured table-cut value no greater than
+that threshold. If none qualifies, it uses the threshold itself. The configured
+values are 1000, 100, 20, 10, 3, 1, 0.4, 0.25, 0.15 and 0.05 MeV. With the
+application defaults, the EM tracking cut is 0.5 MeV and the stochastic cut is
+0.4 MeV. The ordinary relative cut is <code class="docutils literal notranslate"><span class="pre">v_cut</span> <span class="pre">=</span> <span class="pre">0.01</span></code>; ionization uses a
+relative cut of 1, and photon interactions are stochastic only.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ProposalProcessBase(env)</span></code> walks every environment node with model
+properties. It combines the node’s nuclear composition with the ionization
+and reference-density parameters from <code class="docutils literal notranslate"><span class="pre">mediumData(prop.getMedium())</span></code> to
+construct <code class="docutils literal notranslate"><span class="pre">PROPOSAL::Medium</span></code> values, indexed by composition hash. It records
+the resolved cuts and calls the cross-section builders for each medium and
+each native tracked species. <code class="docutils literal notranslate"><span class="pre">InteractionModel</span></code> and <code class="docutils literal notranslate"><span class="pre">ContinuousProcess</span></code>
+then construct and retain their calculators, indexed by composition hash and
+particle code. Continuous calculators are omitted for photons. This native
+setup includes tau leptons; native-table export selects only photons,
+electrons, positrons and both muon charges.</p>
+<p>The concrete cross-section choices are in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal/ProposalProcessBase.hpp">ProposalProcessBase.hpp</a>.
+<code class="docutils literal notranslate"><span class="pre">InteractionModel::makeCalculator(code,</span> <span class="pre">compositionHash,</span> <span class="pre">energyCut)</span></code> returns
+the owned secondaries, interaction and LPM-helper objects plus the process
+list. <code class="docutils literal notranslate"><span class="pre">ContinuousProcess::buildCalculator(code,</span> <span class="pre">compositionHash)</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">void</span></code> and stores displacement and <code class="docutils literal notranslate"><span class="pre">MoliereInterpol</span></code> scattering objects.
+The environment and thresholds therefore need to be established before these
+owners are constructed. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/modules/proposal/ProposalProcessBase.inl">ProposalProcessBase.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/modules/proposal/InteractionModel.inl">InteractionModel.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/modules/proposal/ContinuousProcess.inl">ContinuousProcess.inl</a> for this construction order.</p>
+</section>
+<section id="calculator-views-and-exported-data">
+<h2>Calculator views and exported data<a class="headerlink" href="#calculator-views-and-exported-data" title="Link to this heading"></a></h2>
+<p>The application passes its models to <code class="docutils literal notranslate"><span class="pre">backend.execution(...)</span></code>. The execution
+object retains access to them; <code class="docutils literal notranslate"><span class="pre">run_cascade</span></code> obtains calculator views only
+when the runtime session has no backend:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">133</span><span class="w">      </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">proposal</span><span class="o">::</span><span class="n">NativeInteractionCalculatorView</span><span class="o">&gt;</span><span class="w"> </span><span class="n">native_views</span><span class="p">;</span>
+<span class="linenos">134</span><span class="w">      </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">proposal</span><span class="o">::</span><span class="n">NativeContinuousCalculatorView</span><span class="o">&gt;</span><span class="w"> </span><span class="n">native_continuous_views</span><span class="p">;</span>
+<span class="linenos">135</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">runtime_session</span><span class="p">.</span><span class="n">isInitialized</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">136</span><span class="w">        </span><span class="n">native_views</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">emCascade</span><span class="p">.</span><span class="n">nativeCalculatorViews</span><span class="p">();</span>
+<span class="linenos">137</span><span class="w">        </span><span class="n">native_continuous_views</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">emContinuousProposal</span><span class="p">.</span><span class="n">nativeCalculatorViews</span><span class="p">();</span>
+<span class="linenos">138</span><span class="w">      </span><span class="p">}</span>
+<span class="linenos">139</span><span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">session_begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">runtime_session</span><span class="p">.</span><span class="n">beginProposalNative</span><span class="p">(</span>
+<span class="linenos">140</span><span class="w">          </span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentData_</span><span class="p">,</span><span class="w"> </span><span class="n">prepared</span><span class="p">.</span><span class="n">geometry_</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_config</span><span class="p">,</span><span class="w"> </span><span class="n">physics_requirements</span><span class="p">,</span>
+<span class="linenos">141</span><span class="w">          </span><span class="n">native_views</span><span class="p">,</span><span class="w"> </span><span class="n">native_continuous_views</span><span class="p">);</span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interface</p></th>
+<th class="head"><p>Inputs, return and ownership</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nativeCalculatorViews()</span> <span class="pre">const</span></code></p></td>
+<td><p>Returns a vector of <code class="docutils literal notranslate"><span class="pre">NativeInteractionCalculatorView</span></code> or
+<code class="docutils literal notranslate"><span class="pre">NativeContinuousCalculatorView</span></code> values. Each carries particle,
+medium, cut and mass information and borrows const calculator references.
+Creating the views neither constructs another calculator nor advances
+a PROPOSAL random stream. The scalar owners must remain alive.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">export_proposal_native_tables(interactions,</span> <span class="pre">continuous)</span></code></p></td>
+<td><p>Reads the two view vectors and returns an owning
+<code class="docutils literal notranslate"><span class="pre">ProposalNativeTableSet</span></code> by value. It copies exported axes,
+coefficients, process/component identities and numerical constants.
+The resulting arrays do not borrow the calculators.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">validate_proposal_native_requirements(table,</span> <span class="pre">requirements)</span></code></p></td>
+<td><p>Returns <code class="docutils literal notranslate"><span class="pre">void</span></code> or throws. It requires total-rate data for all five
+routed species and displacement data for charged leptons, and checks
+the common interpolation domain against the transport cuts and maximum
+configured primary energy.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EmRunSession::beginProposalNative(...)</span></code></p></td>
+<td><p>Receives the environment view, geometry, backend configuration, physics
+requirements and calculator views. On first use it owns the exported
+table and creates the backend. It returns <code class="docutils literal notranslate"><span class="pre">SessionBeginResult</span></code> with
+a borrowed backend pointer, a reuse flag and a muon-transport capability
+flag. The session owns that backend.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_cascade</span></code> constructs <code class="docutils literal notranslate"><span class="pre">PhysicsRequirements</span></code> in MeV using the
+configured maximum primary energy, the EM and muon tracking cuts and
+<code class="docutils literal notranslate"><span class="pre">optimized_proposal_energy_cut(productionThreshold)</span></code>. The domain validator
+uses total energy for charged leptons, including the rest mass and the
+continuous-cut safety factor. The supplied stochastic-cut field is not
+compared against the exported cut by this validator; the exporter separately
+checks consistency among positive interaction-calculator cuts.</p>
+<p>Export accepts one medium physics definition: composition, excitation energy
+and density-effect parameters must agree. Layers may differ in mass density.
+For each supported particle, it selects the calculator with the smallest
+medium hash as the deterministic representative. Local density remains part
+of transport and LPM evaluation. Unsupported particle views are skipped;
+unsupported process/parametrization/particle combinations throw. This is a
+specific bridge for the implemented models, not a general PROPOSAL plugin API.</p>
+<p>The bridge uses the patched read-only export API from PROPOSAL 7.6.2 and
+CubicInterpolation 0.1.5, as fixed in the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/proposal/conanfile.py">PROPOSAL recipe</a>. It reads live
+calculator exports rather than parsing their private disk files. Bicubic
+coefficient expansion changes the storage layout without sampling another
+physics table. Direct Heitler annihilation, Sauter photoeffect and
+HeckC7Shadowing photoproduction rates instead carry parameters for their
+implemented formulae. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/proposal/NativeCalculatorView.hpp">NativeCalculatorView.hpp</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp">NativeTableExporter.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeRequirements.cpp">NativeRequirements.cpp</a>.</p>
+</section>
+<section id="auxiliary-models-and-cache-management">
+<h2>Auxiliary models and cache management<a class="headerlink" href="#auxiliary-models-and-cache-management" title="Link to this heading"></a></h2>
+<p>The native table set is only part of the numerical physics state.
+<code class="docutils literal notranslate"><span class="pre">load_or_create_proposal_native_aux(interactions,</span> <span class="pre">directory)</span></code> returns an
+owning <code class="docutils literal notranslate"><span class="pre">ProposalNativeAuxData</span></code>. On a cache miss it copies photon-pair and
+bremsstrahlung LPM parameters from the existing helper objects and builds
+electron and, when present, muon Moliere snapshots from the medium, particle
+masses and PROPOSAL constants/series coefficients. These snapshots own fixed
+component and coefficient arrays; they are not borrowed scattering objects.</p>
+<p>There is no general export of <code class="docutils literal notranslate"><span class="pre">PROPOSAL::SecondariesCalculator</span></code> into the
+device context. Supported device final states use their numerical model
+implementations and the exported constants/component data. In particular,
+direct-pair energy-asymmetry data are absent from the auxiliary cache, and
+those final states retain their CPU path. The scalar secondaries calculators
+remain owned by the native interaction model.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24.0%" />
+<col style="width: 38.0%" />
+<col style="width: 38.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Data</p></th>
+<th class="head"><p>Location and identity</p></th>
+<th class="head"><p>Miss, mismatch or failure</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>PROPOSAL interpolation files</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ProposalProcessBase</span></code> sets
+<code class="docutils literal notranslate"><span class="pre">PROPOSAL::InterpolationSettings::TABLES_PATH</span></code> to
+<code class="docutils literal notranslate"><span class="pre">corsika_data(&quot;PROPOSAL&quot;)</span></code>. <code class="docutils literal notranslate"><span class="pre">CORSIKA_DATA</span></code> overrides the compiled
+data directory. Table creation/loading belongs to PROPOSAL.</p></td>
+<td><p>Native construction can build tables when they are unavailable on
+disk. The bridge exports the resulting calculator state. Exported
+cache counters record availability before the builder ran; they do
+not measure the whole application’s cold-start time.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Auxiliary model snapshots</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;key&gt;.c8emaux</span></code> under <code class="docutils literal notranslate"><span class="pre">--gpu-aux-cache-dir</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">$XDG_CACHE_HOME/corsika8/gpu-em-aux</span></code>, falling back to
+<code class="docutils literal notranslate"><span class="pre">$HOME/.cache/corsika8/gpu-em-aux</span></code>. The key includes format/algorithm
+and dependency versions, medium physics identities, particle IDs and
+stochastic cuts.</p></td>
+<td><p>Absent, incompatible or corrupt files trigger regeneration under a
+per-key lock, followed by validation and atomic publication. Locking,
+generation and I/O failures propagate. Default environment paths must
+be absolute. This version-four format is ABI- and byte-order-dependent.</p></td>
+</tr>
+<tr class="row-even"><td><p>Derived Moliere interpolation</p></td>
+<td><p>The auxiliary filename plus <code class="docutils literal notranslate"><span class="pre">.moliere-initial-v1.c8cache</span></code>. The file
+includes the generating snapshot and validation metadata. It stores
+Moliere-function polynomials and an inverse-sampling initial-guess grid.</p></td>
+<td><p>Missing, corrupt or snapshot-mismatched files are rebuilt. Unlike the
+auxiliary snapshot writer, this cache can fall back to the generated
+in-memory result when the lock or file publication fails.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The auxiliary cache key is calculated before checking the cold-generation
+helpers. A valid hit can therefore be read without live LPM helpers; a cold
+generation requires photon-pair and electron bremsstrahlung helpers, and a
+muon bremsstrahlung helper when muon views are supplied. The same-medium
+restrictions also apply to cold auxiliary generation. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/ProposalNativeAux.cpp">ProposalNativeAux.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/tables/MoliereInterpolation.cpp">MoliereInterpolation.cpp</a>.</p>
+<p>An initialized <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code> is a fourth, in-memory lifetime: it keeps the
+export and device allocations across showers without reopening these files.
+Changing files on disk does not refresh a running session.</p>
+</section>
+<section id="context-publication-and-session-reuse">
+<h2>Context publication and session reuse<a class="headerlink" href="#context-publication-and-session-reuse" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BackendInstanceImplementation::initialize</span></code> validates the table structure
+and content hash, copies a host table, uploads environment arrays, and fills
+<code class="docutils literal notranslate"><span class="pre">NativeTableStorage</span></code> and <code class="docutils literal notranslate"><span class="pre">MoliereInterpolationStorage</span></code>. Their uploads
+complete before the context is published. <code class="docutils literal notranslate"><span class="pre">InteractionPhysicsView</span></code> combines
+the native-table view with the EM and muon transport cuts.</p>
+<p>The context call shows the independent inputs that meet at this boundary:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">478</span><span class="w">    </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">physicsContext_</span><span class="p">.</span><span class="n">initialize</span><span class="p">(</span>
+<span class="linenos">479</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">physics_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">environment_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">geometry_</span><span class="p">,</span>
+<span class="linenos">480</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">auxiliary_</span><span class="p">.</span><span class="n">electronMoliere_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">auxiliary_</span><span class="p">.</span><span class="n">muonMoliere_</span><span class="p">,</span>
+<span class="linenos">481</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">moliereInterpolation_</span><span class="p">.</span><span class="n">getDeviceView</span><span class="p">(),</span>
+<span class="linenos">482</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">auxiliary_</span><span class="p">.</span><span class="n">hasMuonMoliere_</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">auxiliary_</span><span class="p">.</span><span class="n">photonPairLpm_</span><span class="p">,</span>
+<span class="linenos">483</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">auxiliary_</span><span class="p">.</span><span class="n">bremsLpm_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">config_</span><span class="p">.</span><span class="n">thinning_</span><span class="p">,</span>
+<span class="linenos">484</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">profileProjection_</span><span class="p">.</span><span class="n">deviceView</span><span class="p">(),</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">config_</span><span class="p">.</span><span class="n">randomSeed_</span><span class="p">,</span>
+<span class="linenos">485</span><span class="w">        </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">config_</span><span class="p">.</span><span class="n">showerId_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">execution_</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PhysicsContext::initialize(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. It copies a numerical
+<code class="docutils literal notranslate"><span class="pre">PhysicsContextData</span></code> record to one rank-zero device allocation and fences
+that publication. The record contains value snapshots for Moliere and LPM,
+borrowed views of the uploaded tables/environment/profile arrays, geometry,
+thinning settings and random keys. The backend owns the referenced allocations;
+retaining <code class="docutils literal notranslate"><span class="pre">getDeviceView()</span></code> alone does not extend their lifetime. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhysicsContext.hpp">PhysicsContext.hpp</a>.</p>
+<p>On subsequent <code class="docutils literal notranslate"><span class="pre">beginProposalNative</span></code> calls, the session compares the
+numerical environment snapshot and geometry key, including the observation
+plane and magnetic-deflection limit. An equivalent snapshot at different
+host addresses is accepted; changed numerical content throws. The successful
+reuse branch calls <code class="docutils literal notranslate"><span class="pre">beginShower</span></code> to update random seed, shower ID and
+thinning, and to reset shower-local counters/output state. It does not export
+calculators again, revalidate the supplied physics requirements, or apply new
+transport cuts from <code class="docutils literal notranslate"><span class="pre">BackendConfig</span></code>. Create a new session when changing
+models, cuts, required energy coverage or environment. The existing scalar
+owners must also be reconstructed when their construction inputs change.</p>
+</section>
+<section id="missing-data-and-initialization-failures">
+<h2>Missing data and initialization failures<a class="headerlink" href="#missing-data-and-initialization-failures" title="Link to this heading"></a></h2>
+<p>Unavailable disk files and unavailable numerical physics are distinct cases.
+Export rejects null required calculator references, missing total-rate or
+displacement interpolation, malformed nonempty coefficient exports and direct
+processes without an implemented representation. An empty continuous-loss
+export is valid for a process with no interpolated continuous contribution.
+Domain validation rejects requested transport energies outside the supported
+common range. These preparation failures throw; this layer does not synthesize
+replacement physics or automatically turn the whole run into a scalar run.</p>
+<p>Failure recovery depends on the stage. A requirements failure leaves the
+exported host table but no backend, so a corrected call can retry. If backend
+construction has succeeded but its <code class="docutils literal notranslate"><span class="pre">initialize</span></code> call throws, the session
+retains that backend pointer. <code class="docutils literal notranslate"><span class="pre">EmRunSession::isInitialized()</span></code> tests this
+pointer, so it can return true after such a failure; it is not a transactional
+success marker. The environment key has not been committed, and an ordinary
+retry is rejected. Discard that session and construct another. These states
+are explicit in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a> and the <code class="docutils literal notranslate"><span class="pre">early-failure</span></code>/<code class="docutils literal notranslate"><span class="pre">late-failure</span></code>
+cases in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/session/Session.cpp">Session.cpp</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../physics-data.html" class="btn btn-neutral float-left" title="Physics models and table preparation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="storage.html" class="btn btn-neutral float-right" title="Table representation and device storage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

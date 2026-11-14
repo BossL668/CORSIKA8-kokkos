@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Transport and interaction kernels" href="transport.html" />
+    <link rel="next" title="Model selection, preparation and reuse" href="physics-data/preparation.html" />
     <link rel="prev" title="Supported models and extension requirements" href="environment/extension.html" /> 
 </head>
 
@@ -87,7 +87,12 @@
 <li class="toctree-l2"><a class="reference internal" href="environment/extension.html">Supported models and extension requirements</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Physics models and table preparation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
 </ul>
@@ -127,19 +132,193 @@
              
   <section id="physics-models-and-table-preparation">
 <h1>Physics models and table preparation<a class="headerlink" href="#physics-models-and-table-preparation" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How model data become available to the execution backend.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Model selection, initialization and data provenance.</p></li>
-<li><p>Native-table export and dependency changes.</p></li>
-<li><p>Table layout, interpolation coordinates and metadata.</p></li>
-<li><p>Caching, upload, reuse and invalidation.</p></li>
-<li><p>Missing data, unsupported models and CPU handling.</p></li>
+<p>The native C8 PROPOSAL modules own the configured calculators. The Kokkos
+integration exports their interpolation state, validates its format and
+physical coverage, and uploads it into backend-owned arrays. Transport queries
+those arrays through device-callable interpolation and inverse routines.</p>
+<p>This chapter describes model preparation, table representation and the
+interfaces consumed by transport. It complements <a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a>, which
+describes the geometry and material parameters supplied to the same backend.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+This chapter covers the <code class="docutils literal notranslate"><span class="pre">proposal-native</span></code> data path used by the standard
+Kokkos EM backend. EGS4, hadronic generators and radio propagation data have
+separate preparation contracts. Exporting PROPOSAL data does not make its
+library objects device-callable.</p>
+</div>
+<section id="data-preparation-layers">
+<h2>Data preparation layers<a class="headerlink" href="#data-preparation-layers" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29.0%" />
+<col style="width: 35.0%" />
+<col style="width: 36.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Input</p></th>
+<th class="head"><p>Result and responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>C8 PROPOSAL modules</p></td>
+<td><p>Selected particle definitions, medium composition, models and cuts.</p></td>
+<td><p>Native calculators, including their interpolation tables and CPU
+interaction interfaces.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">export_proposal_native_tables</span></code></p></td>
+<td><p>Read-only views of the native interaction and continuous calculators.</p></td>
+<td><p>An owning <code class="docutils literal notranslate"><span class="pre">ProposalNativeTableSet</span></code> with interpolation records,
+metadata, ordering information and a content hash.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NativeTableStorage</span></code></p></td>
+<td><p>A validated table set and optional allocation budget.</p></td>
+<td><p>Arrays in the selected execution space and a borrowed
+<code class="docutils literal notranslate"><span class="pre">ProposalNativeDeviceView</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Auxiliary model preparation</p></td>
+<td><p>Configured material and model information.</p></td>
+<td><p>Moliere and LPM parameters and derived support data; these are distinct
+from the native rate, loss and range tables.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PhysicsContext</span></code></p></td>
+<td><p>Physics views, auxiliary model data, environment, geometry and event
+configuration.</p></td>
+<td><p>The borrowed numerical context consumed by resident transport kernels.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Three contracts are particularly important for maintenance. The distance
+sampler uses a separate total-rate interpolant, whereas channel selection
+uses an ordered sum of individual columns. A cumulative-rate table is not
+itself a normalized CDF. Finally, a process can have a rate and energy-loss
+table while still lacking the data needed to construct its complete final
+state.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l1"><a class="reference internal" href="physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="physics-data/contracts.html">Query contracts and model extensions</a></li>
 </ul>
+</div>
+</section>
+<section id="source-organization">
+<span id="physics-data-source-organization"></span><h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>The host exporter is separate from the table records, execution-space storage
+and numerical query functions. Public declarations, template implementations
+and compiled implementation files are listed below with links to the checked
+revision.</p>
+<pre class="literal-block">corsika/kokkos/em/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/EmRunSession.hpp">EmRunSession.hpp</a>  session preparation and event reuse
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/PhysicsRequirements.hpp">PhysicsRequirements.hpp</a>  energy and cut requirements
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/ProcessCapabilities.hpp">ProcessCapabilities.hpp</a>  final-state capability contract
+
+corsika/kokkos/em/proposal/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/NativeTableExporter.hpp">NativeTableExporter.hpp</a>  read-only native export bridge
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/ProposalNativeAux.hpp">ProposalNativeAux.hpp</a>  auxiliary model parameter preparation
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/proposal/ProposalCpuFallbackHandler.hpp">ProposalCpuFallbackHandler.hpp</a>  specified CPU interaction completion
+
+corsika/kokkos/em/tables/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeTable.hpp">ProposalNativeTable.hpp</a>  owning host export and validation API
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp">ProposalNativeData.hpp</a>  descriptors, identities and borrowed data view
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeQueries.hpp">ProposalNativeQueries.hpp</a>  numerical native queries
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ContinuousPhysicsQueries.hpp">ContinuousPhysicsQueries.hpp</a>  continuous-loss query contract
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/DiscretePhysicsQueries.hpp">DiscretePhysicsQueries.hpp</a>  rate, selection and loss queries
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/TableQueryResult.hpp">TableQueryResult.hpp</a>  status and iteration-count result
+
+corsika/kokkos/em/execution/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/NativeTableStorage.hpp">NativeTableStorage.hpp</a>  execution-space table ownership
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhysicsContext.hpp">PhysicsContext.hpp</a>  publish borrowed physics inputs
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/PhysicsContextData.hpp">PhysicsContextData.hpp</a>  numerical context record
+
+src/kokkos/em/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>  export, initialize and reuse backend
+
+src/kokkos/em/proposal/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp">NativeTableExporter.cpp</a>  copy and classify native interpolation data
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/ProposalNativeAux.cpp">ProposalNativeAux.cpp</a>  prepare and cache auxiliary models
+
+src/kokkos/em/tables/
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/tables/ProposalNativeTable.cpp">ProposalNativeTable.cpp</a>  format validation and content hashing
+
+corsika/detail/kokkos/em/
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl">tables/ProposalNativeQueries.inl</a>  interpolation and inverse implementation
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/NativeTableStorage.inl">execution/NativeTableStorage.inl</a>  upload and publish array view
+├── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/PhysicsContext.inl">execution/PhysicsContext.inl</a>  context initialization and event updates
+└── <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">execution/BackendInstanceImplementation.inl</a>  combine resident data and kernel inputs</pre>
+</section>
+<section id="validation-coverage">
+<span id="physics-data-validation"></span><h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<p>The following tests cover export, storage, queries and CPU completion. Their
+presence documents existing coverage; it does not imply that all tests have
+run on every supported device. Execution-space tests use the backend selected
+by their build. Full-shower physics and timing comparisons remain separate
+validation steps.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Test source</p></th>
+<th class="head"><p>Existing coverage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeExport.cpp">testProposalNativeExport.cpp</a></p></td>
+<td><p>Export of five projectile families, ordering, versions, warm-cache content identity and rejection of corrupt records or unknown parametrizations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testNativeTableStorage.cpp">testNativeTableStorage.cpp</a></p></td>
+<td><p>Upload budgets, validation and hash failures, shared ownership, reset and a kernel query through retained storage.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueries.cpp">testProposalNativeQueries.cpp</a></p></td>
+<td><p>Real native-table queries compared with the retained production reference on the host, including failures and solver iterations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueriesDevice.cpp">testProposalNativeQueriesDevice.cpp</a></p></td>
+<td><p>Queries and retained reference executed on the selected backend; host/device tolerance checks for selected rates.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/discrete/testDiscreteContracts.cpp">testDiscreteContracts.cpp</a></p></td>
+<td><p>Distinct distance and selection rates, column ordering, zero-rate selection and invalid indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/testContinuousContracts.cpp">testContinuousContracts.cpp</a></p></td>
+<td><p>Continuous query statuses, cut definitions, endpoint behavior and normal cut completion.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhysicsContext.cpp">testPhysicsContext.cpp</a></p></td>
+<td><p>Context publication, borrowed inputs, event-key updates and rejection before initialization.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackHandler.cpp">testCpuFallbackHandler.cpp</a></p></td>
+<td><p>Specified interaction identity, ancestry and postprocessing order; rejection of invalid requests.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp">testCpuFallbackPhysics.cpp</a></p></td>
+<td><p>Real PROPOSAL specified reactions and retained-uniform replay across the supported projectile families.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The real-table export/query tests require the PROPOSAL export-enabled build
+and their configured cache fixtures. A basic contract-test target does not
+establish that these real-table checks were built or run. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/CMakeLists.txt">the table-test build configuration</a>.</p>
+<p>Many checks compare with a retained production implementation. They protect
+implementation compatibility; a new physical model additionally needs an
+independent physics validation.</p>
+</section>
+<section id="preparation-and-query-flow">
+<span id="physics-data-flow"></span><h2>Preparation and query flow<a class="headerlink" href="#preparation-and-query-flow" title="Link to this heading"></a></h2>
+<p>The session initializes the resident physics data before transport. Repeated
+queries use memory already owned by the backend. CPU interaction completion
+retains access to the native model and selected-vertex information; its
+dispatch policy is documented in <a class="reference internal" href="physics-data/contracts.html"><span class="doc">Query contracts and model extensions</span></a>.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/physics-data-flow.svg"><img alt="Native C8 calculators provide read-only views to the session exporter; the table set is validated and uploaded, then combined with auxiliary and environment data in a physics context for transport queries." src="_images/physics-data-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Source-level preparation and consumption. Arrays are retained across event
+resets under a fixed physics configuration. Open the SVG for source links.
+<a class="reference download internal" download="" href="_downloads/f78caa84f4e64dff7ee8fcc9f96a41e4/physics-data-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/050150c872811889a6b2c9816bd065c9/physics-data-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -148,7 +327,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="environment/extension.html" class="btn btn-neutral float-left" title="Supported models and extension requirements" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="transport.html" class="btn btn-neutral float-right" title="Transport and interaction kernels" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="physics-data/preparation.html" class="btn btn-neutral float-right" title="Model selection, preparation and reuse" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

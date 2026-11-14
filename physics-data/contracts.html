@@ -1,0 +1,354 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Query contracts and model extensions &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/physics-data/contracts.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Transport and interaction kernels" href="../transport.html" />
+    <link rel="prev" title="Table representation and device storage" href="storage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../physics-data.html">Physics models and table preparation</a></li>
+      <li class="breadcrumb-item active">Query contracts and model extensions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/physics-data/contracts.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="query-contracts-and-model-extensions">
+<h1>Query contracts and model extensions<a class="headerlink" href="#query-contracts-and-model-extensions" title="Link to this heading"></a></h1>
+<p>Numerical queries read a borrowed native-table view and return explicit
+status values. They do not allocate tables, generate random numbers or choose
+a different physical model. The transport caller interprets the result and
+decides whether to continue, complete an interaction on the CPU or report an
+invalid configuration.</p>
+<section id="query-inputs-and-results">
+<h2>Query inputs and results<a class="headerlink" href="#query-inputs-and-results" title="Link to this heading"></a></h2>
+<p>The public contracts are declared in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/DiscretePhysicsQueries.hpp">DiscretePhysicsQueries.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ContinuousPhysicsQueries.hpp">ContinuousPhysicsQueries.hpp</a>. Energies at this interface are total energies
+in MeV, while transport cuts are kinetic energies in MeV. Particle records
+use GeV; callers perform the conversion explicitly.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Query</p></th>
+<th class="head"><p>Required inputs</p></th>
+<th class="head"><p>Result on success</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">query_discrete_rate</span></code></p></td>
+<td><p>Native view, PDG code, process ID, component hash and total energy.</p></td>
+<td><p>Physical column rate in cm²/g.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">query_discrete_total_rate</span></code></p></td>
+<td><p>Native view, PDG code and total energy.</p></td>
+<td><p>The separate total-rate interpolant used to sample interaction depth.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">select_rate_column_by_uniform</span></code></p></td>
+<td><p>Native view, PDG code, total energy and a supplied uniform in [0, 1).</p></td>
+<td><p>Selection status, process/component identity, total selection rate,
+residual quantile and a <code class="docutils literal notranslate"><span class="pre">selected_</span></code> flag.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">query_discrete_loss_fraction</span></code></p></td>
+<td><p>Native view, PDG/process/component identity, total energy and quantile.</p></td>
+<td><p>Energy fraction or a query-specific photon-pair split coordinate.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">query_continuous_dedx</span></code> / <code class="docutils literal notranslate"><span class="pre">query_continuous_range</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ContinuousPhysicsView</span></code>, PDG code and total energy.</p></td>
+<td><p>Stopping power in MeV/(g/cm²) or range in g/cm².</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">query_continuous_energy</span></code></p></td>
+<td><p>Continuous view, PDG code and range in g/cm².</p></td>
+<td><p>Total energy in MeV from native range inversion.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">query_energy_after_continuous_loss</span></code></p></td>
+<td><p>Continuous view, PDG code, initial total energy and grammage in g/cm².</p></td>
+<td><p>Final total energy in MeV, or an explicit cut/failure status.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Most queries return <code class="docutils literal notranslate"><span class="pre">TableQueryResult</span></code>: <code class="docutils literal notranslate"><span class="pre">status_</span></code>, <code class="docutils literal notranslate"><span class="pre">value_</span></code> and
+<code class="docutils literal notranslate"><span class="pre">reserved_</span></code>. In this result type, <code class="docutils literal notranslate"><span class="pre">reserved_</span></code> packs saturated Newton and
+bisection iteration counts; use <code class="docutils literal notranslate"><span class="pre">native_newton_iterations</span></code> and
+<code class="docutils literal notranslate"><span class="pre">native_bisection_iterations</span></code> to read them. This field has a different
+meaning from <code class="docutils literal notranslate"><span class="pre">ParticleState::reserved_</span></code>.</p>
+<p>Selection returns <code class="docutils literal notranslate"><span class="pre">RateColumnSelectionResult</span></code> instead. <code class="docutils literal notranslate"><span class="pre">Success</span></code> alone
+does not establish that a column was selected: a successful zero-rate result
+has <code class="docutils literal notranslate"><span class="pre">selected_</span> <span class="pre">==</span> <span class="pre">0</span></code>. Preserve the original column order, strict subtraction
+comparison and residual quantile when changing the implementation.</p>
+</section>
+<section id="photon-pair-query-identities">
+<h2>Photon-pair query identities<a class="headerlink" href="#photon-pair-query-identities" title="Link to this heading"></a></h2>
+<p>The two final-state query identifiers do not denote extra reaction channels.
+They request a secondary-energy split from an existing photopair column:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PhotonPairFinalStateProcessId</span></code> returns a normalized electron split
+coordinate after native CDF inversion and the existing kinematic encoding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PhotonMuonPairFinalStateProcessId</span></code> returns <span class="math notranslate nohighlight">\(E_{\mu^+}/E_\gamma\)</span>.</p></li>
+</ul>
+<p>Ordinary loss queries return the fraction consumed by the interaction. Treating
+all these outputs as the same fraction would confuse projectile loss with
+secondary sharing. The dispatch and conversion are implemented in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/DiscretePhysicsQueries.inl">DiscretePhysicsQueries.inl</a>.</p>
+</section>
+<section id="status-handling">
+<h2>Status handling<a class="headerlink" href="#status-handling" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/TableQueryResult.hpp">TableQueryResult.hpp</a> defines the public status values. A zero numerical
+value is not a substitute for checking <code class="docutils literal notranslate"><span class="pre">status_</span></code>.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Status group</p></th>
+<th class="head"><p>Interpretation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Success</span></code></p></td>
+<td><p>A usable result under the query’s contract. A physical rate can be zero
+below its process threshold.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ParticleNotFound</span></code>, <code class="docutils literal notranslate"><span class="pre">ColumnNotFound</span></code>, <code class="docutils literal notranslate"><span class="pre">ContinuousParticleNotFound</span></code></p></td>
+<td><p>The requested identity or continuous utility is absent from the view.
+Absence is distinct from a known channel with zero rate.</p></td>
+</tr>
+<tr class="row-even"><td><p>Energy, quantile or range out of range</p></td>
+<td><p>The request is outside the corresponding query domain. Read the
+specific status and input; do not silently replace it with an endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InverseCdfUnavailable</span></code></p></td>
+<td><p>Native-query conversion can report unsupported kinematics or an
+unconverged inverse through this status. It does not uniquely identify
+a missing table.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NonFiniteInput</span></code>, <code class="docutils literal notranslate"><span class="pre">InvalidQueryKind</span></code>, <code class="docutils literal notranslate"><span class="pre">InvalidTableView</span></code></p></td>
+<td><p>Invalid input, dispatch or storage. Some domain checks also use
+<code class="docutils literal notranslate"><span class="pre">NonFiniteInput</span></code> for finite but invalid arguments, such as a negative
+grammage.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TransportCutReached</span></code></p></td>
+<td><p>The continuous-loss request reaches the available range. This is an
+explicit transport outcome rather than a table-allocation failure.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For continuous step limiting, <code class="docutils literal notranslate"><span class="pre">query_continuous_minimum_energy</span></code> applies
+<code class="docutils literal notranslate"><span class="pre">ContinuousCutSafetyFactor</span></code> to the sum of transport mass and kinetic cut.
+That limiting energy is not the user particle cut. Use the separate
+<code class="docutils literal notranslate"><span class="pre">query_continuous_transport_cut</span></code> contract for the configured cut.</p>
+<p>Status identifiers do not themselves enable CPU fallback. The native adapter
+currently maps non-continuous <code class="docutils literal notranslate"><span class="pre">EnergyOutOfRange</span></code> results to
+<code class="docutils literal notranslate"><span class="pre">RateEnergyOutOfRange</span></code>, including loss queries. Small positive rates remain
+valid rates; there is no general low-rate threshold that redirects these
+queries to CPU transport.</p>
+</section>
+<section id="final-state-capability-and-cpu-completion">
+<h2>Final-state capability and CPU completion<a class="headerlink" href="#final-state-capability-and-cpu-completion" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/ProcessCapabilities.inl">ProcessCapabilities.inl</a> records final-state support independently of rate
+availability. In the checked implementation, electron/positron and muon
+direct electron-pair production are CPU-only final states: the native
+energy-asymmetry <span class="math notranslate nohighlight">\(\rho\)</span> CDF is unavailable. These channels remain in
+reaction selection and are completed by CPU PROPOSAL at the selected vertex;
+they are not removed from the physical process set.</p>
+<p>Photon conversion to an electron pair, photon conversion to a muon pair and
+muon bremsstrahlung have declared backend final-state paths. Their normal
+paths use the supported native data and numerical final-state routines.
+They can still report invalid input, lookup or kinematic failures. Declared
+support is not a guarantee that every request succeeds.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ProposalCpuFallbackHandler::canHandle</span></code> accepts specific completion
+requests with the required interaction identity and vertex state. When required,
+the handler first completes the selected loss or replays native selection
+using the retained uniform. Replay verifies the interaction hash, process and
+component. Every accepted request then calls <code class="docutils literal notranslate"><span class="pre">doSpecifiedInteraction</span></code> and
+runs the native secondary-processing chain. The relevant contracts are in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalCpuFallbackHandler.inl">ProposalCpuFallbackHandler.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/proposal/ProposalFallbackAdapter.inl">ProposalFallbackAdapter.inl</a>.</p>
+<p>An arbitrary lookup failure does not automatically qualify for this handler.
+The default hybrid configuration enables <code class="docutils literal notranslate"><span class="pre">failOnUnexpectedFallback</span></code>;
+unexpected requests rejected by the handler can terminate the event rather
+than silently repeat it on the CPU. Explicitly disabling that strict policy
+allows additional scalar returns. See <a class="reference internal" href="../execution/batches.html"><span class="doc">Batch execution and CPU return paths</span></a> for the
+complete routing policy.</p>
+</section>
+<section id="adding-or-changing-a-model">
+<h2>Adding or changing a model<a class="headerlink" href="#adding-or-changing-a-model" title="Link to this heading"></a></h2>
+<p>Changes should preserve a documented physical model and make any new data
+contract explicit:</p>
+<ol class="arabic simple">
+<li><p>Configure the native calculator and record its model, component, cut and
+dependency versions. Confirm that the read-only export API exposes all
+required interpolation state.</p></li>
+<li><p>Extend the exporter classifier, record format and validation when the
+model needs new metadata or kinematics. Unsupported tuples must not be
+relabelled as an existing supported model.</p></li>
+<li><p>Update host/device views, hashes, upload and memory accounting together.
+Preserve accumulation order and the distinction between distance and
+channel-selection rates.</p></li>
+<li><p>Define the complete final-state path or an explicit CPU completion policy.
+A rate or loss CDF alone does not establish final-state support.</p></li>
+<li><p>Recreate the backend session after changing its physics configuration;
+event reuse is not an automatic model-invalidation mechanism. Follow the
+cache and lifetime rules in <a class="reference internal" href="preparation.html"><span class="doc">Model selection, preparation and reuse</span></a> and <a class="reference internal" href="storage.html"><span class="doc">Table representation and device storage</span></a>.</p></li>
+<li><p>Check real native tables, boundaries and failure statuses on host and
+device. For a changed physical model, establish independent reference
+expectations for rates, loss sampling and secondary sharing before
+comparing full-shower distributions and process coverage.
+Retain tests for CPU-only channels as well as accelerated channels.</p></li>
+</ol>
+<p>Existing tests are mapped in <a class="reference internal" href="../physics-data.html#physics-data-validation"><span class="std std-ref">Validation coverage</span></a>. Performance
+changes should be measured separately from these correctness contracts.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="storage.html" class="btn btn-neutral float-left" title="Table representation and device storage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../transport.html" class="btn btn-neutral float-right" title="Transport and interaction kernels" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

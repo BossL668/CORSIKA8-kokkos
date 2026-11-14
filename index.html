@@ -86,7 +86,12 @@
 <li class="toctree-l2"><a class="reference internal" href="environment/extension.html">Supported models and extension requirements</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
 </ul>
@@ -133,7 +138,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview, user guide, application integration, execution, particle-data and environment chapters are available. Further architecture and maintenance chapters are being developed.</span>
+  <span>The overview, user guide, application integration, execution, particle-data, environment and physics-data chapters are available. Further architecture and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -165,7 +170,8 @@ The <a class="reference internal" href="execution.html"><span class="doc">Execut
 and process coordination. The <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a> chapter defines particle-state
 representations, conversion interfaces and backend storage. The
 <a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a> chapter follows native scene export, device queries and
-extension requirements. Further chapters will cover subsystem implementation
+extension requirements. The <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a> chapter documents native model
+preparation, table storage and query contracts. Further chapters will cover subsystem implementation
 and maintenance.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
@@ -222,7 +228,10 @@ and maintenance.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="physics-data.html#planned-coverage">Planned coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data.html#data-preparation-layers">Data preparation layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data.html#source-organization">Source organization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data.html#validation-coverage">Validation coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data.html#preparation-and-query-flow">Preparation and query flow</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a><ul>

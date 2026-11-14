@@ -1,0 +1,396 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table representation and device storage &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/physics-data/storage.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Query contracts and model extensions" href="contracts.html" />
+    <link rel="prev" title="Model selection, preparation and reuse" href="preparation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../physics-data.html">Physics models and table preparation</a></li>
+      <li class="breadcrumb-item active">Table representation and device storage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/physics-data/storage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="table-representation-and-device-storage">
+<h1>Table representation and device storage<a class="headerlink" href="#table-representation-and-device-storage" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">ProposalNativeTableSet</span></code> owns the numerical export on the host.
+<code class="docutils literal notranslate"><span class="pre">NativeTableStorage&lt;TExecutionSpace&gt;</span></code> copies its query arrays into the
+selected execution space’s memory. Both expose those arrays through
+<code class="docutils literal notranslate"><span class="pre">ProposalNativeDeviceView</span></code>, a read-only, non-owning interface used by the
+native table queries. The uploaded data contain numerical records and
+coefficients; no PROPOSAL calculator object is passed to a kernel.</p>
+<p>This page describes the format-v7 representation at the chapter’s source
+baseline. Its validator requires PROPOSAL <code class="docutils literal notranslate"><span class="pre">7.6.2</span></code> and CubicInterpolation
+<code class="docutils literal notranslate"><span class="pre">0.1.5</span></code>. The field definitions are in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeData.hpp">ProposalNativeData.hpp</a> and the host
+container is in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/tables/ProposalNativeTable.hpp">ProposalNativeTable.hpp</a>.</p>
+<section id="records-identities-and-units">
+<h2>Records, identities and units<a class="headerlink" href="#records-identities-and-units" title="Link to this heading"></a></h2>
+<p>The table stores descriptors separately from their coefficient arrays. Each
+descriptor identifies a slice through an offset and dimensions or a count.
+A column can therefore retain its native interpolation coordinates without
+requiring every process to use one common energy grid.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Record or array</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NativeDndxColumn</span></code></p></td>
+<td><p>A stochastic process/component record, including particle and process
+IDs, identity hashes, rate and kinematic models, cut values, component
+parameters and a bicubic descriptor when the rate uses a spline.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">NativeTotalRateColumn</span></code></p></td>
+<td><p>The independently interpolated rate used by PROPOSAL’s
+<code class="docutils literal notranslate"><span class="pre">Interaction</span></code> mean-free-path calculation, represented by a cubic
+descriptor for each exported projectile.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NativeDedxColumn</span></code></p></td>
+<td><p>A continuous-loss component with its cubic descriptor, component
+weight, lower energy limit and accumulation identity.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">NativeUtilityColumn</span></code></p></td>
+<td><p>A displacement-integral cubic descriptor, particle mass, lower
+energy limit and the original integration-direction flag <code class="docutils literal notranslate"><span class="pre">reverse_</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">selectionColumnIndices_</span></code></p></td>
+<td><p>A permutation of the stochastic columns preserving
+<code class="docutils literal notranslate"><span class="pre">Interaction::Rates()</span></code> selection order.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dedxAccumulationIndices_</span></code></p></td>
+<td><p>A permutation of the continuous-loss columns preserving the scalar
+cross-section/component summation order.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NativePhysicalConstants</span></code></p></td>
+<td><p>Constants copied from the configured PROPOSAL calculator, including
+the electron, charged-pion and muon masses.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Stochastic descriptors are sorted by
+<code class="docutils literal notranslate"><span class="pre">(pdgId_,</span> <span class="pre">processId_,</span> <span class="pre">componentHash_)</span></code> for lookup. A validated table permits
+one medium identity per projectile; medium is not an additional argument to
+the device column lookup. The two permutations preserve the scalar operation
+orders independently of canonical descriptor order. Replacing either order
+with an arbitrary traversal can change a selection or floating-point sum.</p>
+<p>The representation retains PROPOSAL units: energies and masses in MeV,
+grammage in g/cm², rates in cm²/g and stopping power in MeV cm²/g. Upload
+does not convert units. A transformed spline value is converted back by its
+descriptor before a query returns the physical quantity.</p>
+<p>Host-only metadata include dependency versions, <code class="docutils literal notranslate"><span class="pre">stochasticCutMeV_</span></code>,
+<code class="docutils literal notranslate"><span class="pre">interactionIdentities_</span></code>, the content hash and cache-hit diagnostics.
+<code class="docutils literal notranslate"><span class="pre">NativeTableStorage</span></code> retains the source hash for inspection, while the
+query view contains the numerical arrays and constants needed for evaluation.
+Cache-hit counts are excluded from the physics digest, so a cold build and
+a warm cache load can identify the same numerical content.</p>
+</section>
+<section id="interpolation-coordinates">
+<h2>Interpolation coordinates<a class="headerlink" href="#interpolation-coordinates" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">NativeAxisDescriptor</span></code> stores <code class="docutils literal notranslate"><span class="pre">type_</span></code>, <code class="docutils literal notranslate"><span class="pre">nodes_</span></code>, <code class="docutils literal notranslate"><span class="pre">low_</span></code>, <code class="docutils literal notranslate"><span class="pre">high_</span></code>
+and <code class="docutils literal notranslate"><span class="pre">step_</span></code>. The endpoints describe the input domain; the transformation
+maps its nodes to integer coordinates from zero through <code class="docutils literal notranslate"><span class="pre">nodes_</span> <span class="pre">-</span> <span class="pre">1</span></code>.
+Consequently, <code class="docutils literal notranslate"><span class="pre">step_</span></code> is a spacing in the chosen transformed coordinate,
+not necessarily a spacing in MeV. These are the actual forward maps:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 88</span><span class="w">    </span><span class="n">CORSIKA_HOST_DEVICE</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">axis_transform</span><span class="p">(</span><span class="n">NativeAxisDescriptor</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">axis</span><span class="p">,</span>
+<span class="linenos"> 89</span><span class="w">                                                     </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 90</span><span class="w">      </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">type_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 91</span><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">NativeAxisType</span><span class="o">::</span><span class="no">Linear</span><span class="p">:</span>
+<span class="linenos"> 92</span><span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">axis</span><span class="p">.</span><span class="n">low_</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">axis</span><span class="p">.</span><span class="n">step_</span><span class="p">;</span>
+<span class="linenos"> 93</span><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">NativeAxisType</span><span class="o">::</span><span class="no">Exponential</span><span class="p">:</span>
+<span class="linenos"> 94</span><span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="n">logarithm</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">axis</span><span class="p">.</span><span class="n">low_</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">axis</span><span class="p">.</span><span class="n">step_</span><span class="p">;</span>
+<span class="linenos"> 95</span><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">NativeAxisType</span><span class="o">::</span><span class="no">ExponentialMinusOne</span><span class="p">:</span>
+<span class="linenos"> 96</span><span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">logarithm_one_plus</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">axis</span><span class="p">.</span><span class="n">low_</span><span class="p">)</span><span class="w"> </span><span class="o">-</span>
+<span class="linenos"> 97</span><span class="w">                  </span><span class="mf">0.693147180559945309417232121458176568</span><span class="p">)</span><span class="w"> </span><span class="o">/</span>
+<span class="linenos"> 98</span><span class="w">                 </span><span class="n">axis</span><span class="p">.</span><span class="n">step_</span><span class="p">;</span>
+<span class="linenos"> 99</span><span class="w">      </span><span class="p">}</span>
+<span class="linenos">100</span><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="mf">0.</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">0.</span><span class="p">;</span>
+<span class="linenos">101</span><span class="w">    </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The three axis types are <code class="docutils literal notranslate"><span class="pre">Linear</span></code>, <code class="docutils literal notranslate"><span class="pre">Exponential</span></code> and
+<code class="docutils literal notranslate"><span class="pre">ExponentialMinusOne</span></code>. In the last case the subtraction is <code class="docutils literal notranslate"><span class="pre">log(2)</span></code>;
+it ensures that <code class="docutils literal notranslate"><span class="pre">low_</span></code> maps to zero. Validation checks the endpoint maps
+and their inverse against the node count and domain.</p>
+<p>For a bicubic descriptor, <code class="docutils literal notranslate"><span class="pre">energyAxis_</span></code> acts on energy in MeV and
+<code class="docutils literal notranslate"><span class="pre">lossAxis_</span></code> acts on an already transformed loss coordinate. The validated
+loss axis is linear. The separate <code class="docutils literal notranslate"><span class="pre">NativeLossTransform</span></code> maps a physical
+loss fraction to that coordinate, using energy-dependent kinematic and cut
+limits. Its choices are <code class="docutils literal notranslate"><span class="pre">RelativeLog</span></code>,
+<code class="docutils literal notranslate"><span class="pre">RelativeLogPowerOnePointFive</span></code> and <code class="docutils literal notranslate"><span class="pre">OneMinusLog</span></code>. Thus three quantities
+must be kept distinct: a physical loss fraction, its transformed loss
+coordinate, and a probability quantile supplied to an inverse query.</p>
+<p><code class="docutils literal notranslate"><span class="pre">NativeCubicDescriptor</span></code> also carries an optional <code class="docutils literal notranslate"><span class="pre">valueTransform_</span></code>.
+When <code class="docutils literal notranslate"><span class="pre">hasValueTransform_</span></code> is set, interpolation produces a transformed
+ordinate and the query applies the inverse value transformation. This
+descriptor describes an invertible value map; its node count is not an
+additional interpolation grid.</p>
+</section>
+<section id="coefficient-layout">
+<h2>Coefficient layout<a class="headerlink" href="#coefficient-layout" title="Link to this heading"></a></h2>
+<p>The exporter copies the original spline representation through the
+read-only export interfaces. It does not sample a new grid of physics
+function values. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/proposal/NativeTableExporter.cpp">NativeTableExporter.cpp</a> implements the following layout:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bicubicValues_</span></code>, <code class="docutils literal notranslate"><span class="pre">bicubicDerivativeEnergy_</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bicubicDerivativeLoss_</span></code> and <code class="docutils literal notranslate"><span class="pre">bicubicMixedDerivative_</span></code> have the same
+length and share each descriptor’s <code class="docutils literal notranslate"><span class="pre">coefficientOffset_</span></code>. The element
+for energy row <code class="docutils literal notranslate"><span class="pre">i</span></code> and transformed-loss column <code class="docutils literal notranslate"><span class="pre">j</span></code> is at
+<code class="docutils literal notranslate"><span class="pre">coefficientOffset_</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">rows_</span> <span class="pre">*</span> <span class="pre">j</span></code>. These are the native Hermite values
+and derivatives in the interpolation coordinates, not derivatives taken
+directly with respect to physical energy and loss fraction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bicubicPolynomialCoefficients_</span></code> contains sixteen row-major coefficients
+per cell. Cells are ordered by <code class="docutils literal notranslate"><span class="pre">energy</span> <span class="pre">+</span> <span class="pre">(rows_</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">loss</span></code>, relative
+to <code class="docutils literal notranslate"><span class="pre">polynomialCoefficientOffset_</span></code>. The host derives these coefficients
+from the retained Hermite arrays using the same Eigen matrix expression
+as CubicInterpolation. The descriptor type admits a missing-polynomial
+sentinel, but a validated format-v7 production table requires these
+coefficients for every bicubic column.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cubicValues_</span></code> and <code class="docutils literal notranslate"><span class="pre">cubicNodeDerivatives_</span></code> share a one-dimensional
+descriptor’s <code class="docutils literal notranslate"><span class="pre">coefficientOffset_</span></code> and <code class="docutils literal notranslate"><span class="pre">coefficientCount_</span></code>. Node values
+and first derivatives reproduce each interval of the original cardinal
+cubic B-spline through Hermite evaluation. If present, the value
+transformation is then reversed.</p></li>
+</ul>
+<p>The derivative arrays and polynomial coefficients are part of the exported
+physics content. Changing their layout or arithmetic order requires
+validation against the original evaluator, even when the mathematical
+interpolant appears equivalent.</p>
+</section>
+<section id="cumulative-rates-and-probability-normalization">
+<h2>Cumulative rates and probability normalization<a class="headerlink" href="#cumulative-rates-and-probability-normalization" title="Link to this heading"></a></h2>
+<p>A bicubic stochastic table stores a cumulative rate as a function of energy
+and transformed loss. Its upper endpoint is a rate, not necessarily one.
+For these columns, <code class="docutils literal notranslate"><span class="pre">query_proposal_native_cumulative_rate(...)</span></code> evaluates
+the raw spline, divides by <code class="docutils literal notranslate"><span class="pre">componentWeight_</span></code> and clips a negative result
+to zero, following PROPOSAL’s public interpolant behavior. The component
+rate is obtained at transformed loss one. Direct-rate columns instead carry
+a <code class="docutils literal notranslate"><span class="pre">NativeRateModel</span></code> and the parameters required by that evaluator.</p>
+<p>Inverse queries receive a probability quantile in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code> and normalize
+against the appropriate endpoint during the query. For ordinary stochastic
+loss, the target is calculated as
+<code class="docutils literal notranslate"><span class="pre">(quantile</span> <span class="pre">*</span> <span class="pre">cumulative_rate_at_one)</span> <span class="pre">*</span> <span class="pre">componentWeight_</span></code> and the solver
+uses the raw, unclipped spline. The separate photon secondary-split query
+uses <code class="docutils literal notranslate"><span class="pre">quantile</span> <span class="pre">*</span> <span class="pre">raw_cumulative_at_one</span></code>. Preserving these multiplication
+and division steps matters to the native numerical result; the stored
+arrays are not rewritten into a normalized CDF.</p>
+<p>A rate spline also does not by itself establish which physical variable
+can be sampled. For example, photon pair production consumes the incident
+photon with loss fraction one; a secondary energy split is a separate
+query. The kinematic model in the column determines this distinction.</p>
+<p>Finally, <code class="docutils literal notranslate"><span class="pre">query_proposal_native_total_rate(...)</span></code> uses the independent
+<code class="docutils literal notranslate"><span class="pre">NativeTotalRateColumn</span></code> spline. The sum used internally to select a
+process/component is provided by
+<code class="docutils literal notranslate"><span class="pre">query_proposal_native_selection_total_rate(...)</span></code> in the recorded
+selection order. These are distinct calculations and must not be
+substituted for one another. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl">ProposalNativeQueries.inl</a> for the
+evaluation and normalization contracts.</p>
+</section>
+<section id="upload-and-allocation-lifetime">
+<h2>Upload and allocation lifetime<a class="headerlink" href="#upload-and-allocation-lifetime" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">NativeTableStorage::initialize(source,</span> <span class="pre">maximumBytes)</span></code> performs these
+steps in order:</p>
+<ol class="arabic simple">
+<li><p>Reject an already initialized owner, validate the table structure and
+dependency identities, then recompute and compare its content hash.</p></li>
+<li><p>Compare <code class="docutils literal notranslate"><span class="pre">projectedDeviceBytes(source)</span></code> with <code class="docutils literal notranslate"><span class="pre">maximumBytes</span></code> before
+allocating the query arrays.</p></li>
+<li><p>Copy each host vector through a Kokkos mirror into an owning view in
+<code class="docutils literal notranslate"><span class="pre">TExecutionSpace::memory_space</span></code> and fence the storage’s execution
+instance after the uploads.</p></li>
+<li><p>Construct the borrowed query view and publish the source hash, byte
+count and initialized state. An exception during allocation or upload
+resets partial storage before it propagates.</p></li>
+</ol>
+<p>The byte estimate counts descriptor arrays, both ordering arrays and all
+coefficient arrays. It excludes host diagnostics, allocation overhead and
+the rest of the backend’s memory. It is a table-array budget, not a complete
+GPU memory estimate.</p>
+<p>After successful initialization, the uploaded arrays are independent of
+the source host vectors. <code class="docutils literal notranslate"><span class="pre">getDeviceView()</span></code> and <code class="docutils literal notranslate"><span class="pre">getSourceContentHash()</span></code>
+reject access before initialization. The implementation is in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/NativeTableStorage.inl">NativeTableStorage.inl</a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ProposalNativeDeviceView</span></code> contains pointers and counts plus constants
+by value. Copying it neither copies the arrays nor extends their lifetime.
+<code class="docutils literal notranslate"><span class="pre">make_proposal_native_host_view(table)</span></code> similarly borrows the host vectors
+without validation: the caller must retain a validated table and keep its
+storage unchanged until queries finish. A view’s addresses must be
+accessible from the execution space that uses it. The view is not a
+portable serialized table representation.</p>
+<p>Copying a <code class="docutils literal notranslate"><span class="pre">NativeTableStorage</span></code> owner shares its immutable Kokkos
+allocations. Resetting one copy leaves a previously acquired view usable
+only while another owner retains all those allocations. <code class="docutils literal notranslate"><span class="pre">reset()</span></code> clears
+the owner’s view, hash and byte count and permits another initialization;
+it does not fence kernels using a borrowed view. Complete those kernels
+before releasing the last owner. Initialize Kokkos before constructing
+storage and retain the runtime until all storage owners have been destroyed.</p>
+</section>
+<section id="existing-checks">
+<h2>Existing checks<a class="headerlink" href="#existing-checks" title="Link to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testNativeTableStorage.cpp">testNativeTableStorage.cpp</a> checks rejection before initialization,
+insufficient budgets, invalid data and hash mismatches; it also checks
+shared ownership, reset, reinitialization and a kernel query through a
+retained view. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeExport.cpp">testProposalNativeExport.cpp</a> compares the canonical export
+with its reference, checks warm-cache content identity and rejects selected
+corrupt records. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueriesDevice.cpp">testProposalNativeQueriesDevice.cpp</a> compares queries
+against the retained production reference on the build’s actual
+<code class="docutils literal notranslate"><span class="pre">Kokkos::DefaultExecutionSpace</span></code>. Comparisons within the selected execution space include statuses
+and solver iterations; host/device comparisons cover selected rates with
+a numerical tolerance. These tests define interface coverage, rather than
+claiming that all GPU architectures have been exercised.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="preparation.html" class="btn btn-neutral float-left" title="Model selection, preparation and reuse" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="contracts.html" class="btn btn-neutral float-right" title="Query contracts and model extensions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
