@@ -2,7 +2,7 @@
    :header-rows: 1
    :widths: 40 60
 
-   * - Existing test source
+   * - Test source
      - Contract covered
    * - `testCpuParticleScheduler.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/testCpuParticleScheduler.cpp>`_
      - Stack order, erased entries, suspension and particle identity.

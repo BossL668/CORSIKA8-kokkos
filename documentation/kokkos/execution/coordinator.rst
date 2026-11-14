@@ -1,59 +1,64 @@
-Parallel prefixes and GPU workers
-=================================
+.. _parallel-prefixes-and-gpu-workers:
 
-The coordinator organizes processes around the local execution described in
-:doc:`hybrid-loop`. It partitions a shower into static root lists, starts the
-native application in the required worker roles and merges their closed
-outputs. It does not run particle kernels in the parent coordinator process.
+Process coordination and worker lifecycle
+=========================================
 
-Entry and configuration
------------------------
+The coordinator partitions a shower into static root lists, runs application
+processes in CPU-prefix and GPU-worker roles, and merges their completed
+outputs. Each GPU worker uses the local execution described in
+:doc:`hybrid-loop`. The parent coordinator manages these processes and their
+files; particle kernels execute in the workers.
 
-The application's early ``select_execution(argc, argv)`` branch enters
-``coordinator::main_entry(...)`` when coordinated execution is requested.
-``main_entry`` parses ``CoordinatorOptions`` and calls ``run(options)``.
+A *shard* is the subset of frontier roots assigned to one worker. Each root
+provides the initial state for a subshower continued by that worker.
+
+.. _entry-and-configuration:
+
+Execution selection and configuration
+-------------------------------------
+
+The application's early ``select_execution(argc, argv)`` call selects direct
+or coordinated execution. On the coordinated path, ``runCoordinator(...)``
+enters ``coordinator::main_entry(...)``, which parses ``CoordinatorOptions``
+and calls ``run(options)``.
 The options include the worker executable, physics arguments, selected devices,
 event count, seed, prefix-worker count, split energies, memory fraction and
-timeout. It returns a process exit status; ``run`` writes campaign/event records
-and returns ``void`` or throws on failure.
+timeout. ``main_entry`` returns a process exit status. ``run`` writes run-level
+and per-event records, returns ``void`` on success and throws on failure.
 
-Multiple selected GPUs or an explicit ``--prefix-workers`` option trigger
-coordinator selection. The ordinary direct single-GPU/OpenMP path stays in
-``main``. A coordinated shower can also use one GPU with a parallel CPU prefix.
-The current parallel-prefix and persistent-worker paths require
-``kokkos-proposal``; selecting an arbitrary EM backend does not enable them.
+When coordinator support is compiled in, multiple selected GPUs or an explicit
+``--prefix-workers`` option trigger this selection. A valid coordinated run
+uses multiple GPUs, or one GPU with a positive prefix-worker count. Direct
+single-GPU and OpenMP execution remain in the application's event loop.
+The parallel-prefix and persistent-worker paths currently require
+``kokkos-proposal``.
 
-.. _execution-coordinator-flow:
+.. _follow-one-coordinated-event:
 
-Follow one coordinated event
-----------------------------
+Coordinated event lifecycle
+---------------------------
 
-.. figure:: ../_static/execution-coordinator-flow.svg
-   :alt: Coordinator selects serial or parallel CPU prefix, joins and partitions the EM frontier, assigns roots and radio tracks to GPU workers, validates and merges outputs.
-   :width: 100%
-   :target: ../_static/execution-coordinator-flow.svg
-
-   Files cross process boundaries; each GPU worker reconstructs its local C8
-   objects and uses the hybrid event loop. Arrow labels name the transferred
-   data. Open the full-size SVG for source links.
-   :download:`SVG <../_static/execution-coordinator-flow.svg>` ·
-   :download:`Editable DOT source <../_static/execution-coordinator-flow.dot>`.
+Each event proceeds through prefix generation, work assignment, worker
+execution and output merging:
 
 1. **Produce a frontier.** With zero prefix workers, one CPU prefix advances
    the primary and writes ``frontier.txt`` through the capture-router path.
-   With a parallel prefix, a bootstrap first writes ``cpu_frontier.txt``;
-   ``partition(...)`` assigns those roots to CPU-prefix processes. Each process
-   advances its roots with the native C8 path and exports an EM frontier.
-   ``join_frontiers(...)`` combines those compatible, closed frontier files.
+   With a parallel prefix, an initial CPU bootstrap advances the primary and
+   writes eligible particle states to ``cpu_frontier.txt`` using the configured
+   splitting-energy criterion. ``partition(...)`` assigns those roots to CPU-prefix
+   processes. Each process advances its roots with native C8 physics and
+   exports an EM frontier. ``join_frontiers(...)`` combines the completed,
+   compatible frontier files.
 2. **Assign GPU work.** ``partition(frontier, shards)`` assigns each root once
    to a static GPU shard and returns JSON audit data including counts and
    hashes. ``partition_radio_tracks(...)`` separately assigns prefix radio-track
    spools to workers. A worker may receive radio work even when its particle
    shard is empty.
-3. **Advance the shards.** Each worker is a process using the same native
-   executable. Its visibility environment exposes its assigned GPU, selected
-   locally as device zero. It reads the shard and radio inputs, runs the local
-   hybrid cascade and writes its event output.
+3. **Execute worker assignments.** Each worker runs the same application
+   executable. Its visibility environment exposes the assigned GPU, selected
+   locally as device zero. It reads its shard and radio inputs, runs the local
+   hybrid cascade and writes event output. Workers without particle or radio
+   work are skipped.
 4. **Validate and merge.** The coordinator checks process status, required
    outputs, consumed-root counts and immutable input hashes. It then calls
    ``merge(parts, destination)`` with the prefix and worker output directories
@@ -61,19 +66,21 @@ Follow one coordinated event
    concatenated. ``COMPLETE.json`` is written after these steps; exceptions
    produce ``INCOMPLETE.json``.
 
-This is a static decomposition. Workers do not continuously exchange live
-particles or steal subshowers from one another. Equal root counts also do not
-guarantee equal processing times. The CPU-prefix worker count and GPU worker
-count are separate configuration values.
+Assignments remain fixed during the event; there is no inter-worker particle
+exchange or work stealing. Root count alone does not determine processing
+time, because subshowers can have different transport and radio workloads.
+The CPU-prefix worker count and GPU worker count are independent configuration
+values.
 
 .. _execution-frontier-import:
+.. _import-roots-in-bounded-blocks:
 
-Import roots in bounded blocks
-------------------------------
+Bounded frontier import
+-----------------------
 
-Inside a worker, ``CascadeParticleInput`` binds a ``FrontierInput`` to the event.
-``BufferedFrontierRouter`` wraps the ordinary router and feeds another block
-only when its existing work has drained:
+In the bounded-import path, ``CascadeParticleInput`` binds a ``FrontierInput``
+to the event. ``BufferedFrontierRouter`` wraps ``EmRouter`` and gives existing
+backend work priority over importing another block:
 
 .. literalinclude:: ../../../corsika/detail/kokkos/scheduling/StaticFrontier.inl
    :language: cpp
@@ -84,20 +91,23 @@ only when its existing work has drained:
 ``FrontierInput::refill(stack, cs, limit, topology)`` reads numerical particle
 records, validates the environment and history identities, then imports them
 into the empty native stack. It returns the number of imported roots.
-The wrapper's ``pending()`` also includes unread input, so an empty local EM
-queue cannot finish the shower while roots remain in the file.
+The hybrid event loop reaches this refill path after the current scalar and
+router work has drained. The wrapper's ``pending()`` also includes unread
+input, keeping the event active while roots remain in the file.
 
 ``C8_STATIC_FRONTIER_IMPORT_BATCH`` overrides the import block, with an accepted
 range of 1--65536 roots. Without the override, the wrapper derives it from
-``minimumBatchSize()``, clamped to that range. This controls host input feeding;
-it does not change the number of GPU workers or directly set a kernel block
-size. ``FRONTIER_FEED.json`` records consumed roots and import batches.
+``minimumBatchSize()``, clamped to that range. This controls the number of
+subshower roots introduced at a time; worker count and kernel launch
+configuration are separate controls. ``FRONTIER_FEED.json`` records consumed
+roots and import batches.
 
-Reuse across events
--------------------
+.. _reuse-across-events:
 
-``coordinator::run`` keeps a ``WorkerPool`` for the campaign. Its current reuse
-condition is included directly from the implementation:
+Persistent-worker lifecycle
+---------------------------
+
+``coordinator::run`` keeps a ``WorkerPool`` across events when reuse is enabled:
 
 .. literalinclude:: ../../../src/kokkos/scheduling/AirShowerCoordinator.cpp
    :language: cpp
@@ -105,17 +115,18 @@ condition is included directly from the implementation:
    :end-at: o.persistentWorkers_ && o.events_ > 1 && o.emBackend_ == "kokkos-proposal";
    :lineno-match:
 
-The pool starts after the first event's CPU prefix, not ahead of it. Workers
-publish ``READY.json`` after their model setup. GPU initialization occurs on
-the first real request; subsequent requests reuse the session. Later prefixes
-run while those worker processes remain alive, but they are not a pipeline of
-concurrently advancing events.
+The pool starts after the first event's CPU prefix. Workers publish
+``READY.json`` after model setup; GPU initialization occurs on the first
+non-skipped request. Subsequent requests reuse the session and its allocated
+resources. Events execute sequentially: the coordinator completes the current
+event's workers and merge before starting the next event. The GPU worker
+processes remain alive while that next prefix runs.
 
 .. list-table::
    :header-rows: 1
    :widths: 33 67
 
-   * - Control/data boundary
+   * - Interface
      - Data and operations
    * - Coordinator to ``WorkerSession::next(...)``
      - ``request_<n>.json`` supplies the seed, event folder, frontier path,
@@ -134,21 +145,54 @@ concurrently advancing events.
        waits for all assigned workers before validating and merging that event.
 
 Native CPU random streams continue across requests, including streams retained
-by physics models. The session restores per-event decay flags and histograms
-without rewinding those streams. Device sampling uses the request seed and
-particle history. Therefore a persistent campaign is not promised to reproduce
-the values from launching an isolated fresh process for every event; validation
-must state which random-stream policy is being compared.
+by physics models. The worker restores decay flags and resets interaction
+histograms without rewinding those streams. Device sampling uses the request
+seed and particle history. Reuse therefore changes random-stream progression
+relative to separate process launches. Reproducibility comparisons must specify
+the worker-lifetime and random-stream policies; statistical validation is
+required when those policies differ.
 
 Completion and timing records
 -----------------------------
 
-``TIMING.json`` separates event wall time, the CPU-prefix phase, merge time and
-process/request records. Persistent-worker records must be read as requests,
-not as the entire lifetime of the worker. These wall times do not by themselves
-measure GPU kernel activity or CPU core-hours. See :doc:`../usage/outputs` for
-the output conventions.
+Timing records have distinct scopes:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Record
+     - Timing scope
+   * - Per-event ``TIMING.json``
+     - Event wall time, CPU-prefix phase, output merging and process/request
+       records. The first event includes worker startup when reuse is enabled.
+   * - Persistent-worker request
+     - One request's elapsed time within an existing process. It includes
+       backend initialization on the worker's first non-skipped request.
+   * - Run-level ``TIMING.json``
+     - Elapsed time for the complete multi-event run and a list of event times.
+
+These measurements are wall-clock intervals. GPU kernel activity and CPU
+core-hours require separate device or CPU-usage measurements. See
+:doc:`../usage/outputs` for output conventions.
 
 ``COMPLETE.json`` establishes execution and output completion. Statistical
 physics agreement and performance acceptance require their own comparison;
 the coordinator's file and counter checks do not establish either.
+
+.. _execution-coordinator-flow:
+
+Coordination data flow
+----------------------
+
+.. figure:: ../_static/execution-coordinator-flow.svg
+   :alt: Coordinator selects serial or parallel CPU prefix, joins and partitions the EM frontier, assigns roots and radio tracks to GPU workers, validates and merges outputs.
+   :width: 100%
+   :target: ../_static/execution-coordinator-flow.svg
+
+   Workers exchange frontier files, radio-track files and control records with
+   the coordinator. Each worker constructs its local C8 objects. Arrows identify
+   the data transferred between stages; source links are available in the
+   full-size SVG.
+   :download:`SVG <../_static/execution-coordinator-flow.svg>` ·
+   :download:`Editable DOT source <../_static/execution-coordinator-flow.dot>`.

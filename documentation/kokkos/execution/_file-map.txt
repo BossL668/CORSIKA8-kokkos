@@ -41,14 +41,14 @@
 .. _AirShowerCoordinator.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp
 .. _StaticFrontierIO.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/StaticFrontierIO.cpp
 
-Connections to neighbouring modules:
+Dependencies in other modules:
 
 .. list-table::
    :header-rows: 1
    :widths: 47 53
 
    * - Source
-     - Boundary
+     - Interface responsibility
    * - `CascadeRunner.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl>`_
      - Application callbacks and event configuration.
    * - `CascadeDriver.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl>`_
