@@ -123,42 +123,6 @@ including the native and accelerated branches and the output they update.
    selected before this setup; each worker then uses the application interfaces
    for its assigned work. :download:`Diagram source <_static/application-calls.dot>`.
 
-.. _application-source-flow:
-
-Follow the data from main to the scheduling module
-------------------------------------------------------------
-
-The following diagram connects the calls in ``main`` to their implementation
-files and the next module. It follows an ordinary event using
-``--em-backend kokkos-proposal``, with the native ``proposal`` branch shown
-alongside it. Process coordination is selected before this path; a dedicated
-prefix task can return earlier through ``input.runPrefix(...)``. The EGS4
-session has a separate execution branch described in
-:doc:`application/event-execution`.
-
-.. figure:: _static/application-source-flow.svg
-   :alt: File-level flow from c8_air_shower.cpp through CascadeExtension, CascadeDriver, CascadeApplication and CascadeRunner to HybridCascadeRunner and HybridCascade, with environment preparation and backend initialization callbacks.
-   :width: 100%
-   :target: _static/application-source-flow.svg
-
-   Read from top to bottom. Solid arrows follow execution and helper calls;
-   dashed arrows identify returned objects. Each box names the file and the
-   relevant function or callback. Green boxes mark the handoff to execution
-   and scheduling. Open the full-size SVG to follow its clickable source links.
-   :download:`SVG <_static/application-source-flow.svg>` /
-   :download:`Editable DOT source <_static/application-source-flow.dot>`.
-
-Except where a full path is shown, application ``.inl`` files in this figure
-are under ``corsika/detail/kokkos/application/cascade/``. Both green boxes are
-under ``corsika/detail/kokkos/scheduling/``.
-
-The handoff passes ``begin_backend`` as a callback to
-``run_hybrid_cascade(...)``. That function invokes it to obtain ``EmBackend&``
-before constructing the router and starting ``HybridCascade::run()``. The
-application therefore supplies the inputs and initialization callback; the
-scheduling module controls this execution order. Continue with
-:doc:`execution` for the hybrid loop, batch contracts and process coordination.
-
 Names that refer to different responsibilities
 ----------------------------------------------
 
@@ -229,3 +193,39 @@ The older ``bind(...)`` and ``dispatch_cascade(...)`` helpers remain in the
 library. The air-shower ``main`` described here uses ``select_execution(...)``,
 ``geometry(...)`` and ``execution(...)`` instead. Their presence in the source
 should not be mistaken for additional calls made by this entry point.
+
+.. _application-source-flow:
+
+Follow the data from main to the scheduling module
+------------------------------------------------------------
+
+The following diagram connects the calls in ``main`` to their implementation
+files and the next module. It follows an ordinary event using
+``--em-backend kokkos-proposal``, with the native ``proposal`` branch shown
+alongside it. Process coordination is selected before this path; a dedicated
+prefix task can return earlier through ``input.runPrefix(...)``. The EGS4
+session has a separate execution branch described in
+:doc:`application/event-execution`.
+
+.. figure:: _static/application-source-flow.svg
+   :alt: File-level flow from c8_air_shower.cpp through CascadeExtension, CascadeDriver, CascadeApplication and CascadeRunner to HybridCascadeRunner and HybridCascade, with environment preparation and backend initialization callbacks.
+   :width: 100%
+   :target: _static/application-source-flow.svg
+
+   Read from top to bottom. Solid arrows follow execution and helper calls;
+   dashed arrows identify returned objects. Each box names the file and the
+   relevant function or callback. Green boxes mark the handoff to execution
+   and scheduling. Open the full-size SVG to follow its clickable source links.
+   :download:`SVG <_static/application-source-flow.svg>` /
+   :download:`Editable DOT source <_static/application-source-flow.dot>`.
+
+Except where a full path is shown, application ``.inl`` files in this figure
+are under ``corsika/detail/kokkos/application/cascade/``. Both green boxes are
+under ``corsika/detail/kokkos/scheduling/``.
+
+The handoff passes ``begin_backend`` as a callback to
+``run_hybrid_cascade(...)``. That function invokes it to obtain ``EmBackend&``
+before constructing the router and starting ``HybridCascade::run()``. The
+application therefore supplies the inputs and initialization callback; the
+scheduling module controls this execution order. Continue with
+:doc:`execution` for the hybrid loop, batch contracts and process coordination.
