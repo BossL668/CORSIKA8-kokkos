@@ -116,7 +116,7 @@ concurrently advancing events.
    :widths: 33 67
 
    * - Control/data boundary
-     - What crosses it
+     - Data and operations
    * - Coordinator to ``WorkerSession::next(...)``
      - ``request_<n>.json`` supplies the seed, event folder, frontier path,
        worker ID and radio-input paths, or an explicit skip request.

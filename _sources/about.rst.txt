@@ -27,6 +27,11 @@ Record the source version checked, describe ownership and memory access, and
 link to the corresponding implementation and tests. Keep implementation
 descriptions separate from proposals.
 
+Use concise technical headings that identify the component, lifecycle stage or
+interface contract. Define responsibilities, inputs, outputs and ownership in
+direct terms, retaining the original source identifiers. Prefer established
+software terminology over conversational questions or reading instructions.
+
 Short source examples should be included from the repository with Sphinx's
 ``literalinclude`` directive. Public API descriptions can be included from
 Doxygen XML through Breathe when the API reference is populated.
