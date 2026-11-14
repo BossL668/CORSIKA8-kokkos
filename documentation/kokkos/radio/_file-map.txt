@@ -1,0 +1,33 @@
+.. parsed-literal::
+
+   corsika/kokkos/radio/
+   ├── `IRadioBackend.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/IRadioBackend.hpp>`_  host submission and download contract
+   ├── `RadioConfig.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/RadioConfig.hpp>`_  ordinary observers, propagation and accumulation settings
+   ├── `RadioWaveforms.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/RadioWaveforms.hpp>`_  CoREAS fields and ZHS potentials
+   ├── `RadioAccumulator.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/RadioAccumulator.hpp>`_  ordinary execution-space accumulator
+   ├── `algorithms/RadioProjection.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/algorithms/RadioProjection.hpp>`_  track and observer projection interfaces
+   ├── `firn/IGeometricalOpticsAccumulator.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/firn/IGeometricalOpticsAccumulator.hpp>`_  batched firn ray/emission interface
+   └── `firn/IFullWaveAccumulator.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/firn/IFullWaveAccumulator.hpp>`_  schema-2 full-wave table interface
+
+   corsika/detail/kokkos/radio/
+   ├── `ObserverConversion.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/ObserverConversion.inl>`_  native observer conversion
+   ├── `ScopedRadioTrackSink.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/ScopedRadioTrackSink.inl>`_  single native-track capture
+   ├── `HostRadioCollector.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/HostRadioCollector.inl>`_  host track adapter and dispatch
+   ├── `RadioAccumulator.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulator.inl>`_  storage, staging, launch policies and download
+   ├── `RadioAccumulatorOperations.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulatorOperations.inl>`_  local counters and OpenMP private-waveform merge
+   ├── `algorithms/RadioProjection.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/algorithms/RadioProjection.inl>`_  ordinary propagation and CoREAS/ZHS projection
+   └── `CooperativeRadioMerge.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/CooperativeRadioMerge.inl>`_  validated fixed-point merge for two endpoints
+
+   src/kokkos/radio/firn/
+   ├── `GeometricalOpticsAccumulator.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/radio/firn/GeometricalOpticsAccumulator.cpp>`_  selected-space firn ray and emission kernels
+   └── `FullWaveAccumulator.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/radio/firn/FullWaveAccumulator.cpp>`_  ordered full-wave table projection
+
+   corsika/detail/kokkos/application/cascade/
+   ├── `CascadePreparation.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadePreparation.inl>`_  scene-dependent ordinary radio configuration
+   └── `CascadeRunner.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl>`_  native sink attachment and prefix track replay
+
+   corsika/detail/kokkos/output/
+   └── `CorsikaOutputSink.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/output/CorsikaOutputSink.inl>`_  completed arrays to native C8 observers
+
+   corsika/detail/modules/radio/
+   └── `RadioProcess.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/modules/radio/RadioProcess.inl>`_  native track export and waveform output

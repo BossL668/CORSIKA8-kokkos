@@ -1,0 +1,26 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Test source
+     - Existing coverage
+   * - `testRadioProjection.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/testRadioProjection.cpp>`_
+     - Per-track projection against retained production functions and actual native C8 radio modules, including homogeneous indices, limiting cases and overflow behavior.
+   * - `testRadioAccumulator.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioAccumulator.cpp>`_
+     - Fixed/floating accumulation, execution-space behavior and supported projection configurations.
+   * - `testHostRadioStaging.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testHostRadioStaging.cpp>`_
+     - Bounded host staging, partial-batch flush and comparison with direct input.
+   * - `testRadioMerge.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioMerge.cpp>`_
+     - Two-endpoint identity, configuration and fixed-point merge contracts, including transactional failure.
+   * - `testHostRadioCollector.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testHostRadioCollector.cpp>`_
+     - Native track conversion, coordinates, weight and exactly-once capture.
+   * - `testRadioSpoolReplay.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testRadioSpoolReplay.cpp>`_
+     - Fixed-track replay with different batch sizes and the final partial batch.
+   * - `testGeometricalOpticsAccumulator.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/firn/testGeometricalOpticsAccumulator.cpp>`_
+     - Selected-space geometrical-optics rays and ordered spectra against CPU reference calculations.
+   * - `testTimeDomainEmission.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/firn/testTimeDomainEmission.cpp>`_
+     - ZHS and CoREAS deposition, Cherenkov-limit behavior and time/spectrum checks.
+   * - `testFullWaveAccumulator.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/firn/testFullWaveAccumulator.cpp>`_
+     - Full-wave table projection against the corresponding CPU response.
+   * - `testRadioOutputLifecycle.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/modules/radio_output/testRadioOutputLifecycle.cpp>`_
+     - Native observer/output lifecycle across events.
