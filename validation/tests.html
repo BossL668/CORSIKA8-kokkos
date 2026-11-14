@@ -1,0 +1,547 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test coverage and execution &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/validation/tests.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Numerical and statistical validation" href="numerics.html" />
+    <link rel="prev" title="Validation and performance" href="../validation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../validation.html">Validation and performance</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../validation.html">Validation and performance</a></li>
+      <li class="breadcrumb-item active">Test coverage and execution</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/validation/tests.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="test-coverage-and-execution">
+<h1>Test coverage and execution<a class="headerlink" href="#test-coverage-and-execution" title="Link to this heading"></a></h1>
+<p>The test suite checks data contracts, numerical operations, transport stages,
+runtime ownership and application integration at different levels. A CTest
+entry identifies an executable or a selected scenario, not necessarily one
+assertion or one Catch2 test case. The configured build determines which
+entries exist and which execution space they exercise.</p>
+<p>This page describes registrations and assertions in the pinned source baseline.
+It is a guide to selecting and interpreting checks, not a record of passing
+runs. Numerical comparison rules are covered in <a class="reference internal" href="numerics.html"><span class="doc">Numerical and statistical validation</span></a>; timing and
+benchmark evidence are covered in <a class="reference internal" href="performance.html"><span class="doc">Performance measurement</span></a>.</p>
+<section id="where-the-tests-live">
+<h2>Where the tests live<a class="headerlink" href="#where-the-tests-live" title="Link to this heading"></a></h2>
+<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/CMakeLists.txt">test root</a> adds the ordinary framework, media, stack, module and output
+tests, then conditionally adds <code class="docutils literal notranslate"><span class="pre">tests/kokkos</span></code>. Application-support contracts
+are registered separately. The relevant organization is:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├── kokkos/
+│   ├── CMakeLists.txt        generic Runtime scenarios and subtree registration
+│   ├── data/                record layout, defaults, conversion and transfer
+│   ├── environment/         export, storage, queries and boundary handling
+│   ├── utility/             elementary functions and polynomial roots
+│   ├── em/
+│   │   ├── tables/          native export, lookup and storage contracts
+│   │   ├── models/, moliere/, continuous/, discrete/, stochastic/
+│   │   ├── selection/, transport/, finalstate/
+│   │   ├── execution/      fronts, cascades, statistics, backend and session
+│   │   └── proposal/       native CPU fallback and particle transfer
+│   ├── runtime/            scans, queues, completion waits and BackendRuntime
+│   ├── scheduling/         scalar/hybrid loops and worker protocols
+│   ├── output/             profile projection, storage and accumulation
+│   ├── radio/              projection, accumulation, host staging and firn
+│   ├── application/        scene preparation
+│   ├── diagnostics/        decision replay records
+│   └── egs4/               optional EGS4 tables and transport
+├── application_support/    CLI, execution selection, bindings and coordinator
+└── modules/, output/, ...  native physics and output integration
+cmake/*Contracts.cmake      shared build-tree/installed-consumer registrations
+</pre></div>
+</div>
+<p>Files ending in <code class="docutils literal notranslate"><span class="pre">Header.cpp</span></code> commonly compile a public header in its own
+translation unit. They establish include and link contracts; they are not
+separate numerical tests. <code class="docutils literal notranslate"><span class="pre">Reference.hpp</span></code>, <code class="docutils literal notranslate"><span class="pre">reference/</span></code> and <code class="docutils literal notranslate"><span class="pre">oracle/</span></code>
+hold comparison implementations used by the surrounding test. A comparison
+against preserved production code establishes compatibility for its inputs;
+it does not provide an independent measurement of physical accuracy.</p>
+</section>
+<section id="registration-gates-and-selectors">
+<h2>Registration, gates and selectors<a class="headerlink" href="#registration-gates-and-selectors" title="Link to this heading"></a></h2>
+<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt">top-level CMake configuration</a> calls <code class="docutils literal notranslate"><span class="pre">enable_testing()</span></code> and adds
+<code class="docutils literal notranslate"><span class="pre">tests</span></code> unconditionally. There is no <code class="docutils literal notranslate"><span class="pre">BUILD_TESTING</span></code> gate around that
+subdirectory at this baseline. The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/CMakeLists.txt">Kokkos test registration</a> uses explicit
+<code class="docutils literal notranslate"><span class="pre">add_test()</span></code> calls, alongside the native <code class="docutils literal notranslate"><span class="pre">CORSIKA_ADD_TEST</span></code> helper; it does
+not discover each Catch2 case as a separate CTest entry.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Configuration or prerequisite</p></th>
+<th class="head"><p>Effect on the selected checks</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS=ON</span></code></p></td>
+<td><p>Adds the Kokkos subtree. With it disabled, native/application-support
+tests still exist, but the Kokkos subtree does not.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_PROPOSAL_EXPORT=ON</span></code></p></td>
+<td><p>Enables real native table fixtures and the export-dependent numerical
+tests. Some existing transport/front/cascade executables gain additional
+native cases through compile definitions, so unchanged test counts do
+not imply unchanged coverage.</p></td>
+</tr>
+<tr class="row-even"><td><p>Exported <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code> and real export support</p></td>
+<td><p>Enable <code class="docutils literal notranslate"><span class="pre">production_backend_Stages_&lt;execution&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">production_backend_Router_&lt;execution&gt;</span></code>. <code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code> additionally
+enables the cold/hot, environment and failure scenarios.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_EGS4=ON</span></code></p></td>
+<td><p>Requires Kokkos and the PROPOSAL export bridge. The EGS4 test directory
+registers its three executables only when <code class="docutils literal notranslate"><span class="pre">CORSIKA8NativeEgs4</span></code> exists.</p></td>
+</tr>
+<tr class="row-even"><td><p>Unix and FLUKA availability</p></td>
+<td><p>Unix gates the process-pool and hybrid-loop fixtures. The FLUKA worker
+subtree is entered when the cached <code class="docutils literal notranslate"><span class="pre">C8_FLUKA_ENABLED</span></code> value is
+nonempty; its tests use the actual worker executables and model setup.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_TEST_COORDINATOR_PROCESS=ON</span></code></p></td>
+<td><p>Adds the coordinator’s <code class="docutils literal notranslate"><span class="pre">process</span></code> comparison. It defaults to <code class="docutils literal notranslate"><span class="pre">OFF</span></code>;
+its declared prerequisite is <code class="docutils literal notranslate"><span class="pre">nvidia-smi</span></code> and NVIDIA devices 0 and 1.
+Ordinary <code class="docutils literal notranslate"><span class="pre">io</span></code>, <code class="docutils literal notranslate"><span class="pre">cli</span></code>, <code class="docutils literal notranslate"><span class="pre">firn</span></code> and <code class="docutils literal notranslate"><span class="pre">prefix</span></code> cases remain registered.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CORSIKA_SANITIZERS_ENABLED=ON</span></code></p></td>
+<td><p>Adds address/undefined-behavior sanitizer flags to participating targets.
+<code class="docutils literal notranslate"><span class="pre">src/kokkos/CMakeLists.txt</span></code> rejects this configuration with CUDA, HIP,
+SYCL or OpenMPTarget devices; use a separate host-only build.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/CMakeLists.txt">native table registration</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/CMakeLists.txt">execution registration</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendExecutionContracts.cmake">backend execution contracts</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/CMakeLists.txt">scheduling registration</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/egs4/CMakeLists.txt">EGS4 registration</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/CoordinatorContracts.cmake">coordinator contracts</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">Kokkos target definitions</a>.</p>
+<p>Many numerical tests use <code class="docutils literal notranslate"><span class="pre">Kokkos::DefaultExecutionSpace</span></code>. Configuring CUDA,
+OpenMP or HIP changes the compiled execution space; running the same binary
+again does not switch it. The optional <code class="docutils literal notranslate"><span class="pre">CORSIKA_DATA_EXPECT_BACKEND</span></code> cache
+input adds explicit type assertions to participating tests. Its <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/CMakeLists.txt">data test
+registration</a> accepts only an empty string, <code class="docutils literal notranslate"><span class="pre">CUDA</span></code> or <code class="docutils literal notranslate"><span class="pre">OPENMP</span></code>. It neither
+builds a backend nor accepts <code class="docutils literal notranslate"><span class="pre">HIP</span></code> or <code class="docutils literal notranslate"><span class="pre">SYCL</span></code> as a full-tree audit setting.</p>
+<p>Backend/session registrations derive their execution arguments from the
+compiled capability: <code class="docutils literal notranslate"><span class="pre">OPENMP</span></code> registers <code class="docutils literal notranslate"><span class="pre">openmp</span></code>, and CUDA, HIP and SYCL
+each register their corresponding execution. <code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code> registers
+<code class="docutils literal notranslate"><span class="pre">cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code> and <code class="docutils literal notranslate"><span class="pre">openmp-cuda</span></code>. These registrations
+show intended test paths, not evidence that all paths have run successfully.
+In particular, the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/CMakeLists.txt">radio accumulator registration</a> selects an OpenMP
+expectation whenever neither CUDA nor HIP is detected, and its helper asserts
+that type. The complete suite therefore must not be assumed to support every
+Serial or SYCL configuration unchanged.</p>
+<p>CTest labels and names serve different purposes. <code class="docutils literal notranslate"><span class="pre">-L</span> <span class="pre">kokkos</span></code> selects the
+entries carrying that label, including the generic runtime and most numerical
+tests. It omits unlabelled <code class="docutils literal notranslate"><span class="pre">production_*</span></code> backend/session entries and
+application-support contracts. FLUKA worker entries carry <code class="docutils literal notranslate"><span class="pre">fluka;worker</span></code>.
+Use <code class="docutils literal notranslate"><span class="pre">ctest</span> <span class="pre">-N</span></code> to inspect the actual build before treating a selection as a
+complete suite.</p>
+<p>Lifecycle tests deliberately use one process per scenario because Kokkos
+cannot be reinitialized after finalization. The runtime registration preserves
+the Catch2 filter, environment and timeout together:</p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="linenos">58</span><span class="nb">foreach</span><span class="w"> </span><span class="p">(</span><span class="s">SCENARIO</span><span class="w"> </span><span class="s">IN</span><span class="w"> </span><span class="s">LISTS</span><span class="w"> </span><span class="s">KOKKOS_RUNTIME_SCENARIOS</span><span class="p">)</span>
+<span class="linenos">59</span><span class="w">  </span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">TEST_NAME</span><span class="w"> </span><span class="s">testKokkosRuntime_</span><span class="o">${</span><span class="nv">SCENARIO</span><span class="o">}</span><span class="p">)</span>
+<span class="linenos">60</span><span class="w">  </span><span class="nb">add_test</span><span class="w"> </span><span class="p">(</span><span class="s">NAME</span><span class="w"> </span><span class="o">${</span><span class="nv">TEST_NAME</span><span class="o">}</span>
+<span class="linenos">61</span><span class="w">    </span><span class="s">COMMAND</span><span class="w"> </span><span class="s">testKokkosRuntime</span><span class="w"> </span><span class="s2">"[runtime_${SCENARIO}]"</span>
+<span class="linenos">62</span><span class="w">      </span><span class="s">-o</span><span class="w"> </span><span class="o">${</span><span class="nv">PROJECT_BINARY_DIR</span><span class="o">}</span><span class="s">/test_outputs/junit-</span><span class="o">${</span><span class="nv">TEST_NAME</span><span class="o">}</span><span class="s">.xml</span><span class="w"> </span><span class="s">-r</span><span class="w"> </span><span class="s">junit</span>
+<span class="linenos">63</span><span class="w">  </span><span class="p">)</span>
+<span class="linenos">64</span><span class="w">  </span><span class="nb">set_tests_properties</span><span class="w"> </span><span class="p">(</span><span class="o">${</span><span class="nv">TEST_NAME</span><span class="o">}</span><span class="w"> </span><span class="s">PROPERTIES</span>
+<span class="linenos">65</span><span class="w">    </span><span class="s">LABELS</span><span class="w"> </span><span class="s2">"kokkos;runtime"</span>
+<span class="linenos">66</span><span class="w">    </span><span class="s">ENVIRONMENT</span><span class="w"> </span><span class="s2">"OMP_NUM_THREADS=2;OMP_PROC_BIND=false"</span>
+<span class="linenos">67</span><span class="w">    </span><span class="s">PROCESSORS</span><span class="w"> </span><span class="s">2</span>
+<span class="linenos">68</span><span class="w">    </span><span class="s">RUN_SERIAL</span><span class="w"> </span><span class="s">TRUE</span>
+<span class="linenos">69</span><span class="w">    </span><span class="s">TIMEOUT</span><span class="w"> </span><span class="s">60</span>
+<span class="linenos">70</span><span class="w">  </span><span class="p">)</span>
+<span class="linenos">71</span><span class="nb">endforeach</span><span class="w"> </span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The same pattern separates data transfer from device-default construction.
+Running <code class="docutils literal notranslate"><span class="pre">testKokkosRuntime</span></code> or <code class="docutils literal notranslate"><span class="pre">testKokkosDataTransfer</span></code> without a case filter
+bypasses this isolation. Use their registered CTest entries. <code class="docutils literal notranslate"><span class="pre">RUN_SERIAL</span></code>
+also prevents these tests from overlapping other CTest work; <code class="docutils literal notranslate"><span class="pre">PROCESSORS</span></code>
+is a scheduler reservation, while <code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code> configures host threads.</p>
+</section>
+<section id="representative-assertions">
+<h2>Representative assertions<a class="headerlink" href="#representative-assertions" title="Link to this heading"></a></h2>
+<p>This table connects representative CTest entries to their actual assertions.
+It is a navigation map, not an exhaustive inventory or a pass/fail report.
+Wildcard suffixes denote the separate registrations described above.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 31.0%" />
+<col style="width: 69.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>CTest entry and source</p></th>
+<th class="head"><p>What a successful run establishes for its fixture</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testKokkosRuntime_*</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testRuntime.cpp">testRuntime.cpp</a></p></td>
+<td><p>Checks owned, shared and borrowed initialization; conflicting and invalid
+options; finalization; coordinator-thread restrictions; exception cleanup;
+and execution of a kernel with checked values and reduction output.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testKokkosDataTransfer_transfer</span></code> and
+<code class="docutils literal notranslate"><span class="pre">testKokkosDataTransfer_device_defaults</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/testKokkosDataTransfer.cpp">testKokkosDataTransfer.cpp</a></p></td>
+<td><p>Copies record fields through the actual execution space, checks transfer
+markers and record contents, constructs defaults inside a kernel, and
+verifies the Runtime lifetime before and after the operation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testKokkosEnvironmentQueryDevice</span></code>;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/environment/testEnvironmentQueryDevice.cpp">testEnvironmentQueryDevice.cpp</a></p></td>
+<td><p>Runs independent candidate/reference queries on exported node-tree data.
+Asserts 160 query cases, a 34-case host/device subset and 15 atmosphere
+integration chains; checks states, values, stored inputs and semantics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testProposalNativeQueriesDevice</span></code>;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/tables/testProposalNativeQueriesDevice.cpp">testProposalNativeQueriesDevice.cpp</a></p></td>
+<td><p>Compares the candidate lookup with a preserved same-device implementation;
+requires every query operation, Newton and bisection paths, a nonempty
+host/device subset and unchanged table content hashes. Requires export.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testInteractionSelection</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/selection/testInteractionSelection.cpp">testInteractionSelection.cpp</a></p></td>
+<td><p>Uses real native tables and checks host/device selection against the
+reference, including continuations, decays, cuts, failure paths,
+bremsstrahlung, ionization, pair creation, Compton scattering and native
+replay for electrons and muons. Requires export.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testPhotonFinalState</span></code> and <code class="docutils literal notranslate"><span class="pre">testLeptonFinalState</span></code>;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate">final-state tests</a></p></td>
+<td><p>Check child counts, identities, directions, thinning/suppression and CPU
+fallback payloads. Export-enabled cases add real native CDF/auxiliary
+inputs. The stopped-positron case checks two equal-energy, opposite
+photon directions; these are local reaction assertions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testLeptonStatistics</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testMaterialBoundaryStatistics.cpp">testMaterialBoundaryStatistics.cpp</a></p></td>
+<td><p>Calls real firn-boundary transport using an exact linear range fixture.
+Checks distance and grammage, preserved identity, deposited energy,
+material-boundary counts, fixed profile equality, zero invalid records,
+unknown-limit rejection and counter-overflow rejection.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testRadioAccumulator</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioMerge.cpp">testRadioMerge.cpp</a></p></td>
+<td><p>Checks exact fixed-integer waveform merging and endpoint identity,
+rejects overflow without partial commit, and exercises an explicit GPU
+stream in the CUDA/HIP branches. Other source files in the executable
+cover accumulation, homogeneous propagation, staging and counters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testFirnTimeDomain</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/firn/testTimeDomainEmission.cpp">testTimeDomainEmission.cpp</a></p></td>
+<td><p>Checks finite exact-cone CoREAS endpoints, ZHS bin-integral conservation,
+window clipping and time moments. This executable also contains
+propagation/emission comparisons; tolerances belong to each assertion.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testHadronicProcessPool</span></code> and <code class="docutils literal notranslate"><span class="pre">testHybridCascade</span></code>;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/testHadronicProcessPool.cpp">process-pool tests</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/hybrid/testHybridCascade.cpp">hybrid-loop tests</a></p></td>
+<td><p>Check ordering, worker assignment, response contents, rejection and child
+cleanup; compare scalar/routed/deferred coordinator behavior with the
+preserved implementation. Their deterministic protocol workers do not
+replace tests of a physical hadronic generator.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">testCpuFallbackPhysics</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp">testCpuFallbackPhysics.cpp</a></p></td>
+<td><p>Completes real specified PROPOSAL reactions, compares resulting particle
+fields and native random-state replay, and checks generated-secondary
+and completion counters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">production_backend_Stages_*</span></code> and
+<code class="docutils literal notranslate"><span class="pre">production_session_cold-hot_*</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/backend/BackendStages.cpp">BackendStages.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/session/Session.cpp">Session.cpp</a></p></td>
+<td><p>Stage checks partition every input between selection and fallback, verify
+repeatability and native fallback provenance, and clear queues for a new
+shower. Session checks retain backend/table identity and static-upload
+counters across warm showers while repeating named selection results.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">application_execution_selection</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/ExecutionSelection.cpp">ExecutionSelection.cpp</a></p></td>
+<td><p>Checks direct dispatch, malformed-argument failure, and coordinated
+selection when compiled. Its direct runner is a callback fixture; this
+test does not launch a complete air shower.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">testEgs4Tables</span></code>; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/egs4/testTables.cpp">testTables.cpp</a></p></td>
+<td><p>Compares embedded and external table sessions for electron, positron and
+photon inputs, checks cut clamping and Sternheimer correction handling,
+and verifies nonempty transport traces. Requires the EGS4 target.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Exact equality in one row does not set a tolerance for another. The numerical
+fixtures distinguish state/identity equality, same-device comparison,
+host/device tolerance and sampling or physical observables. Follow
+<a class="reference internal" href="numerics.html"><span class="doc">Numerical and statistical validation</span></a> before changing a comparison to accommodate a new backend.</p>
+</section>
+<section id="run-the-configured-build">
+<h2>Run the configured build<a class="headerlink" href="#run-the-configured-build" title="Link to this heading"></a></h2>
+<p>Use the compiler environment, dependencies and backend from
+<a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>. The helper builds and installs but does not run
+CTest. From the source directory, an OpenMP build and inspection can be made
+explicit as follows; retain any physics options used for the installation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">c8_source</span><span class="o">=</span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">"</span>
+<span class="nv">c8_workspace</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">C8_WORKSPACE</span><span class="k">:-$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_source</span><span class="s2">"</span><span class="k">)</span><span class="si">}</span><span class="s2">"</span>
+<span class="nv">C8_WORKSPACE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">"</span><span class="w"> </span><span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>openmp
+<span class="nv">c8_build</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/build/openmp"</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>--print-labels
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N<span class="w"> </span>-L<span class="w"> </span>kokkos
+</pre></div>
+</div>
+<p>For CUDA or HIP, use that backend’s installation command and corresponding
+build directory; the GPU must be accessible during execution. Changing a
+CTest selector does not change the physics options or compiler configuration.</p>
+<p>Run focused groups during development, then run the complete configured suite
+for a release check. The execution commands below use CTest 3.26 or newer:
+<code class="docutils literal notranslate"><span class="pre">--no-tests=error</span></code> makes an empty selection fail instead of appearing
+successful. This flag requires a newer CTest than the build helper’s 3.24
+minimum; see the <a class="reference external" href="https://cmake.org/cmake/help/latest/manual/ctest.1.html">CTest command reference</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^testKokkosRuntime_'</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span>-L<span class="w"> </span>kokkos
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^(production_|application_|native_)'</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-junit<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.xml"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-log<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.log"</span>
+</pre></div>
+</div>
+<p>The unfiltered command also runs ordinary native tests and any enabled physical
+worker tests. It may take substantially longer than a focused selection.
+Inspect the listed entries when a gate is disabled: an absent test is not a
+passing result. Registered environment settings supply thread counts and
+dedicated native/auxiliary/Moliere cache directories where needed. Preserve
+those caches when diagnosing a warm-cache failure, and use a fresh dedicated
+build/cache location when explicitly measuring cold behavior.</p>
+<p>Many Catch2 registrations write their own JUnit reports under
+<code class="docutils literal notranslate"><span class="pre">&lt;build&gt;/test_outputs/junit-&lt;test&gt;.xml</span></code>. The CTest-level report above also
+records standalone C++ and Python tests. Keep the configure cache, selected
+test list, logs, revision, compiler, Kokkos devices, hardware and physics
+options with the result. A timing field checked for nonnegativity is not a
+performance regression criterion; see <a class="reference internal" href="performance.html"><span class="doc">Performance measurement</span></a>.</p>
+</section>
+<section id="check-an-installed-consumer">
+<h2>Check an installed consumer<a class="headerlink" href="#check-an-installed-consumer" title="Link to this heading"></a></h2>
+<p>A build-tree test can succeed while an installed target omits an include path,
+archive or transitive dependency. The repository supplies shared registration
+modules with installed-consumer support, but no standalone installed-consumer
+project at this baseline. The consumer must find the installed <code class="docutils literal notranslate"><span class="pre">corsika</span></code>
+package and link its imported targets.</p>
+<p>For example, create an external directory
+<code class="docutils literal notranslate"><span class="pre">$c8_workspace/installed-runtime-contract</span></code> and save this as its
+<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>. <code class="docutils literal notranslate"><span class="pre">C8_TEST_SOURCE</span></code> points to the pinned source checkout for
+test inputs; candidate headers and libraries come from the installed targets:</p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span><span class="w"> </span><span class="s">3.24</span><span class="p">)</span>
+<span class="nb">project</span><span class="p">(</span><span class="s">InstalledRuntimeContract</span><span class="w"> </span><span class="s">LANGUAGES</span><span class="w"> </span><span class="s">CXX</span><span class="p">)</span>
+<span class="nb">enable_testing</span><span class="p">()</span>
+<span class="nb">find_package</span><span class="p">(</span><span class="s">corsika</span><span class="w"> </span><span class="s">CONFIG</span><span class="w"> </span><span class="s">REQUIRED</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">C8_TEST_SOURCE</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="s">CACHE</span><span class="w"> </span><span class="s">PATH</span><span class="w"> </span><span class="s2">"CORSIKA source containing test fixtures"</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">CORSIKA_RUNTIME_CONTRACT_PREFIX</span><span class="w"> </span><span class="s">installed</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">CORSIKA_RUNTIME_CONTRACT_TESTS</span>
+<span class="w">    </span><span class="s2">"${C8_TEST_SOURCE}/tests/kokkos/runtime/backend"</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">CORSIKA_RUNTIME_CONTRACT_REFERENCE</span>
+<span class="w">    </span><span class="s2">"${CORSIKA_RUNTIME_CONTRACT_TESTS}/reference"</span><span class="p">)</span>
+<span class="nb">include</span><span class="p">(</span><span class="s2">"${C8_TEST_SOURCE}/cmake/BackendRuntimeContracts.cmake"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Using the OpenMP installation and dependency toolchain above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>-S<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/installed-runtime-contract"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-B<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/installed-runtime-build"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DCMAKE_TOOLCHAIN_FILE<span class="o">=</span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/deps/conan_toolchain.cmake"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DCMAKE_PREFIX_PATH<span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/install/openmp"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DC8_TEST_SOURCE<span class="o">=</span><span class="s2">"</span><span class="nv">$c8_source</span><span class="s2">"</span>
+cmake<span class="w"> </span>--build<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/installed-runtime-build"</span><span class="w"> </span>--parallel<span class="w"> </span><span class="m">1</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/installed-runtime-build"</span><span class="w"> </span>-N
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/installed-runtime-build"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error
+</pre></div>
+</div>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendRuntimeContracts.cmake">BackendRuntimeContracts.cmake</a> checks the published backend definition and
+registers cache, ownership, borrowing, unavailable-backend and thread-policy
+scenarios. Its cache test includes only the preserved reference directory;
+the candidate is linked through <code class="docutils literal notranslate"><span class="pre">CORSIKA8::TuningCache</span></code>. Without
+<code class="docutils literal notranslate"><span class="pre">CORSIKA8::BackendRuntime</span></code>, only the cache contract remains. This example
+therefore checks a specific installed interface, not the whole installation.</p>
+<p>For a broader consumer, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/cmake/BackendExecutionContracts.cmake">BackendExecutionContracts.cmake</a> accepts
+<code class="docutils literal notranslate"><span class="pre">BC_INSTALLED=TRUE</span></code>, <code class="docutils literal notranslate"><span class="pre">BC_NATIVE=CORSIKA8::CORSIKA8</span></code> and
+<code class="docutils literal notranslate"><span class="pre">BC_LIBRARY_PREFIX=CORSIKA8::</span></code> together with its source-fixture paths,
+<code class="docutils literal notranslate"><span class="pre">BC_BACKEND</span></code> and <code class="docutils literal notranslate"><span class="pre">BC_REAL_EXPORT</span></code>. Obtain these capabilities from the
+imported targets and <code class="docutils literal notranslate"><span class="pre">CORSIKA8_PROPOSAL_EXPORT_ENABLED</span></code>; do not invent a
+consumer-selectable production backend. The module rebuilds host table fixtures
+against installed <code class="docutils literal notranslate"><span class="pre">ProposalBridge</span></code>/<code class="docutils literal notranslate"><span class="pre">MoliereInterpolation</span></code> and links the
+actual installed <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code>/<code class="docutils literal notranslate"><span class="pre">EmRunSession</span></code>. Application support, bindings
+and coordinator have analogous shared registrations. These are explicit
+consumer checks; running source-tree CTest alone does not exercise their
+installed branches.</p>
+<p>The installed <code class="docutils literal notranslate"><span class="pre">c8_air_shower</span></code> should also be exercised using
+<a class="reference internal" href="../usage/first-shower.html"><span class="doc">Run a first shower</span></a> and the relevant event/coordinator configuration.
+Module fixtures, package linkage and complete-shower comparisons answer
+different questions. None of the registrations above establishes a universal
+cross-backend pass matrix or statistical agreement for full showers.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../validation.html" class="btn btn-neutral float-left" title="Validation and performance" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="numerics.html" class="btn btn-neutral float-right" title="Numerical and statistical validation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+// Regenerate: dot -Tsvg validation-workflow.dot -o validation-workflow.svg
+// Source baseline: d5297c43c041a22b43c65c322d9b51bc7ec8e397
+digraph ValidationWorkflow {
+  graph [rankdir=TB, bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.55", splines=polyline, outputorder=edgesfirst];
+  node [shape=box, style="rounded,filled", color="#a6c6d2", fillcolor="#f1f7fa", fontname="DejaVu Sans", fontsize=13, margin="0.14,0.10", penwidth=1.2];
+  edge [color="#36758d", fontcolor="#36576b", fontname="DejaVu Sans", fontsize=11, penwidth=1.4, arrowsize=0.7];
+  scope [fillcolor="#f0eef8", color="#a89cc6", label="Define the comparison\nCandidate, reference and matched inputs\nAcceptance criteria and timing boundaries"];
+  tests [label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="4" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/CMakeLists.txt" TARGET="_blank"><FONT COLOR="#136d88"><B>tests/CMakeLists.txt</B></FONT></TD></TR><TR><TD ALIGN="LEFT">Configured test targets</TD></TR><TR><TD ALIGN="LEFT">Contracts + fixed-input calculations</TD></TR></TABLE>>];
+  events [label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="4" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp" TARGET="_blank"><FONT COLOR="#136d88"><B>c8_air_shower.cpp</B></FONT></TD></TR><TR><TD ALIGN="LEFT">Complete-shower runs</TD></TR><TR><TD ALIGN="LEFT">Native / Kokkos execution</TD></TR></TABLE>>];
+  checks [fillcolor="#e3f3eb", color="#65a78a", label="Test execution records\nActual selectors and assertions\nInputs, tolerances and failures"];
+  output [fillcolor="#e3f3eb", color="#65a78a", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="4" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/output/OutputManager.inl" TARGET="_blank"><FONT COLOR="#136d88"><B>OutputManager.inl</B></FONT></TD></TR><TR><TD ALIGN="LEFT">Completion and physics outputs</TD></TR><TR><TD ALIGN="LEFT">Profiles, deposits, particles, radio</TD></TR></TABLE>>];
+  timing [fillcolor="#fff5e5", color="#c9a569", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="4" CELLSPACING="0"><TR><TD ALIGN="LEFT" HREF="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/output/SimulationTiming.inl" TARGET="_blank"><FONT COLOR="#136d88"><B>SimulationTiming.inl</B></FONT></TD></TR><TR><TD ALIGN="LEFT">Application wall-time records</TD></TR><TR><TD ALIGN="LEFT">Device / CPU activity measured separately</TD></TR></TABLE>>];
+  analysis [fillcolor="#f0eef8", color="#a89cc6", label="Analysis and review\nNumerical and statistical comparisons\nPerformance under the declared workload"];
+  evidence [fillcolor="#e3f3eb", color="#65a78a", label="Reproducible evidence package\nManifest + raw outputs + analysis + report\nConclusion with stated scope and limitations"];
+  {rank=same; tests; events;}
+  {rank=same; checks; output; timing;}
+  scope -> tests;
+  scope -> events;
+  tests -> checks [label="CTest / fixture outputs"];
+  events -> output [label="event-indexed records"];
+  events -> timing [label="defined wall-time scope"];
+  checks -> analysis;
+  output -> analysis;
+  timing -> analysis;
+  analysis -> evidence;
+}

@@ -26,9 +26,12 @@ continuous processes and final-state/CPU completion contracts. The
 :doc:`radio` chapter documents track collection, observer data, parallel
 projection, accumulation and ordinary/firn propagation interfaces. The
 :doc:`backends` chapter covers build dependencies, execution selection,
-runtime ownership and portable device-code requirements. The remaining
-validation and maintenance chapters are still outlines; an outline does not
-establish that a feature is implemented or validated.
+runtime ownership and portable device-code requirements. The
+:doc:`validation` chapter maps available tests and documents numerical,
+statistical and timing methods; it does not claim that a new simulation
+campaign was performed. The remaining maintenance, design-decision and API
+reference chapters are still outlines; an outline does not establish that
+a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Development and maintenance" href="development.html" />
+    <link rel="next" title="Test coverage and execution" href="validation/tests.html" />
     <link rel="prev" title="Device-code contracts and portability" href="backends/device-code.html" /> 
 </head>
 
@@ -114,7 +114,12 @@
 <li class="toctree-l2"><a class="reference internal" href="backends/device-code.html">Device-code contracts and portability</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Validation and performance</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decisions.html">Design decisions and open questions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
@@ -147,19 +152,248 @@
              
   <section id="validation-and-performance">
 <h1>Validation and performance<a class="headerlink" href="#validation-and-performance" title="Link to this heading"></a></h1>
-<div class="chapter-status" role="note">
-  <span class="status-dot" aria-hidden="true"></span>
-  <strong>Outline only</strong> &mdash; technical content is not yet written.
-</div><p>How correctness and execution cost are assessed.</p>
-<section id="planned-coverage">
-<h2>Planned coverage<a class="headerlink" href="#planned-coverage" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Unit tests, module comparisons and complete-shower validation.</p></li>
-<li><p>Numerical agreement, statistical agreement and random-stream policy.</p></li>
-<li><p>Physical conditions, seeds and reproducible test inputs.</p></li>
-<li><p>Wall time, CPU core-hours and GPU timing definitions.</p></li>
-<li><p>Regression criteria and access to validation evidence.</p></li>
+<p>Validation establishes that a change preserves the required interfaces,
+numerical behavior and physical observables. Performance measurement then
+determines its cost under a specified workload and resource configuration.
+The required evidence depends on the change: a queue refactor, a numerical
+solver and a new physical model need different comparisons.</p>
+<p>This chapter connects the repository’s executable tests to numerical checks,
+complete-shower comparisons and timing reports. It describes how to prepare
+and interpret evidence; it does not report a new simulation campaign.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Source baseline: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>.
+Test registration documents available checks. A passing result also needs
+the tested revision, build, inputs and actual execution record. The
+pinned repository does not supply a universal acceptance threshold for
+every observable or a complete-shower certification for every backend.</p>
+</div>
+<section id="validation-levels">
+<h2>Validation levels<a class="headerlink" href="#validation-levels" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 22.0%" />
+<col style="width: 39.0%" />
+<col style="width: 39.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Established scope</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Interface and lifecycle</p></td>
+<td><p>Header compilation, argument validation, ownership, queue accounting
+and output-completion tests.</p></td>
+<td><p>The exercised contracts and failure paths. This does not establish
+numerical accuracy or physical distributions.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Numerical component</p></td>
+<td><p>Controlled inputs, specified random draws, reference values and
+documented tolerances.</p></td>
+<td><p>The tested calculation and input range, including identified boundary
+cases. Record whether the reference is independent of the candidate.</p></td>
+</tr>
+<tr class="row-even"><td><p>Integrated backend</p></td>
+<td><p>Resident transport, material transitions, CPU completion, radio
+accumulation and session-reuse tests.</p></td>
+<td><p>Correct composition and state transfer for the fixtures exercised.
+Synthetic tables may deliberately isolate a contract from cross-section
+accuracy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Complete shower</p></td>
+<td><p>Matched physical settings, completed events and an ensemble comparison
+of profiles, energy accounting and radio observables.</p></td>
+<td><p>Agreement within the declared statistical and physical scope. Equal
+seeds alone do not establish equal particle histories.</p></td>
+</tr>
+<tr class="row-even"><td><p>Performance</p></td>
+<td><p>Repeated timings with explicit measurement boundaries, hardware,
+workload, initialization and resource accounting.</p></td>
+<td><p>Cost for that workload and configuration, after the relevant correctness
+checks. A module speedup is not an end-to-end speedup.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation/performance.html">Performance measurement</a></li>
 </ul>
+</div>
+</section>
+<section id="reference-selection">
+<h2>Reference selection<a class="headerlink" href="#reference-selection" title="Link to this heading"></a></h2>
+<p>Several test fixtures retain an earlier production implementation to detect
+changes during reorganization. They are valuable regression references, but
+they can share an approximation or defect with the current implementation.
+Other fixtures use native C8 objects, real PROPOSAL calculators, analytic
+results or deliberately simplified numerical data. State which comparison a
+result actually makes.</p>
+<p>For example, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/transport/testLeptonTransport.cpp">testLeptonTransport.cpp</a> compares controlled transport results
+with the retained transport reference, whereas <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testCpuFallbackPhysics.cpp">testCpuFallbackPhysics.cpp</a>
+exercises real CPU reaction calculators. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testMaterialBoundaryStatistics.cpp">testMaterialBoundaryStatistics.cpp</a>
+uses a linear range fixture to isolate actual firn-interface transport and
+record accounting; its success is not a validation of physical stopping
+power. These tests answer different questions and complement one another.</p>
+<p>Use a reference appropriate to the intended claim:</p>
+<ul class="simple">
+<li><p><strong>Preserving an implementation:</strong> compare fixed inputs and state transitions,
+including failure status and random-state progression where required.</p></li>
+<li><p><strong>Checking a numerical method:</strong> compare residuals and errors with an
+independent result over the supported domain, including relevant tails.</p></li>
+<li><p><strong>Checking physical agreement:</strong> compare matched ensembles and observable
+definitions, with uncertainties and a predefined acceptance criterion.</p></li>
+</ul>
+<p>See <a class="reference internal" href="validation/numerics.html"><span class="doc">Numerical and statistical validation</span></a> for reference tolerances, random-stream policy
+and whole-event comparisons.</p>
+</section>
+<section id="change-to-test-mapping">
+<h2>Change-to-test mapping<a class="headerlink" href="#change-to-test-mapping" title="Link to this heading"></a></h2>
+<p>The following map selects a starting point, not a substitute for reviewing
+the dependencies of a particular change. The numerical and execution chapters
+contain more detailed test maps.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 28.0%" />
+<col style="width: 37.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Changed component</p></th>
+<th class="head"><p>Initial checks</p></th>
+<th class="head"><p>Integration evidence</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>CLI, runtime or coordinator</p></td>
+<td><p>Configuration errors, device visibility, ownership, worker requests
+and cleanup.</p></td>
+<td><p>Direct/coordinated execution and multi-event reuse with the affected
+backend. See <a class="reference internal" href="backends.html"><span class="doc">Build and backend portability</span></a> and <a class="reference internal" href="execution.html"><span class="doc">Execution and scheduling</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Particle or environment representation</p></td>
+<td><p>Units, coordinates, history/node identity, host/device conversion,
+containment and boundary ordering.</p></td>
+<td><p>Transport through the affected geometry and materials, including
+observation handling. See <a class="reference internal" href="particles.html"><span class="doc">Particle data and state</span></a> and <a class="reference internal" href="environment.html"><span class="doc">Environment and geometry</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Tables, transport or final states</p></td>
+<td><p>Export/query consistency, solver domain, reaction selection and
+complete handling of device and CPU channels.</p></td>
+<td><p>Deposits, surviving particles, secondary products and profile
+accounting. See <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a> and <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Radio projection or accumulation</p></td>
+<td><p>Fixed tracks and observers, emission convention, propagation branches,
+time bins, accumulation and output conversion.</p></td>
+<td><p>Unfiltered waveforms and consistently defined derived observables.
+See <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Launch policy, batching or worker reuse</p></td>
+<td><p>Queue counts, complete-state transfer, overflow/continuation paths,
+random-stream policy and output merging.</p></td>
+<td><p>Correctness before timing; include representative batch populations
+and complete events. See <a class="reference internal" href="validation/performance.html"><span class="doc">Performance measurement</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="source-organization">
+<h2>Source organization<a class="headerlink" href="#source-organization" title="Link to this heading"></a></h2>
+<p>Paths are relative to the repository root. Tests can be registered from
+several directories; a single CTest label does not select all integration
+contracts.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├── CMakeLists.txt                 # Adds framework and optional Kokkos tests
+├── framework/geometry/            # Native node/boundary references
+├── application_support/           # CLI, coordinator and binding contracts
+├── kokkos/
+│   ├── runtime/                   # Runtime ownership and execution primitives
+│   ├── data/                      # Particle data contracts
+│   ├── environment/               # Export, queries and boundary tests
+│   ├── em/                        # Tables, physics and resident execution
+│   ├── scheduling/                # Routing, deferral and scalar state transfer
+│   ├── output/                    # Profile and record accounting
+│   └── radio/                     # Projection, accumulation and propagation
+└── output/                        # Native output and lifecycle tests
+cmake/
+├── BackendRuntimeContracts.cmake  # Production runtime test registration
+└── BackendExecutionContracts.cmake # Backend and reused-session contracts
+corsika/detail/output/
+└── SimulationTiming.inl           # Application timing boundaries and fields
+src/kokkos/scheduling/
+└── AirShowerCoordinator.cpp       # Completion checks and process timings
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="validation/tests.html"><span class="doc">Test coverage and execution</span></a> page identifies executable targets, registration
+conditions and useful selectors. Output file names and event-index conventions
+are described in <a class="reference internal" href="usage/outputs.html"><span class="doc">Outputs and run checks</span></a>.</p>
+</section>
+<section id="reproducible-evidence">
+<h2>Reproducible evidence<a class="headerlink" href="#reproducible-evidence" title="Link to this heading"></a></h2>
+<p>Keep the configuration, source/build identity, raw results and analysis
+together. A plot is a presentation of the evidence, not its replacement.
+For each comparison, record:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 75.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Record</p></th>
+<th class="head"><p>Required context</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Implementation</p></td>
+<td><p>Candidate and reference revisions, local patches, dependency/model-data
+versions, build options, compiler and runtime/device identity.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Inputs</p></td>
+<td><p>Complete physics and observer settings, input files and checksums,
+event identifiers, seeds, stream policy and execution configuration.</p></td>
+</tr>
+<tr class="row-even"><td><p>Execution</p></td>
+<td><p>Requested/completed/failed event counts, logs, exit statuses, backend
+completion records and any exclusions with their reasons.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Analysis</p></td>
+<td><p>Comparison script and revision, units and normalization, statistical
+method, numerical/physical acceptance criteria and measured results.</p></td>
+</tr>
+<tr class="row-even"><td><p>Timing</p></td>
+<td><p>Clock or profiler, start/end boundaries, cold versus reused events,
+repetitions, instrumentation and actual versus allocated resource time.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The downloadable <a class="reference download internal" download="" href="_downloads/4e99afdc8be2f78b686eeee269650ff6/validation-manifest.json"><code class="xref download docutils literal notranslate"><span class="pre">comparison</span> <span class="pre">manifest</span> <span class="pre">template</span></code></a> provides a starting structure for these
+records. It is a documentation template, not an application-generated schema
+or an automated acceptance tool. Null values and empty arrays represent
+information that must be supplied; they do not imply a successful check.</p>
+<p>Preserve failed and excluded runs in the audit record. Process success and
+<code class="docutils literal notranslate"><span class="pre">COMPLETE.json</span></code> establish completion of the corresponding execution checks,
+not statistical agreement. Do not relabel an incomplete or inconclusive
+comparison as a passing physics result.</p>
+</section>
+<section id="validation-workflow">
+<h2>Validation workflow<a class="headerlink" href="#validation-workflow" title="Link to this heading"></a></h2>
+<p>This workflow combines repository tests with a comparison prepared for the
+specific change. The links identify source entry points; the numerical and
+statistical analysis remains an explicitly recorded part of the validation.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="_static/validation-workflow.svg"><img alt="A defined comparison and matched inputs feed repository contract tests, fixed-input numerical tests and complete-shower runs. Their outputs and separately measured timings are checked against declared acceptance criteria and stored with a reproducible report." src="_images/validation-workflow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Validation and performance evidence for a reviewed change. The diagram is
+a maintainer workflow, not an automatic application pipeline.
+<a class="reference download internal" download="" href="_downloads/6ceafe5745917caa15ed229dc138c4e9/validation-workflow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="_downloads/b2553c17740ef700943ba7491f49acc2/validation-workflow.dot"><code class="xref download docutils literal notranslate"><span class="pre">Editable</span> <span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -168,7 +402,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="backends/device-code.html" class="btn btn-neutral float-left" title="Device-code contracts and portability" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="development.html" class="btn btn-neutral float-right" title="Development and maintenance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="validation/tests.html" class="btn btn-neutral float-right" title="Test coverage and execution" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

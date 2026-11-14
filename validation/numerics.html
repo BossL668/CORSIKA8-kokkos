@@ -1,0 +1,540 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Numerical and statistical validation &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/validation/numerics.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Performance measurement" href="performance.html" />
+    <link rel="prev" title="Test coverage and execution" href="tests.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../validation.html">Validation and performance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../validation.html">Validation and performance</a></li>
+      <li class="breadcrumb-item active">Numerical and statistical validation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/validation/numerics.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="numerical-and-statistical-validation">
+<h1>Numerical and statistical validation<a class="headerlink" href="#numerical-and-statistical-validation" title="Link to this heading"></a></h1>
+<p>Validation asks three different questions: whether a change preserves a
+specified calculation, whether the calculation satisfies its physical and
+accounting contracts, and whether complete showers have compatible
+distributions. Each requires its own reference and acceptance rule. Agreement
+with a frozen implementation establishes a regression result; it does not
+independently establish the accuracy of the underlying model.</p>
+<p>The implemented checks below refer to source revision
+<code class="docutils literal notranslate"><span class="pre">d5297c43c041a22b43c65c322d9b51bc7ec8e397</span></code>. They describe test assertions,
+not results from a new test run. The complete-shower protocol at the end is a
+recommended procedure, separate from those assertions.</p>
+<section id="align-the-physical-problem">
+<h2>Align the physical problem<a class="headerlink" href="#align-the-physical-problem" title="Link to this heading"></a></h2>
+<p>Before comparing backends, retain the resolved configuration and match the
+following quantities. <a class="reference internal" href="../usage/configuration.html"><span class="doc">Configure a simulation</span></a> describes the application
+options; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">c8_air_shower.cpp</a> supplies the air application’s construction and
+process order.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 75.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Configuration</p></th>
+<th class="head"><p>Required agreement</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Primary</p></td>
+<td><p>Particle or nuclear species, total energy or energy-distribution law,
+injection position, direction, time and forced-interaction/decay policy.
+The air application’s primary energy is total energy in GeV; for a
+nucleus it is the whole nucleus’s energy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Transport and cuts</p></td>
+<td><p>Kinetic tracking cuts for EM particles, hadrons, muons and taus;
+neutrino tracking; time cuts; magnetic deflection and continuous-step
+policies. The air application sets the PROPOSAL production threshold
+to the minimum of its four tracking-cut options. Equal primary energy
+does not compensate for unequal production thresholds.</p></td>
+</tr>
+<tr class="row-even"><td><p>Stopped positrons</p></td>
+<td><p>The native/PROPOSAL transport policy has
+<code class="docutils literal notranslate"><span class="pre">EnableStoppedPositronAnnihilation</span> <span class="pre">=</span> <span class="pre">false</span></code> in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/framework/utility/PositronAtRest.hpp">PositronAtRest.hpp</a>.
+This controls extra photons from positrons removed at the cut;
+in-flight annihilation remains a separate process. Do not assume an
+independently configured EM model has the same termination policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Models and tables</p></td>
+<td><p>EM model, hadronic and decay models, high-/low-energy model transition,
+model-data versions, material composition and density, production
+thresholds, native/auxiliary table identities and interpolation
+settings. Changing from PROPOSAL to EGS4 is a model comparison as well
+as an execution comparison. See <a class="reference internal" href="../physics-data.html"><span class="doc">Physics models and table preparation</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Thinning</p></td>
+<td><p>Threshold, maximum weight and zero-weight-particle policy. In the air
+application, <code class="docutils literal notranslate"><span class="pre">--emthin</span> <span class="pre">0</span></code> disables thinning; <code class="docutils literal notranslate"><span class="pre">--max-weight</span> <span class="pre">0</span></code> selects
+an automatic weight limit. The default thinning fraction is nonzero.
+Weighted particle sums and their fluctuations must be interpreted
+using the actual thinning configuration.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Environment and observation</p></td>
+<td><p>Atmosphere or material profile, interfaces, magnetic field, coordinate
+system, injection geometry, observation surface and escape boundaries.
+A material interface and an absorbing observation plane have different
+meanings. Match longitudinal depth bins and <code class="docutils literal notranslate"><span class="pre">--profile-crossings</span></code>
+(<code class="docutils literal notranslate"><span class="pre">both</span></code>, <code class="docutils literal notranslate"><span class="pre">forward</span></code> or <code class="docutils literal notranslate"><span class="pre">original-c8</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>Radio</p></td>
+<td><p>Emission formalism, propagation model and table fingerprint, observer
+positions, component basis, time origin, sample rate, duration,
+frequency grid where applicable, refinement and accumulation policy.
+Match reflection/branch choices for firn. An empty observer list or a
+truncated time window cannot validate a radio signal.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Keep execution choices alongside this physics record: backend, compiler,
+floating-point options, device architecture, thread count, batching, CPU
+fallback policy, worker partitioning and lifetime. Some choices can change
+rounding, scheduling or random-stream progression without changing the
+intended physics.</p>
+</section>
+<section id="implemented-unit-and-module-checks">
+<h2>Implemented unit and module checks<a class="headerlink" href="#implemented-unit-and-module-checks" title="Link to this heading"></a></h2>
+<p>The suite uses several kinds of reference. Read the assertion and fixture
+together before interpreting a passing target.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Check</p></th>
+<th class="head"><p>Scope of the assertion</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/stochastic/testStochasticContracts.cpp">testStochasticContracts.cpp</a></p></td>
+<td><p>Philox golden words, production process/draw identities, every bit of
+the key fields, reversed device traversal, host/device random results
+and open-interval uniforms. This tests the implemented random mapping
+and routing contracts, not shower-distribution agreement.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/ContinuousChecks.hpp">ContinuousChecks.hpp</a> and continuous query tests</p></td>
+<td><p>Current and frozen production queries run on the same execution space.
+Floating results use exact equality, with signed-zero checks and
+matching NaN classification; state fields also match exactly.
+Native-model diagnostic errors are reported separately and explicitly
+identified as <strong>not</strong> migration tolerances. Real-table query targets
+require <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_PROPOSAL_EXPORT</span></code>; see
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/continuous/CMakeLists.txt">continuous/CMakeLists.txt</a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testPhotonCascade.cpp">testPhotonCascade.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonCascade.cpp">testLeptonCascade.cpp</a></p></td>
+<td><p>Queue ownership, pending inputs, checkpoints, histories and multi-front
+execution against reference drivers. Native-table cases are
+conditional on PROPOSAL export. These are component cascades and
+scheduling regressions, not an ensemble of complete application
+showers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/output/testProfileAccumulation.cpp">testProfileAccumulation.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testLeptonStatistics.cpp">testLeptonStatistics.cpp</a></p></td>
+<td><p>Profile and ledger accumulation, known totals, fixed-point overflow,
+counters, and fused versus separate accumulation. The material-boundary
+fixture in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/execution/testMaterialBoundaryStatistics.cpp">testMaterialBoundaryStatistics.cpp</a> uses real firn
+geometry with an exact linear range fixture to isolate record
+accounting from cross-section accuracy.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/testRadioProjection.cpp">testRadioProjection.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioAccumulator.cpp">testRadioAccumulator.cpp</a></p></td>
+<td><p>Projection against the frozen implementation and native C8 CoREAS/ZHS
+modules; deterministic and floating accumulation, capacity and
+rejection contracts. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/firn/testFullWaveAccumulator.cpp">testFullWaveAccumulator.cpp</a> separately compares
+firn full-wave spectra with a CPU response calculation on a supplied
+or generated response-table fixture.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Some concrete tolerances illustrate why one global numerical threshold is
+inappropriate:</p>
+<ul class="simple">
+<li><p>The firn material-boundary fixture requires distance error below
+<span class="math notranslate nohighlight">\(10^{-12}\)</span> m and grammage error below <span class="math notranslate nohighlight">\(10^{-10}\)</span> g/cm².
+Its fused and separate fixed-point histogram and counter results are equal.</p></li>
+<li><p>The photon muon-pair materialization case in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/finalstate/testPhotonFinalState.cpp">testPhotonFinalState.cpp</a>
+checks the weighted child energy <strong>after subtracting the recorded mass
+convention correction</strong> against the weighted parent energy, with a bound
+of <span class="math notranslate nohighlight">\(8\epsilon\)</span> times that parent energy. Here <span class="math notranslate nohighlight">\(\epsilon\)</span> is
+<code class="docutils literal notranslate"><span class="pre">std::numeric_limits&lt;double&gt;::epsilon()</span></code>.</p></li>
+<li><p>The native radio projection comparison bounds the maximum sample error in
+each observer/component by <code class="docutils literal notranslate"><span class="pre">floor</span> <span class="pre">+</span> <span class="pre">2e-8</span> <span class="pre">*</span> <span class="pre">reference_peak</span></code>. The floor is
+<span class="math notranslate nohighlight">\(2\times10^{-18}\)</span> for CoREAS electric field and
+<span class="math notranslate nohighlight">\(2\times10^{-27}\)</span> for ZHS vector potential, in their respective SI
+units. The separate comparison against frozen projection code is exact.</p></li>
+<li><p>The floating radio accumulator comparison uses
+<code class="docutils literal notranslate"><span class="pre">1e-28</span> <span class="pre">+</span> <span class="pre">2e-12</span> <span class="pre">*</span> <span class="pre">reference_peak</span></code> per component. Deterministic waveform
+comparison and exported fixed-point arrays use equality. This statement
+concerns the test’s current/reference pair on the same execution space;
+it is not a cross-device bitwise guarantee.</p></li>
+<li><p>The firn full-wave fixture requires relative <span class="math notranslate nohighlight">\(L_2\)</span> error below
+<span class="math notranslate nohighlight">\(2\times10^{-10}\)</span> for total, direct and boundary complex spectra.
+Its definition is
+<span class="math notranslate nohighlight">\(\sqrt{\sum|C-R|^2/\max(\sum|R|^2,10^{-300})}\)</span> over observers,
+components and frequencies. It also checks reset/replay and batch-size
+equivalence for that fixture.</p></li>
+</ul>
+<p>These bounds belong to the named tests and quantities. They are neither
+universal physics-error estimates nor acceptance thresholds for arbitrary
+complete-shower outputs. Fixed-point addition removes summation-order
+dependence for identical quantized contributions within range; it cannot
+make different trajectories or differently rounded contributions identical.</p>
+</section>
+<section id="random-streams-and-reproducibility">
+<h2>Random streams and reproducibility<a class="headerlink" href="#random-streams-and-reproducibility" title="Link to this heading"></a></h2>
+<p>A seed is only one part of a reproducibility record. The Kokkos EM
+<code class="docutils literal notranslate"><span class="pre">RandomNumberKey</span></code> contains seed, shower ID, particle history ID, step ID,
+process ID and draw ID. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/random/Philox.hpp">Philox.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/random/Philox.inl">Philox.inl</a> map this identity to
+random words without using the particle’s queue position. Changing a process
+decision, particle genealogy or draw identity can still change subsequent
+histories.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 28.0%" />
+<col style="width: 72.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Execution mode</p></th>
+<th class="head"><p>Stream policy to record</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Direct application, <code class="docutils literal notranslate"><span class="pre">-N</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p></td>
+<td><p>Native CPU streams are seeded once before the event loop and continue
+across events. The direct loop supplies successive shower IDs to
+execution. It does not reseed the native RNG with <code class="docutils literal notranslate"><span class="pre">seed</span> <span class="pre">+</span> <span class="pre">event_index</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Coordinator events</p></td>
+<td><p>The coordinator uses <code class="docutils literal notranslate"><span class="pre">first_seed</span> <span class="pre">+</span> <span class="pre">event_index</span></code> for successive event
+seeds. <code class="docutils literal notranslate"><span class="pre">worker_seed(seed,</span> <span class="pre">index)</span></code> hashes the decimal <code class="docutils literal notranslate"><span class="pre">seed:index</span></code>
+string with SHA-256, takes the first eight bytes little-endian, masks
+to 63 bits and replaces zero by one. GPU worker indices start at zero;
+parallel CPU-prefix worker indices use <code class="docutils literal notranslate"><span class="pre">1024</span> <span class="pre">+</span> <span class="pre">i</span></code>. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/StaticFrontierIO.cpp">StaticFrontierIO.cpp</a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Persistent GPU workers</p></td>
+<td><p>Each request sets the seed for device sampling and selected CPU
+fallback replay. Native CPU streams, copied model callbacks and
+SOPHIA’s private stream continue from worker initialization. They are
+not rewound to the request seed. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl">WorkerSession.inl</a> records
+<code class="docutils literal notranslate"><span class="pre">continue-worker-streams</span></code> and the CPU initial seed.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Consequently, event two of a direct multi-event process, a fresh process with
+an incremented seed, and a request in a persistent worker are different
+stream histories. Record the event order, worker IDs, partitions, skips and
+reuse policy when reproducing a campaign. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/coordinator/WorkerSeedTest.cpp">WorkerSeedTest.cpp</a> checks hash
+vectors, CLI/JSON preservation and a finite collision-regression sample;
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/coordinator/WorkerSessionTest.cpp">WorkerSessionTest.cpp</a> checks native and copied-stream continuation. A
+finite seed scan does not establish that collisions are impossible.</p>
+<p>For deterministic debugging, fix the input particles or track spool, physical
+configuration, keys and stream state, then compare decisions, records and
+accumulators at the first divergence. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/diagnostics/testDecisionReplayTape.cpp">testDecisionReplayTape.cpp</a> tests
+decision-tape serialization and preserved wire data. A successful tape
+round-trip establishes that diagnostic contract; it is not an assertion that
+every backend or scheduler replays a whole shower identically.</p>
+<p>Use statistical acceptance when histories or stream policies differ.
+Identical top-level seed numbers alone do not justify treating outputs as
+event-by-event numerical replicas. See <a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a> for
+worker lifecycle and <a class="reference internal" href="../radio/inputs.html"><span class="doc">Track collection and observer preparation</span></a> for radio-track replay.</p>
+</section>
+<section id="energy-accounting-and-numerical-residuals">
+<h2>Energy accounting and numerical residuals<a class="headerlink" href="#energy-accounting-and-numerical-residuals" title="Link to this heading"></a></h2>
+<p>Distinguish a comparison residual from an energy-closure residual. For a
+candidate value <span class="math notranslate nohighlight">\(C_i\)</span> and reference <span class="math notranslate nohighlight">\(R_i\)</span>, define the signed
+comparison residual as <span class="math notranslate nohighlight">\(d_i=C_i-R_i\)</span>. Report absolute errors in physical
+units; for a normalized error, state the denominator and its behavior at
+zero. For example,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+e_i &amp;= \frac{|C_i-R_i|}{\max(|R_i|,q_0)},\\[0.6em]
+e_2 &amp;= \frac{\left(\sum_i|C_i-R_i|^2\right)^{1/2}}
+                  {\left(\sum_i|R_i|^2\right)^{1/2}}.
+\end{aligned}\end{split}\]</div>
+<p>The chosen <span class="math notranslate nohighlight">\(q_0&gt;0\)</span> has the observable’s units and must be documented.
+The second expression is defined only for a nonzero reference norm; report
+an absolute norm for a zero reference. Neither expression supplies an
+acceptance threshold by itself. Require finite values before computing these
+metrics, unless the particular contract explicitly expects a nonfinite value.</p>
+<p>The air application’s legacy log reports
+<span class="math notranslate nohighlight">\(100[(E_{\mathrm{deposit}}+E_{\mathrm{ground}})/E_0-1]\)</span>.
+This is a signed percentage difference, not the strict EM ledger below.
+It omits explicit terms needed by that ledger and cannot be interpreted as
+a universal conservation test.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/ShowerReport.inl">ShowerReport.inl</a> defines the resident EM ledger directly:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">1242</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ledgerSourceGeV</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ledgerInitialGeV</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">routerStats</span><span class="p">.</span><span class="n">mediumRestMassInputGeV_</span><span class="w"> </span><span class="o">+</span>
+<span class="linenos">1243</span><span class="w">                                 </span><span class="n">routerStats</span><span class="p">.</span><span class="n">massConventionCorrectionGeV_</span><span class="p">;</span>
+<span class="linenos">1244</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ledgerTerminalGeV</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">1245</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">depositedEnergyGeV_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">routerStats</span><span class="p">.</span><span class="n">cutRestMassEnergyGeV_</span><span class="w"> </span><span class="o">+</span>
+<span class="linenos">1246</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">observedTotalEnergyGeV_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">routerStats</span><span class="p">.</span><span class="n">escapedTotalEnergyGeV_</span><span class="w"> </span><span class="o">+</span>
+<span class="linenos">1247</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">unwrittenPhotoelectricBindingEnergyGeV_</span><span class="w"> </span><span class="o">-</span>
+<span class="linenos">1248</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">observationCutOverlapEnergyGeV_</span><span class="p">;</span>
+<span class="linenos">1249</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ledgerResidualGeV</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ledgerSourceGeV</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">ledgerTerminalGeV</span><span class="p">;</span>
+<span class="linenos">1250</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ledgerRelativeError</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">1251</span><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">abs</span><span class="p">(</span><span class="n">ledgerResidualGeV</span><span class="p">)</span><span class="w"> </span><span class="o">/</span>
+<span class="linenos">1252</span><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="n">ledgerSourceGeV</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;::</span><span class="n">min</span><span class="p">());</span>
+<span class="linenos">1253</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ledgerCompleteCoverage</span><span class="w"> </span><span class="o">=</span>
+<span class="linenos">1254</span><span class="w">        </span><span class="n">is_em</span><span class="p">(</span><span class="n">beamCode</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">emthinfrac</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mf">0.</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">scalarEmSteps</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="linenos">1255</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">particlesReturnedForCpuFallback_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="linenos">1256</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">particlesReturnedForCpuMemorySpill_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="linenos">1257</span><span class="w">        </span><span class="n">routerStats</span><span class="p">.</span><span class="n">specifiedCpuFinalStates_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The signed residual is <strong>source minus terminal</strong>, in GeV. The normalized
+closure error takes its absolute value; the denominator’s floor is the
+smallest positive normal <code class="docutils literal notranslate"><span class="pre">double</span></code>, not machine epsilon. Medium electron
+rest mass is a physical input for the accounted atomic-electron processes.
+The signed mass-convention correction records conversion between PROPOSAL
+total energies and the C8 kinetic-energy stack. Cut rest mass and otherwise
+unwritten photoelectric binding energy are explicit sinks; observation/cut
+overlap is subtracted to avoid double counting. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/output/ProfileResult.hpp">ProfileResult.hpp</a> documents
+these terms. A worker’s initial energy is the weighted sum of its imported
+roots, rather than the global primary energy.</p>
+<p>The implemented <code class="docutils literal notranslate"><span class="pre">energy_ledger.acceptance_tolerance</span></code> is <span class="math notranslate nohighlight">\(10^{-4}\)</span>.
+<code class="docutils literal notranslate"><span class="pre">accepted</span></code> additionally requires <code class="docutils literal notranslate"><span class="pre">complete_coverage</span></code>: an EM primary,
+no thinning, no scalar EM steps, no returned CPU fallback or memory spill,
+and no specified CPU final states. The report throws when complete coverage
+holds and the relative error exceeds this tolerance. If coverage is false,
+<code class="docutils literal notranslate"><span class="pre">accepted:</span> <span class="pre">false</span></code> does not by itself diagnose failed energy conservation;
+the reported resident ledger is insufficient for that whole shower. Do not
+apply this gate to a hadronic or thinned shower without a ledger covering its
+remaining processes and weighting conventions.</p>
+</section>
+<section id="recommended-complete-shower-protocol">
+<h2>Recommended complete-shower protocol<a class="headerlink" href="#recommended-complete-shower-protocol" title="Link to this heading"></a></h2>
+<p>The following procedure is proposed for accepting a physics or backend
+change. It is not an implemented universal ensemble gate at this revision.
+In particular, the coordinator’s <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/coordinator/compare.py">compare.py</a> exercises closed synthetic
+inputs and process/output handling, and explicitly makes no shower claim.
+<code class="docutils literal notranslate"><span class="pre">COMPLETE.json</span></code> and successful unit tests are prerequisites for a campaign,
+not its statistical conclusion.</p>
+<ol class="arabic simple">
+<li><p><strong>Define the claim and reference.</strong> Specify whether the comparison changes
+execution, the physics model or both. Freeze the configuration above and
+choose representative primary species, energies, directions and material
+conditions for the claimed scope. Include boundary and observation cases
+when those paths change. Establish the intended observables, uncertainty
+method, sample size and scientifically meaningful equivalence bounds
+before inspecting candidate results.</p></li>
+<li><p><strong>Check complete events.</strong> Retain commands, resolved seeds and stream
+policy, software/table hashes, completion records, logs and raw outputs.
+Inspect pending queues, fallback/spill counts, invalid records and
+accumulation overflows. Identify expected CPU-completed processes rather
+than requiring every fallback counter to be zero. Report failed or
+excluded events and their reason; do not silently compare only successful
+survivors.</p></li>
+<li><p><strong>Compare physical observables.</strong> Use energy-ledger terms where coverage
+permits; longitudinal particle and deposited-energy profiles; observation
+particle multiplicities, energy and spatial distributions; and radio
+waveforms or spectra. Include distributions of derived quantities, such
+as the depth of a profile maximum, when relevant. Matching one integrated
+total does not constrain profile shape, tails or waveform timing.</p></li>
+<li><p><strong>Quantify sampling uncertainty.</strong> Use showers as the sampling units.
+For independent reference/candidate samples, the estimated standard error
+of a mean difference is
+<span class="math notranslate nohighlight">\(\sqrt{s_C^2/n_C+s_R^2/n_R}\)</span>. For a justified paired design, estimate
+the uncertainty from the within-pair differences instead. State how pairs
+were constructed; a shared seed label is insufficient. Preserve bin and
+antenna correlations when resampling whole showers or using covariance
+matrices. Thinned weights do not make profile sums independent Poisson
+counts. Check the assumptions of the chosen uncertainty method.</p></li>
+<li><p><strong>Apply the declared acceptance rule.</strong> Report differences with confidence
+intervals, distributions and effect sizes, including tails where needed.
+To claim equivalence, require the uncertainty interval to fit within the
+predeclared equivalence bounds. A test that does not reject a difference
+is not evidence that an arbitrarily small difference has been excluded.
+Account for multiple bins, observers and observables in the test design;
+distinguish exploratory diagnostics from the acceptance criteria.</p></li>
+</ol>
+<p>Profile comparisons must use the same depth grid and crossing convention.
+Deposited energy in <code class="docutils literal notranslate"><span class="pre">energyloss/dEdX.parquet</span></code> is GeV <strong>per bin</strong>; division
+by bin width is required for a density per unit slant depth. Retain particle
+weights and the distinction between production counts, transported-particle
+crossings and observation records.</p>
+<p>Radio comparisons must retain signed components on compatible time grids.
+The standard accumulator returns CoREAS electric field in V/m and ZHS vector
+potential in V s/m; compare fields only after the defined ZHS differentiation
+and endpoint convention. State any filtering, interpolation or time shift,
+and report timing offsets before removing them. Compare per-observer peak,
+norm and waveform residuals as appropriate; a small aggregate norm can hide
+a discrepancy at a weak observer. Combine coherent fields before computing
+squared-field quantities such as fluence. Equal fluence alone does not
+establish equal waveform phase, polarization or arrival time. See
+<a class="reference internal" href="../radio/accumulation.html"><span class="doc">Parallel projection and waveform accumulation</span></a> and <a class="reference internal" href="../radio/propagation.html"><span class="doc">Propagation models and medium-specific interfaces</span></a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tests.html" class="btn btn-neutral float-left" title="Test coverage and execution" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="performance.html" class="btn btn-neutral float-right" title="Performance measurement" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

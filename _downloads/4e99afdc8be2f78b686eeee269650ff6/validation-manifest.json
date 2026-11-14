@@ -1,0 +1,57 @@
+{
+  "document_kind": "comparison-manifest-template",
+  "purpose": null,
+  "status": "not_evaluated",
+  "candidate": {
+    "source_revision": null,
+    "local_patch_sha256": null,
+    "binary_sha256": null,
+    "build_configuration_file": null,
+    "dependency_versions_file": null,
+    "runtime_metadata_file": null
+  },
+  "reference": {
+    "kind": null,
+    "source_revision_or_publication": null,
+    "configuration_file": null,
+    "independence_and_limitations": null
+  },
+  "inputs": {
+    "resolved_physics_configuration_file": null,
+    "model_and_table_checksums_file": null,
+    "geometry_and_observer_files": [],
+    "event_seed_and_stream_policy_file": null,
+    "execution_configuration_file": null,
+    "fixed_input_data_sha256": null
+  },
+  "execution": {
+    "command_file": null,
+    "requested_events": null,
+    "completed_events": null,
+    "failed_events": [],
+    "excluded_events_and_reasons": [],
+    "logs_and_completion_records": []
+  },
+  "comparison": {
+    "analysis_revision": null,
+    "observables_units_and_normalization_file": null,
+    "predefined_acceptance_criteria_file": null,
+    "statistical_method_and_uncertainties_file": null,
+    "results_file": null
+  },
+  "timing": {
+    "measurement_source_and_boundaries": null,
+    "initialization_and_warmup_policy": null,
+    "instrumentation": null,
+    "repetitions_and_order": null,
+    "wall_time_records_file": null,
+    "cpu_time_definition_and_records_file": null,
+    "gpu_time_definition_and_records_file": null
+  },
+  "artifacts": {
+    "raw_output_location": null,
+    "checksums_file": null,
+    "figures": [],
+    "review_notes": null
+  }
+}
