@@ -118,22 +118,28 @@
              
   <section id="event-execution-and-results">
 <h1>Event execution and results<a class="headerlink" href="#event-execution-and-results" title="Link to this heading"></a></h1>
-<p>This page follows one event after the run-level <code class="docutils literal notranslate"><span class="pre">CascadeModule</span></code> has been
-created. The primary, tracking object, stack and process sequence are still
-constructed by <code class="docutils literal notranslate"><span class="pre">main</span></code>.</p>
-<section id="create-the-event-and-its-input">
-<h2>Create the event and its input<a class="headerlink" href="#create-the-event-and-its-input" title="Link to this heading"></a></h2>
+<p>The run-level <code class="docutils literal notranslate"><span class="pre">CascadeModule</span></code> binds the application-owned models and
+environment as described in <a class="reference internal" href="data-contracts.html"><span class="doc">Application data and lifetime contracts</span></a>. For each event, <code class="docutils literal notranslate"><span class="pre">main</span></code>
+constructs the primary, tracking object, particle stack and process sequence,
+then obtains an executable cascade adapter.</p>
+<p>This page documents the event lifecycle from particle input to output
+finalization. It distinguishes adapter construction from execution and the
+per-event objects from the backend session retained across events. The
+accelerated implementation described below is <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>; the EGS4
+branch is identified separately.</p>
+<section id="event-initialization-and-particle-input">
+<span id="create-the-event-and-its-input"></span><h2>Event initialization and particle input<a class="headerlink" href="#event-initialization-and-particle-input" title="Link to this heading"></a></h2>
 <p>At the start of the event loop, the application handles a worker request when
 running as a resident worker, then creates the event scope:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">785</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">workerSession</span><span class="p">.</span><span class="n">next</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span><span class="w"> </span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">seed</span><span class="p">))</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
 <span class="linenos">786</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">execution</span><span class="p">.</span><span class="n">shower</span><span class="p">(</span><span class="n">workerSession</span><span class="p">.</span><span class="n">isActive</span><span class="p">()</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i_shower</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>For a direct run, <code class="docutils literal notranslate"><span class="pre">execution.shower(i_shower)</span></code> returns
-<code class="docutils literal notranslate"><span class="pre">CascadeEvent&lt;...&gt;</span></code>. The event retains references to its driver and geometry,
-records the ordinal and captures the pre-event diagnostic state. This call
-does not transport the primary.</p>
-<p><code class="docutils literal notranslate"><span class="pre">main</span></code> builds the ordinary process sequence:</p>
+<p><code class="docutils literal notranslate"><span class="pre">execution.shower(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">CascadeEvent&lt;...&gt;</span></code>. The event retains
+references to the driver and geometry, records the event ordinal and captures
+the initial diagnostic counters. Particle transport begins later, when
+<code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> invokes the selected execution path.</p>
+<p><code class="docutils literal notranslate"><span class="pre">main</span></code> assembles the C8 process sequence for this event:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">812</span><span class="w">    </span><span class="c1">// assemble the final process sequence</span>
 <span class="linenos">813</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">sequence</span><span class="w"> </span><span class="o">=</span>
 <span class="linenos">814</span><span class="w">        </span><span class="n">make_sequence</span><span class="p">(</span><span class="n">stackInspect</span><span class="p">,</span><span class="w"> </span><span class="n">neutrinoPrimaryPythia</span><span class="p">,</span><span class="w"> </span><span class="n">hadronSequence</span><span class="p">,</span><span class="w"> </span><span class="n">decaySequence</span><span class="p">,</span>
@@ -141,7 +147,8 @@ does not transport the primary.</p>
 <span class="linenos">816</span><span class="w">                      </span><span class="n">observationLevel</span><span class="p">,</span><span class="w"> </span><span class="n">inter_writer</span><span class="p">,</span><span class="w"> </span><span class="n">thinning</span><span class="p">,</span><span class="w"> </span><span class="n">cut</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>It then supplies the primary through the event:</p>
+<p>After constructing the tracking object and clearing the stack, the application
+supplies the primary:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">842</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">primaryProperties</span><span class="w"> </span><span class="o">=</span>
 <span class="linenos">843</span><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">make_tuple</span><span class="p">(</span><span class="n">beamCode</span><span class="p">,</span><span class="w"> </span><span class="n">eKin</span><span class="p">,</span><span class="w"> </span><span class="n">propDir</span><span class="p">.</span><span class="n">normalized</span><span class="p">(),</span><span class="w"> </span><span class="n">injectionPos</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="n">_ns</span><span class="p">);</span>
 <span class="linenos">844</span><span class="w">    </span><span class="n">event</span><span class="p">.</span><span class="n">addPrimary</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">primaryProperties</span><span class="p">);</span>
@@ -156,8 +163,8 @@ kinetic energy, normalized direction, injection point and initial time, all
 in their native C8 types. In a worker receiving a frontier, the same interface
 imports or stages the assigned particles instead of adding a second primary.</p>
 </section>
-<section id="construct-the-runnable-adapter">
-<h2>Construct the runnable adapter<a class="headerlink" href="#construct-the-runnable-adapter" title="Link to this heading"></a></h2>
+<section id="cascade-adapter-construction-and-lifetime">
+<span id="construct-the-runnable-adapter"></span><h2>Cascade adapter construction and lifetime<a class="headerlink" href="#cascade-adapter-construction-and-lifetime" title="Link to this heading"></a></h2>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">848</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">EAS</span><span class="w"> </span><span class="o">=</span>
 <span class="linenos">849</span><span class="w">        </span><span class="n">event</span><span class="p">.</span><span class="n">cascade</span><span class="p">(</span><span class="n">tracking</span><span class="p">,</span><span class="w"> </span><span class="n">sequence</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="n">primaryTotalEnergy</span><span class="p">,</span><span class="w"> </span><span class="n">maxWeight</span><span class="p">);</span>
 <span class="linenos">850</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">force_interaction</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -208,8 +215,9 @@ from the kinetic energy in <code class="docutils literal notranslate"><span clas
 <code class="docutils literal notranslate"><span class="pre">sequence</span></code> with <code class="docutils literal notranslate"><span class="pre">select_process&lt;...&gt;()</span></code>. It requires the earlier
 <code class="docutils literal notranslate"><span class="pre">addPrimary(...)</span></code> call, then returns a <code class="docutils literal notranslate"><span class="pre">CascadeAdapter&lt;...&gt;</span></code> wrapping the
 driver’s event runner.</p>
-<p><code class="docutils literal notranslate"><span class="pre">forceInteraction()</span></code> and <code class="docutils literal notranslate"><span class="pre">forceDecay()</span></code> set flags in the adapter. They are
-applied to the selected cascade when <code class="docutils literal notranslate"><span class="pre">run()</span></code> executes the stored callback:</p>
+<p><code class="docutils literal notranslate"><span class="pre">forceInteraction()</span></code> and <code class="docutils literal notranslate"><span class="pre">forceDecay()</span></code> set flags in the adapter. For
+native and accelerated event execution, these flags are applied to the
+selected cascade when <code class="docutils literal notranslate"><span class="pre">run()</span></code> executes the stored callback:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">25</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="n">CascadeAdapter</span><span class="o">&lt;</span><span class="n">TRun</span><span class="o">&gt;::</span><span class="n">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">26</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">configure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="k">this</span><span class="p">](</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">cascade</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">27</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">forceInteraction_</span><span class="p">)</span><span class="w"> </span><span class="n">cascade</span><span class="p">.</span><span class="n">forceInteraction</span><span class="p">();</span>
@@ -219,37 +227,47 @@ applied to the selected cascade when <code class="docutils literal notranslate">
 <span class="linenos">31</span><span class="w">  </span><span class="p">}</span>
 </pre></div>
 </div>
-<p>The factory returns an object; <code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> returns <code class="docutils literal notranslate"><span class="pre">void</span></code>. The simulation
-results are written through the references supplied to that object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">event.cascade(...)</span></code> constructs the adapter without advancing particles.
+<code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> executes its stored callback and returns <code class="docutils literal notranslate"><span class="pre">void</span></code>; simulation
+state and results are updated through the supplied objects. The event,
+tracking object, sequence, output manager and stack must remain valid until
+<code class="docutils literal notranslate"><span class="pre">run()</span></code> completes. The adapter borrows these objects rather than owning
+independent copies.</p>
 </section>
-<section id="select-the-native-or-accelerated-runner">
-<h2>Select the native or accelerated runner<a class="headerlink" href="#select-the-native-or-accelerated-runner" title="Link to this heading"></a></h2>
+<section id="execution-path-selection">
+<span id="select-the-native-or-accelerated-runner"></span><h2>Execution-path selection<a class="headerlink" href="#execution-path-selection" title="Link to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">CascadeDriver::cascade(...)</span></code> installs the following branch order in its
 callback:</p>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">input.runPrefix(...)</span></code> handles a CPU-prefix capture/splitting role. If it
-returns <code class="docutils literal notranslate"><span class="pre">true</span></code>, that role has completed and the callback returns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">input.runPrefix(...)</span></code> handles a configured CPU-prefix capture or
+splitting role. If it returns <code class="docutils literal notranslate"><span class="pre">true</span></code>, that stage has completed and the
+callback returns. This completion refers to the assigned prefix work,
+not to the downstream shower execution.</p></li>
 <li><p>With <code class="docutils literal notranslate"><span class="pre">options_.emBackend_</span> <span class="pre">==</span> <span class="pre">&quot;proposal&quot;</span></code>, construct and run a native C8
 <code class="docutils literal notranslate"><span class="pre">Cascade</span></code> using the original environment, tracking, sequence, output and
 stack.</p></li>
 <li><p>Otherwise, construct the accelerated event adapter through
 <code class="docutils literal notranslate"><span class="pre">accelerated_.cascade(...)</span></code> and call its <code class="docutils literal notranslate"><span class="pre">run()</span></code>.</p></li>
 </ol>
-<p>The native branch contains the familiar C8 construction:</p>
+<p>The native branch constructs C8’s <code class="docutils literal notranslate"><span class="pre">Cascade</span></code> directly:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">189</span><span class="w">        </span><span class="n">Cascade</span><span class="w"> </span><span class="nf">EAS</span><span class="p">(</span><span class="n">geometry_</span><span class="p">.</span><span class="n">environment_</span><span class="p">,</span><span class="w"> </span><span class="n">tracking</span><span class="p">,</span><span class="w"> </span><span class="n">sequence</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">);</span>
 <span class="linenos">190</span><span class="w">        </span><span class="n">configure</span><span class="p">(</span><span class="n">EAS</span><span class="p">);</span>
 <span class="linenos">191</span><span class="w">        </span><span class="n">EAS</span><span class="p">.</span><span class="n">run</span><span class="p">();</span>
 </pre></div>
 </div>
-<p>Thus the outer <code class="docutils literal notranslate"><span class="pre">EAS</span></code> in <code class="docutils literal notranslate"><span class="pre">main</span></code> is an adapter. This inner <code class="docutils literal notranslate"><span class="pre">EAS</span></code> is the
-native <code class="docutils literal notranslate"><span class="pre">Cascade</span></code> selected by that adapter. They are separate local objects
-with the same run/forced-primary operations.</p>
+<p>The variable <code class="docutils literal notranslate"><span class="pre">EAS</span></code> in <code class="docutils literal notranslate"><span class="pre">main</span></code> therefore holds a <code class="docutils literal notranslate"><span class="pre">CascadeAdapter</span></code>; the
+local <code class="docutils literal notranslate"><span class="pre">EAS</span></code> in this branch holds the native <code class="docutils literal notranslate"><span class="pre">Cascade</span></code>. The adapter forwards
+execution and forced-primary settings to the selected implementation.</p>
+<p>This selection concerns the electromagnetic execution path. The Kokkos
+execution space, such as OpenMP, CUDA or HIP, is configured separately;
+selecting the accelerated branch does not by itself imply GPU execution.</p>
 </section>
-<section id="recover-the-actual-event-processes-and-writers">
-<h2>Recover the actual event processes and writers<a class="headerlink" href="#recover-the-actual-event-processes-and-writers" title="Link to this heading"></a></h2>
-<p>On the accelerated branch, <code class="docutils literal notranslate"><span class="pre">CascadeApplication::cascade(...)</span></code> combines the
-run defaults with event-specific energy, weight and IDs. Its callback then
-calls <code class="docutils literal notranslate"><span class="pre">complete_models(models_,</span> <span class="pre">sequence)</span></code> and
+<section id="event-process-and-output-binding">
+<span id="recover-the-actual-event-processes-and-writers"></span><h2>Event process and output binding<a class="headerlink" href="#event-process-and-output-binding" title="Link to this heading"></a></h2>
+<p>On the accelerated branch, <code class="docutils literal notranslate"><span class="pre">CascadeApplication::cascade(...)</span></code> copies the
+run defaults and assigns the event’s primary energy, maximum weight, ordinal
+and output identifier. When its adapter runs, the callback resolves model
+and writer references through <code class="docutils literal notranslate"><span class="pre">complete_models(models_,</span> <span class="pre">sequence)</span></code> and
 <code class="docutils literal notranslate"><span class="pre">complete_outputs(outputs_,</span> <span class="pre">sequence)</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">complete_models</span></code> keeps the explicitly bound radio and electromagnetic
 models, then borrows the neutrino, hadron-switch, decay-switch, continuous-loss,
@@ -267,18 +285,20 @@ longitudinal, production and cut processes from the event sequence.
 <span class="linenos">25</span><span class="w">  </span><span class="p">}</span>
 </pre></div>
 </div>
-<p>These calls return reference bundles, <code class="docutils literal notranslate"><span class="pre">CascadeModels&lt;...&gt;</span></code> and
-<code class="docutils literal notranslate"><span class="pre">CascadeOutputs&lt;...&gt;</span></code>. <code class="docutils literal notranslate"><span class="pre">select_process</span></code> matches process types at compile
-time and requires exactly one match. It does not run a hadronic switch’s
-particle-dependent condition to select a physics outcome. A matching
-composite retains its whole switch scope.</p>
+<p>These calls return <code class="docutils literal notranslate"><span class="pre">CascadeModels&lt;...&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">CascadeOutputs&lt;...&gt;</span></code> containing
+references to existing objects. <code class="docutils literal notranslate"><span class="pre">select_process</span></code> resolves process types at
+compile time and requires exactly one match. For a composite process such as
+a hadronic switch, it retrieves the switch itself; the particle-dependent
+choice of physics model remains part of that process’s execution.</p>
 <p>The resulting <code class="docutils literal notranslate"><span class="pre">CascadeContext</span></code> groups geometry, outputs, processes, execution
 objects and diagnostics. For <code class="docutils literal notranslate"><span class="pre">kokkos-proposal</span></code>, it is passed to
-<code class="docutils literal notranslate"><span class="pre">run_cascade(session_,</span> <span class="pre">options_,</span> <span class="pre">event,</span> <span class="pre">context)</span></code>. An enabled EGS4 session
-takes its separate <code class="docutils literal notranslate"><span class="pre">egs4_-&gt;run(...)</span></code> branch.</p>
+<code class="docutils literal notranslate"><span class="pre">run_cascade(session_,</span> <span class="pre">options_,</span> <span class="pre">event,</span> <span class="pre">context)</span></code>. If <code class="docutils literal notranslate"><span class="pre">kokkos-egs4</span></code> was
+selected in a build with EGS4 support, the context instead enters
+<code class="docutils literal notranslate"><span class="pre">egs4_-&gt;run(...)</span></code>. The session initialization below is specific to the
+PROPOSAL-table path.</p>
 </section>
-<section id="prepare-the-backend-and-start-transport">
-<span id="application-backend-start"></span><h2>Prepare the backend and start transport<a class="headerlink" href="#prepare-the-backend-and-start-transport" title="Link to this heading"></a></h2>
+<section id="backend-preparation-and-session-reuse">
+<span id="prepare-the-backend-and-start-transport"></span><span id="application-backend-start"></span><h2>Backend preparation and session reuse<a class="headerlink" href="#backend-preparation-and-session-reuse" title="Link to this heading"></a></h2>
 <p>The PROPOSAL runner exports the observation plane from the actual observation
 process and prepares the host data:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">102</span><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">observation_plane</span><span class="w"> </span><span class="o">=</span>
@@ -289,10 +309,15 @@ process and prepares the host data:</p>
 <span class="linenos">107</span><span class="w">        </span><span class="n">showerCoreY_m</span><span class="p">,</span><span class="w"> </span><span class="n">magnetic_field_T</span><span class="p">,</span><span class="w"> </span><span class="n">dEdX</span><span class="p">,</span><span class="w"> </span><span class="n">profile</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">observation_plane</span><span class="p">);</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">prepare_cascade(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">PreparedCascade&lt;...&gt;</span></code> as described in
-<a class="reference internal" href="data-contracts.html"><span class="doc">Application data and lifetime contracts</span></a>. Inside the runner’s <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> callback, the
-interaction and continuous models provide calculator views on the first
-initialization. The session is then started or reused:</p>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_cascade(...)</span></code> returns <code class="docutils literal notranslate"><span class="pre">PreparedCascade&lt;...&gt;</span></code>, which holds the
+environment snapshot, numerical views, geometry and backend settings described
+in <a class="reference internal" href="data-contracts.html"><span class="doc">Application data and lifetime contracts</span></a>. This preparation step does not initialize the EM
+backend.</p>
+<p>The runner then defines a <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> callback. It passes this callback
+to <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code>, which invokes it after validating the process
+registry. On first use, the callback obtains native calculator views from
+the interaction and continuous-loss models. It then initializes or reuses
+the session through:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">139</span><span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">session_begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">runtime_session</span><span class="p">.</span><span class="n">beginProposalNative</span><span class="p">(</span>
 <span class="linenos">140</span><span class="w">          </span><span class="n">prepared</span><span class="p">.</span><span class="n">environmentData_</span><span class="p">,</span><span class="w"> </span><span class="n">prepared</span><span class="p">.</span><span class="n">geometry_</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_config</span><span class="p">,</span><span class="w"> </span><span class="n">physics_requirements</span><span class="p">,</span>
 <span class="linenos">141</span><span class="w">          </span><span class="n">native_views</span><span class="p">,</span><span class="w"> </span><span class="n">native_continuous_views</span><span class="p">);</span>
@@ -307,20 +332,39 @@ views and native continuous-calculator views. The return type is:</p>
 <span class="linenos">17</span><span class="w">    </span><span class="n">EmBackend</span><span class="o">*</span><span class="w"> </span><span class="n">backend_</span><span class="p">{};</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">backend_</span></code> is a borrowed pointer to the session-owned <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code>;
-<code class="docutils literal notranslate"><span class="pre">reused_</span></code> reports whether it was already initialized; and
-<code class="docutils literal notranslate"><span class="pre">muonTransportAvailable_</span></code> reports the backend capability. On first use the
-session exports tables and initializes the backend. On reuse it calls
-<code class="docutils literal notranslate"><span class="pre">beginShower(...)</span></code> to reset event state, after checking environment
-compatibility.</p>
-<p>Finally, <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> validates the process registry, obtains the
-backend, constructs the CPU-fallback handler and output sink, and creates the
-particle router and <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code>. It calls <code class="docutils literal notranslate"><span class="pre">cascade.run()</span></code> and then the
-completion/report callback. Both this function and <code class="docutils literal notranslate"><span class="pre">run_cascade(...)</span></code> return
-<code class="docutils literal notranslate"><span class="pre">void</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">backend_</span></code> is a borrowed pointer to the session-owned <code class="docutils literal notranslate"><span class="pre">EmBackend</span></code>.
+<code class="docutils literal notranslate"><span class="pre">reused_</span></code> indicates whether the session was already initialized, and
+<code class="docutils literal notranslate"><span class="pre">muonTransportAvailable_</span></code> reports its muon-transport capability.</p>
+<p>On first use, the session exports and validates the native tables, prepares
+auxiliary data and initializes the backend. On subsequent events, it retains
+the backend and tables, checks environment and transport-geometry compatibility,
+then calls <code class="docutils literal notranslate"><span class="pre">beginShower(...)</span></code> to reset event state. An incompatible environment
+requires a new session. Reuse therefore preserves initialized resources while
+the event configuration and particle state are updated.</p>
 </section>
-<section id="where-the-results-go">
-<h2>Where the results go<a class="headerlink" href="#where-the-results-go" title="Link to this heading"></a></h2>
+<section id="hybrid-cascade-execution">
+<h2>Hybrid cascade execution<a class="headerlink" href="#hybrid-cascade-execution" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> connects the prepared data to the scheduling layer
+in the following order:</p>
+<ol class="arabic simple">
+<li><p>Validate the process sequence against the accelerated process registry.</p></li>
+<li><p>Invoke <code class="docutils literal notranslate"><span class="pre">begin_backend</span></code> to obtain the initialized or reused backend and
+configure radio collection when enabled.</p></li>
+<li><p>Construct the CPU-fallback handler, <code class="docutils literal notranslate"><span class="pre">CorsikaOutputSink</span></code> and particle
+router, using the exported environment topology.</p></li>
+<li><p>Construct <code class="docutils literal notranslate"><span class="pre">HybridCascade</span></code> with the original environment, tracking,
+process sequence, output manager and stack; apply the event configuration.</p></li>
+<li><p>Execute <code class="docutils literal notranslate"><span class="pre">cascade.run()</span></code>. After it returns, invoke the completion callback
+that records backend and cascade statistics.</p></li>
+</ol>
+<p>Both <code class="docutils literal notranslate"><span class="pre">run_hybrid_cascade(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">run_cascade(...)</span></code> return <code class="docutils literal notranslate"><span class="pre">void</span></code>.
+The <a class="reference internal" href="../execution/hybrid-loop.html"><span class="doc">The hybrid event loop</span></a> page describes particle scheduling,
+CPU fallback and batch processing inside <code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code>.</p>
+</section>
+<section id="output-lifecycle">
+<span id="where-the-results-go"></span><h2>Output lifecycle<a class="headerlink" href="#output-lifecycle" title="Link to this heading"></a></h2>
+<p>The execution interface updates the application’s existing writers and
+observer collections; it does not return a separate event-result object.</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 32.0%" />
@@ -332,47 +376,59 @@ completion/report callback. Both this function and <code class="docutils literal
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Particle propagation and interactions</p></td>
-<td><p>The supplied stack, particle router and CPU/device processing paths.</p></td>
-</tr>
-<tr class="row-odd"><td><p>Energy deposition and longitudinal profiles</p></td>
+<tr class="row-even"><td><p>Energy deposition and longitudinal profiles</p></td>
 <td><p>The writers recovered from the event sequence, connected through
 <code class="docutils literal notranslate"><span class="pre">CorsikaOutputSink</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p>Observation-level particles and interaction records</p></td>
+<tr class="row-odd"><td><p>Observation-level particles and interaction records</p></td>
 <td><p>The existing observation and interaction writers.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Radio waveforms</p></td>
+<tr class="row-even"><td><p>Radio waveforms</p></td>
 <td><p>The bound CoREAS/ZHS observer collections and their output modules.</p></td>
 </tr>
-<tr class="row-even"><td><p>Backend statistics and completion</p></td>
+<tr class="row-odd"><td><p>Backend and cascade statistics</p></td>
 <td><p>Run-session output, recorded by <code class="docutils literal notranslate"><span class="pre">ShowerReportBuilder::record(...)</span></code>
 after accelerated execution.</p></td>
 </tr>
 </tbody>
 </table>
-<p>After <code class="docutils literal notranslate"><span class="pre">EAS.run()</span></code> returns, <code class="docutils literal notranslate"><span class="pre">main</span></code> reads the same writers, for example
-<code class="docutils literal notranslate"><span class="pre">dEdX.getEnergyLost()</span></code> and <code class="docutils literal notranslate"><span class="pre">observationLevel.getEnergyGround()</span></code> for its energy
-budget. The event wrapper also completes any radio-track capture after a
-successful run.</p>
-<p>An exception in the accelerated branch is recorded as incomplete. The driver
-closes an active shower/output library and throws <code class="docutils literal notranslate"><span class="pre">CascadeAborted</span></code>. A failed
-run must therefore not be interpreted as a completed event merely because
-some writer files exist.</p>
+<p><code class="docutils literal notranslate"><span class="pre">HybridCascade::run()</span></code> starts the shower output, advances particles and
+finalizes the router before ending the shower output. The completion callback
+then records the execution statistics. After the selected runner returns,
+<code class="docutils literal notranslate"><span class="pre">CascadeEvent</span></code> completes any radio-track capture.</p>
+<p><code class="docutils literal notranslate"><span class="pre">main</span></code> subsequently reads the writers, including <code class="docutils literal notranslate"><span class="pre">dEdX.getEnergyLost()</span></code>
+and <code class="docutils literal notranslate"><span class="pre">observationLevel.getEnergyGround()</span></code> for the energy budget. At the end
+of the event loop, <code class="docutils literal notranslate"><span class="pre">workerSession.close(output)</span></code> finalizes the output library.
+A resident worker also closes the preceding request’s library when accepting
+the next request. Worker coordination is described in
+<a class="reference internal" href="../execution/coordinator.html"><span class="doc">Parallel prefixes and GPU workers</span></a>.</p>
 </section>
-<section id="source-references-and-existing-checks">
-<h2>Source references and existing checks<a class="headerlink" href="#source-references-and-existing-checks" title="Link to this heading"></a></h2>
-<p>Follow <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a>,
+<section id="failure-handling">
+<h2>Failure handling<a class="headerlink" href="#failure-handling" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">CascadeDriver</span></code> catches <code class="docutils literal notranslate"><span class="pre">std::exception</span></code> from the accelerated branch,
+records the event as incomplete, closes the shower output if active, closes
+the output library and throws <code class="docutils literal notranslate"><span class="pre">CascadeAborted</span></code>. <code class="docutils literal notranslate"><span class="pre">main</span></code> catches that
+exception and returns <code class="docutils literal notranslate"><span class="pre">EXIT_FAILURE</span></code>. Partial output files therefore do not
+establish successful event completion.</p>
+<p>This handler surrounds the accelerated branch specifically; native execution
+and CPU-prefix execution are outside that <code class="docutils literal notranslate"><span class="pre">try</span></code> block.</p>
+</section>
+<section id="implementation-references-and-validation-coverage">
+<span id="source-references-and-existing-checks"></span><h2>Implementation references and validation coverage<a class="headerlink" href="#implementation-references-and-validation-coverage" title="Link to this heading"></a></h2>
+<p>The execution path is implemented in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl">CascadeDriver.inl</a>,
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl">CascadeApplication.inl</a>,
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a>
 and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp">EmRunSession.cpp</a>.</p>
+<p>Scheduling and output finalization are implemented in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl">HybridCascadeRunner.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl">HybridCascade.inl</a>
+and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl">WorkerSession.inl</a>.</p>
 <p>Existing focused checks include <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/ExecutionSelection.cpp">execution selection</a>,
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/bindings/Bindings.cpp">bindings and adapter behavior</a>,
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/framework/process/testProcessSelection.cpp">process selection</a>
 and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/hybrid/testHybridCascade.cpp">hybrid cascade behavior</a>.
-They cover interface contracts at different levels; none alone establishes
-full-shower statistical agreement. This chapter documents their scope, without
-reporting a new simulation campaign.</p>
+These tests cover execution selection, adapter behavior, process resolution
+and hybrid-cascade integration. Full-shower physics and performance comparisons
+require separate validation.</p>
 </section>
 </section>
 

@@ -1,12 +1,21 @@
 Event execution and results
 ===========================
 
-This page follows one event after the run-level ``CascadeModule`` has been
-created. The primary, tracking object, stack and process sequence are still
-constructed by ``main``.
+The run-level ``CascadeModule`` binds the application-owned models and
+environment as described in :doc:`data-contracts`. For each event, ``main``
+constructs the primary, tracking object, particle stack and process sequence,
+then obtains an executable cascade adapter.
 
-Create the event and its input
-------------------------------
+This page documents the event lifecycle from particle input to output
+finalization. It distinguishes adapter construction from execution and the
+per-event objects from the backend session retained across events. The
+accelerated implementation described below is ``kokkos-proposal``; the EGS4
+branch is identified separately.
+
+.. _create-the-event-and-its-input:
+
+Event initialization and particle input
+---------------------------------------
 
 At the start of the event loop, the application handles a worker request when
 running as a resident worker, then creates the event scope:
@@ -17,12 +26,12 @@ running as a resident worker, then creates the event scope:
    :end-at: auto event = execution.shower(workerSession.isActive() ? 1 : i_shower);
    :lineno-match:
 
-For a direct run, ``execution.shower(i_shower)`` returns
-``CascadeEvent<...>``. The event retains references to its driver and geometry,
-records the ordinal and captures the pre-event diagnostic state. This call
-does not transport the primary.
+``execution.shower(...)`` returns ``CascadeEvent<...>``. The event retains
+references to the driver and geometry, records the event ordinal and captures
+the initial diagnostic counters. Particle transport begins later, when
+``EAS.run()`` invokes the selected execution path.
 
-``main`` builds the ordinary process sequence:
+``main`` assembles the C8 process sequence for this event:
 
 .. literalinclude:: ../../../applications/c8_air_shower.cpp
    :language: cpp
@@ -30,7 +39,8 @@ does not transport the primary.
    :end-at: observationLevel, inter_writer, thinning, cut);
    :lineno-match:
 
-It then supplies the primary through the event:
+After constructing the tracking object and clearing the stack, the application
+supplies the primary:
 
 .. literalinclude:: ../../../applications/c8_air_shower.cpp
    :language: cpp
@@ -45,8 +55,10 @@ kinetic energy, normalized direction, injection point and initial time, all
 in their native C8 types. In a worker receiving a frontier, the same interface
 imports or stages the assigned particles instead of adding a second primary.
 
-Construct the runnable adapter
-------------------------------
+.. _construct-the-runnable-adapter:
+
+Cascade adapter construction and lifetime
+-----------------------------------------
 
 .. literalinclude:: ../../../applications/c8_air_shower.cpp
    :language: cpp
@@ -81,8 +93,9 @@ The overload used by ``main`` obtains the inspector and thinning process from
 ``addPrimary(...)`` call, then returns a ``CascadeAdapter<...>`` wrapping the
 driver's event runner.
 
-``forceInteraction()`` and ``forceDecay()`` set flags in the adapter. They are
-applied to the selected cascade when ``run()`` executes the stored callback:
+``forceInteraction()`` and ``forceDecay()`` set flags in the adapter. For
+native and accelerated event execution, these flags are applied to the
+selected cascade when ``run()`` executes the stored callback:
 
 .. literalinclude:: ../../../corsika/detail/kokkos/application/cascade/CascadeAdapter.inl
    :language: cpp
@@ -90,24 +103,32 @@ applied to the selected cascade when ``run()`` executes the stored callback:
    :end-before: } // namespace corsika::kokkos::application
    :lineno-match:
 
-The factory returns an object; ``EAS.run()`` returns ``void``. The simulation
-results are written through the references supplied to that object.
+``event.cascade(...)`` constructs the adapter without advancing particles.
+``EAS.run()`` executes its stored callback and returns ``void``; simulation
+state and results are updated through the supplied objects. The event,
+tracking object, sequence, output manager and stack must remain valid until
+``run()`` completes. The adapter borrows these objects rather than owning
+independent copies.
 
-Select the native or accelerated runner
----------------------------------------
+.. _select-the-native-or-accelerated-runner:
+
+Execution-path selection
+------------------------
 
 ``CascadeDriver::cascade(...)`` installs the following branch order in its
 callback:
 
-1. ``input.runPrefix(...)`` handles a CPU-prefix capture/splitting role. If it
-   returns ``true``, that role has completed and the callback returns.
+1. ``input.runPrefix(...)`` handles a configured CPU-prefix capture or
+   splitting role. If it returns ``true``, that stage has completed and the
+   callback returns. This completion refers to the assigned prefix work,
+   not to the downstream shower execution.
 2. With ``options_.emBackend_ == "proposal"``, construct and run a native C8
    ``Cascade`` using the original environment, tracking, sequence, output and
    stack.
 3. Otherwise, construct the accelerated event adapter through
    ``accelerated_.cascade(...)`` and call its ``run()``.
 
-The native branch contains the familiar C8 construction:
+The native branch constructs C8's ``Cascade`` directly:
 
 .. literalinclude:: ../../../corsika/detail/kokkos/application/cascade/CascadeDriver.inl
    :language: cpp
@@ -115,16 +136,23 @@ The native branch contains the familiar C8 construction:
    :end-at: EAS.run();
    :lineno-match:
 
-Thus the outer ``EAS`` in ``main`` is an adapter. This inner ``EAS`` is the
-native ``Cascade`` selected by that adapter. They are separate local objects
-with the same run/forced-primary operations.
+The variable ``EAS`` in ``main`` therefore holds a ``CascadeAdapter``; the
+local ``EAS`` in this branch holds the native ``Cascade``. The adapter forwards
+execution and forced-primary settings to the selected implementation.
 
-Recover the actual event processes and writers
-----------------------------------------------
+This selection concerns the electromagnetic execution path. The Kokkos
+execution space, such as OpenMP, CUDA or HIP, is configured separately;
+selecting the accelerated branch does not by itself imply GPU execution.
 
-On the accelerated branch, ``CascadeApplication::cascade(...)`` combines the
-run defaults with event-specific energy, weight and IDs. Its callback then
-calls ``complete_models(models_, sequence)`` and
+.. _recover-the-actual-event-processes-and-writers:
+
+Event process and output binding
+--------------------------------
+
+On the accelerated branch, ``CascadeApplication::cascade(...)`` copies the
+run defaults and assigns the event's primary energy, maximum weight, ordinal
+and output identifier. When its adapter runs, the callback resolves model
+and writer references through ``complete_models(models_, sequence)`` and
 ``complete_outputs(outputs_, sequence)``.
 
 ``complete_models`` keeps the explicitly bound radio and electromagnetic
@@ -138,21 +166,24 @@ longitudinal, production and cut processes from the event sequence.
    :end-before: } // namespace corsika::kokkos::application
    :lineno-match:
 
-These calls return reference bundles, ``CascadeModels<...>`` and
-``CascadeOutputs<...>``. ``select_process`` matches process types at compile
-time and requires exactly one match. It does not run a hadronic switch's
-particle-dependent condition to select a physics outcome. A matching
-composite retains its whole switch scope.
+These calls return ``CascadeModels<...>`` and ``CascadeOutputs<...>`` containing
+references to existing objects. ``select_process`` resolves process types at
+compile time and requires exactly one match. For a composite process such as
+a hadronic switch, it retrieves the switch itself; the particle-dependent
+choice of physics model remains part of that process's execution.
 
 The resulting ``CascadeContext`` groups geometry, outputs, processes, execution
 objects and diagnostics. For ``kokkos-proposal``, it is passed to
-``run_cascade(session_, options_, event, context)``. An enabled EGS4 session
-takes its separate ``egs4_->run(...)`` branch.
+``run_cascade(session_, options_, event, context)``. If ``kokkos-egs4`` was
+selected in a build with EGS4 support, the context instead enters
+``egs4_->run(...)``. The session initialization below is specific to the
+PROPOSAL-table path.
 
 .. _application-backend-start:
+.. _prepare-the-backend-and-start-transport:
 
-Prepare the backend and start transport
----------------------------------------
+Backend preparation and session reuse
+-------------------------------------
 
 The PROPOSAL runner exports the observation plane from the actual observation
 process and prepares the host data:
@@ -163,10 +194,16 @@ process and prepares the host data:
    :end-at: showerCoreY_m, magnetic_field_T, dEdX, profile, &observation_plane);
    :lineno-match:
 
-``prepare_cascade(...)`` returns ``PreparedCascade<...>`` as described in
-:doc:`data-contracts`. Inside the runner's ``begin_backend`` callback, the
-interaction and continuous models provide calculator views on the first
-initialization. The session is then started or reused:
+``prepare_cascade(...)`` returns ``PreparedCascade<...>``, which holds the
+environment snapshot, numerical views, geometry and backend settings described
+in :doc:`data-contracts`. This preparation step does not initialize the EM
+backend.
+
+The runner then defines a ``begin_backend`` callback. It passes this callback
+to ``run_hybrid_cascade(...)``, which invokes it after validating the process
+registry. On first use, the callback obtains native calculator views from
+the interaction and continuous-loss models. It then initializes or reuses
+the session through:
 
 .. literalinclude:: ../../../corsika/detail/kokkos/application/cascade/CascadeRunner.inl
    :language: cpp
@@ -184,21 +221,44 @@ views and native continuous-calculator views. The return type is:
    :end-at: };
    :lineno-match:
 
-``backend_`` is a borrowed pointer to the session-owned ``EmBackend``;
-``reused_`` reports whether it was already initialized; and
-``muonTransportAvailable_`` reports the backend capability. On first use the
-session exports tables and initializes the backend. On reuse it calls
-``beginShower(...)`` to reset event state, after checking environment
-compatibility.
+``backend_`` is a borrowed pointer to the session-owned ``EmBackend``.
+``reused_`` indicates whether the session was already initialized, and
+``muonTransportAvailable_`` reports its muon-transport capability.
 
-Finally, ``run_hybrid_cascade(...)`` validates the process registry, obtains the
-backend, constructs the CPU-fallback handler and output sink, and creates the
-particle router and ``HybridCascade``. It calls ``cascade.run()`` and then the
-completion/report callback. Both this function and ``run_cascade(...)`` return
-``void``.
+On first use, the session exports and validates the native tables, prepares
+auxiliary data and initializes the backend. On subsequent events, it retains
+the backend and tables, checks environment and transport-geometry compatibility,
+then calls ``beginShower(...)`` to reset event state. An incompatible environment
+requires a new session. Reuse therefore preserves initialized resources while
+the event configuration and particle state are updated.
 
-Where the results go
---------------------
+Hybrid cascade execution
+------------------------
+
+``run_hybrid_cascade(...)`` connects the prepared data to the scheduling layer
+in the following order:
+
+1. Validate the process sequence against the accelerated process registry.
+2. Invoke ``begin_backend`` to obtain the initialized or reused backend and
+   configure radio collection when enabled.
+3. Construct the CPU-fallback handler, ``CorsikaOutputSink`` and particle
+   router, using the exported environment topology.
+4. Construct ``HybridCascade`` with the original environment, tracking,
+   process sequence, output manager and stack; apply the event configuration.
+5. Execute ``cascade.run()``. After it returns, invoke the completion callback
+   that records backend and cascade statistics.
+
+Both ``run_hybrid_cascade(...)`` and ``run_cascade(...)`` return ``void``.
+The :doc:`../execution/hybrid-loop` page describes particle scheduling,
+CPU fallback and batch processing inside ``HybridCascade::run()``.
+
+.. _where-the-results-go:
+
+Output lifecycle
+----------------
+
+The execution interface updates the application's existing writers and
+observer collections; it does not return a separate event-result object.
 
 .. list-table::
    :header-rows: 1
@@ -206,8 +266,6 @@ Where the results go
 
    * - Result
      - Receiver
-   * - Particle propagation and interactions
-     - The supplied stack, particle router and CPU/device processing paths.
    * - Energy deposition and longitudinal profiles
      - The writers recovered from the event sequence, connected through
        ``CorsikaOutputSink``.
@@ -215,24 +273,40 @@ Where the results go
      - The existing observation and interaction writers.
    * - Radio waveforms
      - The bound CoREAS/ZHS observer collections and their output modules.
-   * - Backend statistics and completion
+   * - Backend and cascade statistics
      - Run-session output, recorded by ``ShowerReportBuilder::record(...)``
        after accelerated execution.
 
-After ``EAS.run()`` returns, ``main`` reads the same writers, for example
-``dEdX.getEnergyLost()`` and ``observationLevel.getEnergyGround()`` for its energy
-budget. The event wrapper also completes any radio-track capture after a
-successful run.
+``HybridCascade::run()`` starts the shower output, advances particles and
+finalizes the router before ending the shower output. The completion callback
+then records the execution statistics. After the selected runner returns,
+``CascadeEvent`` completes any radio-track capture.
 
-An exception in the accelerated branch is recorded as incomplete. The driver
-closes an active shower/output library and throws ``CascadeAborted``. A failed
-run must therefore not be interpreted as a completed event merely because
-some writer files exist.
+``main`` subsequently reads the writers, including ``dEdX.getEnergyLost()``
+and ``observationLevel.getEnergyGround()`` for the energy budget. At the end
+of the event loop, ``workerSession.close(output)`` finalizes the output library.
+A resident worker also closes the preceding request's library when accepting
+the next request. Worker coordination is described in
+:doc:`../execution/coordinator`.
 
-Source references and existing checks
--------------------------------------
+Failure handling
+----------------
 
-Follow `CascadeDriver.inl
+``CascadeDriver`` catches ``std::exception`` from the accelerated branch,
+records the event as incomplete, closes the shower output if active, closes
+the output library and throws ``CascadeAborted``. ``main`` catches that
+exception and returns ``EXIT_FAILURE``. Partial output files therefore do not
+establish successful event completion.
+
+This handler surrounds the accelerated branch specifically; native execution
+and CPU-prefix execution are outside that ``try`` block.
+
+.. _source-references-and-existing-checks:
+
+Implementation references and validation coverage
+-------------------------------------------------
+
+The execution path is implemented in `CascadeDriver.inl
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeDriver.inl>`_,
 `CascadeApplication.inl
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeApplication.inl>`_,
@@ -240,6 +314,13 @@ Follow `CascadeDriver.inl
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl>`_
 and `EmRunSession.cpp
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/em/EmRunSession.cpp>`_.
+
+Scheduling and output finalization are implemented in `HybridCascadeRunner.inl
+<https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascadeRunner.inl>`_,
+`HybridCascade.inl
+<https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/HybridCascade.inl>`_
+and `WorkerSession.inl
+<https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/WorkerSession.inl>`_.
 
 Existing focused checks include `execution selection
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/application_support/ExecutionSelection.cpp>`_,
@@ -249,6 +330,6 @@ Existing focused checks include `execution selection
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/framework/process/testProcessSelection.cpp>`_
 and `hybrid cascade behavior
 <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/scheduling/hybrid/testHybridCascade.cpp>`_.
-They cover interface contracts at different levels; none alone establishes
-full-shower statistical agreement. This chapter documents their scope, without
-reporting a new simulation campaign.
+These tests cover execution selection, adapter behavior, process resolution
+and hybrid-cascade integration. Full-shower physics and performance comparisons
+require separate validation.
