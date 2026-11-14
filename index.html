@@ -98,7 +98,12 @@
 <li class="toctree-l2"><a class="reference internal" href="transport/interactions.html">Photon transport and interaction completion</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul>
@@ -143,7 +148,7 @@ with Kokkos.</p>
 <div class="guide-status" role="note">
   <span class="status-dot" aria-hidden="true"></span>
   <strong>Documentation in preparation</strong>
-  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data and transport chapters are available. Further architecture and maintenance chapters are being developed.</span>
+  <span>The overview, user guide, application integration, execution, particle-data, environment, physics-data, transport and radio chapters are available. Further architecture and maintenance chapters are being developed.</span>
 </div><section id="guide-objectives">
 <h2>Guide objectives<a class="headerlink" href="#guide-objectives" title="Link to this heading"></a></h2>
 <div class="guide-cards">
@@ -178,7 +183,9 @@ representations, conversion interfaces and backend storage. The
 extension requirements. The <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a> chapter documents native model
 preparation, table storage and query contracts. The <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> chapter
 follows candidate sampling, particle propagation and interaction final states.
-Further chapters will cover radio implementation and maintenance.</p>
+The <a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a> chapter covers track collection, projection, waveform
+accumulation and propagation-specific interfaces. Further chapters will
+cover backend configuration, validation and maintenance.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
 <ul>
@@ -249,7 +256,12 @@ Further chapters will cover radio implementation and maintenance.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="radio.html#planned-coverage">Planned coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#component-responsibilities">Component responsibilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#application-integration">Application integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#waveform-finalization-and-native-output">Waveform finalization and native output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#source-organization">Source organization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#validation-coverage">Validation coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio.html#track-to-output-data-flow">Track-to-output data flow</a></li>
 </ul>
 </li>
 </ul>

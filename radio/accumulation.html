@@ -1,0 +1,448 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parallel projection and waveform accumulation &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/radio/accumulation.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Propagation models and medium-specific interfaces" href="propagation.html" />
+    <link rel="prev" title="Track collection and observer preparation" href="inputs.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../radio.html">Radio calculation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../radio.html">Radio calculation</a></li>
+      <li class="breadcrumb-item active">Parallel projection and waveform accumulation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/radio/accumulation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="parallel-projection-and-waveform-accumulation">
+<h1>Parallel projection and waveform accumulation<a class="headerlink" href="#parallel-projection-and-waveform-accumulation" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">RadioAccumulator&lt;TExecutionSpace&gt;</span></code> projects completed electron and positron
+tracks onto observers and accumulates the corresponding CoREAS and ZHS signals.
+The execution space selects the CPU or GPU implementation of the parallel work;
+it does not select the emission model. This page describes the standard
+accumulator at the source revision recorded in <a class="reference internal" href="../radio.html"><span class="doc">Radio calculation</span></a>.</p>
+<p>The inputs are described in <a class="reference internal" href="inputs.html"><span class="doc">Track collection and observer preparation</span></a>. Firn geometrical-optics calculation
+uses a separate accumulator and the <code class="docutils literal notranslate"><span class="pre">TimeDomainEmission</span></code> deposition helpers;
+it must not be inferred from the standard accumulator’s policies below. Its
+propagation and emission path is described in <a class="reference internal" href="propagation.html"><span class="doc">Propagation models and medium-specific interfaces</span></a>.</p>
+<section id="accumulator-interface-and-lifetime">
+<h2>Accumulator interface and lifetime<a class="headerlink" href="#accumulator-interface-and-lifetime" title="Link to this heading"></a></h2>
+<p>The accumulator owns its observer and propagation arrays, waveform buffers,
+diagnostic counters, track workspace and host staging buffers. Input device
+views remain borrowed: the caller must retain their storage until the queued
+projection has finished. Operations belonging to one accumulator use the same
+execution-space instance so that submissions and workspace reuse are ordered.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interface</p></th>
+<th class="head"><p>Responsibility</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">initialize(config,</span> <span class="pre">tuning,</span> <span class="pre">execution)</span></code></p></td>
+<td><p>Validate configuration, upload immutable observer and propagation data,
+and allocate the waveform and diagnostic storage.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">accumulateLeptonTracks(records,</span> <span class="pre">count,</span> <span class="pre">execution)</span></code></p></td>
+<td><p>Submit the first <code class="docutils literal notranslate"><span class="pre">count</span></code> device records for projection. It neither
+transports particles nor returns a completed waveform.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enqueueHostLeptonTracks(records,</span> <span class="pre">count,</span> <span class="pre">execution)</span></code></p></td>
+<td><p>Copy host-produced records into owned staging storage. Full staging
+buffers are uploaded and submitted to the same accumulator.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">flushHostLeptonTracks(execution)</span></code></p></td>
+<td><p>Upload and submit remaining host records. The upload is completed
+before its host mirror is reused.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">download(execution)</span></code></p></td>
+<td><p>Flush pending tracks, complete waveform retrieval and return owned
+<code class="docutils literal notranslate"><span class="pre">RadioWaveforms</span></code> with one three-component waveform per observer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">downloadFixed(identity,</span> <span class="pre">endpoint,</span> <span class="pre">execution)</span></code></p></td>
+<td><p>Finalize a deterministic accumulator and return an owned integer
+snapshot for a compatible cooperative merge.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">reset(execution)</span></code></p></td>
+<td><p>Clear waveforms, counters and event statistics while retaining prepared
+configuration and allocated resources for another event.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Initialization is not a per-track operation. Workspace capacity can be reserved
+with <code class="docutils literal notranslate"><span class="pre">reserveTrackCapacity</span></code>; growing it may require a fence before the old
+allocation is released. Normal submissions do not fence each transport
+wavefront. <code class="docutils literal notranslate"><span class="pre">reset</span></code> rejects pending host records, clears device storage and
+fences before returning. Event owners should finalize an event before resetting
+and reusing its accumulator. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/RadioAccumulator.hpp">RadioAccumulator.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulator.inl">RadioAccumulator.inl</a>.</p>
+</section>
+<section id="track-observer-work-distribution">
+<h2>Track–observer work distribution<a class="headerlink" href="#track-observer-work-distribution" title="Link to this heading"></a></h2>
+<p>One projection computes one track’s contribution to one observer. Different
+pairs can write the same observer’s time bins, so pair-level parallelism also
+requires a defined accumulation strategy.</p>
+<p>The standard implementation selects between two submission paths:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29.0%" />
+<col style="width: 34.0%" />
+<col style="width: 37.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Path</p></th>
+<th class="head"><p>Selection</p></th>
+<th class="head"><p>Work organization</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Direct projection</p></td>
+<td><p>Non-OpenMP execution and fewer than 16,384 input tracks</p></td>
+<td><p>A bounded <code class="docutils literal notranslate"><span class="pre">RangePolicy</span></code> visits track–observer pairs. Each pair
+constructs its track kinematics before evaluating the emission.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Precomputed, tiled projection</p></td>
+<td><p>OpenMP, or at least 16,384 input tracks on other execution spaces</p></td>
+<td><p>A first kernel prepares each track once. A <code class="docutils literal notranslate"><span class="pre">TeamPolicy</span></code> then groups
+tracks and observers into tiles for projection.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The direct kernel obtains its indices from the pair index:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">682</span><span class="w">          </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">track_index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pair_index</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">observer_count</span><span class="p">;</span>
+<span class="linenos">683</span><span class="w">          </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">observer_index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pair_index</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">observer_count</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This mapping describes logical Kokkos iterations, not a persistent assignment
+of a particle to a GPU thread. Invalid track records return without emission.
+The initial track-recording pass also records valid-track diagnostics once per
+track, rather than once per observer.</p>
+<p>In the tiled GPU path, a team cooperatively loads its tracks and observers into
+team scratch storage, synchronizes, and evaluates the tile’s pair combinations.
+Track kinematics and observer records can therefore be reused within the team.
+The default tile contains 8 tracks and 32 observers; the generic default team
+size is 256. The number of pairs, tile dimensions and team size are distinct
+parameters. Tail tiles retain bounds checks for unused lanes.</p>
+<p>When both algorithms are enabled and their observer positions and time grids
+match exactly, <code class="docutils literal notranslate"><span class="pre">fuseCoreasZhs_</span></code> selects a combined pair kernel. It calls both
+<code class="docutils literal notranslate"><span class="pre">accumulate_co_reas</span></code> and <code class="docutils literal notranslate"><span class="pre">accumulate_zhs</span></code> with shared pair inputs. It does
+not replace either emission formula or combine their output buffers. Different
+observer collections use separate projections. These paths are implemented in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulator.inl">RadioAccumulator.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/algorithms/RadioProjection.inl">RadioProjection.inl</a>.</p>
+</section>
+<section id="execution-space-policies">
+<h2>Execution-space policies<a class="headerlink" href="#execution-space-policies" title="Link to this heading"></a></h2>
+<p><strong>OpenMP.</strong> The default tile is 4 tracks by 4 observers. A team of size one
+evaluates a tile’s pairs; different tiles execute on different OpenMP workers.
+In deterministic mode, each worker has a private integer waveform row selected
+by a Kokkos <code class="docutils literal notranslate"><span class="pre">UniqueToken</span></code>. Updates to that row require no atomics. Finalization
+merges the rows and checks their integer sums for overflow. Floating-point
+accumulation uses the shared waveform path instead. The private-row operations
+and merge kernel are defined in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulatorOperations.inl">RadioAccumulatorOperations.inl</a>.</p>
+<p><strong>CUDA and HIP.</strong> Waveform bins are shared across teams and updated atomically.
+For tiled ZHS work with at least one full observer tile, a specialized functor
+first accumulates four integer diagnostics locally, then reduces them within
+the team. These are CoREAS contributions, ZHS contributions, ZHS subtracks and
+fixed-point overflows. This optimization reduces global counter updates;
+<strong>waveform samples still use atomic accumulation</strong>.</p>
+<p>For HIP ZHS kernels, a default team selection of 256 is changed to a team of
+128 with <code class="docutils literal notranslate"><span class="pre">Kokkos::LaunchBounds&lt;128,</span> <span class="pre">2&gt;</span></code>. An explicit team size of 128 uses that
+policy as well. The actual team size is capped by the number of pairs in
+the tile, so an explicit size of 256 is retained only when the tile has at
+least 256 pairs. Other cases use the generic team policy. These are launch and counter-management choices around
+the same emission functions, not HIP-specific physics approximations. They
+do not by themselves establish a performance improvement for every geometry
+or observer count.</p>
+<p><code class="docutils literal notranslate"><span class="pre">RadioAtomicOperations</span></code> supplies a narrow device-primitive adapter: CUDA and
+HIP device compilation use native atomic operations, while host compilation
+uses Kokkos atomics. Projection and emission remain in the common C++ kernels.
+See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAtomicOperations.inl">RadioAtomicOperations.inl</a>.</p>
+</section>
+<section id="waveform-representation-and-numerical-contract">
+<h2>Waveform representation and numerical contract<a class="headerlink" href="#waveform-representation-and-numerical-contract" title="Link to this heading"></a></h2>
+<p>Each enabled model stores three component arrays with contiguous bin ranges
+for its observers. CoREAS accumulates electric field in V/m. ZHS accumulates
+vector potential in V s/m; differentiating it into electric field belongs to
+the subsequent observer output stage, not <code class="docutils literal notranslate"><span class="pre">RadioAccumulator::download</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">RadioConfig::deterministic_</span></code> selects signed 64-bit fixed-point accumulation
+and defaults to true. For the configured field scale <span class="math notranslate nohighlight">\(E_{\mathrm{scale}}\)</span>
+and an observer sampling rate <span class="math notranslate nohighlight">\(f_s\)</span>, the conversion factors are</p>
+<div class="math notranslate nohighlight">
+\[S_{\mathrm{CoREAS}} = \frac{2^{62}}{E_{\mathrm{scale}}},
+\qquad
+S_{\mathrm{ZHS}} = \frac{2^{62} f_s}{E_{\mathrm{scale}}}.\]</div>
+<p>A contribution is scaled and rounded before integer addition. The configured
+field scale controls this representation; it is not an amplitude cut.
+Non-finite or unrepresentable increments and overflowing sums are recorded.
+Finalization rejects an overflowed accumulator instead of silently returning
+clipped or wrapped waveforms. Increasing the field scale gives more amplitude
+headroom at the expense of a coarser quantization step.</p>
+<p>Integer addition makes the sum independent of addition order when the
+individual quantized contributions are identical and no overflow occurs.
+It does not guarantee bitwise equality across CPU and GPU architectures:
+different floating-point evaluation of a contribution can change its rounded
+integer. Floating mode uses double-precision additions and retains their
+order dependence. Floating diagnostic sums are also separate from the integer
+waveform contract. The conversion and sample-deposition rules are in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/algorithms/RadioProjection.inl">RadioProjection.inl</a>.</p>
+</section>
+<section id="finalization-and-cooperative-merging">
+<h2>Finalization and cooperative merging<a class="headerlink" href="#finalization-and-cooperative-merging" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">download</span></code> flushes host records, merges OpenMP private rows if present, and
+retrieves counters and waveforms through synchronous host mirror copies. It
+checks overflow and decodes each observer’s samples into <code class="docutils literal notranslate"><span class="pre">RadioWaveforms</span></code>.
+Retrieving the same completed result twice is rejected. Use <code class="docutils literal notranslate"><span class="pre">reset</span></code> to start
+the next event with retained allocations.</p>
+<p><code class="docutils literal notranslate"><span class="pre">downloadFixed</span></code> instead copies integer buffers and counters on the supplied
+execution instance and explicitly fences before exposing the host snapshot.
+It seals the accumulator before exporting, preventing repeated folding of
+private rows or additional submissions after a failed export. The snapshot
+includes shower identity, endpoint identity, configuration and owned integer
+arrays; its ZHS array is still vector potential.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CooperativeRadioMerge</span></code> handles the two endpoints defined by
+<code class="docutils literal notranslate"><span class="pre">CooperativeEndpoint</span></code>: <code class="docutils literal notranslate"><span class="pre">Cuda</span></code> and <code class="docutils literal notranslate"><span class="pre">OpenMP</span></code>. It is <strong>not</strong> the general
+multi-GPU process-output merger. <code class="docutils literal notranslate"><span class="pre">commit(snapshot)</span></code> checks shower identity,
+endpoint uniqueness, exact compatible configuration and overflow before
+accepting a snapshot. A failed commit preserves the previous accumulated
+state. <code class="docutils literal notranslate"><span class="pre">take()</span></code> requires both endpoints and can be called once.</p>
+<p>The merge adds integer samples before <code class="docutils literal notranslate"><span class="pre">decode_fixed_radio</span></code> converts them
+to floating-point waveforms. Observer grids, propagation configuration,
+quantization scale and enabled algorithms must agree. This avoids merging
+unrelated time bins or differently scaled integers. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/FixedRadioSnapshot.hpp">FixedRadioSnapshot.hpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/CooperativeRadioMerge.inl">CooperativeRadioMerge.inl</a>. The process
+coordinator’s event-output merging is described in
+<a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a>.</p>
+</section>
+<section id="counters-and-timing-interpretation">
+<h2>Counters and timing interpretation<a class="headerlink" href="#counters-and-timing-interpretation" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">RadioStatistics</span></code> distinguishes input records, valid tracks, projected pairs,
+deposited contributions, ZHS subtracks, tiles and transfer bytes. In particular:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">trackObserverPairs_</span></code> counts submitted pair evaluations for each enabled
+algorithm, including pairs that later produce no in-window contribution.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fusedTrackObserverPairs_</span></code> counts shared pair work when both models are
+projected together; it is not another set of physical tracks.</p></li>
+<li><p>Valid-track and contribution counters are copied from device storage during
+finalization. Intermediate host statistics are not a completed-event report.</p></li>
+<li><p>Contribution counts describe deposition operations, not a count of distinct
+particles, antennas or kernel launches.</p></li>
+</ul>
+<p>The structure also declares device, kernel and transfer timing fields. The
+standard <code class="docutils literal notranslate"><span class="pre">RadioAccumulator</span></code> does not populate those elapsed-time fields at
+this revision. Their presence in a report must not be interpreted as a measured
+kernel interval. Performance measurements require instrumentation around the
+actual execution and completion boundaries, separating asynchronous submission
+time from completed device work. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/RadioStatistics.hpp">RadioStatistics.hpp</a>.</p>
+</section>
+<section id="validation-coverage-and-maintenance-boundaries">
+<h2>Validation coverage and maintenance boundaries<a class="headerlink" href="#validation-coverage-and-maintenance-boundaries" title="Link to this heading"></a></h2>
+<p>The following source tests cover accumulator contracts. Their presence is not
+a claim that a particular device or build has passed them.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Test source</p></th>
+<th class="head"><p>Coverage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioAccumulator.cpp">testRadioAccumulator.cpp</a></p></td>
+<td><p>Direct and tiled submissions, fixed and floating accumulation, individual
+and combined models, capacity boundaries, and default versus explicit
+HIP tile policies against retained reference implementations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioCounters.cpp">testRadioCounters.cpp</a></p></td>
+<td><p>Counter-reduction equivalence with direct projection, including invalid
+records, partial tiles and separate observer collections.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testRadioMerge.cpp">testRadioMerge.cpp</a></p></td>
+<td><p>Endpoint order, identity and configuration checks, integer overflow,
+failed-commit preservation and explicit nonblocking GPU stream export.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testHostRadioStaging.cpp">testHostRadioStaging.cpp</a></p></td>
+<td><p>Host-record staging and queued-producer behavior.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/accumulator/testHomogeneousRadio.cpp">testHomogeneousRadio.cpp</a></p></td>
+<td><p>Homogeneous propagation and air-regression cases.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These checks support launch-policy and accumulation refactoring. They do not
+replace independent emission-model validation or full-shower comparisons.
+Native C8 CoREAS/ZHS and the standard Kokkos projection remain separate
+implementations; equivalent model choices do not imply one shared native
+function body. <code class="docutils literal notranslate"><span class="pre">TimeDomainEmission</span></code> provides common time-domain deposition
+helpers for the firn geometrical-optics accumulator, rather than replacing
+every native and standard Kokkos radio implementation.
+The helpers accept ray timing and projected displacement: <code class="docutils literal notranslate"><span class="pre">deposit_zhs</span></code>
+deposits the track’s vector-potential contribution, while <code class="docutils literal notranslate"><span class="pre">deposit_coreas</span></code>
+combines matched endpoint rays and handles the near-Cherenkov limit. Ray-family
+selection and track subdivision remain the caller’s responsibility. Their
+interfaces are defined in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/algorithms/TimeDomainEmission.hpp">TimeDomainEmission.hpp</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="inputs.html" class="btn btn-neutral float-left" title="Track collection and observer preparation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="propagation.html" class="btn btn-neutral float-right" title="Propagation models and medium-specific interfaces" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

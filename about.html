@@ -98,7 +98,12 @@
 <li class="toctree-l2"><a class="reference internal" href="transport/interactions.html">Photon transport and interaction completion</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
@@ -155,9 +160,11 @@ shared boundary selection and model-extension requirements. The
 <a class="reference internal" href="physics-data.html"><span class="doc">Physics models and table preparation</span></a> chapter covers native model preparation, table
 representation, resident ownership and query/extension contracts. The
 <a class="reference internal" href="transport.html"><span class="doc">Transport and interaction kernels</span></a> chapter follows candidate sampling, step-limit competition,
-continuous processes and final-state/CPU completion contracts. The remaining
-architecture and maintenance chapters are still outlines; an
-outline does not establish that a feature is implemented or validated.
+continuous processes and final-state/CPU completion contracts. The
+<a class="reference internal" href="radio.html"><span class="doc">Radio calculation</span></a> chapter documents track collection, observer data, parallel
+projection, accumulation and ordinary/firn propagation interfaces. The
+remaining backend and maintenance chapters are still outlines; an outline
+does not establish that a feature is implemented or validated.
 This site is not an official CORSIKA documentation release.</p>
 </section>
 <section id="writing-a-chapter">

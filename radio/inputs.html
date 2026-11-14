@@ -1,0 +1,407 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Track collection and observer preparation &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=9cc0ee68" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/radio/inputs.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=32839c3e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Parallel projection and waveform accumulation" href="accumulation.html" />
+    <link rel="prev" title="Radio calculation" href="../radio.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../radio.html">Radio calculation</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../radio.html">Radio calculation</a></li>
+      <li class="breadcrumb-item active">Track collection and observer preparation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/radio/inputs.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="track-collection-and-observer-preparation">
+<h1>Track collection and observer preparation<a class="headerlink" href="#track-collection-and-observer-preparation" title="Link to this heading"></a></h1>
+<p>Radio calculation consumes completed particle tracks and prepared observer
+data. It does not advance the shower or resample a particle’s motion. Tracks
+can arrive directly from resident transport, from native C8 steps redirected
+to a radio backend, or from a completed prefix-stage track file.</p>
+<p>This page describes the standard track and observer interfaces at the source
+revision recorded in <a class="reference internal" href="../radio.html"><span class="doc">Radio calculation</span></a>. The propagation model and numerical
+accumulator determine how those inputs contribute to a waveform.</p>
+<section id="input-records-and-units">
+<h2>Input records and units<a class="headerlink" href="#input-records-and-units" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 68.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Data contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">LeptonTransportRecord</span></code></p></td>
+<td><p>Completed start/end particle states. Positions are metres, times
+seconds, total energies GeV and statistical weights dimensionless.
+The standard radio projector accepts electron/positron records.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RadioTrackSegment</span></code></p></td>
+<td><p>Native-step transfer record: start/end positions, directions, times,
+kinetic energies, weight and PDG code. It uses metres, seconds and
+<strong>kinetic</strong> GeV in a common coordinate system.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">RadioTrackKinematics</span></code></p></td>
+<td><p>Projection-ready endpoints, displacement, duration, dimensionless
+velocity <span class="math notranslate nohighlight">\(\boldsymbol{\beta}\)</span>, track length and weighted charge
+factor. It contains no native particle or environment pointer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RadioObserverSnapshot</span></code></p></td>
+<td><p>Observer position, waveform start time, duration, sampling rate and
+bin count. Units are metres, seconds and Hz; observer order is retained.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">make_host_radio_record(segment)</span></code> converts the native transfer record to
+<code class="docutils literal notranslate"><span class="pre">LeptonTransportRecord</span></code>. It copies geometry, directions, time, weight and
+PID, and adds the transport rest mass to each kinetic energy. It is a radio
+adapter, not a reconstruction of all transport diagnostics or a new particle
+step. It rejects species other than electrons and positrons. See
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/HostRadioRecord.inl">HostRadioRecord.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/modules/radio/RadioTrackSegment.hpp">RadioTrackSegment.hpp</a>.</p>
+</section>
+<section id="completed-track-kinematics">
+<h2>Completed-track kinematics<a class="headerlink" href="#completed-track-kinematics" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">make_radio_track_kinematics(record,</span> <span class="pre">track)</span></code> reads the start/end positions
+and times. For a positive duration and nonzero displacement it forms</p>
+<div class="math notranslate nohighlight">
+\[\boldsymbol{\beta} =
+\frac{\boldsymbol{r}_{\mathrm{end}}-\boldsymbol{r}_{\mathrm{start}}}
+     {c\,(t_{\mathrm{end}}-t_{\mathrm{start}})}.\]</div>
+<p>It does not derive this velocity from the endpoint energy or replace the
+completed displacement with the direction after multiple scattering.
+Energies and stored directions remain available for track diagnostics.
+The construction follows the completed straight track used by radio, rather
+than separately integrating the two magnetic half-steps. The transport
+conventions are described in <a class="reference internal" href="../transport/lepton-step.html"><span class="doc">Charged-lepton propagation</span></a>.</p>
+<p>The source coefficient is the signed elementary charge times the radio
+constant and <code class="docutils literal notranslate"><span class="pre">record.start_.weight_</span></code>. Electron and positron signs differ;
+the statistical weight must not be applied again when those contributions
+are accumulated. Non-electron/positron records, zero-duration records and
+zero-length records do not become valid tracks. Muon transport support does
+not imply that muon tracks enter this projector. The implementation is in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/algorithms/RadioProjection.inl">RadioProjection.inl</a>.</p>
+<p>The helper is not a complete input validator: it assumes that completed
+transport and its adapters have provided meaningful numerical state. Its
+boolean result identifies a usable projection track, not an independent
+validation of the particle’s earlier history.</p>
+</section>
+<section id="native-step-collection">
+<h2>Native-step collection<a class="headerlink" href="#native-step-collection" title="Link to this heading"></a></h2>
+<p>The native <code class="docutils literal notranslate"><span class="pre">RadioProcess::doContinuous</span></code> normally calls its CoREAS or ZHS
+implementation for an electron/positron step. With a track sink attached, it
+exports the completed step instead and returns without executing the native
+radio calculation. Empty observer collections return before either path.</p>
+<p>The sink receives numerical coordinates in the coordinate system supplied
+when it was attached. Positions and directions are transformed to that
+system; unit-bearing time, length and kinetic-energy values are converted
+explicitly. The native export is implemented in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/modules/radio/RadioProcess.inl">RadioProcess.inl</a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ScopedRadioTrackSink(coreas,</span> <span class="pre">zhs,</span> <span class="pre">sink,</span> <span class="pre">coordinates)</span></code> attaches this route
+to both radio processes. Only one process captures the track: CoREAS when
+its observer collection is nonempty, otherwise ZHS. Both enabled native
+projections are bypassed because the common backend computes the requested
+radio models from that single captured track. Capturing independently in
+both processes would count each physical segment twice.</p>
+<p>The scope rejects an already attached sink, restores the first attachment
+if the second fails, and detaches both on destruction. The referenced radio
+processes, sink and backend must remain alive for the full attachment scope.
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeRunner.inl">CascadeRunner.inl</a> keeps the collector alive through router finalization and
+output writing; <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/ScopedRadioTrackSink.inl">ScopedRadioTrackSink.inl</a> implements the attachment rules.</p>
+</section>
+<section id="host-dispatch-and-input-lifetime">
+<h2>Host dispatch and input lifetime<a class="headerlink" href="#host-dispatch-and-input-lifetime" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">HostRadioCollector</span></code> implements the native <code class="docutils literal notranslate"><span class="pre">RadioTrackSink</span></code> interface.
+Its <code class="docutils literal notranslate"><span class="pre">append(segment)</span></code> converts one completed record and passes a borrowed
+span to <code class="docutils literal notranslate"><span class="pre">enqueueRadioTracks</span></code>. The general host interface is
+<code class="docutils literal notranslate"><span class="pre">IRadioBackend</span></code>:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Method</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gpuRadioEnabled()</span></code></p></td>
+<td><p>Reports whether this backend accepts completed radio tracks. The
+historical name does not restrict the interface to CUDA or require
+that the selected Kokkos execution space is a GPU.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enqueueRadioTracks(span)</span></code></p></td>
+<td><p>Copies the supplied records before returning. The backend must not
+retain the borrowed span; an empty range is allowed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">downloadRadioWaveforms()</span></code></p></td>
+<td><p>Completes pending work, including a final partial track batch, and
+returns the accumulated shower waveforms.</p></td>
+</tr>
+</tbody>
+</table>
+<p>These are host-side dispatch calls, not functions invoked by particle
+kernels. An implementation can launch Kokkos work behind this interface.
+The contract assumes one shower owner per backend instance; concurrent host
+calls are not implied. <cite>BorrowedRadioBackend</cite> forwards calls to an existing
+EM backend without owning it. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/radio/IRadioBackend.hpp">IRadioBackend.hpp</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/BorrowedRadioBackend.inl">BorrowedRadioBackend.inl</a>.</p>
+<p>In the standard accumulator, <code class="docutils literal notranslate"><span class="pre">enqueueHostLeptonTracks</span></code> copies records into
+a bounded host staging buffer. Filling that buffer triggers an upload and
+projection. The upload is fenced before the host buffer can be reused;
+device operations remain ordered on the same execution instance. A final
+partial buffer is flushed during waveform download. Thus a per-track host
+<code class="docutils literal notranslate"><span class="pre">append</span></code> is not a per-track GPU launch or synchronization. These lifecycle
+operations are implemented in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioAccumulator.inl">RadioAccumulator.inl</a>.</p>
+</section>
+<section id="prefix-stage-track-files">
+<h2>Prefix-stage track files<a class="headerlink" href="#prefix-stage-track-files" title="Link to this heading"></a></h2>
+<p>CPU prefix workers can capture completed tracks without initializing a GPU.
+<code class="docutils literal notranslate"><span class="pre">RadioTrackSpoolWriter</span></code> writes those records in a bounded, ordered transfer
+format. <code class="docutils literal notranslate"><span class="pre">complete()</span></code> explicitly publishes the valid record count; destruction
+after a failure leaves an incomplete marker that the reader rejects.</p>
+<p><code class="docutils literal notranslate"><span class="pre">RadioTrackSpoolReader</span></code> validates the magic, version, record size, completed
+count and exact file length. <code class="docutils literal notranslate"><span class="pre">readBatch(tracks,</span> <span class="pre">maximum)</span></code> clears and fills
+the caller’s vector with up to <code class="docutils literal notranslate"><span class="pre">maximum</span></code> records and returns that count.
+The default is 4096, and accepted batch limits are 1 through 65536.</p>
+<p>Version 1 uses a 32-byte header and 140-byte records with explicit
+little-endian fields. It does not serialize C++ struct padding or pointers.
+Record validation checks the electron/positron identity, finite values,
+nonnegative weight and kinetic energies, and nondecreasing endpoint time.
+Zero-length or zero-duration tracks can still be represented and are rejected
+as projection tracks later. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioTrackSpoolFormat.inl">RadioTrackSpoolFormat.inl</a>,
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioTrackSpoolWriter.inl">RadioTrackSpoolWriter.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/radio/RadioTrackSpoolReader.inl">RadioTrackSpoolReader.inl</a>.</p>
+<p>The file contains track values, not observer geometry, propagation settings,
+event ownership or an RNG checkpoint. Those belong to the run configuration
+and coordinator. Each completed spool must be assigned to exactly one
+consumer. In the standard accelerated runner, duplicate canonical input
+paths are rejected and every accepted file is checked for complete
+consumption. Replaying a track file calculates radio from already transported
+segments; it does not rerun the shower. See <a class="reference internal" href="../execution/coordinator.html"><span class="doc">Process coordination and worker lifecycle</span></a>.</p>
+</section>
+<section id="observer-snapshots-and-coordinate-consistency">
+<h2>Observer snapshots and coordinate consistency<a class="headerlink" href="#observer-snapshots-and-coordinate-consistency" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">snapshot_detail::make_observers(detector,</span> <span class="pre">coordinate_system)</span></code> iterates the
+native observer collection in its existing order and returns an owning
+<code class="docutils literal notranslate"><span class="pre">std::vector&lt;RadioObserverSnapshot&gt;</span></code>. It copies positions in the requested
+system and retains the actual native waveform bin count, rather than
+recomputing that count from duration and sampling rate:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">19</span><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">observer</span><span class="p">.</span><span class="n">getLocation</span><span class="p">().</span><span class="n">getCoordinates</span><span class="p">(</span><span class="n">coordinate_system</span><span class="p">);</span>
+<span class="linenos">20</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">          </span><span class="n">snapshot</span><span class="p">.</span><span class="n">positionM_</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">position</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_m</span><span class="p">;</span>
+<span class="linenos">22</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">snapshot</span><span class="p">.</span><span class="n">startTimeS_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">observer</span><span class="p">.</span><span class="n">getStartTime</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_s</span><span class="p">;</span>
+<span class="linenos">24</span><span class="w">        </span><span class="n">snapshot</span><span class="p">.</span><span class="n">durationS_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">observer</span><span class="p">.</span><span class="n">getDuration</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_s</span><span class="p">;</span>
+<span class="linenos">25</span><span class="w">        </span><span class="n">snapshot</span><span class="p">.</span><span class="n">sampleRateHz_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">observer</span><span class="p">.</span><span class="n">getSampleRate</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">_Hz</span><span class="p">;</span>
+<span class="linenos">26</span><span class="w">        </span><span class="n">snapshot</span><span class="p">.</span><span class="n">numberOfBins_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">observer</span><span class="p">.</span><span class="n">getWaveformX</span><span class="p">().</span><span class="n">size</span><span class="p">();</span>
+<span class="linenos">27</span><span class="w">        </span><span class="n">result</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">snapshot</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The atmospheric configuration builder uses
+<code class="docutils literal notranslate"><span class="pre">environment.getCoordinateSystem()</span></code>. The homogeneous-medium builder takes
+an explicit coordinate-system argument. The standard air-shower runner
+attaches native track collection in <code class="docutils literal notranslate"><span class="pre">rootCS</span></code>; its transport and observer
+configuration must use that same system. The lower-level interfaces are not
+intrinsically restricted to RootCS, but they contain no coordinate-system
+pointer that could correct mismatched arrays during a kernel.</p>
+<p><code class="docutils literal notranslate"><span class="pre">RadioConfig</span></code> owns the host observer vectors and propagation data.
+Constructing it does not allocate device storage or project tracks.
+Accumulator initialization validates and copies these values, then publishes
+borrowed numerical views for execution. A <code class="docutils literal notranslate"><span class="pre">RadioObserverView</span></code> additionally
+contains waveform offsets and accumulation scales assigned during that
+preparation. Its backing arrays must remain accessible and alive until the
+calling kernel finishes.</p>
+<p>For atmospheric table propagation, observer heights must fall in valid table
+bins. The configuration builder samples a vertical column, including a lower
+1 km margin; the environment must cover that whole column. Generic export
+from a material model does not prove that a straight atmospheric propagation
+model is appropriate for that material. The homogeneous path instead requires
+that the complete source-to-observer ray remains in the uniform medium.
+Propagation-specific support is distinct from particle environment export.</p>
+</section>
+<section id="validation-coverage">
+<h2>Validation coverage<a class="headerlink" href="#validation-coverage" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testHostRadioCollector.cpp">testHostRadioCollector.cpp</a> checks native-step conversion, shared
+coordinates, kinetic-to-total energy, weights and times, e± filtering,
+single capture and restoration of the scalar route.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testRadioSinkScope.cpp">testRadioSinkScope.cpp</a> covers the four enabled-model combinations,
+nested attachment rejection and failed second attachment.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testRadioSpoolCompatibility.cpp">testRadioSpoolCompatibility.cpp</a> checks byte compatibility with the
+retained version-1 format. <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testRadioTrackSpool.cpp">testRadioTrackSpool.cpp</a> covers serialization
+and malformed/incomplete input handling.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/host/testRadioSpoolReplay.cpp">testRadioSpoolReplay.cpp</a> compares direct collection with replay using
+several read-batch sizes and a final partial batch. This is a fixed-track
+radio comparison, not a comparison of independent showers.</p></li>
+<li><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/radio/RadioFixture.cpp">RadioFixture.cpp</a> checks observer and atmospheric-snapshot conversion
+against the retained implementation, including fractional native durations
+and independent firn export. The firn export case does not validate a
+straight-ray propagation approximation in firn.</p></li>
+</ul>
+<p>These references describe existing tests. Their presence does not establish
+that every backend has run every test. End-to-end physics validation also
+requires appropriate trajectories, propagation conditions and observables.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../radio.html" class="btn btn-neutral float-left" title="Radio calculation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="accumulation.html" class="btn btn-neutral float-right" title="Parallel projection and waveform accumulation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
