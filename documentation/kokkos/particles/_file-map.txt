@@ -1,0 +1,46 @@
+.. parsed-literal::
+
+   corsika/kokkos/data/
+   ├── `ParticleState.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleState.hpp>`_  numerical record and field conventions
+   ├── `ParticleConversion.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleConversion.hpp>`_  physical-value conversion interface
+   ├── `RouterParticleConversion.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/RouterParticleConversion.hpp>`_  complete production transfer interface
+   └── `ParticleSoA.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/data/ParticleSoA.hpp>`_  owning arrays and borrowed kernel views
+
+   corsika/detail/kokkos/data/
+   ├── `ParticleConversion.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/ParticleConversion.inl>`_  units and coordinate conversion
+   ├── `RouterParticleConversion.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/RouterParticleConversion.inl>`_  identity, logical nodes and stack insertion
+   └── `ParticleSoA.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/data/ParticleSoA.inl>`_  allocation, load, store and memory accounting
+
+   corsika/kokkos/scheduling/
+   ├── `WavefrontQueue.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/WavefrontQueue.hpp>`_  current/next fronts and transfer buffers
+   └── `PendingParticleQueue.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/scheduling/PendingParticleQueue.hpp>`_  pending numerical records
+
+   corsika/detail/kokkos/scheduling/
+   ├── `WavefrontQueue.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/WavefrontQueue.inl>`_  upload, download, scans and buffer swaps
+   └── `PendingParticleQueue.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/PendingParticleQueue.inl>`_  append, prefix access and consumption
+
+   corsika/kokkos/runtime/
+   └── `RawView.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/runtime/RawView.hpp>`_  borrowed pointers and vector-field strides
+
+Native interfaces and integration points:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 43 57
+
+   * - Source
+     - Responsibility
+   * - `VectorStack.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/VectorStack.hpp>`_
+     - Native particle accessors and backing field vectors.
+   * - `SetupStack.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/setup/SetupStack.hpp>`_
+     - Select native and hybrid stack compositions.
+   * - `TransportIdentityStackExtension.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/stack/TransportIdentityStackExtension.hpp>`_
+     - Stable identity and ancestry attached to native entries.
+   * - `TransportIdentityStackExtension.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/stack/TransportIdentityStackExtension.inl>`_
+     - Identity allocation, import and step-counter updates.
+   * - `EnvironmentTopology.hpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentTopology.hpp>`_
+     - Native node-address/index mapping used during transfer.
+   * - `EmRouter.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl>`_
+     - Stage records, populate the medium ID and process returns.
+   * - `StaticFrontier.inl <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/StaticFrontier.inl>`_
+     - Versioned frontier fields and environment validation.

@@ -1,0 +1,18 @@
+.. list-table::
+   :header-rows: 1
+   :widths: 39 61
+
+   * - Test source
+     - Contract exercised
+   * - `testParticleConversion.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/testParticleConversion.cpp>`_
+     - PDG and total/kinetic energy conversion; units, translated/rotated frames, unchanged source and metadata; weight support and invalid inputs.
+   * - `testParticleTransfer.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/em/proposal/testParticleTransfer.cpp>`_
+     - Complete transfer for photons, electrons, positrons and muons; preserved identity and logical nodes; separate air, ice, rock and firn transfer fixtures.
+   * - `testTransportIdentity.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/stack/testTransportIdentity.cpp>`_
+     - Identity preservation under native stack compaction and ancestry; ID reservation, import and overflow behavior.
+   * - `testParticleQueues.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/testParticleQueues.cpp>`_
+     - Upload/download, stable compaction, secondary offsets, buffer swaps, pending-prefix order, growth and synchronization guards.
+   * - `ParticleStateHeader.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/data/ParticleStateHeader.cpp>`_
+     - Standalone inclusion and record alignment. This is a compile check, not transport validation.
+   * - `ParticleSoAHeader.cpp <https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/kokkos/runtime/ParticleSoAHeader.cpp>`_
+     - Standalone inclusion of the array-storage interface.
