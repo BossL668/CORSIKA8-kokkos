@@ -156,11 +156,37 @@ profile:
 
    source /opt/dtk-22.10.1/env.sh
    hipcc --version
+   python tools/check_hip_runtime.py
    export C8_KOKKOS_PROFILE=hip-vega906-dtk221001
    bash tools/build_kokkos.sh hip --check
    C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
 
-Adjust the environment path to the installation on your machine. The
+Adjust the environment path to the installation on your machine. Before building,
+the runtime check above loads ``libamdhip64.so`` and queries visible devices; it
+does not compile the application. A library-loading error points to the SDK or
+its shared-library dependencies. A no-device error requires checking the kernel
+driver, device permissions and visibility settings. This query does not validate
+kernel execution; run the installed device helper and a small event afterward.
+
+The kernel driver is separate from DTK. Seeing a card in ``lspci`` or successfully
+compiling HIP code does not prove that the driver is loaded. Check ``lspci -nnk``
+for a driver bound to the intended device. If no compute driver is bound, an
+administrator must install the vendor package compatible with the GPU, operating
+system and running kernel; unpacking DTK or changing user groups cannot replace
+this step.
+
+``hip-vega906-dtk221001`` declares Clang 14. For a gfx906 target with DTK 26.04
+and Clang 17, ``hip-vega906-dtk2604`` supplies the matching compiler settings.
+The latter has passed compiler/profile preflight only; complete application
+and GPU validation are pending. Confirm the device architecture through the
+runtime helper once the driver is working. Do not reuse an old build directory
+after changing DTK. The build helper rejects directly declared compiler-major
+mismatches; inspect ``conan profile show`` for inherited custom profiles.
+
+``--check`` verifies build prerequisites without requiring a working GPU. It is
+separate from ``tools/check_hip_runtime.py`` and the eventual event test.
+
+The
 ``hip-vega90a`` profile is an example for a different ROCm/compiler setup;
 it is not a universal HIP profile. The account also needs access to the GPU
 device files, normally ``/dev/kfd`` and ``/dev/dri/renderD*``. Ask the system

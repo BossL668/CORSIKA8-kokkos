@@ -291,12 +291,34 @@ both its compiler and GPU architecture. For the supplied Z100L / DTK 22.10.1
 profile:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span>/opt/dtk-22.10.1/env.sh
 hipcc<span class="w"> </span>--version
+python<span class="w"> </span>tools/check_hip_runtime.py
 <span class="nb">export</span><span class="w"> </span><span class="nv">C8_KOKKOS_PROFILE</span><span class="o">=</span>hip-vega906-dtk221001
 bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>hip<span class="w"> </span>--check
 <span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>hip
 </pre></div>
 </div>
-<p>Adjust the environment path to the installation on your machine. The
+<p>Adjust the environment path to the installation on your machine. Before building,
+the runtime check above loads <code class="docutils literal notranslate"><span class="pre">libamdhip64.so</span></code> and queries visible devices; it
+does not compile the application. A library-loading error points to the SDK or
+its shared-library dependencies. A no-device error requires checking the kernel
+driver, device permissions and visibility settings. This query does not validate
+kernel execution; run the installed device helper and a small event afterward.</p>
+<p>The kernel driver is separate from DTK. Seeing a card in <code class="docutils literal notranslate"><span class="pre">lspci</span></code> or successfully
+compiling HIP code does not prove that the driver is loaded. Check <code class="docutils literal notranslate"><span class="pre">lspci</span> <span class="pre">-nnk</span></code>
+for a driver bound to the intended device. If no compute driver is bound, an
+administrator must install the vendor package compatible with the GPU, operating
+system and running kernel; unpacking DTK or changing user groups cannot replace
+this step.</p>
+<p><code class="docutils literal notranslate"><span class="pre">hip-vega906-dtk221001</span></code> declares Clang 14. For a gfx906 target with DTK 26.04
+and Clang 17, <code class="docutils literal notranslate"><span class="pre">hip-vega906-dtk2604</span></code> supplies the matching compiler settings.
+The latter has passed compiler/profile preflight only; complete application
+and GPU validation are pending. Confirm the device architecture through the
+runtime helper once the driver is working. Do not reuse an old build directory
+after changing DTK. The build helper rejects directly declared compiler-major
+mismatches; inspect <code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">profile</span> <span class="pre">show</span></code> for inherited custom profiles.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--check</span></code> verifies build prerequisites without requiring a working GPU. It is
+separate from <code class="docutils literal notranslate"><span class="pre">tools/check_hip_runtime.py</span></code> and the eventual event test.</p>
+<p>The
 <code class="docutils literal notranslate"><span class="pre">hip-vega90a</span></code> profile is an example for a different ROCm/compiler setup;
 it is not a universal HIP profile. The account also needs access to the GPU
 device files, normally <code class="docutils literal notranslate"><span class="pre">/dev/kfd</span></code> and <code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code>. Ask the system
