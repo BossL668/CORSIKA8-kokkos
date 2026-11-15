@@ -25,6 +25,7 @@ Run install/<backend>/bin/c8_air_shower directly.
 FLUKA is ON by default: set FLUPRO to the complete licensed installation.
 -DWITH_FLUKA=OFF explicitly selects a build without FLUKA (different physics).
 --check checks prerequisites and reports the plan without downloading/building.
+It does not verify GPU access. For HIP, run tools/check_hip_runtime.py separately.
 C8_BUILD_JOBS defaults to 1. C8_WORKSPACE overrides the source's parent directory.
 C8_KOKKOS_PROFILE selects an explicit GPU profile (required for HIP/SYCL).
 CUDA otherwise detects the GPU; C8_CUDA_DEVICE selects an nvidia-smi index/UUID
@@ -161,6 +162,14 @@ for c8_backend in "${c8_backends[@]}"; do
     # CMake's HIP language uses Clang directly, whereas C++ uses hipcc.
     # DTK puts amd_comgr's package in lib64; compiler probes need it too.
     export HIPCXX=${HIPCXX:-"$c8_llvm/clang++"}
+    c8_hip_version=$("$HIPCXX" --version) || fail 'Cannot execute the selected HIP compiler'
+    c8_hip_major=$(sed -n 's/.*clang version \([0-9][0-9]*\).*/\1/p' <<< "$c8_hip_version" | head -n 1)
+    [[ -n $c8_hip_major ]] || fail 'Cannot identify the selected HIP compiler version'
+    # Bundled profiles declare this setting directly. Conan resolves inherited
+    # custom settings when constructing the dependency graph.
+    c8_profile_major=$(sed -n 's/^compiler.version=\([0-9][0-9]*\).*/\1/p' "$c8_profile" | tail -n 1)
+    [[ -z $c8_profile_major || $c8_profile_major == "$c8_hip_major" ]] || fail \
+      "HIP compiler is Clang $c8_hip_major, but $c8_profile requires Clang $c8_profile_major. Select a matching profile or source the matching ROCm/DTK environment."
     export CMAKE_PREFIX_PATH="$c8_rocm:$c8_rocm/lib64/cmake${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
     c8_arch=$(sed -n 's/^&:kokkos_architecture=//p' "$c8_profile")
     case "$c8_arch" in
@@ -190,7 +199,11 @@ fi
 if [[ ${C8_BUILD_PROFILE:-default} != default ]]; then
   conan profile path "$C8_BUILD_PROFILE" >/dev/null || fail 'Conan build profile not found'
 fi
-$c8_check && { echo 'Prerequisite checks passed; no dependencies downloaded or builds started.'; exit 0; }
+$c8_check && {
+  echo 'Build prerequisite checks passed; no dependencies downloaded or builds started.'
+  [[ -z ${c8_seen[hip]:-} ]] || echo "HIP runtime access has not been checked. Run: $c8_python $c8_source/tools/check_hip_runtime.py"
+  exit 0
+}
 bash "$c8_source/tools/prepare_data.sh"
 for c8_backend in "${c8_backends[@]}"; do
   # Keep HIP compiler flags local to this backend, including dependency builds.

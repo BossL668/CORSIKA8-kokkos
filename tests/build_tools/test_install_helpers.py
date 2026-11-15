@@ -101,7 +101,7 @@ elif name == 'build-python' and os.environ.get('MISSING_PYTHON_MODULE') == '1':
         runtime = self.root / 'dtk'
         compiler = runtime / 'llvm/bin/clang++'
         compiler.parent.mkdir(parents=True)
-        compiler.write_text('#!/bin/sh\nexit 0\n')
+        compiler.write_text('#!/bin/sh\nprintf "clang version %s.0.0\\n" "${HIP_TEST_CLANG:-14}"\n')
         compiler.chmod(0o755)
         self.env.update(C8_KOKKOS_PROFILE='hip-vega906-dtk221001',
                         HIP_TEST_ROOT=str(runtime))
@@ -122,6 +122,22 @@ elif name == 'build-python' and os.environ.get('MISSING_PYTHON_MODULE') == '1':
         (runtime / 'llvm/bin/clang++').unlink()
         rows = self.run_helper('tools/build_kokkos.sh', 'hip', expected=2)
         self.assertIn('Source the ROCm/DTK environment', self.result.stderr)
+        self.assert_no_build(rows)
+
+    def test_hip_rejects_mismatched_compiler_profile(self):
+        self.prepare_hip()
+        self.env['HIP_TEST_CLANG'] = '17'
+        rows = self.run_helper('tools/build_kokkos.sh', 'hip', '--check', expected=2)
+        self.assertIn('HIP compiler is Clang 17', self.result.stderr)
+        self.assertIn('requires Clang 14', self.result.stderr)
+        self.assert_no_build(rows)
+
+    def test_hip_dtk2604_profile_accepts_clang17(self):
+        self.prepare_hip()
+        self.env.update(HIP_TEST_CLANG='17', C8_KOKKOS_PROFILE='hip-vega906-dtk2604')
+        rows = self.run_helper('tools/build_kokkos.sh', 'hip', '--check')
+        self.assertIn('hip-vega906-dtk2604', self.result.stdout)
+        self.assertIn('HIP runtime access has not been checked', self.result.stdout)
         self.assert_no_build(rows)
 
     def test_hip_architecture_flags_do_not_leak_to_next_backend(self):

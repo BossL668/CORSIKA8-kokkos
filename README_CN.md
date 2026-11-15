@@ -318,6 +318,10 @@ Conan 缓存默认在 `~/.conan2`，它不跟随 `C8_WORKSPACE` 移动；需要�
 Kokkos 为 4.7.03。先完成上面的系统工具、FLUKA 和 Conda/venv 配置；HIP 用户
 跳过 NVIDIA 工具链步骤。构建脚本不安装或替换系统驱动与 DTK。
 
+内核驱动与 DTK 用户态工具包是两个独立条件。`lspci` 能看到卡不等于计算驱动已加载；
+先用 `lspci -nnk` 确认对应设备绑定了驱动。驱动包必须匹配显卡、操作系统和正在运行的
+内核；仅解压 DTK 或加入用户组，无法补上缺失的内核驱动。
+
 激活构建环境后，加载服务器上的 DTK（路径按实际安装修改）：
 
 ```bash
@@ -325,19 +329,35 @@ source /opt/dtk-22.10.1/env.sh
 hipcc --version
 hipconfig -R
 hipconfig -l
+python tools/check_hip_runtime.py
 ls -l /dev/kfd /dev/dri/renderD*
 id
 ```
+
+以上 Python 检查在源码目录执行，无需先编译 Cp8。它直接调用 HIP 查询可见设备：
+共享库加载失败时检查 DTK 环境及依赖；设备数为零或运行时出错时检查驱动、权限和
+设备可见性。设备发现成功仍不代表内核执行通过，安装后还要运行小事例。
 
 运行时账户需要对 GPU 设备文件有读写权限。采用 `video`、`render` 组的服务器，
 可请管理员执行 `sudo usermod -aG video,render "$USER"`，随后退出并重新登录。
 编译成功不代表已取得 GPU 访问权限。其他 ROCm／GPU 架构需使用匹配的 profile；
 `hip-vega90a` 是示例配置，不表示本轮已验证该硬件。
 
+profile 必须匹配实际编译器，不能只根据卡名选择：
+
+| 目标架构 | 工具链 | profile | 验证范围 |
+| --- | --- | --- | --- |
+| gfx906 | DTK 22.10.1 / Clang 14 | `hip-vega906-dtk221001` | 之前已验证的 Z100L 配置 |
+| gfx906 | DTK 26.04 / Clang 17 | `hip-vega906-dtk2604` | 仅编译器/profile 预检查，完整构建及 GPU 验证待完成 |
+
+脚本会拒绝与 profile 直接声明的 Clang 主版本不匹配的编译器。自定义继承 profile 还应
+检查 `conan profile show` 的最终设置。新显卡的实际架构应在驱动正常后用设备查询确认。
+
 在源码目录编译，保持 `FLUPRO` 指向完整的授权 FLUKA 安装：
 
 ```bash
 export C8_KOKKOS_PROFILE=hip-vega906-dtk221001
+# DTK 26.04 / Clang 17、目标 gfx906 改用 hip-vega906-dtk2604。
 bash tools/build_kokkos.sh hip --check
 C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
 ```
@@ -346,6 +366,8 @@ C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
 Kokkos 配方启用该工具链需要的显式 HIP 内核启动边界。输出位于 `build/hip` 和
 `install/hip`。更换 DTK／ROCm、编译器或架构时使用新构建目录。Python 只用于构建，
 运行入口仍是原生二进制。
+
+`--check` 只检查构建前提，不验证驱动或执行 GPU 内核；不要省略前面的运行时检查。
 
 回到工作区目录，先检查设备并运行小事例：
 

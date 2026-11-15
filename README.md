@@ -368,6 +368,12 @@ The installer does not replace a system GPU driver or install DTK. Source builds
 of dependencies also need Perl with `IPC::Cmd` (`perl-core` / `perl-IPC-Cmd`
 on RPM-based systems); check with `perl -MIPC::Cmd -e 1`.
 
+The kernel driver and the DTK user-space SDK are separate prerequisites. A card
+listed by `lspci` does not establish that its compute driver is loaded. Check
+`lspci -nnk` for a driver bound to the intended card, and use the vendor's driver
+package for the installed GPU, distribution and running kernel. Unpacking DTK
+or adding the account to a group cannot supply a missing kernel driver.
+
 Activate the Conda/venv build environment prepared above, then source the
 site's DTK environment (adjust this path if needed):
 
@@ -376,20 +382,41 @@ source /opt/dtk-22.10.1/env.sh
 hipcc --version
 hipconfig -R
 hipconfig -l
+python tools/check_hip_runtime.py
 ls -l /dev/kfd /dev/dri/renderD*
 id
 ```
+
+Run the Python check from the source directory. It calls the HIP runtime's
+device query without compiling CORSIKA. A missing runtime library indicates an
+environment/library setup problem; zero devices or a runtime error requires
+checking the driver, device permissions and visibility settings before a shower
+test. Device discovery alone does not validate kernel execution.
 
 The account must have read/write access to the GPU device files at runtime.
 On systems that use `video` and `render` groups, an administrator can add the
 account with `sudo usermod -aG video,render "$USER"`; log out and back in
 afterward. A successful compilation alone does not establish GPU access.
 
+Select the profile matching the **active compiler**, not just the card name:
+
+| GPU target | SDK/compiler | Profile | Validation scope |
+| --- | --- | --- | --- |
+| gfx906 | DTK 22.10.1 / Clang 14 | `hip-vega906-dtk221001` | Previously tested Z100L configuration |
+| gfx906 | DTK 26.04 / Clang 17 | `hip-vega906-dtk2604` | Compiler/profile preflight only; full application and GPU validation pending |
+
+The helper rejects a compiler-major mismatch declared directly in a profile.
+For an inherited custom profile, also inspect `conan profile show` and verify
+the resolved compiler settings. Do not reuse an old build/cache configuration
+after changing the toolkit. On a new card, confirm its architecture using the
+runtime device query rather than inferring it from the product name alone.
+
 From the source directory, with `FLUPRO` still pointing to the complete licensed
 FLUKA installation:
 
 ```bash
 export C8_KOKKOS_PROFILE=hip-vega906-dtk221001
+# For DTK 26.04 / Clang 17 targeting gfx906, use hip-vega906-dtk2604 instead.
 bash tools/build_kokkos.sh hip --check
 C8_BUILD_JOBS=1 bash tools/build_kokkos.sh hip
 ```
@@ -400,6 +427,10 @@ explicit HIP kernel launch bounds needed by this toolchain. Build and installati
 directories are `build/hip` and `install/hip`; use a fresh directory after changing
 DTK/ROCm, the compiler or GPU architecture. Python is only a build dependency;
 the application entry remains a native binary.
+
+`--check` checks build prerequisites and the selected profile; it does not run
+a GPU kernel or verify the device driver. Keep the runtime check above separate
+from this build-only check, especially when compiling on a host without GPU access.
 
 From the workspace directory, first check the installed helper and run a small
 single-GPU event:
