@@ -13,7 +13,6 @@
 #include <corsika/framework/geometry/FourVector.hpp>
 
 #include <tuple>
-#include <vector>
 
 namespace corsika::sophia {
 
@@ -45,8 +44,8 @@ namespace corsika::sophia {
      * SOPHIA only accepts nucleons as targets, that is protons (Hydrogen) or
      * neutrons.
      */
-    bool isValid(Code const projectileId, Code const targetId,
-                 HEPEnergyType const sqrtSnn) const;
+    bool constexpr isValid(Code const projectileId, Code const targetId,
+                           HEPEnergyType const sqrtSnn) const;
 
     /**
      * Returns inelastic (production) cross section.

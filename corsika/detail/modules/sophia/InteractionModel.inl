@@ -9,7 +9,6 @@
 
 #include <corsika/framework/geometry/Point.hpp>
 #include <corsika/modules/sophia/ParticleConversion.hpp>
-#include <corsika/modules/sophia/ThresholdKinematics.hpp>
 #include <corsika/framework/utility/COMBoost.hpp>
 #include <corsika/modules/Random.hpp>
 #include <corsika/modules/sophia/SophiaStack.hpp>
@@ -26,34 +25,24 @@ namespace corsika::sophia {
     corsika::connect_random_stream(RNG_, ::sophia::set_rng_function);
     // set all particles stable in SOPHIA
     for (int i = 0; i < 49; ++i) so_csydec_.idb[i] = -abs(so_csydec_.idb[i]);
-    // Broad resonances are generated with their sampled off-shell mass.  They
-    // must decay before conversion to the on-shell CORSIKA stack; otherwise
-    // rebuilding E from the sampled momentum and the nominal CORSIKA mass can
-    // create O(10--100 MeV) at a single photo-hadronic vertex.  Keep long-lived
-    // particles stable for normal CORSIKA transport, but restore SOPHIA decays
-    // for rho/omega/phi-like states and the four Delta charge states.  The
-    // indices below are C++ (zero-based) forms of SOPHIA IDB(25,26,27,32,33)
-    // and IDB(40:43).
-    for (int const i : {24, 25, 26, 31, 32, 39, 40, 41, 42}) {
-      so_csydec_.idb[i] = abs(so_csydec_.idb[i]);
-    }
   }
 
   inline InteractionModel::~InteractionModel() {
     CORSIKA_LOG_DEBUG("Sophia::Model n={}", count_);
   }
 
-  inline bool InteractionModel::isValid(Code const projectileId, Code const targetId,
-                                        HEPEnergyType const sqrtSnn) const {
+  inline bool constexpr InteractionModel::isValid(Code const projectileId,
+                                                  Code const targetId,
+                                                  HEPEnergyType const sqrtSnn) const {
+    if ((minEnergyCoM_ > sqrtSnn) || (sqrtSnn > maxEnergyCoM_)) { return false; }
+
     if (!(targetId == Code::Proton || targetId == Code::Neutron ||
           targetId == Code::Hydrogen))
       return false;
 
     if (projectileId != Code::Photon) return false;
 
-    auto const internal_sqrt_s = internal_com_energy(targetId, sqrtSnn);
-    return internal_sqrt_s >= sqrt(InternalPhotopionThresholdSGeV2) * 1_GeV &&
-           internal_sqrt_s <= maxEnergyCoM_;
+    return true;
   }
 
   template <typename TSecondaryView>
@@ -85,13 +74,12 @@ namespace corsika::sophia {
 
     COMBoost const boost(projectileP4, targetP4);
 
-    auto const internal_target = internal_nucleon_code(targetId);
-    int nucleonSophiaCode = convertToSophiaRaw(internal_target);
+    int nucleonSophiaCode = convertToSophiaRaw(targetId); // either proton or neutron
     // initialize resonance spectrum
     initial_(nucleonSophiaCode);
     // Sophia does sqrt(1 - mass_sophia / mass_c8), so we need to make sure that E0 >=
     // m_sophia
-    double Enucleon = std::max(corsika::sophia::getSophiaMass(internal_target) / 1_GeV,
+    double Enucleon = std::max(corsika::sophia::getSophiaMass(targetId) / 1_GeV,
                                targetP4.getTimeLikeComponent() / 1_GeV);
     double Ephoton = projectileP4.getTimeLikeComponent() / 1_GeV;
     double theta = 0.0; // set nucleon at rest in collision
@@ -116,99 +104,36 @@ namespace corsika::sophia {
         make_rotation(csPrime, QuantityVector<length_d>{1_m, 0_m, 0_m}, M_PI);
 
     SophiaStack ss;
-    if (ss.getSize() == 0) {
-      throw std::runtime_error(
-          "SOPHIA returned an empty final state for a collision accepted by "
-          "its C++ capability check");
-    }
 
-    std::vector<std::pair<Code, MomentumVector>> on_shell_candidates;
-    on_shell_candidates.reserve(ss.getSize());
+    MomentumVector P_final(originalCS, {0.0_GeV, 0.0_GeV, 0.0_GeV});
+    HEPEnergyType E_final = 0_GeV;
     for (auto& psop : ss) {
-      // Decayed broad resonances remain in SOPHIA's event record with a
-      // status offset.  Only their on-shell decay products belong on the
-      // CORSIKA secondary stack.
-      if (psop.hasDecayed()) { continue; }
+      // abort on particles that have decayed in SOPHIA. Should not happen!
+      if (psop.hasDecayed()) { // LCOV_EXCL_START
+        throw std::runtime_error("found particle that decayed in SOPHIA!");
+      } // LCOV_EXCL_STOP
 
       auto momentumSophia = psop.getMomentum(csPrimePrime);
       momentumSophia.rebase(csPrime);
       auto const energySophia = psop.getEnergy();
       auto const P4com = boostInternal.toCoM(FourVector{energySophia, momentumSophia});
+      auto const P4lab = boost.fromCoM(P4com);
       SophiaCode const pidSophia = psop.getPID();
       Code const pid = convertFromSophia(pidSophia);
-      on_shell_candidates.emplace_back(pid, P4com.getSpaceLikeComponents());
-
-      CORSIKA_LOGGER_TRACE(logger_, "SOPHIA: pid={}, p={} GeV", pidSophia,
-                           momentumSophia.getComponents() / 1_GeV);
-    }
-
-    // Remove the small legacy-generator COM momentum residual with the
-    // minimum equal-share correction before applying an energy scale.  This
-    // prevents near-threshold scale factors from amplifying an O(MeV)
-    // imbalance while preserving relative momenta as closely as possible.
-    if (on_shell_candidates.empty()) {
-      throw std::runtime_error("SOPHIA returned no undecayed final-state particles");
-    }
-    MomentumVector mean_com_momentum(csPrime, {0.0_GeV, 0.0_GeV, 0.0_GeV});
-    for (auto const& [pid, momentum] : on_shell_candidates) {
-      static_cast<void>(pid);
-      mean_com_momentum += momentum;
-    }
-    mean_com_momentum *= 1. / static_cast<double>(on_shell_candidates.size());
-    for (auto& [pid, momentum] : on_shell_candidates) {
-      static_cast<void>(pid);
-      momentum -= mean_com_momentum;
-    }
-
-    // SOPHIA samples broad-resonance masses.  After those resonances decay,
-    // project the stable final state onto the CORSIKA nominal mass shell in
-    // the collision COM frame.  A common momentum scale preserves the
-    // generated directions and COM momentum closure while enforcing the
-    // exact incoming sqrt(s).
-    HEPEnergyType rest_mass_sum = 0_GeV;
-    for (auto const& [pid, momentum] : on_shell_candidates) {
-      static_cast<void>(momentum);
-      rest_mass_sum += get_mass(pid);
-    }
-    if (rest_mass_sum > sqrtS + 1.e-9 * 1_GeV) {
-      throw std::runtime_error(
-          "SOPHIA final-state nominal masses exceed available COM energy");
-    }
-    auto const total_com_energy = [&](double const scale) {
-      HEPEnergyType total = 0_GeV;
-      for (auto const& [pid, momentum] : on_shell_candidates) {
-        total += calculate_total_energy(momentum.getNorm() * scale, get_mass(pid));
-      }
-      return total;
-    };
-    double lower_scale = 0.;
-    double upper_scale = 1.;
-    while (total_com_energy(upper_scale) < sqrtS) { upper_scale *= 2.; }
-    for (int iteration = 0; iteration < 80; ++iteration) {
-      auto const middle = 0.5 * (lower_scale + upper_scale);
-      if (total_com_energy(middle) < sqrtS) {
-        lower_scale = middle;
-      } else {
-        upper_scale = middle;
-      }
-    }
-    auto const on_shell_scale = 0.5 * (lower_scale + upper_scale);
-
-    MomentumVector P_final(originalCS, {0.0_GeV, 0.0_GeV, 0.0_GeV});
-    HEPEnergyType E_final = 0_GeV;
-    for (auto const& [pid, raw_com_momentum] : on_shell_candidates) {
-      auto const com_momentum = raw_com_momentum * on_shell_scale;
-      auto const com_energy =
-          calculate_total_energy(com_momentum.getNorm(), get_mass(pid));
-      auto const P4lab = boost.fromCoM(FourVector{com_energy, com_momentum});
       auto momentum = P4lab.getSpaceLikeComponents();
       momentum.rebase(originalCS);
       HEPEnergyType const Ekin =
           calculate_kinetic_energy(momentum.getNorm(), get_mass(pid));
+
+      CORSIKA_LOGGER_TRACE(logger_, "SOPHIA: pid={}, p={} GeV", pidSophia,
+                           momentumSophia.getComponents() / 1_GeV);
+
       CORSIKA_LOGGER_TRACE(logger_, "CORSIKA: pid={}, p={} GeV", pid,
                            momentum.getComponents() / 1_GeV);
+
       auto pnew =
           secondaries.addSecondary(std::make_tuple(pid, Ekin, momentum.normalized()));
+
       P_final += pnew.getMomentum();
       E_final += pnew.getEnergy();
     }

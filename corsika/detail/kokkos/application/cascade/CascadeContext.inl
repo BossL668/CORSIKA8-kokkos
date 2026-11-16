@@ -25,6 +25,6 @@ namespace corsika::kokkos::application::detail {
         e.tracking_, e.stack_, e.output_, e.hadronicPool_.get_ptr(), e.configurePrimary_,
         d.photoHigh_, d.photoLow_, d.photoHighBefore_, d.photoLowBefore_, d.highCounter_,
         d.lowCounter_, d.highInteractionsBefore_, d.lowInteractionsBefore_,
-        d.highTimingsBefore_, d.lowTimingsBefore_, d.poolBefore_, d.photoFallback_);
+        d.highTimingsBefore_, d.lowTimingsBefore_, d.poolBefore_);
   }
 } // namespace corsika::kokkos::application::detail

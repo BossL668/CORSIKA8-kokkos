@@ -48,7 +48,9 @@ extern struct {
 
 // additional particle stack for the mother particles of unstable particles
 // stable particles have entry zero
-extern struct { int llist1[2000]; } so_plist1_;
+extern struct {
+  int llist1[2000];
+} so_plist1_;
 
 // tables with particle properties
 // charge, strangeness and baryon number
@@ -80,6 +82,5 @@ void print_event_(const int&);
 
 double rndm_(int&);
 
-double get_sophia_mass(int&);
 double get_sophia_mass2(int&);
 }

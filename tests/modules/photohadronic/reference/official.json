@@ -1,0 +1,15 @@
+{
+  "commit": "74ebbc28051de3600aab133c225e387801b035a5",
+  "sha256": {
+    "corsika/modules/sophia/InteractionModel.hpp": "d6066f77205172a40c17f67f9cbd2a9ffa87c8db2c93a8687c1b580c7178bbd9",
+    "corsika/detail/modules/sophia/InteractionModel.inl": "065af2db0a400c84e98d53e8ff4ec04890a8b2d3794e3235fe9b29ffab616c57",
+    "corsika/modules/sophia/ParticleConversion.hpp": "240dee1694675d26e4990b90918a63516fab9dbedb179d4be3d3051ef6602b35",
+    "corsika/detail/modules/sophia/ParticleConversion.inl": "d9e6d24a591d2ded6d1473b85c334f0fff6f152000fda4ae335935c85c6d3518",
+    "corsika/modules/proposal/HadronicPhotonModel.hpp": "ec0adf68d0273d55c3effc52169b3fa642283e3a492015ef2498a289ee4fce6a",
+    "corsika/detail/modules/proposal/HadronicPhotonModel.inl": "56aef15d36956d1953e3f2979452868dc148adcaaa3f72d99194bd9f92dc4053",
+    "modules/sophia/sophia.cpp": "2d76831721714251be102d5a6cceaada9a0a6e625b26d1060b6a531796982c78",
+    "modules/sophia/sophia.hpp": "7b5cb0efe51840310e3ef9e9ef258dcb73758b369fb51d59eda1194455043731",
+    "modules/sophia/eventgen.f": "a85bba522d2aefcc533694cd1b3c21e60a9986c3297df08e77a3d1058849b234",
+    "modules/sophia/jetset74dp.f": "32d169fea34f1cbfc89cac68d9b7c171c58f43fb41c4a9116565f77149464d35"
+  }
+}

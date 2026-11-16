@@ -42,8 +42,8 @@ namespace corsika::kokkos::application {
   CascadeGeometry(TEnvironment&, TCoordinates const&, TPosition const&, TSurface const&,
                   TStep const&, TAxis const&, TDepth const&, double, double, double,
                   std::array<double, 3>)
-      ->CascadeGeometry<TEnvironment, TCoordinates, TPosition, TSurface, TStep, TAxis,
-                        TDepth>;
+      -> CascadeGeometry<TEnvironment, TCoordinates, TPosition, TSurface, TStep, TAxis,
+                         TDepth>;
 
   template <typename TEnergyLoss, typename TLongitudinal, typename TProduction,
             typename TObservation, typename TInteractions, typename TCoreasDetector,
@@ -63,8 +63,8 @@ namespace corsika::kokkos::application {
             typename TZhsDetector>
   CascadeOutputs(TEnergyLoss&, TLongitudinal&, TProduction&, TObservation&,
                  TInteractions&, TCoreasDetector&, TZhsDetector&)
-      ->CascadeOutputs<TEnergyLoss, TLongitudinal, TProduction, TObservation,
-                       TInteractions, TCoreasDetector, TZhsDetector>;
+      -> CascadeOutputs<TEnergyLoss, TLongitudinal, TProduction, TObservation,
+                        TInteractions, TCoreasDetector, TZhsDetector>;
 
   template <typename TCoreas, typename TZhs, typename TEmCascade,
             typename TEmContinuousProposal, typename TInspector, typename TNeutrino,
@@ -95,9 +95,9 @@ namespace corsika::kokkos::application {
   CascadeProcesses(TCoreas&, TZhs&, TEmCascade&, TEmContinuousProposal&, TInspector&,
                    TNeutrino&, THadron&, TDecay&, TEmContinuous&, TLongitudinal&,
                    TProduction&, TThinning&, TCut&)
-      ->CascadeProcesses<TCoreas, TZhs, TEmCascade, TEmContinuousProposal, TInspector,
-                         TNeutrino, THadron, TDecay, TEmContinuous, TLongitudinal,
-                         TProduction, TThinning, TCut>;
+      -> CascadeProcesses<TCoreas, TZhs, TEmCascade, TEmContinuousProposal, TInspector,
+                          TNeutrino, THadron, TDecay, TEmContinuous, TLongitudinal,
+                          TProduction, TThinning, TCut>;
 
   template <typename TSequence, typename TTracking, typename TStack, typename TOutput,
             typename TPool, typename TConfigurePrimary>
@@ -114,11 +114,12 @@ namespace corsika::kokkos::application {
             typename TPool, typename TConfigurePrimary>
   CascadeExecution(TSequence&, TTracking&, TStack&, TOutput&, boost::optional<TPool&>,
                    TConfigurePrimary&)
-      ->CascadeExecution<TSequence, TTracking, TStack, TOutput, TPool, TConfigurePrimary>;
+      -> CascadeExecution<TSequence, TTracking, TStack, TOutput, TPool,
+                          TConfigurePrimary>;
 
   template <typename TPhotoHigh, typename TPhotoLow, typename TPhotoHighStats,
             typename TPhotoLowStats, typename THighCounter, typename TLowCounter,
-            typename TPoolStatistics, typename TPhotoFallback>
+            typename TPoolStatistics>
   struct CascadeDiagnostics {
     TPhotoHigh& photoHigh_;
     TPhotoLow& photoLow_;
@@ -131,18 +132,16 @@ namespace corsika::kokkos::application {
     std::size_t highTimingsBefore_;
     std::size_t lowTimingsBefore_;
     TPoolStatistics const& poolBefore_;
-    TPhotoFallback const& photoFallback_;
   };
 
   template <typename TPhotoHigh, typename TPhotoLow, typename TPhotoHighStats,
             typename TPhotoLowStats, typename THighCounter, typename TLowCounter,
-            typename TPoolStatistics, typename TPhotoFallback>
+            typename TPoolStatistics>
   CascadeDiagnostics(TPhotoHigh&, TPhotoLow&, TPhotoHighStats const&,
                      TPhotoLowStats const&, THighCounter&, TLowCounter&, std::uint64_t,
-                     std::uint64_t, std::size_t, std::size_t, TPoolStatistics const&,
-                     TPhotoFallback const&)
-      ->CascadeDiagnostics<TPhotoHigh, TPhotoLow, TPhotoHighStats, TPhotoLowStats,
-                           THighCounter, TLowCounter, TPoolStatistics, TPhotoFallback>;
+                     std::uint64_t, std::size_t, std::size_t, TPoolStatistics const&)
+      -> CascadeDiagnostics<TPhotoHigh, TPhotoLow, TPhotoHighStats, TPhotoLowStats,
+                            THighCounter, TLowCounter, TPoolStatistics>;
 
   template <typename TGeometry, typename TOutputs, typename TProcesses,
             typename TExecution, typename TDiagnostics>
@@ -155,7 +154,7 @@ namespace corsika::kokkos::application {
   };
 
   template <typename TG, typename TO, typename TP, typename TE, typename TD>
-  CascadeContext(TG, TO, TP, TE, TD)->CascadeContext<TG, TO, TP, TE, TD>;
+  CascadeContext(TG, TO, TP, TE, TD) -> CascadeContext<TG, TO, TP, TE, TD>;
 
   namespace detail {
     // The single, tested mapping to the established positional interface.

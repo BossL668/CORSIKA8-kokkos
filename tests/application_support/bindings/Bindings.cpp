@@ -70,8 +70,8 @@ namespace {
     Marker fallback;
     original::KokkosAirShowerMonitors before{photoHigh, photoLow, high,
                                              low,       &pool,    fallback};
-    current::CascadeMonitors after{
-        photoHigh, photoLow, high, low, boost::optional<Pool&>(pool), fallback};
+    current::CascadeMonitors after{photoHigh, photoLow, high, low,
+                                   boost::optional<Pool&>(pool)};
     auto a = before.capture(beforeHigh, beforeLow);
     auto const previousCalls = calls;
     calls.clear();
@@ -179,7 +179,7 @@ namespace {
         current::CascadeExecution{m[27], m[28], m[29], m[30],
                                   boost::optional<Marker&>(m[31]), m[32]},
         current::CascadeDiagnostics{m[33], m[34], m[35], m[36], m[37], m[38], 701, 702,
-                                    703, 704, m[39], m[40]}};
+                                    703, 704, m[39]}};
     original::KokkosAirShowerContext before{
         original::KokkosAirShowerGeometry{m[0], m[1], m[2], m[3], m[4], m[5], m[6], 1.25,
                                           2.5, 3.75, magnetic},
@@ -195,7 +195,9 @@ namespace {
     };
     auto a = original::detail::withKokkosAirShowerArguments(before, serialize);
     auto b = current::detail::with_cascade_arguments(after, serialize);
-    require(a == b && b.size() == 49);
+    // The removed fallback model was the final diagnostics argument.
+    a.pop_back();
+    require(a == b && b.size() == 48);
     std::vector<std::string> expected{"M0",
                                       "M1",
                                       "M2",
@@ -243,8 +245,7 @@ namespace {
                                       "702",
                                       "703",
                                       "704",
-                                      "M39",
-                                      "M40"};
+                                      "M39"};
     for (unsigned i = 0; i < b.size(); ++i) {
       require(b[i] == expected[i]);
       std::cout << i << ' ' << b[i] << '\n';

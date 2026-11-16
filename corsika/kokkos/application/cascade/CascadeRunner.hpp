@@ -57,7 +57,7 @@ namespace corsika::kokkos::application {
             typename TConfigureForcedPrimary, typename TPhotoHighEnergy,
             typename TPhotoLowEnergy, typename TPhotoHighStatistics,
             typename TPhotoLowStatistics, typename THighEnergyCounter,
-            typename TLowEnergyCounter, typename TPhotoFallback>
+            typename TLowEnergyCounter>
   void run_cascade(TRunSession& cuda_session, BackendOptions const& gpu_cli,
                    CascadeEventConfig const& event, TEnvironment& env,
                    CoordinateSystemPtr const& rootCS,
@@ -86,8 +86,7 @@ namespace corsika::kokkos::application {
                    std::uint64_t low_energy_hadronic_interactions_before,
                    std::size_t high_energy_hadronic_timings_before,
                    std::size_t low_energy_hadronic_timings_before,
-                   HadronicProcessPoolStatistics const& hadronic_pool_statistics_before,
-                   TPhotoFallback const& photoHadronicQgsjetFallback);
+                   HadronicProcessPoolStatistics const& hadronic_pool_statistics_before);
 
   template <typename TRunSession, typename TGeometry, typename TOutputs,
             typename TProcesses, typename TExecution, typename TDiagnostics>

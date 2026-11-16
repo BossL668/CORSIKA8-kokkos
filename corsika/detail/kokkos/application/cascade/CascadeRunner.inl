@@ -30,7 +30,7 @@ namespace corsika::kokkos::application {
             typename TConfigureForcedPrimary, typename TPhotoHighEnergy,
             typename TPhotoLowEnergy, typename TPhotoHighStatistics,
             typename TPhotoLowStatistics, typename THighEnergyCounter,
-            typename TLowEnergyCounter, typename TPhotoFallback>
+            typename TLowEnergyCounter>
   void run_cascade(TRunSession& cuda_session, BackendOptions const& gpu_cli,
                    CascadeEventConfig const& event, TEnvironment& env,
                    CoordinateSystemPtr const& rootCS,
@@ -59,8 +59,7 @@ namespace corsika::kokkos::application {
                    std::uint64_t low_energy_hadronic_interactions_before,
                    std::size_t high_energy_hadronic_timings_before,
                    std::size_t low_energy_hadronic_timings_before,
-                   HadronicProcessPoolStatistics const& hadronic_pool_statistics_before,
-                   TPhotoFallback const& photoHadronicQgsjetFallback) {
+                   HadronicProcessPoolStatistics const& hadronic_pool_statistics_before) {
     using namespace corsika::kokkos;
 
     using environment_type = std::remove_reference_t<TEnvironment>;
@@ -225,8 +224,8 @@ namespace corsika::kokkos::application {
           low_energy_hadronic_interactions_before, high_energy_hadronic_timings_before,
           low_energy_hadronic_timings_before, hadronic_work_classifier,
           hadronic_process_pool, hadronic_pool_statistics_before,
-          photoHadronicQgsjetFallback, high_energy_hadronic_model, heHadronModelThreshold,
-          emthinfrac, maxWeight, automaticMaxWeight, thinningCanActivateFromUnitWeight,
+          high_energy_hadronic_model, heHadronModelThreshold, emthinfrac, maxWeight,
+          automaticMaxWeight, thinningCanActivateFromUnitWeight,
           backend_reused_for_shower, muon_transport_available, gpu_radio_enabled,
           gpu_config, beamCode, primaryTotalEnergy, output_shower_id);
     };

@@ -8,9 +8,9 @@
 
 namespace corsika::kokkos::application {
   template <typename TPhotoHigh, typename TPhotoLow, typename THigh, typename TLow,
-            typename TPool, typename TFallback>
+            typename TPool>
   template <typename TH, typename TL>
-  auto CascadeMonitors<TPhotoHigh, TPhotoLow, THigh, TLow, TPool, TFallback>::capture(
+  auto CascadeMonitors<TPhotoHigh, TPhotoLow, THigh, TLow, TPool>::capture(
       TH const& photoHighBefore, TL const& photoLowBefore) const {
     using pool_statistics_type = std::decay_t<decltype(pool_->statistics())>;
     // Braced initialization preserves the old low/high read order. Snapshots

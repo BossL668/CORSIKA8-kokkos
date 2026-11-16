@@ -18,6 +18,19 @@ This returns the application's ``proposal::AirShowerInteraction`` adapter.
 non-hadronic branch; hadrons use ``BetheBlochPDG``. Selecting a Kokkos execution
 backend does not itself select a new set of PROPOSAL parametrizations.
 
+Photohadronic final states follow the pinned official C8 baseline
+``74ebbc28051de3600aab133c225e387801b035a5``. The adapter counts calls to the
+selected generators; it does not provide a threshold pion-production model or
+an alternative high-energy generator. SOPHIA's C8 interface, mass conversion
+and decay settings are restored byte for byte from that baseline. In particular,
+an unsupported photohadronic configuration follows the official warning and
+skips secondary production. This restoration is a compatibility decision, not
+a claim that those threshold cases conserve the full shower energy. The
+``discarded_final_states`` diagnostic is ``null`` because the official model
+has no such counter. Native and Kokkos execution use the same host final-state
+implementation. The exact source identities and same-input regression are in
+``tests/modules/photohadronic``.
+
 The four tracking cuts are kinetic-energy thresholds. Their minimum becomes
 the production threshold passed to the native PROPOSAL setup:
 

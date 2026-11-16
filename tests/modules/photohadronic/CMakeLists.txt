@@ -7,3 +7,5 @@ set (BC_SOPHIA_static Sophia_static)
 set (BC_SOPHIA_shared Sophia)
 set (BC_PREFIX native_photohadronic)
 include ("${PROJECT_SOURCE_DIR}/cmake/PhotohadronicContracts.cmake")
+add_test (NAME native_photohadronic_official_sources COMMAND Python3::Interpreter
+  "${BC_TESTS}/check_official_sources.py")

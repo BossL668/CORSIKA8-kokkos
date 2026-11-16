@@ -8,31 +8,48 @@
 #pragma once
 
 #include <corsika/modules/PROPOSAL.hpp>
-#include <corsika/modules/QGSJetII.hpp>
-#include <corsika/modules/proposal/HadronicInteractionModelFallback.hpp>
-#include <corsika/modules/proposal/ThresholdPhotoproductionModel.hpp>
+#include <cstdint>
 
 namespace corsika::proposal {
   namespace detail {
-    /** Own the existing fallback models before the referencing PROPOSAL process. */
+    /** Count generator invocations without changing validity checks, random draws,
+     * or final states. The application retains ownership of the selected model.
+     */
+    template <typename TModel>
+    class CountedPhotonModel {
+    public:
+      struct Statistics {
+        std::uint64_t interactions_{};
+      };
+
+      explicit CountedPhotonModel(TModel& model);
+      bool isValid(Code projectile, Code target, HEPEnergyType energy) const;
+      template <typename TView>
+      void doInteraction(TView& view, Code projectile, Code target,
+                         FourMomentum const& projectileMomentum,
+                         FourMomentum const& targetMomentum);
+      Statistics const& statistics() const;
+
+    private:
+      TModel& model_;
+      Statistics statistics_;
+    };
+
+    /** Borrow the models selected by the application, with no substitute model. */
     template <typename TLow, typename THigh>
     struct AirShowerPhotonModels {
-      using low_type =
-          HadronicInteractionModelFallback<TLow, ThresholdPhotoproductionModel>;
-      using fallback_type = LazyHadronicInteractionModel<qgsjetII::InteractionModel>;
-      using high_type = HadronicInteractionModelFallback<THigh, fallback_type>;
-      ThresholdPhotoproductionModel threshold_;
+      using low_type = CountedPhotonModel<TLow>;
+      using high_type = CountedPhotonModel<THigh>;
       low_type low_;
-      fallback_type fallback_;
       high_type high_;
 
       AirShowerPhotonModels(TLow&, THigh&);
     };
   } // namespace detail
 
-  /** Package the established photoproduction policy without changing its models.
-   * Preferred generators are borrowed; threshold and lazy fallback lifetimes are
-   * internal. This host physics adapter has no dependency on Kokkos.
+  /** Expose the application's photoproduction models to run diagnostics.
+   * The PROPOSAL process uses the official model selection and final states.
+   * This host adapter has no dependency on Kokkos.
    */
   template <typename TLow, typename THigh>
   class AirShowerInteraction
@@ -52,11 +69,10 @@ namespace corsika::proposal {
     AirShowerInteraction& operator=(AirShowerInteraction const&) = delete;
     auto& lowEnergyModel();
     auto& highEnergyModel();
-    auto const& fallbackModel() const;
   };
   template <typename TE, typename TL, typename TH>
   AirShowerInteraction(TE const&, TL&, TH&, HEPEnergyType const&)
-      ->AirShowerInteraction<TL, TH>;
+      -> AirShowerInteraction<TL, TH>;
 } // namespace corsika::proposal
 
 #include <corsika/detail/modules/proposal/AirShowerInteraction.inl>

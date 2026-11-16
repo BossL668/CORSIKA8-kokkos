@@ -29,7 +29,7 @@ namespace corsika::kokkos::application {
               typename TFallbackHandler, typename TPhotoHighEnergy,
               typename TPhotoLowEnergy, typename TPhotoHighStatistics,
               typename TPhotoLowStatistics, typename THighEnergyCounter,
-              typename TLowEnergyCounter, typename TPhotoFallback>
+              typename TLowEnergyCounter>
     static void record(TRunSession& cudaSession, BackendOptions const& gpuCli,
                        TBackend& backend, TEas& EAS, TRouter& router,
                        TOutputSink& outputSink, TFallbackHandler& fallbackHandler,
@@ -45,7 +45,6 @@ namespace corsika::kokkos::application {
                        HadronicWorkClassifierConfig const& hadronicWorkClassifier,
                        HadronicProcessPool* hadronicProcessPool,
                        HadronicProcessPoolStatistics const& hadronicPoolStatisticsBefore,
-                       TPhotoFallback const& photoHadronicQgsjetFallback,
                        std::string const& highEnergyHadronicModel,
                        HEPEnergyType heHadronModelThreshold, double emthinfrac,
                        double maxWeight, bool automaticMaxWeight,

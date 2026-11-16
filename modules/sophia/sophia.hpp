@@ -82,6 +82,5 @@ void print_event_(const int&);
 
 double rndm_(int&);
 
-double get_sophia_mass(int&);
 double get_sophia_mass2(int&);
 }

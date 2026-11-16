@@ -76,7 +76,7 @@ namespace corsika::kokkos::application {
           CascadeDiagnostics{d.photoHigh_, d.photoLow_, before.photoHigh_,
                              before.photoLow_, d.high_, d.low_, before.highInteractions_,
                              before.lowInteractions_, before.highTimings_,
-                             before.lowTimings_, before.pool_, d.fallback_}};
+                             before.lowTimings_, before.pool_}};
 #ifdef CORSIKA8_WITH_NATIVE_EGS4
       if (egs4_)
         egs4_->run(options_, event, context);

@@ -130,8 +130,8 @@ namespace corsika::kokkos::application {
 
   template <typename TG, typename TO, typename TM, typename TD>
   template <typename TOutput>
-  void CascadeDriver<TG, TO, TM, TD>::registerBackendOutput([
-      [maybe_unused]] TOutput& output) {
+  void CascadeDriver<TG, TO, TM, TD>::registerBackendOutput(
+      [[maybe_unused]] TOutput& output) {
 #ifdef CORSIKA8_WITH_KOKKOS_EM
     accelerated_.registerBackendOutput(output);
 #endif
@@ -199,17 +199,10 @@ namespace corsika::kokkos::application {
         auto const& photo_hadronic_le_before = before.second;
 #endif
         CORSIKA_LOG_INFO(
-            "PROPOSAL photo-hadronic generators: SOPHIA={}, threshold fallback={}, "
-            "HE preferred={}, HE fallback={}, QGSJet-II initialized={}",
-            photo_hadronic_le_after.preferredInteractions_ -
-                photo_hadronic_le_before.preferredInteractions_,
-            photo_hadronic_le_after.fallbackInteractions_ -
-                photo_hadronic_le_before.fallbackInteractions_,
-            photo_hadronic_after.preferredInteractions_ -
-                photo_hadronic_before.preferredInteractions_,
-            photo_hadronic_after.fallbackInteractions_ -
-                photo_hadronic_before.fallbackInteractions_,
-            monitors_.fallback_.initialized());
+            "PROPOSAL photo-hadronic generators (official C8): SOPHIA={}, HE={}",
+            photo_hadronic_le_after.interactions_ -
+                photo_hadronic_le_before.interactions_,
+            photo_hadronic_after.interactions_ - photo_hadronic_before.interactions_);
       } else {
 #ifdef CORSIKA8_WITH_KOKKOS_EM
         try {

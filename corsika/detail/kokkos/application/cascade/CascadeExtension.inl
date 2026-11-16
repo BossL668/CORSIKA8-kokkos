@@ -37,8 +37,8 @@ namespace corsika::kokkos::application {
     using pool_type = std::remove_pointer_t<decltype(runtime_.hadronicPool())>;
     boost::optional<pool_type&> pool;
     if (auto* nativePool = runtime_.hadronicPool()) pool = *nativePool;
-    auto monitors = CascadeMonitors{
-        em.highEnergyModel(), em.lowEnergyModel(), high, low, pool, em.fallbackModel()};
+    auto monitors =
+        CascadeMonitors{em.highEnergyModel(), em.lowEnergyModel(), high, low, pool};
     return CascadeModule<TG, decltype(outputs), decltype(models), decltype(monitors)>{
         runtime_, options_, workers_, defaults, geometry,
         outputs,  models,   monitors, output,   app_["--nevent"]->as<int>()};
@@ -190,10 +190,9 @@ namespace corsika::kokkos::application {
   template <typename TA, typename TX>
   auto CascadeExtension::longitudinalWriter(TA const& axis, TX const& depth) {
     auto const crossings = app_["--profile-crossings"]->as<std::string>();
-    auto const mode = crossings == "original-c8"
-                          ? ProfileCrossingMode::OriginalC8
-                          : crossings == "forward" ? ProfileCrossingMode::Forward
-                                                   : ProfileCrossingMode::Both;
+    auto const mode = crossings == "original-c8" ? ProfileCrossingMode::OriginalC8
+                      : crossings == "forward"   ? ProfileCrossingMode::Forward
+                                                 : ProfileCrossingMode::Both;
     return LongitudinalWriter{axis, depth, mode};
   }
 
@@ -227,9 +226,8 @@ namespace corsika::kokkos::application {
     using pool_type = std::remove_pointer_t<decltype(runtime_.hadronicPool())>;
     boost::optional<pool_type&> pool;
     if (auto* nativePool = runtime_.hadronicPool()) pool = *nativePool;
-    auto monitors = CascadeMonitors{
-        em.highEnergyModel(), em.lowEnergyModel(), highCounter, lowCounter, pool,
-        em.fallbackModel()};
+    auto monitors = CascadeMonitors{em.highEnergyModel(), em.lowEnergyModel(),
+                                    highCounter, lowCounter, pool};
     return CascadeModule<decltype(geometry), decltype(outputs), decltype(models),
                          decltype(monitors)>{
         runtime_, options_, workers_, defaults, geometry,

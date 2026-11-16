@@ -12,7 +12,7 @@ foreach (KIND IN ITEMS static shared)
   add_test (NAME ${BC_PREFIX}_sophia_mass_${KIND}
     COMMAND ${BC_PREFIX}_sophia_mass_${KIND})
 endforeach ()
-foreach (VARIANT IN ITEMS production migrated)
+foreach (VARIANT IN ITEMS production migrated counted)
   add_executable (${BC_PREFIX}_generator_${VARIANT} "${BC_TESTS}/GeneratorProbe.cpp")
   target_compile_features (${BC_PREFIX}_generator_${VARIANT} PRIVATE cxx_std_17)
   target_include_directories (${BC_PREFIX}_generator_${VARIANT} PRIVATE
@@ -24,12 +24,15 @@ foreach (VARIANT IN ITEMS production migrated)
   if (VARIANT STREQUAL "production")
     target_include_directories (${BC_PREFIX}_generator_${VARIANT} BEFORE PRIVATE "${BC_REFERENCE}")
     target_compile_definitions (${BC_PREFIX}_generator_${VARIANT} PRIVATE ORIGINAL_PRODUCTION)
+  elseif (VARIANT STREQUAL "counted")
+    target_compile_definitions (${BC_PREFIX}_generator_${VARIANT} PRIVATE COUNTED_MODELS)
   endif ()
 endforeach ()
 add_test (NAME ${BC_PREFIX}_actual_generator_reference COMMAND Python3::Interpreter
   "${BC_TESTS}/compare_generators.py"
   --production $<TARGET_FILE:${BC_PREFIX}_generator_production>
   --migrated $<TARGET_FILE:${BC_PREFIX}_generator_migrated>
+  --counted $<TARGET_FILE:${BC_PREFIX}_generator_counted>
   --output "${CMAKE_CURRENT_BINARY_DIR}/${BC_PREFIX}-generator-reference")
 set_tests_properties (${BC_PREFIX}_actual_generator_reference PROPERTIES
   RUN_SERIAL TRUE TIMEOUT 2400)

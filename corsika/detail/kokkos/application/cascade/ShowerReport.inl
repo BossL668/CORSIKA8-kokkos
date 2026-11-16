@@ -42,7 +42,7 @@ namespace corsika::kokkos::application {
             typename TFallbackHandler, typename TPhotoHighEnergy,
             typename TPhotoLowEnergy, typename TPhotoHighStatistics,
             typename TPhotoLowStatistics, typename THighEnergyCounter,
-            typename TLowEnergyCounter, typename TPhotoFallback>
+            typename TLowEnergyCounter>
   inline void ShowerReportBuilder::record(
       TRunSession& cudaSession, BackendOptions const& gpuCli, TBackend& backend,
       TEas& EAS, TRouter& router, TOutputSink& outputSink,
@@ -57,7 +57,6 @@ namespace corsika::kokkos::application {
       HadronicWorkClassifierConfig const& hadronicWorkClassifier,
       HadronicProcessPool* hadronicProcessPool,
       HadronicProcessPoolStatistics const& hadronicPoolStatisticsBefore,
-      TPhotoFallback const& photoHadronicQgsjetFallback,
       std::string const& highEnergyHadronicModel, HEPEnergyType heHadronModelThreshold,
       double emthinfrac, double maxWeight, bool automaticMaxWeight,
       bool thinningCanActivateFromUnitWeight, bool backendReusedForShower,
@@ -149,15 +148,10 @@ namespace corsika::kokkos::application {
     auto const& hybridTiming = EAS.timingStatistics();
     auto const photoHadronicAfter = photoHadronicHighEnergy.statistics();
     auto const photoHadronicLeAfter = photoHadronicLowEnergy.statistics();
-    auto const photoHadronicSophia = photoHadronicLeAfter.preferredInteractions_ -
-                                     photoHadronicLeBefore.preferredInteractions_;
-    auto const photoHadronicThresholdFallback =
-        photoHadronicLeAfter.fallbackInteractions_ -
-        photoHadronicLeBefore.fallbackInteractions_;
-    auto const photoHadronicPreferred = photoHadronicAfter.preferredInteractions_ -
-                                        photoHadronicBefore.preferredInteractions_;
-    auto const photoHadronicFallback = photoHadronicAfter.fallbackInteractions_ -
-                                       photoHadronicBefore.fallbackInteractions_;
+    auto const photoHadronicSophia =
+        photoHadronicLeAfter.interactions_ - photoHadronicLeBefore.interactions_;
+    auto const photoHadronicPreferred =
+        photoHadronicAfter.interactions_ - photoHadronicBefore.interactions_;
     CORSIKA_LOG_INFO(
         "CUDA EM summary: staged={}, photon steps={}, lepton steps={}, "
         "wavefronts={}, GPU final states={}, CPU fallbacks={}, "
@@ -589,15 +583,15 @@ namespace corsika::kokkos::application {
         proposalFallbackStats.completedNativeSelectionReplays_;
     showerMetadata["photo_hadronic_generator"]["sophia_interactions"] =
         photoHadronicSophia;
-    showerMetadata["photo_hadronic_generator"]["threshold_fallback_interactions"] =
-        photoHadronicThresholdFallback;
+    showerMetadata["photo_hadronic_generator"]["policy"] = "official-c8";
+    showerMetadata["photo_hadronic_generator"]["threshold_fallback_interactions"] = 0;
     showerMetadata["photo_hadronic_generator"]["preferred_interactions"] =
         photoHadronicPreferred;
-    showerMetadata["photo_hadronic_generator"]["fallback_interactions"] =
-        photoHadronicFallback;
-    showerMetadata["photo_hadronic_generator"]["discarded_final_states"] = 0;
-    showerMetadata["photo_hadronic_generator"]["fallback_model_initialized"] =
-        photoHadronicQgsjetFallback.initialized();
+    showerMetadata["photo_hadronic_generator"]["fallback_interactions"] = 0;
+    // The official generator does not expose a count of skipped final states.
+    showerMetadata["photo_hadronic_generator"]["discarded_final_states"] =
+        YAML::Node(YAML::NodeType::Null);
+    showerMetadata["photo_hadronic_generator"]["fallback_model_initialized"] = false;
     showerMetadata["hybrid_timing_ms"]["total_run"] = hybridTiming.totalRunTimeMs_;
     showerMetadata["hybrid_timing_ms"]["output_start"] = hybridTiming.outputStartTimeMs_;
     showerMetadata["hybrid_timing_ms"]["set_nodes"] = hybridTiming.setNodesTimeMs_;
