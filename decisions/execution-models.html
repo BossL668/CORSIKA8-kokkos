@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul class="current">
@@ -352,7 +353,7 @@ seed and particle history. It is therefore not equivalent to launching a fresh
 process for each seed. Reuse also assumes compatible prepared inputs: ordinary
 sessions cannot be arbitrarily replaced after Kokkos finalization. Model,
 scene or cut changes require the lifecycle described in
-<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending models and execution paths</span></a>.</p>
+<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending environments and physics capabilities</span></a>.</p>
 <p><strong>Open decision.</strong> Should multi-device scheduling continue to use static
 frontiers, add workload-based partitioning, or introduce dynamic redistribution?
 Static assignments provide explicit ownership and reproducible input artifacts,

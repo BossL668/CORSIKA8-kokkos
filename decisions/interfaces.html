@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul class="current">
@@ -332,7 +333,7 @@ additional export and evaluation support, not a second independently specified
 scene. Material tables, scene admission and radio propagation remain separate
 capabilities. Exporting a new geometry does not establish that every physics
 or radio model can run there. See <a class="reference internal" href="../environment/extension.html"><span class="doc">Supported models and extension requirements</span></a> and
-<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending models and execution paths</span></a>.</p>
+<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending environments and physics capabilities</span></a>.</p>
 <p><strong>Candidate maintenance direction.</strong> Share numerical model functions beneath
 native and device adapters where their domains and conventions agree. Keep
 host object ownership and resident array ownership separate. This could

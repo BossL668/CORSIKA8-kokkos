@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Repository organization and coding workflow &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Code organization and modification guide &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Extending models and execution paths" href="extensions.html" />
+    <link rel="next" title="Extending environments and physics capabilities" href="extensions.html" />
     <link rel="prev" title="Development and maintenance" href="../development.html" /> 
 </head>
 
@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="reference internal" href="../development.html">Development and maintenance</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
@@ -158,7 +159,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../development.html">Development and maintenance</a></li>
-      <li class="breadcrumb-item active">Repository organization and coding workflow</li>
+      <li class="breadcrumb-item active">Code organization and modification guide</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/development/workflow.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -168,220 +169,158 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="repository-organization-and-coding-workflow">
-<h1>Repository organization and coding workflow<a class="headerlink" href="#repository-organization-and-coding-workflow" title="Link to this heading"></a></h1>
-<p>This page describes the repository at <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a>. Use its build configuration,
-public headers and test registrations when preparing a change. The
-<a class="reference external" href="https://corsika-8.readthedocs.io/en/documentation-upgrade/code/coding_conventions.html">official coding conventions</a> are the upstream style reference; they describe
-a different documentation branch and do not by themselves change this source
-tree’s compiler or dependency requirements.</p>
-<section id="conventions-and-the-language-standard">
-<h2>Conventions and the language standard<a class="headerlink" href="#conventions-and-the-language-standard" title="Link to this heading"></a></h2>
-<p>The official conventions specify <code class="docutils literal notranslate"><span class="pre">.hpp</span></code> declarations, <code class="docutils literal notranslate"><span class="pre">.inl</span></code> inline
-implementations and <code class="docutils literal notranslate"><span class="pre">.cpp</span></code> compilation units. They use PascalCase class names,
-snake_case free functions and namespaces, camelCase methods, and a trailing
-underscore on data members. They also call for documented public interfaces,
-explicit ownership, project logging, appropriate tests and physics validation.
-Their CMake guidance uses lower-case commands, upper-case variables, a space
-before the opening parenthesis and two-space indentation. That page recommends
-C++23 and newer standard-library interfaces. Consult the linked page for the
-complete upstream policy.</p>
-<p><strong>This source baseline uses C++17.</strong> Its <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt">top-level CMake configuration</a> checks
-the compiler’s C++17 support and sets:</p>
-<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="linenos">112</span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">CMAKE_CXX_STANDARD</span><span class="w"> </span><span class="s">17</span><span class="p">)</span>
-<span class="linenos">113</span><span class="nb">set</span><span class="w"> </span><span class="p">(</span><span class="s">CMAKE_CXX_EXTENSIONS</span><span class="w"> </span><span class="s">OFF</span><span class="p">)</span>
+  <section id="code-organization-and-modification-guide">
+<h1>Code organization and modification guide<a class="headerlink" href="#code-organization-and-modification-guide" title="Link to this heading"></a></h1>
+<p>Start from the operation being changed, then follow its caller and data
+preparation. The files below separate application configuration, numerical
+calculations and execution. This makes it possible to review a physics fix
+without also redesigning the application or scheduler.</p>
+<section id="repository-layout">
+<h2>Repository layout<a class="headerlink" href="#repository-layout" title="Link to this heading"></a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>applications/                     # Construct scenes and run events
+corsika/kokkos/                    # Public integration interfaces
+corsika/detail/kokkos/             # Inline and template implementations
+src/kokkos/                        # Compiled implementations and targets
+tests/kokkos/                      # Component and device tests
+tests/application_support/         # Application and coordinator tests
+cmake/                             # Build, export and consumer checks
+documentation/kokkos/              # User and maintainer documentation
 </pre></div>
 </div>
-<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">Kokkos target definitions</a> also request <code class="docutils literal notranslate"><span class="pre">cxx_std_17</span></code> and require
-Kokkos 4.x, starting at 4.7; they reject Kokkos 5. The device-test helper requests
-CUDA or HIP standard 17. New code for this branch must therefore remain usable
-with that configuration. Introducing C++23 facilities requires a separate,
-reviewed toolchain and dependency migration, including the device compiler and
-installed-consumer checks. A formatter’s <code class="docutils literal notranslate"><span class="pre">Standard:</span> <span class="pre">Auto</span></code> setting does not
-raise the compiler language standard. See <a class="reference internal" href="../backends/build.html"><span class="doc">Build configuration and toolchains</span></a> for the
-dependency boundary.</p>
+<p>The native interfaces remain under <code class="docutils literal notranslate"><span class="pre">corsika/framework</span></code>, <code class="docutils literal notranslate"><span class="pre">corsika/media</span></code>
+and <code class="docutils literal notranslate"><span class="pre">corsika/modules</span></code>. Their presence outside <code class="docutils literal notranslate"><span class="pre">kokkos</span></code> does not mean they
+are unused: the host adapters connect to these interfaces. The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/README.md">library layout</a>
+identifies the shared modules and the atmosphere, ice and firn subdirectories.</p>
+<p>Public declarations use <code class="docutils literal notranslate"><span class="pre">.hpp</span></code> files. Inline/template definitions normally
+mirror the header path under <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos</span></code> with an <code class="docutils literal notranslate"><span class="pre">.inl</span></code> suffix;
+compiled definitions live under <code class="docutils literal notranslate"><span class="pre">src/kokkos</span></code>. For example,
+<code class="docutils literal notranslate"><span class="pre">ParticleSoA.hpp</span></code> includes <code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/data/ParticleSoA.inl</span></code>,
+whereas <code class="docutils literal notranslate"><span class="pre">Runtime.hpp</span></code> is implemented in <code class="docutils literal notranslate"><span class="pre">src/kokkos/runtime/Runtime.cpp</span></code>.</p>
 </section>
-<section id="repository-responsibilities">
-<h2>Repository responsibilities<a class="headerlink" href="#repository-responsibilities" title="Link to this heading"></a></h2>
-<p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/README.md">Kokkos library layout</a> describes the public-header and implementation
-split. The actual CMake targets determine which dependencies a component
-requires and what is installed.</p>
+<section id="modification-map">
+<h2>Modification map<a class="headerlink" href="#modification-map" title="Link to this heading"></a></h2>
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 34.0%" />
-<col style="width: 66.0%" />
+<col style="width: 24.0%" />
+<col style="width: 45.0%" />
+<col style="width: 31.0%" />
 </colgroup>
 <thead>
-<tr class="row-odd"><th class="head"><p>Location</p></th>
-<th class="head"><p>Responsibility at this baseline</p></th>
+<tr class="row-odd"><th class="head"><p>Intended change</p></th>
+<th class="head"><p>Implementation to inspect first</p></th>
+<th class="head"><p>Related code and checks</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">applications/</span></code></p></td>
-<td><p>Air, ice and firn executable entry points. Their CMake file links them
-to <code class="docutils literal notranslate"><span class="pre">CORSIKA8::CascadeApplication</span></code>.</p></td>
+<tr class="row-even"><td><p>Application inputs or backend selection</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp">c8_air_shower.cpp</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl">CascadeExtension.inl</a>.</p></td>
+<td><p><a class="reference internal" href="../application.html"><span class="doc">Application integration</span></a>; application-support tests. Keep device scheduling
+in the library.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">corsika/kokkos/</span></code></p></td>
-<td><p>Public application, data, environment, transport, radio, scheduling
-and runtime declarations.</p></td>
+<tr class="row-odd"><td><p>Particle fields, units or coordinates</p></td>
+<td><p>Public records in <code class="docutils literal notranslate"><span class="pre">corsika/kokkos/data</span></code> and conversion in
+<code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/data</span></code>.</p></td>
+<td><p><a class="reference internal" href="../particles.html"><span class="doc">Particle data and state</span></a>; conversion, storage and CPU/device transfer tests.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/</span></code></p></td>
-<td><p>Inline and template implementations, normally mirroring the public
-header path with an <code class="docutils literal notranslate"><span class="pre">.inl</span></code> suffix.</p></td>
+<tr class="row-even"><td><p>Density, geometry or node search</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ModelConversion.inl</span></code>, <code class="docutils literal notranslate"><span class="pre">ModelEvaluation.inl</span></code>, <code class="docutils literal notranslate"><span class="pre">ModelGrammage.inl</span></code>
+and environment search/boundary adapters.</p></td>
+<td><p><a class="reference internal" href="../environment.html"><span class="doc">Environment and geometry</span></a>; host and device environment tests.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/kokkos/</span></code></p></td>
-<td><p>Compiled implementations and Kokkos target definitions, including
-runtime ownership, native bridges and backend factories.</p></td>
+<tr class="row-odd"><td><p>Table lookup or continuous loss</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl">ProposalNativeQueries.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ContinuousPhysicsQueries.inl">ContinuousPhysicsQueries.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonContinuousStep.inl">LeptonContinuousStep.inl</a>.</p></td>
+<td><p><a class="reference internal" href="../physics-data.html"><span class="doc">Physics models and table preparation</span></a>, <a class="reference internal" href="../transport.html"><span class="doc">Transport and interaction kernels</span></a>; table and continuous tests.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">corsika/framework/</span></code>, <code class="docutils literal notranslate"><span class="pre">corsika/media/</span></code>, <code class="docutils literal notranslate"><span class="pre">corsika/modules/</span></code></p></td>
-<td><p>Native C8 interfaces and models that remain available to scalar C8
-code. Compiled counterparts live under <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p></td>
+<tr class="row-even"><td><p>Interaction selection or secondary generation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">InteractionSelection.inl</span></code>, <code class="docutils literal notranslate"><span class="pre">ProcessCapabilities.inl</span></code> and the
+selected final-state implementation.</p></td>
+<td><p><a class="reference internal" href="../transport/interactions.html"><span class="doc">Photon transport and interaction completion</span></a>; selection, final-state and CPU
+fallback tests.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">modules/</span></code>, <code class="docutils literal notranslate"><span class="pre">externals/</span></code>, <code class="docutils literal notranslate"><span class="pre">third_party/</span></code>, <code class="docutils literal notranslate"><span class="pre">dependencies/</span></code></p></td>
-<td><p>Physics packages and data integration, bundled dependencies, dependency
-recipes and backend build profiles. Check the relevant recipe and
-CMake registration before changing a dependency.</p></td>
+<tr class="row-odd"><td><p>Radio projection or propagation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/radio</span></code> and the relevant atmosphere, ice or
+firn implementation.</p></td>
+<td><p><a class="reference internal" href="../radio.html"><span class="doc">Radio calculation</span></a>; projection, accumulation and propagation tests.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tests/kokkos/</span></code>, <code class="docutils literal notranslate"><span class="pre">tests/application_support/</span></code></p></td>
-<td><p>Subsystem tests and application integration checks. Build and installed
-consumer contracts are also registered through <code class="docutils literal notranslate"><span class="pre">cmake/</span></code> helpers.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">examples/</span></code>, <code class="docutils literal notranslate"><span class="pre">documentation/</span></code>, <code class="docutils literal notranslate"><span class="pre">tools/</span></code></p></td>
-<td><p>Examples, user/developer documentation and supporting programs.</p></td>
+<tr class="row-even"><td><p>Batch dispatch or worker coordination</p></td>
+<td><p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl">BackendInstanceImplementation.inl</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl">EmRouter.inl</a> and
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp">AirShowerCoordinator.cpp</a>.</p></td>
+<td><p><a class="reference internal" href="../execution.html"><span class="doc">Execution and scheduling</span></a>; queue, session and coordinator tests, followed by
+event-level checks when execution order changes.</p></td>
 </tr>
 </tbody>
 </table>
-<p>Place reusable application preparation in
-<code class="docutils literal notranslate"><span class="pre">corsika/kokkos/application/cascade/</span></code> and its corresponding implementation
-directory. The library layout explicitly keeps application implementation
-helpers out of <code class="docutils literal notranslate"><span class="pre">applications/</span></code>. Scene-specific policies belong below the
-atmosphere, ice or firn directories; shared particle routing, transport and
-runtime services retain their common interfaces.</p>
-<p>Names do not always describe the full current scope. The layout document
-identifies <code class="docutils literal notranslate"><span class="pre">FlatAtmosphereRadioSnapshot</span></code> as also carrying homogeneous ice
-propagation and <code class="docutils literal notranslate"><span class="pre">AirShowerCoordinator</span></code> as the shared process coordinator.
-Extend the existing interface when its contract applies. A broad rename or a
-copied scene-specific implementation would affect consumers beyond the name’s
-original application.</p>
+<p>The directory name alone is not enough to choose a file. Read the function’s
+caller to establish which values it receives and which outputs the next stage
+uses. The <a class="reference internal" href="../api.html"><span class="doc">API reference</span></a> links declarations to the corresponding component
+explanations.</p>
 </section>
-<section id="headers-implementations-and-public-documentation">
-<h2>Headers, implementations and public documentation<a class="headerlink" href="#headers-implementations-and-public-documentation" title="Link to this heading"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">ParticleSoA.hpp</span></code> declares the storage and view interfaces and includes
-<code class="docutils literal notranslate"><span class="pre">corsika/detail/kokkos/data/ParticleSoA.inl</span></code> after the namespace closes.
-By contrast, <code class="docutils literal notranslate"><span class="pre">Runtime.hpp</span></code> declares a host interface implemented in
-<code class="docutils literal notranslate"><span class="pre">src/kokkos/runtime/Runtime.cpp</span></code>. The extension alone does not identify
-whether a header exposes device data, owns storage or launches work; preserve
-the contract described by the relevant component chapter.</p>
-<p><code class="docutils literal notranslate"><span class="pre">Runtime.hpp</span></code> provides an example of useful declaration-level documentation:</p>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">33</span><span class="w">    </span><span class="cm">/**</span>
-<span class="linenos">34</span><span class="cm">     * Initialize Kokkos, or acquire a compatible existing runtime.</span>
-<span class="linenos">35</span><span class="cm">     *</span>
-<span class="linenos">36</span><span class="cm">     * @param numThreads Host parallel-backend thread count; zero leaves the Kokkos</span>
-<span class="linenos">37</span><span class="cm">     *   default/environment setting unchanged, or accepts an existing runtime.</span>
-<span class="linenos">38</span><span class="cm">     *   This is not the number of CUDA threads.</span>
-<span class="linenos">39</span><span class="cm">     * @param deviceId Visible GPU index; minus one leaves the default unchanged or</span>
-<span class="linenos">40</span><span class="cm">     *   accepts an existing runtime. CPU-only builds reject explicit device indices.</span>
-<span class="linenos">41</span><span class="cm">     * @throws std::invalid_argument Invalid parameters or incompatible configuration.</span>
-<span class="linenos">42</span><span class="cm">     * @throws std::logic_error Reinitialization or acquisition on another host thread.</span>
-<span class="linenos">43</span><span class="cm">     */</span>
-<span class="linenos">44</span><span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">Runtime</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">numThreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">deviceId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">);</span>
-</pre></div>
-</div>
-<p>Its surrounding class documentation describes thread affinity, ownership and
-destruction order. Follow that level of precision for new interfaces: state
-units, valid ranges, memory accessibility, ownership, lifetime, synchronization
-and failure behavior where they matter. Keep public API documentation in the
-header and explain non-obvious algorithmic choices beside the implementation.
-Moving a definition into an <code class="docutils literal notranslate"><span class="pre">.inl</span></code> file does not remove the need to document
-the declaration that callers read.</p>
-<p>The observed source is not uniformly compliant with every current upstream
-rule. For example, <code class="docutils literal notranslate"><span class="pre">ParticleSoA</span></code> deliberately exposes storage fields and
-<code class="docutils literal notranslate"><span class="pre">ParticleSoARawView</span></code> contains non-owning pointers. The top-level and
-application CMake files mix command capitalization and spacing. Treat these as
-existing interfaces and style inconsistencies to assess, rather than evidence
-that the upstream recommendations have changed. Any ownership redesign or
-public-name change needs its own compatibility review; mechanical formatting
-does not establish its correctness.</p>
-<p>Write new public guide text and API explanations in English, consistent with
-the repository’s English <code class="docutils literal notranslate"><span class="pre">README.md</span></code>, library layout and public headers.
-The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/documentation/USER_GUIDE_INDEX.md">documentation map</a> distinguishes bilingual beginner guides from dated
-research records, many of which are Chinese. Preserve those records as evidence
-and summarize the applicable result in the maintained guide, with its source
-version and limitations. Rebuild the guide after editing cross-references or
-source excerpts; the <a class="reference download internal" download="" href="../_downloads/ec52d8293d5a99114a53ddc5d4345194/BUILDING.rst"><code class="xref download docutils literal notranslate"><span class="pre">build</span> <span class="pre">instructions</span></code></a> give the
-documentation-only procedure.</p>
+<section id="example-changing-continuous-energy-loss-calculations">
+<h2>Example: changing continuous-energy-loss calculations<a class="headerlink" href="#example-changing-continuous-energy-loss-calculations" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">query_energy_after_continuous_loss</span></code> accepts a continuous-physics view, a
+particle code, initial energy in MeV and traversed grammage in g/cm². It returns
+a <code class="docutils literal notranslate"><span class="pre">TableQueryResult</span></code> containing a value and status.
+<code class="docutils literal notranslate"><span class="pre">evaluate_lepton_continuous_loss</span></code> calls this query and handles the transport
+cut and fallback result. The native PROPOSAL calculators and their exported
+range tables are prepared separately.</p>
+<p>For a change in range inversion, begin in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ContinuousPhysicsQueries.inl">ContinuousPhysicsQueries.inl</a>
+and the native table queries it calls. For a change in how the step handles a
+cut, begin in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonContinuousStep.inl">LeptonContinuousStep.inl</a>. Neither change normally belongs in
+the application or backend factory.</p>
+<p>Use the same table and input values to compare the old and new result,
+including zero grammage and the transport endpoint. Existing checks are in
+<code class="docutils literal notranslate"><span class="pre">tests/kokkos/em/continuous/testContinuousQueries.cpp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">testContinuousContracts.cpp</span></code> and <code class="docutils literal notranslate"><span class="pre">testContinuousQueriesDevice.cpp</span></code>.
+If the intended numerical result changes, also compare with the native
+calculator or an independent reference. A preserved implementation fixture
+alone cannot establish that a new physical result is correct.</p>
 </section>
-<section id="formatting-scope-and-tooling">
-<h2>Formatting scope and tooling<a class="headerlink" href="#formatting-scope-and-tooling" title="Link to this heading"></a></h2>
-<p>The repository’s <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.clang-format">.clang-format</a> specifies two-space indentation, spaces
-instead of tabs, a 90-column limit and left-aligned pointer declarations. It
-sets <code class="docutils literal notranslate"><span class="pre">SortIncludes:</span> <span class="pre">false</span></code>. Use this file rather than a formatter’s built-in
-style. Formatting does not enforce naming, ownership or API documentation.</p>
-<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CONTRIBUTING.md">CONTRIBUTING.md</a> requires formatting before submission, but its reference to
-<code class="docutils literal notranslate"><span class="pre">do-clang-format.sh</span></code> is stale: the checked-in tool is <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/do-clang-format.py">do-clang-format.py</a>.
-Its behavior is important when reviewing its output:</p>
-<ul class="simple">
-<li><p>With no options, it selects tracked differences from local <code class="docutils literal notranslate"><span class="pre">master</span></code> plus
-untracked, non-ignored files. This can include the entire feature-branch
-difference, not just edits from the current session.</p></li>
-<li><p>It considers <code class="docutils literal notranslate"><span class="pre">.hpp</span></code>, <code class="docutils literal notranslate"><span class="pre">.cpp</span></code> and <code class="docutils literal notranslate"><span class="pre">.inl</span></code> files, skips deleted paths and
-symbolic links, and applies its explicit path exclusions. Those exclusions
-are not a general detector for all vendor or generated directories.</p></li>
-<li><p>The default mode prints files requiring formatting and exits with status 1
-if any need changes; it does not edit them. <code class="docutils literal notranslate"><span class="pre">--apply</span></code> writes the selected
-files. <code class="docutils literal notranslate"><span class="pre">--all</span></code> changes selection to the directory tree below the current
-directory.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CLANG_FORMAT</span></code> selects the formatter command; otherwise the tool invokes
-<code class="docutils literal notranslate"><span class="pre">clang-format</span></code>. Its <code class="docutils literal notranslate"><span class="pre">--docker</span></code> mode selects <code class="docutils literal notranslate"><span class="pre">clang-format-8</span></code> in
-<code class="docutils literal notranslate"><span class="pre">corsika/devel:clang-8</span></code>.</p></li>
-</ul>
-<p>From the repository root, with a local <code class="docutils literal notranslate"><span class="pre">master</span></code> reference and
-<code class="docutils literal notranslate"><span class="pre">clang-format-8</span></code> installed, the existing non-mutating check is:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">CLANG_FORMAT=clang-format-8 python3 do-clang-format.py</span>
-<span class="go">git diff --check</span>
-</pre></div>
-</div>
-<p>The first command does not accept a replacement comparison branch. If local
-<code class="docutils literal notranslate"><span class="pre">master</span></code> is absent or unrelated to the intended change, review the changed
-paths against the actual target branch and use the editor or formatter on
-explicitly selected files. Inspect the diff after formatting. Do not combine
-<code class="docutils literal notranslate"><span class="pre">--all</span></code> and <code class="docutils literal notranslate"><span class="pre">--apply</span></code> as routine preparation for a focused patch: that can
-rewrite unrelated code and preserved comparison implementations.</p>
-<p>The checked-in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.gitlab-ci.yml">GitLab CI configuration</a> runs the full-tree check in the
-<code class="docutils literal notranslate"><span class="pre">corsika/devel:clang-8</span></code> image. It marks that job <code class="docutils literal notranslate"><span class="pre">allow_failure:</span> <span class="pre">true</span></code>.
-This is evidence of the configured formatter generation and advisory CI job,
-not proof that a formatting failure blocks merging. Match the branch’s
-formatter version: different releases can produce different edits from the
-same configuration.</p>
+<section id="coding-and-build-conventions">
+<h2>Coding and build conventions<a class="headerlink" href="#coding-and-build-conventions" title="Link to this heading"></a></h2>
+<p>Follow the <a class="reference external" href="https://corsika-8.readthedocs.io/en/documentation-upgrade/code/coding_conventions.html">official C8 coding conventions</a> for new code, including naming,
+header organization and public API documentation. State input units, returned
+values, ownership and failure behavior where relevant. Use the repository’s
+<code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> and inspect only the intended changes before submission.
+The existing formatter is <code class="docutils literal notranslate"><span class="pre">do-clang-format.py</span></code>; its default selection is
+relative to local <code class="docutils literal notranslate"><span class="pre">master</span></code>, so check that selection before using <code class="docutils literal notranslate"><span class="pre">--apply</span></code>.</p>
+<p>The guide’s source baseline uses <strong>C++17</strong>, while the linked upstream convention
+page specifies C++23. Follow the actual target branch’s build requirements;
+a language-standard upgrade requires its own compiler/dependency review.
+See <a class="reference internal" href="../backends/build.html"><span class="doc">Build configuration and toolchains</span></a> for the supported configuration at this baseline.</p>
+<p>When adding files, update the responsible target in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">src/kokkos/CMakeLists.txt</a>
+or its included CMake modules. Keep Kokkos optional for native-only consumers.
+Public headers that include <code class="docutils literal notranslate"><span class="pre">.inl</span></code> implementations require both paths in the
+installation. A new dependency or exported target therefore needs an
+installed-consumer check as well as a successful application build.</p>
 </section>
-<section id="preparing-a-focused-change">
-<h2>Preparing a focused change<a class="headerlink" href="#preparing-a-focused-change" title="Link to this heading"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> describes issue-based development on branches followed by
-a reviewed merge request. For this implementation, prepare the change around
-the interface or behavior being modified:</p>
-<ol class="arabic simple">
-<li><p>Identify the public declaration, implementation, owning target, consumers
-and nearest tests. Keep retained <code class="docutils literal notranslate"><span class="pre">Reference.hpp</span></code>, <code class="docutils literal notranslate"><span class="pre">reference/</span></code> and
-<code class="docutils literal notranslate"><span class="pre">oracle/</span></code> comparison implementations independent of routine production
-refactoring; <a class="reference internal" href="../validation/tests.html"><span class="doc">Test coverage and execution</span></a> explains their role.</p></li>
-<li><p>Add source files and dependencies to the responsible CMake target. The
-Kokkos subdirectory is conditional on <code class="docutils literal notranslate"><span class="pre">CORSIKA_ENABLE_KOKKOS</span></code>; adding a
-public include must not silently make native-only consumers require Kokkos.
-Use the existing device-test registration helper when a test source needs
-CUDA or HIP compilation.</p></li>
-<li><p>Update the header contract, relevant guide page and focused tests alongside
-the implementation. For a behavioral change, describe the triggering input
-and the intended result so reviewers can assess what the tests establish.</p></li>
-<li><p>Review formatting and the final diff, then run checks appropriate to the
-affected target and backend. Record the configuration and results. Use
-<a class="reference internal" href="../validation.html"><span class="doc">Validation and performance</span></a> to distinguish build checks, numerical comparisons,
-physics validation and performance measurements.</p></li>
-</ol>
-<p>Keep build artifacts outside the source tree’s source directories: the
-top-level CMake file rejects an in-source build. Installed include paths,
-exported targets and optional-dependency boundaries are part of the public
-interface, so a successful local application build alone is insufficient when
-those contracts change.</p>
+<section id="preparing-the-review">
+<h2>Preparing the review<a class="headerlink" href="#preparing-the-review" title="Link to this heading"></a></h2>
+<p>A useful change description states the triggering input or requested feature,
+the resulting behavior, and the execution paths tested. Link the nearest
+component tests and record the configuration used. Numerical or scheduling
+changes need the corresponding checks in <a class="reference internal" href="../validation.html"><span class="doc">Validation and performance</span></a>; purely
+structural changes should preserve the existing results.</p>
+<p>Keep independent reference fixtures unchanged unless the reference itself is
+being corrected, with evidence for that correction. Update the public header
+and component documentation alongside an interface change. Avoid combining a
+file reorganization, numerical optimization and scheduling redesign in one
+patch: reviewers need to identify which change affects the results.</p>
+</section>
+<section id="library-and-installation-checks">
+<h2>Library and installation checks<a class="headerlink" href="#library-and-installation-checks" title="Link to this heading"></a></h2>
+<p>The following diagram shows the native-table component as an example of the
+path from source to an installed consumer. The checks available in a build
+depend on its enabled targets; <a class="reference internal" href="../validation/tests.html"><span class="doc">Test coverage and execution</span></a> lists their
+registration conditions.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="../_static/maintenance-interface-flow.svg"><img alt="Headers and implementations form library targets, which are exported to installed consumers and checked by corresponding source and installation tests." src="../_images/maintenance-interface-flow.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text"><a class="reference download internal" download="" href="../_downloads/6361041b9c848809fab66e92ff78fe44/maintenance-interface-flow.svg"><code class="xref download docutils literal notranslate"><span class="pre">SVG</span></code></a> ·
+<a class="reference download internal" download="" href="../_downloads/47cb5bf840b49a2559cedaaca7efe8db/maintenance-interface-flow.dot"><code class="xref download docutils literal notranslate"><span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 </section>
 
@@ -390,7 +329,7 @@ those contracts change.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../development.html" class="btn btn-neutral float-left" title="Development and maintenance" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="extensions.html" class="btn btn-neutral float-right" title="Extending models and execution paths" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="extensions.html" class="btn btn-neutral float-right" title="Extending environments and physics capabilities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -1,222 +1,165 @@
-Repository organization and coding workflow
-============================================
+Code organization and modification guide
+========================================
 
-This page describes the repository at `d5297c43`_. Use its build configuration,
-public headers and test registrations when preparing a change. The
-`official coding conventions`_ are the upstream style reference; they describe
-a different documentation branch and do not by themselves change this source
-tree's compiler or dependency requirements.
+Start from the operation being changed, then follow its caller and data
+preparation. The files below separate application configuration, numerical
+calculations and execution. This makes it possible to review a physics fix
+without also redesigning the application or scheduler.
 
-Conventions and the language standard
--------------------------------------
+Repository layout
+-----------------
 
-The official conventions specify ``.hpp`` declarations, ``.inl`` inline
-implementations and ``.cpp`` compilation units. They use PascalCase class names,
-snake_case free functions and namespaces, camelCase methods, and a trailing
-underscore on data members. They also call for documented public interfaces,
-explicit ownership, project logging, appropriate tests and physics validation.
-Their CMake guidance uses lower-case commands, upper-case variables, a space
-before the opening parenthesis and two-space indentation. That page recommends
-C++23 and newer standard-library interfaces. Consult the linked page for the
-complete upstream policy.
+.. code-block:: text
 
-**This source baseline uses C++17.** Its `top-level CMake configuration`_ checks
-the compiler's C++17 support and sets:
+   applications/                     # Construct scenes and run events
+   corsika/kokkos/                    # Public integration interfaces
+   corsika/detail/kokkos/             # Inline and template implementations
+   src/kokkos/                        # Compiled implementations and targets
+   tests/kokkos/                      # Component and device tests
+   tests/application_support/         # Application and coordinator tests
+   cmake/                             # Build, export and consumer checks
+   documentation/kokkos/              # User and maintainer documentation
 
-.. literalinclude:: ../../../CMakeLists.txt
-   :language: cmake
-   :lines: 112-113
-   :lineno-match:
+The native interfaces remain under ``corsika/framework``, ``corsika/media``
+and ``corsika/modules``. Their presence outside ``kokkos`` does not mean they
+are unused: the host adapters connect to these interfaces. The `library layout`_
+identifies the shared modules and the atmosphere, ice and firn subdirectories.
 
-The `Kokkos target definitions`_ also request ``cxx_std_17`` and require
-Kokkos 4.x, starting at 4.7; they reject Kokkos 5. The device-test helper requests
-CUDA or HIP standard 17. New code for this branch must therefore remain usable
-with that configuration. Introducing C++23 facilities requires a separate,
-reviewed toolchain and dependency migration, including the device compiler and
-installed-consumer checks. A formatter's ``Standard: Auto`` setting does not
-raise the compiler language standard. See :doc:`../backends/build` for the
-dependency boundary.
+Public declarations use ``.hpp`` files. Inline/template definitions normally
+mirror the header path under ``corsika/detail/kokkos`` with an ``.inl`` suffix;
+compiled definitions live under ``src/kokkos``. For example,
+``ParticleSoA.hpp`` includes ``corsika/detail/kokkos/data/ParticleSoA.inl``,
+whereas ``Runtime.hpp`` is implemented in ``src/kokkos/runtime/Runtime.cpp``.
 
-Repository responsibilities
-----------------------------
-
-The `Kokkos library layout`_ describes the public-header and implementation
-split. The actual CMake targets determine which dependencies a component
-requires and what is installed.
+Modification map
+----------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 34 66
+   :widths: 24 45 31
 
-   * - Location
-     - Responsibility at this baseline
-   * - ``applications/``
-     - Air, ice and firn executable entry points. Their CMake file links them
-       to ``CORSIKA8::CascadeApplication``.
-   * - ``corsika/kokkos/``
-     - Public application, data, environment, transport, radio, scheduling
-       and runtime declarations.
-   * - ``corsika/detail/kokkos/``
-     - Inline and template implementations, normally mirroring the public
-       header path with an ``.inl`` suffix.
-   * - ``src/kokkos/``
-     - Compiled implementations and Kokkos target definitions, including
-       runtime ownership, native bridges and backend factories.
-   * - ``corsika/framework/``, ``corsika/media/``, ``corsika/modules/``
-     - Native C8 interfaces and models that remain available to scalar C8
-       code. Compiled counterparts live under ``src/``.
-   * - ``modules/``, ``externals/``, ``third_party/``, ``dependencies/``
-     - Physics packages and data integration, bundled dependencies, dependency
-       recipes and backend build profiles. Check the relevant recipe and
-       CMake registration before changing a dependency.
-   * - ``tests/kokkos/``, ``tests/application_support/``
-     - Subsystem tests and application integration checks. Build and installed
-       consumer contracts are also registered through ``cmake/`` helpers.
-   * - ``examples/``, ``documentation/``, ``tools/``
-     - Examples, user/developer documentation and supporting programs.
+   * - Intended change
+     - Implementation to inspect first
+     - Related code and checks
+   * - Application inputs or backend selection
+     - `c8_air_shower.cpp`_ and `CascadeExtension.inl`_.
+     - :doc:`../application`; application-support tests. Keep device scheduling
+       in the library.
+   * - Particle fields, units or coordinates
+     - Public records in ``corsika/kokkos/data`` and conversion in
+       ``corsika/detail/kokkos/data``.
+     - :doc:`../particles`; conversion, storage and CPU/device transfer tests.
+   * - Density, geometry or node search
+     - ``ModelConversion.inl``, ``ModelEvaluation.inl``, ``ModelGrammage.inl``
+       and environment search/boundary adapters.
+     - :doc:`../environment`; host and device environment tests.
+   * - Table lookup or continuous loss
+     - `ProposalNativeQueries.inl`_, `ContinuousPhysicsQueries.inl`_ and
+       `LeptonContinuousStep.inl`_.
+     - :doc:`../physics-data`, :doc:`../transport`; table and continuous tests.
+   * - Interaction selection or secondary generation
+     - ``InteractionSelection.inl``, ``ProcessCapabilities.inl`` and the
+       selected final-state implementation.
+     - :doc:`../transport/interactions`; selection, final-state and CPU
+       fallback tests.
+   * - Radio projection or propagation
+     - ``corsika/detail/kokkos/radio`` and the relevant atmosphere, ice or
+       firn implementation.
+     - :doc:`../radio`; projection, accumulation and propagation tests.
+   * - Batch dispatch or worker coordination
+     - `BackendInstanceImplementation.inl`_, `EmRouter.inl`_ and
+       `AirShowerCoordinator.cpp`_.
+     - :doc:`../execution`; queue, session and coordinator tests, followed by
+       event-level checks when execution order changes.
 
-Place reusable application preparation in
-``corsika/kokkos/application/cascade/`` and its corresponding implementation
-directory. The library layout explicitly keeps application implementation
-helpers out of ``applications/``. Scene-specific policies belong below the
-atmosphere, ice or firn directories; shared particle routing, transport and
-runtime services retain their common interfaces.
+The directory name alone is not enough to choose a file. Read the function's
+caller to establish which values it receives and which outputs the next stage
+uses. The :doc:`../api` links declarations to the corresponding component
+explanations.
 
-Names do not always describe the full current scope. The layout document
-identifies ``FlatAtmosphereRadioSnapshot`` as also carrying homogeneous ice
-propagation and ``AirShowerCoordinator`` as the shared process coordinator.
-Extend the existing interface when its contract applies. A broad rename or a
-copied scene-specific implementation would affect consumers beyond the name's
-original application.
+Example: changing continuous-energy-loss calculations
+-----------------------------------------------------
 
-Headers, implementations and public documentation
--------------------------------------------------
+``query_energy_after_continuous_loss`` accepts a continuous-physics view, a
+particle code, initial energy in MeV and traversed grammage in g/cm². It returns
+a ``TableQueryResult`` containing a value and status.
+``evaluate_lepton_continuous_loss`` calls this query and handles the transport
+cut and fallback result. The native PROPOSAL calculators and their exported
+range tables are prepared separately.
 
-``ParticleSoA.hpp`` declares the storage and view interfaces and includes
-``corsika/detail/kokkos/data/ParticleSoA.inl`` after the namespace closes.
-By contrast, ``Runtime.hpp`` declares a host interface implemented in
-``src/kokkos/runtime/Runtime.cpp``. The extension alone does not identify
-whether a header exposes device data, owns storage or launches work; preserve
-the contract described by the relevant component chapter.
+For a change in range inversion, begin in `ContinuousPhysicsQueries.inl`_
+and the native table queries it calls. For a change in how the step handles a
+cut, begin in `LeptonContinuousStep.inl`_. Neither change normally belongs in
+the application or backend factory.
 
-``Runtime.hpp`` provides an example of useful declaration-level documentation:
+Use the same table and input values to compare the old and new result,
+including zero grammage and the transport endpoint. Existing checks are in
+``tests/kokkos/em/continuous/testContinuousQueries.cpp``,
+``testContinuousContracts.cpp`` and ``testContinuousQueriesDevice.cpp``.
+If the intended numerical result changes, also compare with the native
+calculator or an independent reference. A preserved implementation fixture
+alone cannot establish that a new physical result is correct.
 
-.. literalinclude:: ../../../corsika/kokkos/runtime/Runtime.hpp
-   :language: cpp
-   :lines: 33-44
-   :lineno-match:
+Coding and build conventions
+----------------------------
 
-Its surrounding class documentation describes thread affinity, ownership and
-destruction order. Follow that level of precision for new interfaces: state
-units, valid ranges, memory accessibility, ownership, lifetime, synchronization
-and failure behavior where they matter. Keep public API documentation in the
-header and explain non-obvious algorithmic choices beside the implementation.
-Moving a definition into an ``.inl`` file does not remove the need to document
-the declaration that callers read.
+Follow the `official C8 coding conventions`_ for new code, including naming,
+header organization and public API documentation. State input units, returned
+values, ownership and failure behavior where relevant. Use the repository's
+``.clang-format`` and inspect only the intended changes before submission.
+The existing formatter is ``do-clang-format.py``; its default selection is
+relative to local ``master``, so check that selection before using ``--apply``.
 
-The observed source is not uniformly compliant with every current upstream
-rule. For example, ``ParticleSoA`` deliberately exposes storage fields and
-``ParticleSoARawView`` contains non-owning pointers. The top-level and
-application CMake files mix command capitalization and spacing. Treat these as
-existing interfaces and style inconsistencies to assess, rather than evidence
-that the upstream recommendations have changed. Any ownership redesign or
-public-name change needs its own compatibility review; mechanical formatting
-does not establish its correctness.
+The guide's source baseline uses **C++17**, while the linked upstream convention
+page specifies C++23. Follow the actual target branch's build requirements;
+a language-standard upgrade requires its own compiler/dependency review.
+See :doc:`../backends/build` for the supported configuration at this baseline.
 
-Write new public guide text and API explanations in English, consistent with
-the repository's English ``README.md``, library layout and public headers.
-The `documentation map`_ distinguishes bilingual beginner guides from dated
-research records, many of which are Chinese. Preserve those records as evidence
-and summarize the applicable result in the maintained guide, with its source
-version and limitations. Rebuild the guide after editing cross-references or
-source excerpts; the :download:`build instructions <../BUILDING.rst>` give the
-documentation-only procedure.
+When adding files, update the responsible target in `src/kokkos/CMakeLists.txt`_
+or its included CMake modules. Keep Kokkos optional for native-only consumers.
+Public headers that include ``.inl`` implementations require both paths in the
+installation. A new dependency or exported target therefore needs an
+installed-consumer check as well as a successful application build.
 
-Formatting scope and tooling
------------------------------
+Preparing the review
+--------------------
 
-The repository's `.clang-format`_ specifies two-space indentation, spaces
-instead of tabs, a 90-column limit and left-aligned pointer declarations. It
-sets ``SortIncludes: false``. Use this file rather than a formatter's built-in
-style. Formatting does not enforce naming, ownership or API documentation.
+A useful change description states the triggering input or requested feature,
+the resulting behavior, and the execution paths tested. Link the nearest
+component tests and record the configuration used. Numerical or scheduling
+changes need the corresponding checks in :doc:`../validation`; purely
+structural changes should preserve the existing results.
 
-`CONTRIBUTING.md`_ requires formatting before submission, but its reference to
-``do-clang-format.sh`` is stale: the checked-in tool is `do-clang-format.py`_.
-Its behavior is important when reviewing its output:
+Keep independent reference fixtures unchanged unless the reference itself is
+being corrected, with evidence for that correction. Update the public header
+and component documentation alongside an interface change. Avoid combining a
+file reorganization, numerical optimization and scheduling redesign in one
+patch: reviewers need to identify which change affects the results.
 
-* With no options, it selects tracked differences from local ``master`` plus
-  untracked, non-ignored files. This can include the entire feature-branch
-  difference, not just edits from the current session.
-* It considers ``.hpp``, ``.cpp`` and ``.inl`` files, skips deleted paths and
-  symbolic links, and applies its explicit path exclusions. Those exclusions
-  are not a general detector for all vendor or generated directories.
-* The default mode prints files requiring formatting and exits with status 1
-  if any need changes; it does not edit them. ``--apply`` writes the selected
-  files. ``--all`` changes selection to the directory tree below the current
-  directory.
-* ``CLANG_FORMAT`` selects the formatter command; otherwise the tool invokes
-  ``clang-format``. Its ``--docker`` mode selects ``clang-format-8`` in
-  ``corsika/devel:clang-8``.
+Library and installation checks
+-------------------------------
 
-From the repository root, with a local ``master`` reference and
-``clang-format-8`` installed, the existing non-mutating check is:
+The following diagram shows the native-table component as an example of the
+path from source to an installed consumer. The checks available in a build
+depend on its enabled targets; :doc:`../validation/tests` lists their
+registration conditions.
 
-.. code-block:: console
+.. figure:: ../_static/maintenance-interface-flow.svg
+   :alt: Headers and implementations form library targets, which are exported to installed consumers and checked by corresponding source and installation tests.
+   :width: 100%
+   :target: ../_static/maintenance-interface-flow.svg
 
-   CLANG_FORMAT=clang-format-8 python3 do-clang-format.py
-   git diff --check
+   :download:`SVG <../_static/maintenance-interface-flow.svg>` ·
+   :download:`DOT source <../_static/maintenance-interface-flow.dot>`.
 
-The first command does not accept a replacement comparison branch. If local
-``master`` is absent or unrelated to the intended change, review the changed
-paths against the actual target branch and use the editor or formatter on
-explicitly selected files. Inspect the diff after formatting. Do not combine
-``--all`` and ``--apply`` as routine preparation for a focused patch: that can
-rewrite unrelated code and preserved comparison implementations.
-
-The checked-in `GitLab CI configuration`_ runs the full-tree check in the
-``corsika/devel:clang-8`` image. It marks that job ``allow_failure: true``.
-This is evidence of the configured formatter generation and advisory CI job,
-not proof that a formatting failure blocks merging. Match the branch's
-formatter version: different releases can produce different edits from the
-same configuration.
-
-Preparing a focused change
----------------------------
-
-``CONTRIBUTING.md`` describes issue-based development on branches followed by
-a reviewed merge request. For this implementation, prepare the change around
-the interface or behavior being modified:
-
-1. Identify the public declaration, implementation, owning target, consumers
-   and nearest tests. Keep retained ``Reference.hpp``, ``reference/`` and
-   ``oracle/`` comparison implementations independent of routine production
-   refactoring; :doc:`../validation/tests` explains their role.
-2. Add source files and dependencies to the responsible CMake target. The
-   Kokkos subdirectory is conditional on ``CORSIKA_ENABLE_KOKKOS``; adding a
-   public include must not silently make native-only consumers require Kokkos.
-   Use the existing device-test registration helper when a test source needs
-   CUDA or HIP compilation.
-3. Update the header contract, relevant guide page and focused tests alongside
-   the implementation. For a behavioral change, describe the triggering input
-   and the intended result so reviewers can assess what the tests establish.
-4. Review formatting and the final diff, then run checks appropriate to the
-   affected target and backend. Record the configuration and results. Use
-   :doc:`../validation` to distinguish build checks, numerical comparisons,
-   physics validation and performance measurements.
-
-Keep build artifacts outside the source tree's source directories: the
-top-level CMake file rejects an in-source build. Installed include paths,
-exported targets and optional-dependency boundaries are part of the public
-interface, so a successful local application build alone is insufficient when
-those contracts change.
-
-.. _d5297c43: https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397
-.. _official coding conventions: https://corsika-8.readthedocs.io/en/documentation-upgrade/code/coding_conventions.html
-.. _top-level CMake configuration: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt
-.. _Kokkos target definitions: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt
-.. _Kokkos library layout: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/README.md
-.. _documentation map: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/documentation/USER_GUIDE_INDEX.md
-.. _.clang-format: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.clang-format
-.. _CONTRIBUTING.md: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CONTRIBUTING.md
-.. _do-clang-format.py: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/do-clang-format.py
-.. _GitLab CI configuration: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.gitlab-ci.yml
+.. _library layout: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/README.md
+.. _c8_air_shower.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/applications/c8_air_shower.cpp
+.. _CascadeExtension.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/CascadeExtension.inl
+.. _ProposalNativeQueries.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ProposalNativeQueries.inl
+.. _ContinuousPhysicsQueries.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/tables/ContinuousPhysicsQueries.inl
+.. _LeptonContinuousStep.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/algorithms/LeptonContinuousStep.inl
+.. _BackendInstanceImplementation.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/em/execution/BackendInstanceImplementation.inl
+.. _EmRouter.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/scheduling/EmRouter.inl
+.. _AirShowerCoordinator.cpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/scheduling/AirShowerCoordinator.cpp
+.. _src/kokkos/CMakeLists.txt: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt
+.. _official C8 coding conventions: https://corsika-8.readthedocs.io/en/documentation-upgrade/code/coding_conventions.html

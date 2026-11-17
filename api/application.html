@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
@@ -703,7 +704,7 @@ storage; its numerical view borrows that storage. The native environment is
 still required for host tracking, CPU completion and output conversion.
 Prepared data is not a device upload, nor is it refreshed by later mutations
 of native objects. See <a class="reference internal" href="../environment/export.html"><span class="doc">Scene construction and snapshot export</span></a> and
-<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending models and execution paths</span></a> for preparation and reuse requirements.</p>
+<a class="reference internal" href="../development/extensions.html"><span class="doc">Extending environments and physics capabilities</span></a> for preparation and reuse requirements.</p>
 <p>Source: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/PreparedCascade.hpp">PreparedCascade.hpp</a>.</p>
 <dl class="cpp struct">
 <dt class="sig sig-object cpp" id="_CPPv4I0EN7corsika6kokkos11application15PreparedCascadeE">

@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
@@ -184,6 +185,18 @@ This returns the application’s <code class="docutils literal notranslate"><spa
 <code class="docutils literal notranslate"><span class="pre">proposal::ContinuousProcess(env,</span> <span class="pre">dEdX)</span></code> supplies continuous losses for the
 non-hadronic branch; hadrons use <code class="docutils literal notranslate"><span class="pre">BetheBlochPDG</span></code>. Selecting a Kokkos execution
 backend does not itself select a new set of PROPOSAL parametrizations.</p>
+<p>Photohadronic final states follow the pinned official C8 baseline
+<code class="docutils literal notranslate"><span class="pre">74ebbc28051de3600aab133c225e387801b035a5</span></code>. The adapter counts calls to the
+selected generators; it does not provide a threshold pion-production model or
+an alternative high-energy generator. SOPHIA’s C8 interface, mass conversion
+and decay settings are restored byte for byte from that baseline. In particular,
+an unsupported photohadronic configuration follows the official warning and
+skips secondary production. This restoration is a compatibility decision, not
+a claim that those threshold cases conserve the full shower energy. The
+<code class="docutils literal notranslate"><span class="pre">discarded_final_states</span></code> diagnostic is <code class="docutils literal notranslate"><span class="pre">null</span></code> because the official model
+has no such counter. Native and Kokkos execution use the same host final-state
+implementation. The exact source identities and same-input regression are in
+<code class="docutils literal notranslate"><span class="pre">tests/modules/photohadronic</span></code>.</p>
 <p>The four tracking cuts are kinetic-energy thresholds. Their minimum becomes
 the production threshold passed to the native PROPOSAL setup:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos">604</span><span class="w">  </span><span class="c1">// tell proposal that we are interested in all energy losses above the particle cut</span>

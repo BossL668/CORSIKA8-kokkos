@@ -24,7 +24,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Application and data interface boundaries" href="decisions/interfaces.html" />
-    <link rel="prev" title="Compatibility, diagnostics and release review" href="development/compatibility.html" /> 
+    <link rel="prev" title="Data formats and compatibility reference" href="development/formats.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -121,9 +121,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="development/workflow.html">Repository organization and coding workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="development/extensions.html">Extending models and execution paths</a></li>
-<li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Compatibility, diagnostics and release review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Design decisions and open questions</a><ul>
@@ -262,7 +263,7 @@ application use is documented in <a class="reference internal" href="application
 installed for consumers. This does not give every exported symbol or record
 an independent stability guarantee. Similarly, a cache version, CMake package
 version and worker protocol version cover different contracts. The existing
-checks are documented in <a class="reference internal" href="development/compatibility.html"><span class="doc">Compatibility, diagnostics and release review</span></a>.</p>
+checks are documented in <a class="reference internal" href="development/compatibility.html"><span class="doc">Maintaining compatibility with C8 and dependencies</span></a>.</p>
 <p>For upstream integration, agree on the intended consumers of each interface:</p>
 <ul class="simple">
 <li><p><strong>Applications:</strong> scene/model construction, execution selection and event
@@ -335,7 +336,7 @@ timing result as a permanent property of the algorithm or architecture.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="development/compatibility.html" class="btn btn-neutral float-left" title="Compatibility, diagnostics and release review" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="development/formats.html" class="btn btn-neutral float-left" title="Data formats and compatibility reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="decisions/interfaces.html" class="btn btn-neutral float-right" title="Application and data interface boundaries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

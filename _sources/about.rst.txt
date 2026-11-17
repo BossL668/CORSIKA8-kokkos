@@ -30,8 +30,9 @@ runtime ownership and portable device-code requirements. The
 :doc:`validation` chapter maps available tests and documents numerical,
 statistical and timing methods; it does not claim that a new simulation
 campaign was performed. The :doc:`development` chapter documents repository
-conventions, extension work, compatibility and release review, distinguishing
-current contracts from recommendations. The :doc:`decisions` chapter records
+code organization, feature extension, algorithm sharing and maintenance across
+C8 updates, distinguishing existing implementation from recommendations. The
+:doc:`decisions` chapter records
 implemented design choices, integration alternatives and questions for review;
 it does not present proposed interfaces as approved or implemented. The
 :doc:`api` presents source-generated declarations for the main public

@@ -1,0 +1,334 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sharing numerical algorithms with native C8 &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/guide.css?v=d7e4d8cd" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/development/shared-algorithms.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=dd985633"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Maintaining compatibility with C8 and dependencies" href="compatibility.html" />
+    <link rel="prev" title="Extending environments and physics capabilities" href="extensions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Development and maintenance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Sharing numerical algorithms with native C8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../development.html">Development and maintenance</a></li>
+      <li class="breadcrumb-item active">Sharing numerical algorithms with native C8</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/development/shared-algorithms.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sharing-numerical-algorithms-with-native-c8">
+<h1>Sharing numerical algorithms with native C8<a class="headerlink" href="#sharing-numerical-algorithms-with-native-c8" title="Link to this heading"></a></h1>
+<p>The long-term maintenance goal is to keep one implementation of a numerical
+rule wherever native C8 and Kokkos can use it. Data access and execution can
+remain different: native C8 operates through its particle and model
+interfaces, while Kokkos processes batches in accessible numerical storage.
+This page distinguishes the sharing already present from a recommended path
+for reducing the remaining duplication.</p>
+<section id="what-is-already-shared">
+<h2>What is already shared<a class="headerlink" href="#what-is-already-shared" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.0%" />
+<col style="width: 43.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Current implementation</p></th>
+<th class="head"><p>Maintenance consequence</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Kokkos transport calculations</p></td>
+<td><p>Common numerical source is called by the OpenMP, CUDA and HIP execution
+implementations.</p></td>
+<td><p>Fix the common calculation once, then verify it on the affected backends.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Environment boundary selection</p></td>
+<td><p>Native and Kokkos wrappers include the same
+<code class="docutils literal notranslate"><span class="pre">NextEnvironmentBoundaryBody.inl</span></code> algorithm body.</p></td>
+<td><p>Selection-order changes can be maintained in one body. The geometry
+access and intersection implementations still need their own checks.</p></td>
+</tr>
+<tr class="row-even"><td><p>PROPOSAL physics tables</p></td>
+<td><p>The host exporter copies native table coefficients; Kokkos has its own
+table-query and inverse-sampling implementation.</p></td>
+<td><p>Shared data preserve the configured model, but the numerical code is
+not automatically shared with PROPOSAL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Native final-state generators</p></td>
+<td><p>Host completion calls the existing C8/PROPOSAL or hadronic model where
+that interaction is completed on CPU.</p></td>
+<td><p>Keep the completion adapter compatible with the native interface and
+preserve the selected vertex and process information.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="example-shared-environment-boundary-selection">
+<h2>Example: shared environment boundary selection<a class="headerlink" href="#example-shared-environment-boundary-selection" title="Link to this heading"></a></h2>
+<p>The two <code class="docutils literal notranslate"><span class="pre">next_environment_boundary</span></code> wrappers are defined in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundary.inl">native NextEnvironmentBoundary.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/environment/NextEnvironmentBoundary.inl">Kokkos NextEnvironmentBoundary.inl</a>.
+Both include <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl">NextEnvironmentBoundaryBody.inl</a>. That body asks an access
+object for intersections and for the current node’s parent, children and
+excluded nodes, then returns the selected parameter and node.</p>
+<figure class="align-default" id="id1">
+<a class="reference external image-reference" href="../_static/shared-boundary-maintenance.svg"><img alt="Native C8 and Kokkos boundary wrappers supply different access implementations to one shared boundary-selection body, which returns the selected parameter and node." src="../_images/shared-boundary-maintenance.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Existing code sharing at the boundary-selection level.
+<a class="reference download internal" download="" href="../_downloads/5e897fa105c897e83ff675eabde83a06/shared-boundary-maintenance.dot"><code class="xref download docutils literal notranslate"><span class="pre">DOT</span> <span class="pre">source</span></code></a>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The native adapter can use C8 node objects and physical quantities. The
+numerical adapter uses exported data and node indices. Neither wrapper needs
+a second copy of the parent/child/exclusion selection rule. This does <strong>not</strong>
+mean every shape-intersection formula is identical: the geometry chapter
+separately documents the native and numerical intersection paths.</p>
+<p>This is an existing example of a maintainable boundary. Reusing its exact
+include-body technique elsewhere is not a requirement; an ordinary template
+or a small common numerical function may be clearer for another calculation.</p>
+</section>
+<section id="recommended-extraction-of-another-shared-calculation">
+<h2>Recommended extraction of another shared calculation<a class="headerlink" href="#recommended-extraction-of-another-shared-calculation" title="Link to this heading"></a></h2>
+<p><strong>This is a development approach, not a claim that all C8 algorithms already
+use a common implementation.</strong> Apply it to one calculation at a time:</p>
+<ol class="arabic simple">
+<li><p>Identify its physical inputs and outputs. Separate the calculation from
+table construction, file access, particle-stack mutation and kernel launch.</p></li>
+<li><p>Give it a narrow input interface: numerical values, a read-only table view
+or an accessor with the operations the algorithm needs. State units and
+coordinate conventions at that boundary.</p></li>
+<li><p>Keep a native wrapper that obtains those inputs from C8 objects, and a
+Kokkos wrapper that obtains them from device-accessible storage. Both call
+the same calculation. Runtime selection belongs outside its inner loop.</p></li>
+<li><p>Make the complete device call chain compilable for the target. Select
+supported math and data-access operations; retain error information that
+the caller can handle. Allocation, logging and host-only library calls
+remain in the host preparation or completion layer.</p></li>
+<li><p>Compare the native wrapper and device execution on identical prepared
+inputs. Test endpoint behavior and statuses as well as typical values,
+then verify integration and performance before replacing the old path.</p></li>
+</ol>
+<p>Keep random inputs explicit, or pass a well-defined random-number interface,
+when extracting a sampler. That allows a fixed-input comparison to distinguish
+a numerical change from a different random sequence.</p>
+</section>
+<section id="sharing-source-requires-more-than-an-annotation">
+<h2>Sharing source requires more than an annotation<a class="headerlink" href="#sharing-source-requires-more-than-an-annotation" title="Link to this heading"></a></h2>
+<p>A device-callable annotation tells the compiler where to compile a function;
+it does not copy the objects the function reads or make a host-only library
+callable on the GPU. Every operation in the call chain must be supported, and
+the referenced data must be accessible in that execution space. See the
+<a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/macros-special/host_device_macros.html">Kokkos function-annotation documentation</a> and <a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a>.</p>
+<p>Classes, templates and unit-aware value types are not inherently forbidden on
+a GPU. Their implementation and accessed storage determine whether they can
+be used. A small value type may be reusable; an object that reaches a host
+virtual interface, host allocation or external library needs an adapter or
+another implementation. The same distinction applies to C8 coordinate and
+environment objects.</p>
+<p>For external libraries such as PROPOSAL, sharing a numerical routine also
+requires an interface and dependency arrangement agreed with that library.
+Exporting table coefficients is the existing integration boundary; it does
+not make the library’s internal C++ implementation device-callable. Keep a
+verified adapter until a shared replacement is available.</p>
+</section>
+<section id="priorities-for-incremental-maintenance">
+<h2>Priorities for incremental maintenance<a class="headerlink" href="#priorities-for-incremental-maintenance" title="Link to this heading"></a></h2>
+<p>Start with self-contained calculations whose inputs can be stated clearly:
+geometry selection, interpolation, root solving or a final-state formula.
+Choose a case with a useful independent reference and a manageable dependency
+chain. Review one shared routine and its wrappers before broadening the change.</p>
+<p>Keep particle queues, memory management and kernel policies in the execution
+layer. The native C8 loop and a Kokkos batch do not need identical scheduling
+to share a numerical calculation. Where sharing is not yet practical, document
+the reference algorithm, the reason for a separate implementation and the
+comparison that must be rerun when either side changes.</p>
+<p>The exact upstream location and dependency policy for common helpers should
+be agreed with the CORSIKA maintainers. The existing layout supplies a working
+example, rather than requiring all common code to be placed under <code class="docutils literal notranslate"><span class="pre">kokkos</span></code>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="extensions.html" class="btn btn-neutral float-left" title="Extending environments and physics capabilities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="compatibility.html" class="btn btn-neutral float-right" title="Maintaining compatibility with C8 and dependencies" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

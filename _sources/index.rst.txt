@@ -62,8 +62,9 @@ accumulation and propagation-specific interfaces. The :doc:`backends` chapter
 explains build selection, runtime ownership and device-code contracts. The
 :doc:`validation` chapter documents executable tests, numerical and statistical
 comparisons, and performance measurement. The :doc:`development` chapter
-describes contributor workflow, extension points, compatibility and release
-review. The :doc:`decisions` chapter separates implemented design choices from
+explains code modification, feature extension, algorithm sharing with native
+C8 and maintenance across C8 and dependency updates. The :doc:`decisions`
+chapter separates implemented design choices from
 integration options and their evaluation requirements. The :doc:`api` provides
 generated declarations with links to the relevant behavioral contracts.
 
