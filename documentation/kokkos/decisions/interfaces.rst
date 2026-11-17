@@ -1,11 +1,14 @@
-Application and data interface boundaries
-=========================================
+.. _application-and-data-interface-boundaries:
 
-An integration interface must connect the native simulation to an execution
-implementation without making application code responsible for particle
-scheduling or device storage. The decision is broader than the number of
-calls in ``main``: it determines ownership, optional dependencies and the
-contracts that new applications must implement.
+Evolving application and data interfaces
+========================================
+
+Application simplification should preserve the native scene, models and
+process sequence while keeping scheduling and device storage in the library.
+This page identifies the current responsibilities and a practical way to
+separate them during further C8 integration. A shorter application is useful
+only if the resulting interfaces still make data ownership and event behavior
+clear.
 
 This page distinguishes the implementation at `d5297c43`_ from alternatives
 for discussion. The alternatives are not approved upstream interfaces and
@@ -179,32 +182,38 @@ mutating native objects does not refresh resident data, and ordinary runtime
 ownership does not permit arbitrary destruction and reinitialization in one
 process. See :ref:`backend-runtime-owner` and :ref:`environment-validation`.
 
-Questions for interface review
-------------------------------
+Recommended integration sequence
+--------------------------------
 
-These questions identify decisions still needed for an upstream interface;
-they do not imply that the current implementation has already adopted the
-corresponding change.
+A useful first refactor is to separate preparation services from cascade
+construction while reusing the existing execution driver. It need not change
+particle scheduling or numerical algorithms. The proposed sequence is:
 
-1. Should the extension point be a cascade factory, an execution policy, or
-   the current adapter? Which framework layer owns stack routing and event
-   completion under that choice?
-2. Which preparation services should remain independent of execution
-   selection? In particular, should writer conventions, photonuclear adapter
-   construction and diagnostics be configured through separate interfaces?
-3. Should model and writer access come from explicit typed references or
-   process-sequence lookup? The current implementation uses both; sequence
-   extraction must keep supported types and missing/ambiguous-process behavior
-   explicit. See `SequenceModels.inl`_ and `SequenceOutputs.inl`_.
-4. Which context and value types should be framework-owned, and which should
-   remain implementation-specific? Specify borrowed lifetimes and optional
-   dependencies before choosing the containing namespace or directory.
-5. What is the supported model-export contract? Decide who maintains export
-   adapters and numerical queries when a native shape or material model is
-   added, and what happens when only the native path supports it.
-6. Which shared numerical function is suitable for the first bounded trial?
-   Agree its reference tests, supported backends and acceptance criteria before
-   replacing separate implementations.
+1. **Inventory the application calls.** Use :doc:`../application/setup` to
+   separate option parsing, scene/model preparation, output setup and
+   execution construction. Record the native objects each call needs and who
+   owns them.
+2. **Define a narrow execution input.** Supply the scene, stack, process
+   sequence and required prepared resources through explicit typed
+   references. Keep units and borrowed lifetimes visible. Decide with C8
+   maintainers whether this belongs in a cascade factory or a framework
+   execution policy.
+3. **Preserve native and accelerated alternatives.** Keep the native cascade
+   available through the agreed construction interface. Reuse the hybrid
+   driver for accelerated execution rather than move its queues or CPU
+   completion rules into the application.
+4. **Separate optional services.** Expose diagnostics, writer setup and
+   model-specific adapters through the components that own them. A new
+   execution context should not accumulate unrelated application services.
+5. **Verify the boundary.** Compare application defaults, process order,
+   outputs and completion on native, direct accelerated and coordinated
+   paths. Include multiple events to exercise resource reuse.
+
+The official extension point and public types remain subjects for agreement
+with C8 maintainers. Sequence lookup also needs an explicit policy for
+supported, missing or ambiguous process types; the current extraction is in
+`SequenceModels.inl`_ and `SequenceOutputs.inl`_. These choices can be reviewed
+independently of device data layout or future algorithm-sharing work.
 
 Implementation references
 -------------------------

@@ -1,11 +1,34 @@
-Runtime selection and ownership
-===============================
+.. _runtime-selection-and-ownership:
+
+Runtime and session lifecycle
+=============================
 
 The build determines which execution spaces are available. The application
 then chooses its EM and radio implementations, process organization and
 visible device before creating a backend. A runtime object owns or borrows
 Kokkos initialization; the EM backend owns the execution-space instance and
 storage used to advance particles.
+
+Lifecycle when changing execution code
+--------------------------------------
+
+Keep configuration, initialization and event work separate. The ordinary
+application follows this sequence:
+
+1. Select direct or coordinated execution before model setup. Resolve device
+   visibility before initializing a GPU runtime.
+2. Prepare the native scene and models, and retain the application session
+   that will supply compatible events to the backend.
+3. Initialize the backend on its first numerical request. Keep its runtime,
+   execution instance and storage alive across subsequent compatible events.
+4. Complete pending work before replacing storage or reading results on the
+   host. Release views and execution objects before finalizing their runtime.
+
+A change to reuse or shutdown must preserve these dependencies. Test more
+than the first event: include a later compatible event and the final cleanup
+path. :doc:`../validation/tests` identifies runtime and session scenarios.
+The sections below give the exact selection, ownership and borrowing rules,
+including the distinct generic and production runtime classes.
 
 Application choices
 -------------------

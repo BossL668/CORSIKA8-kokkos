@@ -24,21 +24,18 @@ representation, resident ownership and query/extension contracts. The
 :doc:`transport` chapter follows candidate sampling, step-limit competition,
 continuous processes and final-state/CPU completion contracts. The
 :doc:`radio` chapter documents track collection, observer data, parallel
-projection, accumulation and ordinary/firn propagation interfaces. The
-:doc:`backends` chapter covers build dependencies, execution selection,
-runtime ownership and portable device-code requirements. The
-:doc:`validation` chapter maps available tests and documents numerical,
-statistical and timing methods; it does not claim that a new simulation
-campaign was performed. The :doc:`development` chapter documents repository
-code organization, feature extension, algorithm sharing and maintenance across
-C8 updates, distinguishing existing implementation from recommendations. The
-:doc:`decisions` chapter records
-implemented design choices, integration alternatives and questions for review;
-it does not present proposed interfaces as approved or implemented. The
-:doc:`api` presents source-generated declarations for the main public
-interfaces, linked to component contracts. Source extraction documents the
-interfaces; it does not demonstrate a successful build or physics validation
-on every recognized backend.
+projection, accumulation and ordinary/firn propagation interfaces.
+
+The :doc:`developer-guide` introduces the complete development and maintenance
+section. :doc:`development` covers code changes, feature extension and shared
+algorithms; :doc:`backends` covers build, runtime and device implementation;
+:doc:`validation` covers tests, physical comparisons and performance;
+:doc:`decisions` covers updates, compatibility and further integration with C8.
+Existing behavior and recommended future changes are distinguished throughout.
+The separate :doc:`api` presents source-generated declarations linked to the
+component documentation. Source extraction does not establish a successful
+build or physics validation on every recognized backend.
+
 This site is not an official CORSIKA documentation release.
 
 Writing a chapter

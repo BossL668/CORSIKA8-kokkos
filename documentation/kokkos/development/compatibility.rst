@@ -6,6 +6,9 @@ model is corrected, or a dependency is upgraded. Determine which integration
 points use that code, update those points, and verify the affected execution
 paths. The objective is to keep native and accelerated results consistent
 without maintaining another independent copy of the entire framework.
+This is the routine update procedure within :doc:`../decisions`; application
+interface redesign and scheduling changes have separate guides in that
+chapter.
 
 Following a C8 change
 ---------------------
