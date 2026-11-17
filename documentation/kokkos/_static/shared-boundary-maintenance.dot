@@ -1,0 +1,21 @@
+// Regenerate with: dot -Tsvg shared-boundary-maintenance.dot -o shared-boundary-maintenance.svg
+digraph SharedBoundary {
+  graph [rankdir=LR, bgcolor="transparent", pad=0.18, nodesep=0.40,
+         ranksep=0.45, fontname="Arial", splines=polyline];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=13,
+        margin="0.17,0.13", color="#b5cbd8", fillcolor="#f5f8fb",
+        fontcolor="#1c3247", penwidth=1.2];
+  edge [color="#526f84", penwidth=1.5, arrowsize=0.7];
+  native [label="Native C8\nboundary query"];
+  kokkos [label="Kokkos\nboundary query"];
+  host [label="Native access\nC8 nodes and quantities"];
+  device [label="Numerical access\nSnapshot arrays and indices"];
+  shared [label="Shared selection body\nNextEnvironmentBoundaryBody.inl",
+          color="#1b819c", fillcolor="#e7f3f8", penwidth=1.7];
+  result [label="Selected boundary\nParameter and node"];
+  {rank=same; native; kokkos;}
+  {rank=same; host; device;}
+  native -> host -> shared;
+  kokkos -> device -> shared;
+  shared -> result;
+}
