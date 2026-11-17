@@ -1,10 +1,15 @@
 API reference
 =============
 
-This reference presents the main integration interfaces directly from their
-C++ headers. Doxygen extracts declarations and comments; Breathe renders them
-in the guide. Function names, template parameters, argument types, defaults
-and return types come from source rather than manually copied signatures.
+Use this reference to look up the C++ types, functions and members used at
+component boundaries. For a development task, start with
+:doc:`developer-guide`; for the call sequence and data flow, use the
+corresponding component chapter linked below.
+
+Doxygen extracts declarations and comments from the C++ headers, and Breathe
+renders them here. Function names, template parameters, argument types,
+defaults and return types come from source rather than manually copied
+signatures.
 
 .. note::
 

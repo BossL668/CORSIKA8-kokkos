@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Device-code contracts and portability &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Writing and tuning portable kernels &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Validation and performance" href="../validation.html" />
-    <link rel="prev" title="Runtime selection and ownership" href="runtime.html" /> 
+    <link rel="next" title="Testing and benchmarking" href="../validation.html" />
+    <link rel="prev" title="Runtime and session lifecycle" href="runtime.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,8 +162,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
-      <li class="breadcrumb-item active">Device-code contracts and portability</li>
+          <li class="breadcrumb-item"><a href="../backends.html">CPU and GPU backend development</a></li>
+      <li class="breadcrumb-item active">Writing and tuning portable kernels</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/backends/device-code.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -169,13 +173,36 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="device-code-contracts-and-portability">
-<span id="backend-device-code"></span><h1>Device-code contracts and portability<a class="headerlink" href="#device-code-contracts-and-portability" title="Link to this heading"></a></h1>
-<p>Backend portability depends on callable operations, accessible storage and
-correct execution ordering. Selecting a Kokkos execution space supplies a
-dispatch mechanism; it does not make an arbitrary native C8 object graph
-usable by a device. The contracts below describe the implementation at
+  <section id="writing-and-tuning-portable-kernels">
+<span id="device-code-contracts-and-portability"></span><span id="backend-device-code"></span><h1>Writing and tuning portable kernels<a class="headerlink" href="#writing-and-tuning-portable-kernels" title="Link to this heading"></a></h1>
+<p>A portable kernel needs a device-callable calculation, accessible inputs and
+well-defined output ownership. Develop these together: an annotation on the
+entry function is insufficient if a called helper or referenced allocation
+is still host-only. The implementation examples use
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">revision d5297c43</a>.</p>
+<section id="implementation-procedure">
+<h2>Implementation procedure<a class="headerlink" href="#implementation-procedure" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Define the numerical inputs, units, result and supported domain. Reuse an
+existing stage interface where possible; keep native model preparation
+outside the kernel.</p></li>
+<li><p>Inspect every called function and every captured pointer. Use the owning
+storage and view adapters already associated with the selected execution
+space, including their actual strides.</p></li>
+<li><p>Submit dependent copies and kernels through the intended execution
+instance. Establish completion where results or storage cross an ownership
+boundary, rather than adding unrelated global fences.</p></li>
+<li><p>Add a controlled-input test and compile its device-bearing sources through
+<code class="docutils literal notranslate"><span class="pre">corsika_kokkos_device_test</span></code>. Run the calculation on the intended backend
+and compare its records, statuses and accounting with the reference.</p></li>
+<li><p>Tune launch policy only after establishing that comparison. Measure
+representative batch sizes and event behavior; record the policy and
+hardware with the result.</p></li>
+</ol>
+<p>The following sections provide the code-level rules and examples for these
+steps. For sharing a calculation with native C8 as well as other Kokkos
+backends, see <a class="reference internal" href="../development/shared-algorithms.html"><span class="doc">Sharing numerical algorithms with native C8</span></a>.</p>
+</section>
 <section id="callable-functions-and-kernel-captures">
 <h2>Callable functions and kernel captures<a class="headerlink" href="#callable-functions-and-kernel-captures" title="Link to this heading"></a></h2>
 <p>The numerical transport functions use <code class="docutils literal notranslate"><span class="pre">KOKKOS_INLINE_FUNCTION</span></code> and kernels
@@ -358,7 +385,7 @@ queue/transfer tests are registered in the source tree. Some lifecycle cases
 run in separate processes because Kokkos cannot be reinitialized after
 finalization. The build/install consumer contracts are additionally gated on
 the configured production targets and, for real backend execution, the
-native export bridge. See <a class="reference internal" href="../backends.html"><span class="doc">Build and backend portability</span></a> for the source and test map.
+native export bridge. See <a class="reference internal" href="../backends.html"><span class="doc">CPU and GPU backend development</span></a> for the source and test map.
 Run the relevant registered tests in each intended backend configuration;
 an OpenMP run cannot exercise a CUDA-only completion-event branch.</p>
 <p>The checked-in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/.gitlab-ci.yml">GitLab CI configuration</a> defines ordinary GCC/Clang
@@ -381,8 +408,8 @@ when extending platform coverage.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="runtime.html" class="btn btn-neutral float-left" title="Runtime selection and ownership" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../validation.html" class="btn btn-neutral float-right" title="Validation and performance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="runtime.html" class="btn btn-neutral float-left" title="Runtime and session lifecycle" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../validation.html" class="btn btn-neutral float-right" title="Testing and benchmarking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

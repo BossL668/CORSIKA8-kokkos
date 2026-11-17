@@ -107,31 +107,35 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="execution.html">Runtime and execution interfaces</a></li>
@@ -387,7 +391,7 @@ mappings are used; rebuild after changing the scene.</p>
 <code class="docutils literal notranslate"><span class="pre">EnvironmentStorage</span></code> uploads those arrays and owns the resident allocations.
 The same <code class="docutils literal notranslate"><span class="pre">EnvironmentDataView</span></code> type can contain host or device addresses;
 the type itself does not establish accessibility. Its owner must outlive all
-operations using the view. See <a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a> for ordering and
+operations using the view. See <a class="reference internal" href="../backends/device-code.html"><span class="doc">Writing and tuning portable kernels</span></a> for ordering and
 memory-space requirements.</p>
 <p>Sources: <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentDataView.hpp">EnvironmentDataView.hpp</a>, <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentSnapshotData.hpp">EnvironmentSnapshotData.hpp</a> and
 <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/environment/EnvironmentStorage.hpp">EnvironmentStorage.hpp</a>.</p>

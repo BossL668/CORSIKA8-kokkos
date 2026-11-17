@@ -1,13 +1,38 @@
 .. _backend-device-code:
 
-Device-code contracts and portability
-=====================================
+.. _device-code-contracts-and-portability:
 
-Backend portability depends on callable operations, accessible storage and
-correct execution ordering. Selecting a Kokkos execution space supplies a
-dispatch mechanism; it does not make an arbitrary native C8 object graph
-usable by a device. The contracts below describe the implementation at
+Writing and tuning portable kernels
+===================================
+
+A portable kernel needs a device-callable calculation, accessible inputs and
+well-defined output ownership. Develop these together: an annotation on the
+entry function is insufficient if a called helper or referenced allocation
+is still host-only. The implementation examples use
 `revision d5297c43 <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397>`_.
+
+Implementation procedure
+-------------------------
+
+1. Define the numerical inputs, units, result and supported domain. Reuse an
+   existing stage interface where possible; keep native model preparation
+   outside the kernel.
+2. Inspect every called function and every captured pointer. Use the owning
+   storage and view adapters already associated with the selected execution
+   space, including their actual strides.
+3. Submit dependent copies and kernels through the intended execution
+   instance. Establish completion where results or storage cross an ownership
+   boundary, rather than adding unrelated global fences.
+4. Add a controlled-input test and compile its device-bearing sources through
+   ``corsika_kokkos_device_test``. Run the calculation on the intended backend
+   and compare its records, statuses and accounting with the reference.
+5. Tune launch policy only after establishing that comparison. Measure
+   representative batch sizes and event behavior; record the policy and
+   hardware with the result.
+
+The following sections provide the code-level rules and examples for these
+steps. For sharing a calculation with native C8 as well as other Kokkos
+backends, see :doc:`../development/shared-algorithms`.
 
 Callable functions and kernel captures
 --------------------------------------

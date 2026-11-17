@@ -1,0 +1,340 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer guide &mdash; CORSIKA 8 Kokkos — Documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="_static/guide.css?v=d7e4d8cd" />
+
+  
+    <link rel="canonical" href="https://bossl668.github.io/CORSIKA8-kokkos/developer-guide.html" />
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=dd985633"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Code development and extension" href="development.html" />
+    <link rel="prev" title="Propagation models and medium-specific interfaces" href="radio/propagation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #172e46" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CORSIKA 8 with Kokkos
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting oriented</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Using the application</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">User guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/first-shower.html">Run a first shower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/configuration.html">Configure a simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/parallel-execution.html">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/outputs.html">Outputs and run checks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture and data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="application/setup.html">Execution selection and setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application/data-contracts.html">Application data and lifetime contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="application/event-execution.html">Event execution and results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="execution.html">Execution and scheduling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="execution/hybrid-loop.html">Hybrid event execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/batches.html">Batch execution and CPU return paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution/coordinator.html">Process coordination and worker lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="particles.html">Particle data and state</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="particles/representation.html">Particle representation and numerical conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/conversion.html">Host and backend conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="particles/storage.html">Device storage and state updates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Environment and geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="environment/export.html">Scene construction and snapshot export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment/queries.html">Environment queries and boundary selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment/extension.html">Supported models and extension requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="physics-data.html">Physics models and table preparation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/preparation.html">Model selection, preparation and reuse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/storage.html">Table representation and device storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="physics-data/contracts.html">Query contracts and model extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="transport.html">Transport and interaction kernels</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="transport/selection.html">Candidate sampling and vertex selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transport/lepton-step.html">Charged-lepton propagation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transport/interactions.html">Photon transport and interaction completion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="radio.html">Radio calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="radio/inputs.html">Track collection and observer preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/accumulation.html">Parallel projection and waveform accumulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="radio/propagation.html">Propagation models and medium-specific interfaces</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Code development and extension</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/workflow.html">Code organization and modification guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/extensions.html">Extending environments and physics capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="decisions.html">C8 integration and long-term maintenance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/application.html">Application interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/execution.html">Runtime and execution interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/particles.html">Particle records and conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/environment.html">Environment preparation and queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/physics.html">Physics tables and transport stages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/radio.html">Radio inputs, accumulation and propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About this guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #172e46" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CORSIKA 8 with Kokkos</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Developer guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/developer-guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="developer-guide">
+<h1>Developer guide<a class="headerlink" href="#developer-guide" title="Link to this heading"></a></h1>
+<p>This part of the documentation explains how to change the existing CORSIKA 8
+with Kokkos implementation and maintain it as C8, its physics dependencies and
+supported platforms evolve. It follows the development process: locate the
+responsible component, implement a change, verify it on the affected execution
+paths, and maintain compatibility with the surrounding framework.</p>
+<p>The component chapters explain how the current system works. The pages here
+explain how to work on that system. They distinguish existing interfaces from
+recommendations for further integration with C8.</p>
+<section id="guide-structure">
+<h2>Guide structure<a class="headerlink" href="#guide-structure" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29.0%" />
+<col style="width: 45.0%" />
+<col style="width: 26.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Chapter</p></th>
+<th class="head"><p>Development responsibility</p></th>
+<th class="head"><p>Main outcome</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="development.html"><span class="doc">Code development and extension</span></a></p></td>
+<td><p>Locate implementations and callers; modify calculations or add an
+environment, reaction or radio capability.</p></td>
+<td><p>A change in the appropriate component, with its integration points
+identified.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="backends.html"><span class="doc">CPU and GPU backend development</span></a></p></td>
+<td><p>Configure a development build; manage runtime and data lifetimes;
+compile and tune shared code for CPU and GPU execution.</p></td>
+<td><p>An implementation that runs on the intended backend without
+duplicating the physical model.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="validation.html"><span class="doc">Testing and benchmarking</span></a></p></td>
+<td><p>Select component tests, compare physical results and measure
+performance under a defined workload.</p></td>
+<td><p>Evidence supporting the specific correctness and performance claims
+of the change.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="decisions.html"><span class="doc">C8 integration and long-term maintenance</span></a></p></td>
+<td><p>Follow upstream and dependency changes; maintain interfaces, data
+formats and native/accelerated behavior together.</p></td>
+<td><p>Compatibility with C8 as the implementation evolves.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The separate <a class="reference internal" href="api.html"><span class="doc">API reference</span></a> provides declarations and member documentation. Use it
+to look up a signature or type after locating the responsible component.</p>
+</section>
+<section id="development-workflow">
+<h2>Development workflow<a class="headerlink" href="#development-workflow" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Identify the behavior to change.</strong> Trace the application input to the
+responsible preparation, numerical or execution function. The file map
+and continuous-energy-loss example in <a class="reference internal" href="development/workflow.html"><span class="doc">Code organization and modification guide</span></a> show
+how to locate its callers and tests.</p></li>
+<li><p><strong>Prepare a reproducible build.</strong> Keep native and accelerated build
+directories separate. Record the C8 revision, dependency versions and
+backend configuration. <a class="reference internal" href="backends/build.html"><span class="doc">Configuring development builds</span></a> explains the targets and
+toolchain settings; <a class="reference internal" href="usage/installation.html"><span class="doc">Installation</span></a> provides installation
+commands.</p></li>
+<li><p><strong>Implement at the appropriate layer.</strong> Change data conversion when an
+input changes, the numerical implementation when a calculation changes,
+or the scheduler when work assignment changes. Reuse existing interfaces
+and shared functions; <a class="reference internal" href="development/extensions.html"><span class="doc">Extending environments and physics capabilities</span></a> and
+<a class="reference internal" href="development/shared-algorithms.html"><span class="doc">Sharing numerical algorithms with native C8</span></a> give concrete examples.</p></li>
+<li><p><strong>Validate the affected behavior.</strong> Start with controlled-input tests,
+then exercise the connected execution path. Use complete showers when
+the change affects physical distributions or event-level behavior.
+<a class="reference internal" href="validation.html"><span class="doc">Testing and benchmarking</span></a> explains how to select the comparison and timing scope.</p></li>
+<li><p><strong>Prepare the change for review and maintenance.</strong> Explain the resulting
+behavior, affected callers and validation evidence. Update the relevant
+documentation. If an interface, dependency or persisted record changes,
+follow <a class="reference internal" href="development/compatibility.html"><span class="doc">Maintaining compatibility with C8 and dependencies</span></a> as well.</p></li>
+</ol>
+</section>
+<section id="common-development-tasks">
+<h2>Common development tasks<a class="headerlink" href="#common-development-tasks" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 41.0%" />
+<col style="width: 59.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task</p></th>
+<th class="head"><p>Starting point</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Fix an existing transport calculation</p></td>
+<td><p><a class="reference internal" href="development/workflow.html"><span class="doc">Code organization and modification guide</span></a>, followed by
+<a class="reference internal" href="validation/numerics.html"><span class="doc">Comparing numerical and shower results</span></a> for the reference and tolerance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Add a material profile, shape or reaction</p></td>
+<td><p><a class="reference internal" href="development/extensions.html"><span class="doc">Extending environments and physics capabilities</span></a> for preparation, evaluation and
+integration changes.</p></td>
+</tr>
+<tr class="row-even"><td><p>Reduce duplicate native and Kokkos code</p></td>
+<td><p><a class="reference internal" href="development/shared-algorithms.html"><span class="doc">Sharing numerical algorithms with native C8</span></a> for the shared boundary-selection
+example and extraction of another common calculation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Support or optimize an execution backend</p></td>
+<td><p><a class="reference internal" href="backends/device-code.html"><span class="doc">Writing and tuning portable kernels</span></a>, with <a class="reference internal" href="backends/runtime.html"><span class="doc">Runtime and session lifecycle</span></a> for resource
+ownership and <a class="reference internal" href="validation/performance.html"><span class="doc">Measuring performance</span></a> for measurements.</p></td>
+</tr>
+<tr class="row-even"><td><p>Update C8, PROPOSAL or Kokkos</p></td>
+<td><p><a class="reference internal" href="development/compatibility.html"><span class="doc">Maintaining compatibility with C8 and dependencies</span></a> for the affected adapters, prepared
+data and regression checks.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplify integration with the official framework</p></td>
+<td><p><a class="reference internal" href="decisions/interfaces.html"><span class="doc">Evolving application and data interfaces</span></a> for application and data boundaries;
+<a class="reference internal" href="decisions/execution-models.html"><span class="doc">Maintaining execution and reproducibility</span></a> for scheduling and reproducibility.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="maintenance-principles">
+<h2>Maintenance principles<a class="headerlink" href="#maintenance-principles" title="Link to this heading"></a></h2>
+<p>Native C8 constructs the scene and configured physics models. Preparation
+adapters make the required data available to numerical functions. Execution
+code manages storage, queues and scheduling. Keeping these responsibilities
+separate makes it possible to change a calculation without redesigning the
+application or implementing it separately for CUDA and HIP.</p>
+<p>OpenMP, CUDA and HIP already use common Kokkos numerical implementations.
+Sharing with the native C8 path is more selective: some functions share
+source, while others use exported native data with separate calculations.
+Maintenance must therefore cover both shared functions and adapters between
+separately maintained implementations. The integration chapter identifies
+the remaining choices without treating them as decisions already adopted by
+the CORSIKA project.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="radio/propagation.html" class="btn btn-neutral float-left" title="Propagation models and medium-specific interfaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="development.html" class="btn btn-neutral float-right" title="Code development and extension" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CORSIKA 8 Kokkos contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,10 +1,13 @@
-Development and maintenance
-===========================
+.. _development-and-maintenance:
 
-This chapter explains how to develop features and maintain the Kokkos
-integration within CORSIKA 8. It addresses three practical tasks: finding the
-code to change, extending an existing component, and keeping the native and
-accelerated paths consistent as C8 evolves.
+Code development and extension
+==============================
+
+This chapter covers changes to the implementation: modifying an existing
+function, adding a capability and sharing calculations with native C8.
+It provides file locations, examples and the connected tests for each task.
+For the complete workflow, start with :doc:`developer-guide`; maintenance
+across upstream and dependency updates is covered in :doc:`decisions`.
 
 The maintenance objective is to keep physical models and numerical rules
 consistent while allowing different data layouts and execution strategies.
@@ -30,7 +33,6 @@ Development guide
    development/workflow
    development/extensions
    development/shared-algorithms
-   development/compatibility
 
 .. list-table::
    :header-rows: 1
@@ -50,13 +52,9 @@ Development guide
      - Identify what is already shared and extract calculations that native C8
        and Kokkos can call through different data-access interfaces.
      - :doc:`development/shared-algorithms`
-   * - Follow C8 or dependency updates
-     - Identify affected adapters, update dependent data and test the native
-       and accelerated paths before releasing the change.
-     - :doc:`development/compatibility`
 
-Current maintenance model
--------------------------
+Implementation responsibilities
+-------------------------------
 
 The application builds the C8 environment, physics processes and observers.
 Host adapters convert the inputs needed by Kokkos. Numerical functions perform
@@ -94,6 +92,6 @@ A typical contribution
 4. Describe the changed behavior, affected execution paths and test results
    in the review. Update the component documentation and examples with the code.
 
-Detailed cache versions and worker/file formats are collected in
-:doc:`development/formats`. They are needed when those formats change, rather
-than for every numerical or application edit.
+Changes to a public interface, external dependency or persisted data also
+need the compatibility review described in :doc:`development/compatibility`.
+Detailed versioned records are collected in :doc:`development/formats`.

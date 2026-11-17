@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Runtime selection and ownership &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Runtime and session lifecycle &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Device-code contracts and portability" href="device-code.html" />
-    <link rel="prev" title="Build configuration and toolchains" href="build.html" /> 
+    <link rel="next" title="Writing and tuning portable kernels" href="device-code.html" />
+    <link rel="prev" title="Configuring development builds" href="build.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="build.html">Configuring development builds</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,8 +162,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
-      <li class="breadcrumb-item active">Runtime selection and ownership</li>
+          <li class="breadcrumb-item"><a href="../backends.html">CPU and GPU backend development</a></li>
+      <li class="breadcrumb-item active">Runtime and session lifecycle</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/backends/runtime.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -169,13 +173,33 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="runtime-selection-and-ownership">
-<h1>Runtime selection and ownership<a class="headerlink" href="#runtime-selection-and-ownership" title="Link to this heading"></a></h1>
+  <section id="runtime-and-session-lifecycle">
+<span id="runtime-selection-and-ownership"></span><h1>Runtime and session lifecycle<a class="headerlink" href="#runtime-and-session-lifecycle" title="Link to this heading"></a></h1>
 <p>The build determines which execution spaces are available. The application
 then chooses its EM and radio implementations, process organization and
 visible device before creating a backend. A runtime object owns or borrows
 Kokkos initialization; the EM backend owns the execution-space instance and
 storage used to advance particles.</p>
+<section id="lifecycle-when-changing-execution-code">
+<h2>Lifecycle when changing execution code<a class="headerlink" href="#lifecycle-when-changing-execution-code" title="Link to this heading"></a></h2>
+<p>Keep configuration, initialization and event work separate. The ordinary
+application follows this sequence:</p>
+<ol class="arabic simple">
+<li><p>Select direct or coordinated execution before model setup. Resolve device
+visibility before initializing a GPU runtime.</p></li>
+<li><p>Prepare the native scene and models, and retain the application session
+that will supply compatible events to the backend.</p></li>
+<li><p>Initialize the backend on its first numerical request. Keep its runtime,
+execution instance and storage alive across subsequent compatible events.</p></li>
+<li><p>Complete pending work before replacing storage or reading results on the
+host. Release views and execution objects before finalizing their runtime.</p></li>
+</ol>
+<p>A change to reuse or shutdown must preserve these dependencies. Test more
+than the first event: include a later compatible event and the final cleanup
+path. <a class="reference internal" href="../validation/tests.html"><span class="doc">Running and extending the tests</span></a> identifies runtime and session scenarios.
+The sections below give the exact selection, ownership and borrowing rules,
+including the distinct generic and production runtime classes.</p>
+</section>
 <section id="application-choices">
 <h2>Application choices<a class="headerlink" href="#application-choices" title="Link to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">BackendOptions</span></code> contains application settings without owning Kokkos or
@@ -500,8 +524,8 @@ or hardware coverage for every compiled backend.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="build.html" class="btn btn-neutral float-left" title="Build configuration and toolchains" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="device-code.html" class="btn btn-neutral float-right" title="Device-code contracts and portability" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="build.html" class="btn btn-neutral float-left" title="Configuring development builds" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="device-code.html" class="btn btn-neutral float-right" title="Writing and tuning portable kernels" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

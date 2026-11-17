@@ -1,218 +1,170 @@
-Execution granularity and algorithm ownership
-=============================================
+.. _execution-granularity-and-algorithm-ownership:
 
-The integration separates the physical calculation from the mechanism that
-schedules it. That separation is incomplete across native C8 and the numerical
-backend: some operations share an implementation, while others reproduce the
-native algorithm through exported data. Maintenance decisions should identify
-which boundary is changing rather than treat all parallelization work as one
-choice.
+Maintaining execution and reproducibility
+=========================================
 
-The implemented behavior below refers to `revision d5297c43`_. Alternatives
-are discussion options, not implemented features or measured performance
-claims. The execution contracts and tests remain the acceptance criteria for
-any replacement.
+Execution changes affect how particles reach a calculation, how their results
+are retained and when native processing resumes. Maintain those transitions
+alongside the kernels themselves. This page describes the responsibilities at
+`revision d5297c43`_ and the checks needed when changing them.
 
-.. _decision-execution-policy:
+Development procedure
+----------------------
 
-Batch execution and persistent particle tasks
----------------------------------------------
-
-**Implemented.** On its single-endpoint wavefront path, ``EmRouter`` separates
-photons from charged leptons, submits bounded inputs and consumes returned
-records. Resident loops can advance
-multiple wavefronts before a checkpoint; eligible particles and secondary
-queues can remain resident between calls. `LeptonFront.inl`_ and
-`PhotonFront.inl`_ launch selection, transport and final-state work, with
-stable scans assigning output slots. Photon final-state work is restricted
-to a compacted list of reached interaction vertices. This is not a transfer
-of every particle to the host after every physical step.
-
-The host `IEmBackend`_ interface is independent of the execution-space
-implementation. CUDA and HIP factories instantiate the same
-``BackendInstanceImplementation<TExecutionSpace>``. Particle identity belongs
-to the state and random key, not to a permanently assigned hardware thread.
-The actual call and return paths are documented in :doc:`../execution/batches`.
-
-The current design provides explicit stage ordering, bounded storage and
-well-defined checkpoints for native completion and output. Its costs include
-kernel launches, scans, queue management and host observation at checkpoints.
-The relative cost depends on batch population and the physical workload;
-the existence of these operations does not establish that they dominate a
-complete shower.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 36 39
-
-   * - Discussion option
-     - Potential benefit to evaluate
-     - Additional obligations
-   * - Retain wavefront execution; tune policies or combine compatible stages
-     - Reduce launch or intermediate-storage work while preserving the current
-       scheduling boundary.
-     - Measure register/local-memory use, queue costs and complete-shower time.
-       A combined kernel can execute more divergent work or reduce occupancy;
-       compare it with the separated path on each intended device.
-   * - Persistent per-particle or per-subshower tasks
-     - Continue several steps locally and obtain another task from a device
-       queue without returning through every existing stage boundary.
-     - Specify queue synchronization, termination, overflow, secondary
-       ownership, CPU completion and output ordering. Measure branch divergence,
-       register use and load imbalance; reduced launch count alone is not a
-       performance result.
-
-**Open decision.** Should a future scheduler retain the existing wavefront
-interface, or introduce a separate task-execution contract? A prototype should
-keep physical inputs fixed, account for every continuation and output once,
-and compare both representative large batches and sparse event tails.
-Persistent tasks inside a device are distinct from the existing persistent
-*process workers* described below. Neither approach assigns a scientific
-meaning to CUDA blocks, HIP workgroups or host thread identities.
-
-There is already an opt-in independent-subshower path in the host interface.
-``EmRouter`` checks it before the ordinary photon/lepton split, and the
-CUDA/OpenMP cooperative implementation uses ``IndependentSubshowerPump`` to
-coordinate its endpoints. This existing host CPU/GPU cooperation does not
-implement the proposed persistent task queue inside one GPU. See
-`EmRouter.inl`_ and `CooperativeBackend.cpp`_.
+1. Locate the change in the resident kernel pipeline, host router or process
+   coordinator. Keep numerical algorithms unchanged when evaluating only an
+   execution change.
+2. Trace each input to its continuation, termination or CPU-completion
+   result. Preserve particle identity, weights, random state and accumulated
+   outputs across those transitions.
+3. State whether the change should preserve random histories. Reuse and
+   partitioning can change stream progression even with the same seed labels.
+4. Run the relevant component and event checks, then measure both the changed
+   stage and complete events under the same physical conditions.
 
 .. _decision-shared-calculations:
 
-Shared numerical implementations
---------------------------------
+Numerical algorithms and execution code
+---------------------------------------
 
-**Implemented.** Backend factories share numerical stage interfaces, but native
-C8 and the Kokkos path do not universally call one implementation. A concrete
-shared example is `NextEnvironmentBoundaryBody.inl`_: native and numerical
-wrappers supply different access adapters around the same ordered boundary
-selection body. It preserves selection logic without exposing native nodes,
-units and ownership to device compilation.
+CUDA and HIP factories instantiate the same
+``BackendInstanceImplementation<TExecutionSpace>`` behind `IEmBackend`_. A
+launch-policy change can therefore remain in execution code while both
+backends continue to call the same physical calculation. Review
+backend-specific branches for scans, waits and resource queries separately;
+see :doc:`../backends/device-code`.
 
-The PROPOSAL path has a different boundary. `NativeTableExporter.cpp`_ copies
-configured interpolation data, while `ProposalNativeQueries.inl`_ implements
-queries against the exported representation. Export is data reuse, not a
-runtime call to PROPOSAL inside a device kernel. Final-state capabilities also
-remain separate from the availability of rate and loss tables; see
-:doc:`../physics-data/contracts` and :doc:`../transport/interactions`.
+Sharing with native C8 is more selective. Native and numerical boundary
+selection already include `NextEnvironmentBoundaryBody.inl`_ through different
+access adapters. PROPOSAL preparation instead uses `NativeTableExporter.cpp`_
+to export interpolation data, with queries implemented separately in
+`ProposalNativeQueries.inl`_. An upstream change to those calculations must be
+reviewed at the exporter and query boundary as well as in the native model.
+
+:doc:`../development/shared-algorithms` gives a concrete procedure for reducing
+this duplication. Keep an independent reference when extracting a common
+function; changing the implementation and its test oracle to call the same
+new helper can remove the comparison needed to detect a defect.
+
+.. _decision-execution-policy:
+
+Resident batches and host routing
+---------------------------------
+
+On the ordinary single-endpoint path, ``EmRouter`` separates photons from
+charged leptons and submits bounded inputs. `LeptonFront.inl`_ and
+`PhotonFront.inl`_ launch the relevant selection, transport and final-state
+work. Stable scans assign output slots; photon final-state work uses the
+compacted list of reached interaction vertices. Resident execution can advance
+several wavefronts and retain particles between host checkpoints.
+
+When changing this pipeline, review three boundaries together:
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 37 38
+   :widths: 28 42 30
 
-   * - Maintenance option
-     - Boundary
-     - Consequence
-   * - Share an algorithm body through access adapters
-     - Native and numerical representations provide the operations required
-       by one algorithm, as in boundary selection.
-     - Both adapters need compatible units, ordering, domains and failure
-       semantics. Device compilation must reach only supported operations.
-       Changes require tests through both representations.
-   * - Extract a device-callable numerical core
-     - Host model objects prepare immutable parameters; CPU and device paths
-       call a common calculation with explicit state and results.
-     - Requires agreement on ownership, parameter representation, math
-       dependencies and error reporting. An external library's core needs its
-       own maintainer agreement and portability work, not merely a local
-       function annotation.
-   * - Retain a native reference and separate numerical implementation
-     - The native package remains authoritative; the backend exports its
-       data and implements the specified operations.
-     - Preserves the present integration boundary but requires explicit
-       dependency/version checks and regression coverage for every duplicated
-       calculation. A shared physical model does not imply identical rounding.
+   * - Boundary
+     - Behavior to preserve
+     - Code and tests
+   * - Input submission
+     - A complete state and random key for each submitted particle; accessible
+       immutable tables and environment data.
+     - :doc:`../particles/conversion`, :doc:`../execution/batches`
+   * - Device result queues
+     - Each continuation, secondary, termination and returned request is
+       accounted for once, including capacity-limited returns.
+     - :doc:`../particles/storage`, :doc:`../execution/batches`
+   * - Host completion
+     - The returned state resumes the correct native process and contributes
+       to the same output accounting.
+     - :doc:`../execution/hybrid-loop`, :doc:`../transport/interactions`
 
-**Open decision.** Which algorithms should become shared C8 infrastructure,
-and which should remain adapters to independently maintained dependencies?
-Start with a bounded operation whose inputs and result can be specified,
-rather than move an entire stateful model object into a kernel. Device-callable
-helpers need accessible data, a supported call graph and explicit ownership;
-``inline`` or ``KOKKOS_INLINE_FUNCTION`` alone establishes none of those
-contracts. :doc:`../backends/device-code` describes the existing requirements.
+Particle identity belongs to the record and random key, not a permanently
+assigned thread. Launch geometry may change without redefining that identity.
+For performance work, compare sparse event tails as well as large batches:
+fewer launches can still increase register use, divergence or queue costs.
+Measure the complete event before interpreting a kernel improvement as a
+shower speedup.
 
-A shared implementation also needs an independent reference. Moving the test's
-oracle to the same new helper can remove the comparison that detects a defect.
-Retain suitable native-model, analytic or frozen-reference checks, and document
-what each one establishes. Updating a dependency requires reviewing its export
-contract, tables and numerical tests together.
+The existing independent-subshower path and ``IndependentSubshowerPump`` in
+`CooperativeBackend.cpp`_ coordinate host execution endpoints. They are not a
+persistent task queue inside a GPU. A future GPU task scheduler would need
+its own secondary ownership, termination and overflow design; it should be
+evaluated as an execution change rather than added inside a physics function.
 
-Native completion and capability ownership
-------------------------------------------
+Native completion and process coverage
+--------------------------------------
 
-**Implemented.** `ProcessCapabilities.inl`_ declares final-state support.
-Selected CPU interactions preserve the reached vertex and process information;
-`ProposalCpuFallbackHandler`_ completes accepted requests through native C8
-processing. Small-batch scalar expansion, forced decay and memory-spill returns
-have different scheduling contracts. They must not be combined into a single
-"unsupported physics" category.
+`ProcessCapabilities.inl`_ declares final-state support. For selected CPU
+interactions, the returned record retains the reached vertex and process
+information. `ProposalCpuFallbackHandler`_ completes accepted requests through
+native C8 processing. Small-batch scalar work, forced decay and memory-spill
+returns have different meanings and should retain their own handling.
 
 Direct electron–positron pair production by electron/positron and muon
-projectiles currently uses CPU completion because the native energy-asymmetry
-CDF is unavailable. A rate table alone cannot supply that missing distribution.
-Other native models may depend on host libraries with their own runtime state.
-Keeping their completion on CPU is compatible with a parallel EM backend;
-it does not remove the reaction from the simulation.
+projectiles uses CPU completion because the native energy-asymmetry CDF is
+unavailable. A rate table alone does not provide the missing final-state
+distribution. Keeping these interactions on CPU preserves their contribution
+to the simulation.
 
-**Open decision.** Should capability information become a common C8 service,
-or remain local to each execution implementation? A common description could
-make support discoverable before a run, but must distinguish configured model
-availability, selection support, final-state support and supported materials.
-The execution implementation still needs to enforce the declared domain and
-preserve the selected vertex when returning work. An unknown process or a
-numerical failure must not silently acquire a valid completion policy.
-
-A GPU implementation of an additional native model is separate work: audit
-its state, random-number source, dependencies and result construction, then
-validate the complete reaction. Replacing a CPU return with an approximate
-final state solely to reduce transfer time changes the physical calculation.
+When adding device support for a reaction, update the capability declaration,
+final-state calculation and return handling together. Compare the complete
+reaction with its native reference, including surviving and newly produced
+particles. When an upstream model changes but device support remains absent,
+maintain the native completion path rather than silently removing the process.
+:doc:`../development/extensions` describes the extension steps.
 
 Worker reuse and event partitioning
 -----------------------------------
 
-**Implemented.** `AirShowerCoordinator`_ partitions frontier roots into fixed
-worker assignments. Workers execute local hybrid cascades and the coordinator
-validates and merges their outputs. There is no inter-worker work stealing.
-CPU-prefix worker count and GPU worker count are separate settings. With
-persistent workers enabled, multiple ``kokkos-proposal`` events reuse worker
-processes and their initialized backend resources. GPU backend initialization
-occurs on the first non-skipped request; worker model setup occurs earlier.
-Events still execute sequentially through the
-coordinator. See :doc:`../execution/coordinator`.
+`AirShowerCoordinator`_ partitions frontier roots into fixed worker
+assignments. Each worker runs a local hybrid cascade; the coordinator verifies
+and merges the results. CPU-prefix worker count and GPU worker count are
+separate settings. There is no inter-worker work stealing in this path.
 
-Reuse retains native CPU random streams while device sampling uses the request
-seed and particle history. It is therefore not equivalent to launching a fresh
-process for each seed. Reuse also assumes compatible prepared inputs: ordinary
-sessions cannot be arbitrarily replaced after Kokkos finalization. Model,
-scene or cut changes require the lifecycle described in
-:doc:`../development/extensions`.
+Persistent workers reuse model and backend resources across compatible
+``kokkos-proposal`` events. GPU initialization occurs on the first non-skipped
+request, while model preparation happens earlier. Events are still processed
+sequentially through the coordinator. The lifecycle and input/output records
+are documented in :doc:`../execution/coordinator`.
 
-**Open decision.** Should multi-device scheduling continue to use static
-frontiers, add workload-based partitioning, or introduce dynamic redistribution?
-Static assignments provide explicit ownership and reproducible input artifacts,
-but unequal subshower costs can leave workers idle. Redistribution would need
-a transfer protocol for particle/random state and accumulated outputs,
-termination detection, capacity policy and recovery behavior. It must also
-separate particle work from radio work. No universal scaling claim follows
-from a balanced root count or a larger worker count.
+A reuse change must distinguish persistent resources from per-event state.
+Keep tables, geometry and configuration compatible with the retained backend;
+reset or replace the event-specific records and output destinations as defined
+by the session interface. Include multiple requests and final shutdown in the
+regression test. If a model, scene or cut changes, follow
+:doc:`../development/compatibility` rather than assuming a live session can
+accept it or that Kokkos can be reinitialized after finalization.
+
+A partitioning change also affects who owns imported particles and merged
+outputs. Equal root counts do not guarantee equal work. Workload-based
+assignment or dynamic redistribution would require measurements as well as
+complete state and output-transfer rules. Review worker formats and merger
+behavior through :doc:`../development/formats` when changing those records.
 
 .. _decision-reproducibility-policy:
 
-Reproducibility and validation
-------------------------------
+Random streams and acceptance criteria
+--------------------------------------
 
-Agree on the intended equivalence before implementation. Interface refactoring
-should preserve specified inputs, outputs and lifecycle behavior. Scheduling
-or random-policy changes may instead require a declared statistical comparison;
-allowing different histories does not waive conservation, process coverage,
-queue ownership or completion checks.
+Reused workers continue native CPU random streams. Device sampling uses the
+request seed and particle history. A reused worker is therefore not generally
+equivalent to a fresh process started for each seed.
 
-For timing, compare the same physical configuration, resource allocation,
-initialization/reuse policy and output work. Report the complete event interval
-alongside the affected kernels or scheduling phases. Wall time, active device
-time and allocated device-hours answer different questions. The methods and
-existing checks are in :doc:`../validation/numerics`,
-:doc:`../validation/performance` and :doc:`../validation/tests`.
+Choose the comparison according to the intended change. A pure interface
+refactor should preserve the specified records and lifecycle behavior. A
+numerical-method change needs an error analysis against an appropriate
+reference. A scheduling or stream-policy change may require a statistical
+shower comparison. In every case, process coverage, complete particle-state
+transfer and output accounting remain part of correctness.
+
+:doc:`../validation/numerics` explains these comparisons and their references.
+For timing, use matched physics, resource allocation, initialization/reuse
+policy and output work. Report the complete-event interval alongside the
+changed kernel or scheduling phase using :doc:`../validation/performance`.
+Wall time, accumulated device activity and allocated device-hours describe
+different costs and should retain separate definitions.
 
 .. _revision d5297c43: https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397
 .. _IEmBackend: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/em/execution/IEmBackend.hpp

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Build configuration and toolchains &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Configuring development builds &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Runtime selection and ownership" href="runtime.html" />
-    <link rel="prev" title="Build and backend portability" href="../backends.html" /> 
+    <link rel="next" title="Runtime and session lifecycle" href="runtime.html" />
+    <link rel="prev" title="CPU and GPU backend development" href="../backends.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,8 +162,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../backends.html">Build and backend portability</a></li>
-      <li class="breadcrumb-item active">Build configuration and toolchains</li>
+          <li class="breadcrumb-item"><a href="../backends.html">CPU and GPU backend development</a></li>
+      <li class="breadcrumb-item active">Configuring development builds</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/backends/build.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -169,8 +173,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="build-configuration-and-toolchains">
-<h1>Build configuration and toolchains<a class="headerlink" href="#build-configuration-and-toolchains" title="Link to this heading"></a></h1>
+  <section id="configuring-development-builds">
+<span id="build-configuration-and-toolchains"></span><h1>Configuring development builds<a class="headerlink" href="#configuring-development-builds" title="Link to this heading"></a></h1>
 <p>The build selects a Kokkos package, verifies its enabled execution spaces,
 and compiles the corresponding CORSIKA implementation. A backend name in
 CORSIKA’s CMake cache does not enable that backend in an existing Kokkos
@@ -178,6 +182,115 @@ library. The package, compiler, architecture and CORSIKA selection must agree.</
 <p>This page describes the build interfaces at the chapter’s pinned source
 baseline. For prerequisites and installation commands, see
 <a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>.</p>
+<section id="development-build-procedure">
+<h2>Development build procedure<a class="headerlink" href="#development-build-procedure" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Select the execution backend and a matching dependency profile from
+<a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>. Use a separate build and installation prefix
+for each backend so one toolchain cannot overwrite another’s artifacts.</p></li>
+<li><p>Configure the optional model support needed by the change. Keep a native
+build available when changing application integration or dependency
+boundaries; the target table below identifies which libraries are added.</p></li>
+<li><p>Build the affected library, application and tests. Choose an explicit
+build-job limit appropriate to available memory, particularly for device
+translation units.</p></li>
+<li><p>Inspect the resolved backend and architecture in the CMake configuration,
+then run the affected tests on the intended device. Installation success
+alone does not exercise that execution path.</p></li>
+<li><p>For changes to public headers, targets or dependency propagation, also
+build an installed consumer as described in <a class="reference internal" href="../validation/tests.html"><span class="doc">Running and extending the tests</span></a>.</p></li>
+</ol>
+<p>The helper and profile section below gives the configuration sources. The
+remaining sections document target selection, architecture handling and
+installed-package behavior for diagnosing or extending the build.</p>
+</section>
+<section id="conan-profiles-and-the-build-helper">
+<h2>Conan, profiles and the build helper<a class="headerlink" href="#conan-profiles-and-the-build-helper" title="Link to this heading"></a></h2>
+<p>The configuration passes through three layers:</p>
+<ol class="arabic simple">
+<li><p>A host profile selects <code class="docutils literal notranslate"><span class="pre">&amp;:with_kokkos</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_backend</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_architecture</span></code>. Bundled profiles inherit <code class="docutils literal notranslate"><span class="pre">default</span></code> and may
+override compiler settings. For example, the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/openmp">OpenMP profile</a> selects
+<code class="docutils literal notranslate"><span class="pre">openmp</span></code> with architecture <code class="docutils literal notranslate"><span class="pre">NONE</span></code>; the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/cuda-openmp-ampere80">combined CUDA/OpenMP profile</a>
+selects <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code> with <code class="docutils literal notranslate"><span class="pre">AMPERE80</span></code>.</p></li>
+<li><p>The root <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conanfile.py">Conan recipe</a> forwards backend and architecture to the Kokkos
+dependency in <code class="docutils literal notranslate"><span class="pre">Pkg.configure()</span></code>. <code class="docutils literal notranslate"><span class="pre">Pkg.generate()</span></code> writes the CORSIKA
+options and device architecture variables into <code class="docutils literal notranslate"><span class="pre">conan_toolchain.cmake</span></code>;
+<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code> supplies dependency descriptors. When <code class="docutils literal notranslate"><span class="pre">with_kokkos</span></code> is
+true, the generated backend name is uppercased for CMake.</p></li>
+<li><p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/kokkos/conanfile.py">Kokkos Conan recipe</a> translates the dependency options into
+<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_*</span></code> and <code class="docutils literal notranslate"><span class="pre">Kokkos_ARCH_*</span></code> cache entries, builds a static
+Kokkos library and exposes its own CMake package. Its
+<code class="docutils literal notranslate"><span class="pre">cmake_find_mode=none</span></code> setting preserves Kokkos’ exported targets and
+<code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code> metadata instead of reconstructing them through
+<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code>.</p></li>
+</ol>
+<p>The Kokkos recipe enables OpenMP for <code class="docutils literal notranslate"><span class="pre">openmp</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, CUDA
+for <code class="docutils literal notranslate"><span class="pre">cuda</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, and HIP or SYCL for their respective
+choices. Serial is enabled for every choice except <code class="docutils literal notranslate"><span class="pre">openmp</span></code>. CUDA and HIP
+use <code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE</span></code>. CUDA UVM and Kokkos’ async
+CUDA allocation implementation are disabled. HIP enables
+<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS</span></code> to retain explicit
+launch bounds with older HIP compilers.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conan-install.sh">conan-install.sh</a> exports the repository’s three local recipes and invokes
+<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">install</span> <span class="pre">--build=missing</span></code> with distinct host and build profiles,
+host C++17 and the requested build type. Exporting a recipe alone does not
+select it: the root recipe’s options determine the dependency graph.</p>
+<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh">build_kokkos.sh</a> orchestrates this dependency step, data preparation,
+CMake configuration, compilation and installation. It uses Release for
+dependencies and CORSIKA, enables Kokkos and the PROPOSAL export bridge,
+and passes the generated toolchain to CMake. Its inputs and outputs are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38.0%" />
+<col style="width: 62.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Input</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Backend argument</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">hip</span></code> or <code class="docutils literal notranslate"><span class="pre">sycl</span></code>; a
+comma-separated list builds each requested installation in sequence.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_WORKSPACE</span></code></p></td>
+<td><p>Defaults to the source directory’s parent. Each backend uses
+<code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;/deps</span></code> and <code class="docutils literal notranslate"><span class="pre">install/&lt;backend&gt;</span></code>
+beneath it.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_OPENMP_PROFILE</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code></p></td>
+<td><p>Select the CPU profile / GPU profile by file path or bundled name.
+HIP and SYCL require an explicit GPU profile.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_PROFILE</span></code></p></td>
+<td><p>Selects Conan’s build profile, defaulting to <code class="docutils literal notranslate"><span class="pre">default</span></code>. Existing
+profiles are not overwritten. A missing default is created with
+<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">profile</span> <span class="pre">detect</span></code> only during a normal build; <code class="docutils literal notranslate"><span class="pre">--check</span></code> reports
+its absence.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_JOBS</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_PYTHON</span></code></p></td>
+<td><p>Positive compile-job count, defaulting to one / build Python,
+defaulting to <code class="docutils literal notranslate"><span class="pre">python3</span></code> from the active environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--check</span></code></p></td>
+<td><p>Checks prerequisites and reports the plan, then exits before data
+preparation, dependency fetching, configuration or compilation.</p></td>
+</tr>
+<tr class="row-even"><td><p>Additional CMake arguments</p></td>
+<td><p>Appended to the configuration command. They do not rewrite the Conan
+profile or rebuild Kokkos with a different backend.</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">openmp,cuda</span></code> produces two separate dependency/build/install trees.
+<code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code> produces one combined installation. The compatibility entry
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos_dual.sh">build_kokkos_dual.sh</a> delegates to the latter and maps
+<code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_DUAL_PROFILE</span></code> to <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code> when provided. These are
+different build products, so the comma-separated and combined forms are
+not interchangeable.</p>
+</section>
 <section id="optional-targets-and-dependencies">
 <h2>Optional targets and dependencies<a class="headerlink" href="#optional-targets-and-dependencies" title="Link to this heading"></a></h2>
 <p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/CMakeLists.txt">top-level CMake configuration</a> defines three options,
@@ -331,94 +444,7 @@ resolved value to add <code class="docutils literal notranslate"><span class="pr
 <code class="docutils literal notranslate"><span class="pre">CudaBackendInstance.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">HipBackendInstance.cpp</span></code> or
 <code class="docutils literal notranslate"><span class="pre">SyclBackendInstance.cpp</span></code>. <code class="docutils literal notranslate"><span class="pre">CUDA_OPENMP</span></code> adds both OpenMP and CUDA
 implementations and <code class="docutils literal notranslate"><span class="pre">CooperativeBackend.cpp</span></code>. Runtime selection and
-ownership are described in <a class="reference internal" href="runtime.html"><span class="doc">Runtime selection and ownership</span></a>.</p>
-</section>
-<section id="conan-profiles-and-the-build-helper">
-<h2>Conan, profiles and the build helper<a class="headerlink" href="#conan-profiles-and-the-build-helper" title="Link to this heading"></a></h2>
-<p>The configuration passes through three layers:</p>
-<ol class="arabic simple">
-<li><p>A host profile selects <code class="docutils literal notranslate"><span class="pre">&amp;:with_kokkos</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_backend</span></code> and
-<code class="docutils literal notranslate"><span class="pre">&amp;:kokkos_architecture</span></code>. Bundled profiles inherit <code class="docutils literal notranslate"><span class="pre">default</span></code> and may
-override compiler settings. For example, the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/openmp">OpenMP profile</a> selects
-<code class="docutils literal notranslate"><span class="pre">openmp</span></code> with architecture <code class="docutils literal notranslate"><span class="pre">NONE</span></code>; the <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/profiles/cuda-openmp-ampere80">combined CUDA/OpenMP profile</a>
-selects <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code> with <code class="docutils literal notranslate"><span class="pre">AMPERE80</span></code>.</p></li>
-<li><p>The root <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conanfile.py">Conan recipe</a> forwards backend and architecture to the Kokkos
-dependency in <code class="docutils literal notranslate"><span class="pre">Pkg.configure()</span></code>. <code class="docutils literal notranslate"><span class="pre">Pkg.generate()</span></code> writes the CORSIKA
-options and device architecture variables into <code class="docutils literal notranslate"><span class="pre">conan_toolchain.cmake</span></code>;
-<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code> supplies dependency descriptors. When <code class="docutils literal notranslate"><span class="pre">with_kokkos</span></code> is
-true, the generated backend name is uppercased for CMake.</p></li>
-<li><p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/externals/conan/kokkos/conanfile.py">Kokkos Conan recipe</a> translates the dependency options into
-<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_*</span></code> and <code class="docutils literal notranslate"><span class="pre">Kokkos_ARCH_*</span></code> cache entries, builds a static
-Kokkos library and exposes its own CMake package. Its
-<code class="docutils literal notranslate"><span class="pre">cmake_find_mode=none</span></code> setting preserves Kokkos’ exported targets and
-<code class="docutils literal notranslate"><span class="pre">Kokkos_DEVICES</span></code> metadata instead of reconstructing them through
-<code class="docutils literal notranslate"><span class="pre">CMakeDeps</span></code>.</p></li>
-</ol>
-<p>The Kokkos recipe enables OpenMP for <code class="docutils literal notranslate"><span class="pre">openmp</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, CUDA
-for <code class="docutils literal notranslate"><span class="pre">cuda</span></code> and <code class="docutils literal notranslate"><span class="pre">cuda_openmp</span></code>, and HIP or SYCL for their respective
-choices. Serial is enabled for every choice except <code class="docutils literal notranslate"><span class="pre">openmp</span></code>. CUDA and HIP
-use <code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE</span></code>. CUDA UVM and Kokkos’ async
-CUDA allocation implementation are disabled. HIP enables
-<code class="docutils literal notranslate"><span class="pre">Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS</span></code> to retain explicit
-launch bounds with older HIP compilers.</p>
-<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/conan-install.sh">conan-install.sh</a> exports the repository’s three local recipes and invokes
-<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">install</span> <span class="pre">--build=missing</span></code> with distinct host and build profiles,
-host C++17 and the requested build type. Exporting a recipe alone does not
-select it: the root recipe’s options determine the dependency graph.</p>
-<p><a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos.sh">build_kokkos.sh</a> orchestrates this dependency step, data preparation,
-CMake configuration, compilation and installation. It uses Release for
-dependencies and CORSIKA, enables Kokkos and the PROPOSAL export bridge,
-and passes the generated toolchain to CMake. Its inputs and outputs are:</p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 38.0%" />
-<col style="width: 62.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Input</p></th>
-<th class="head"><p>Effect</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Backend argument</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code>, <code class="docutils literal notranslate"><span class="pre">hip</span></code> or <code class="docutils literal notranslate"><span class="pre">sycl</span></code>; a
-comma-separated list builds each requested installation in sequence.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_WORKSPACE</span></code></p></td>
-<td><p>Defaults to the source directory’s parent. Each backend uses
-<code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">build/&lt;backend&gt;/deps</span></code> and <code class="docutils literal notranslate"><span class="pre">install/&lt;backend&gt;</span></code>
-beneath it.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_OPENMP_PROFILE</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code></p></td>
-<td><p>Select the CPU profile / GPU profile by file path or bundled name.
-HIP and SYCL require an explicit GPU profile.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_PROFILE</span></code></p></td>
-<td><p>Selects Conan’s build profile, defaulting to <code class="docutils literal notranslate"><span class="pre">default</span></code>. Existing
-profiles are not overwritten. A missing default is created with
-<code class="docutils literal notranslate"><span class="pre">conan</span> <span class="pre">profile</span> <span class="pre">detect</span></code> only during a normal build; <code class="docutils literal notranslate"><span class="pre">--check</span></code> reports
-its absence.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">C8_BUILD_JOBS</span></code> / <code class="docutils literal notranslate"><span class="pre">C8_PYTHON</span></code></p></td>
-<td><p>Positive compile-job count, defaulting to one / build Python,
-defaulting to <code class="docutils literal notranslate"><span class="pre">python3</span></code> from the active environment.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--check</span></code></p></td>
-<td><p>Checks prerequisites and reports the plan, then exits before data
-preparation, dependency fetching, configuration or compilation.</p></td>
-</tr>
-<tr class="row-even"><td><p>Additional CMake arguments</p></td>
-<td><p>Appended to the configuration command. They do not rewrite the Conan
-profile or rebuild Kokkos with a different backend.</p></td>
-</tr>
-</tbody>
-</table>
-<p><code class="docutils literal notranslate"><span class="pre">openmp,cuda</span></code> produces two separate dependency/build/install trees.
-<code class="docutils literal notranslate"><span class="pre">cuda-openmp</span></code> produces one combined installation. The compatibility entry
-<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tools/build_kokkos_dual.sh">build_kokkos_dual.sh</a> delegates to the latter and maps
-<code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_DUAL_PROFILE</span></code> to <code class="docutils literal notranslate"><span class="pre">C8_KOKKOS_PROFILE</span></code> when provided. These are
-different build products, so the comma-separated and combined forms are
-not interchangeable.</p>
+ownership are described in <a class="reference internal" href="runtime.html"><span class="doc">Runtime and session lifecycle</span></a>.</p>
 </section>
 <section id="architecture-and-compiler-contracts">
 <h2>Architecture and compiler contracts<a class="headerlink" href="#architecture-and-compiler-contracts" title="Link to this heading"></a></h2>
@@ -501,8 +527,8 @@ targets with the matching dependency graph.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../backends.html" class="btn btn-neutral float-left" title="Build and backend portability" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="runtime.html" class="btn btn-neutral float-right" title="Runtime selection and ownership" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../backends.html" class="btn btn-neutral float-left" title="CPU and GPU backend development" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="runtime.html" class="btn btn-neutral float-right" title="Runtime and session lifecycle" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

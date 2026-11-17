@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Application and data interface boundaries &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Evolving application and data interfaces &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Execution granularity and algorithm ownership" href="execution-models.html" />
-    <link rel="prev" title="Design decisions and open questions" href="../decisions.html" /> 
+    <link rel="next" title="Maintaining execution and reproducibility" href="execution-models.html" />
+    <link rel="prev" title="Data formats and compatibility reference" href="../development/formats.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,8 +162,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../decisions.html">Design decisions and open questions</a></li>
-      <li class="breadcrumb-item active">Application and data interface boundaries</li>
+          <li class="breadcrumb-item"><a href="../decisions.html">C8 integration and long-term maintenance</a></li>
+      <li class="breadcrumb-item active">Evolving application and data interfaces</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/decisions/interfaces.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -169,13 +173,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="application-and-data-interface-boundaries">
-<h1>Application and data interface boundaries<a class="headerlink" href="#application-and-data-interface-boundaries" title="Link to this heading"></a></h1>
-<p>An integration interface must connect the native simulation to an execution
-implementation without making application code responsible for particle
-scheduling or device storage. The decision is broader than the number of
-calls in <code class="docutils literal notranslate"><span class="pre">main</span></code>: it determines ownership, optional dependencies and the
-contracts that new applications must implement.</p>
+  <section id="evolving-application-and-data-interfaces">
+<span id="application-and-data-interface-boundaries"></span><h1>Evolving application and data interfaces<a class="headerlink" href="#evolving-application-and-data-interfaces" title="Link to this heading"></a></h1>
+<p>Application simplification should preserve the native scene, models and
+process sequence while keeping scheduling and device storage in the library.
+This page identifies the current responsibilities and a practical way to
+separate them during further C8 integration. A shorter application is useful
+only if the resulting interfaces still make data ownership and event behavior
+clear.</p>
 <p>This page distinguishes the implementation at <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397">d5297c43</a> from alternatives
 for discussion. The alternatives are not approved upstream interfaces and
 are not additional working modes in the current application.</p>
@@ -278,7 +283,7 @@ copying their bytes does not satisfy the latter two requirements. Managed
 memory would address some accessibility questions but would not make host
 methods or host virtual-function tables device-callable. The device-access
 constraints are documented in <a class="reference internal" href="../environment/extension.html"><span class="doc">Supported models and extension requirements</span></a> and
-<a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a>.</p>
+<a class="reference internal" href="../backends/device-code.html"><span class="doc">Writing and tuning portable kernels</span></a>.</p>
 <p>Two maintenance directions can be evaluated independently:</p>
 <table class="docutils align-default">
 <colgroup>
@@ -347,32 +352,37 @@ mutating native objects does not refresh resident data, and ordinary runtime
 ownership does not permit arbitrary destruction and reinitialization in one
 process. See <a class="reference internal" href="../backends/runtime.html#backend-runtime-owner"><span class="std std-ref">Backend runtime lifetime</span></a> and <a class="reference internal" href="../environment.html#environment-validation"><span class="std std-ref">Validation coverage</span></a>.</p>
 </section>
-<section id="questions-for-interface-review">
-<h2>Questions for interface review<a class="headerlink" href="#questions-for-interface-review" title="Link to this heading"></a></h2>
-<p>These questions identify decisions still needed for an upstream interface;
-they do not imply that the current implementation has already adopted the
-corresponding change.</p>
+<section id="recommended-integration-sequence">
+<h2>Recommended integration sequence<a class="headerlink" href="#recommended-integration-sequence" title="Link to this heading"></a></h2>
+<p>A useful first refactor is to separate preparation services from cascade
+construction while reusing the existing execution driver. It need not change
+particle scheduling or numerical algorithms. The proposed sequence is:</p>
 <ol class="arabic simple">
-<li><p>Should the extension point be a cascade factory, an execution policy, or
-the current adapter? Which framework layer owns stack routing and event
-completion under that choice?</p></li>
-<li><p>Which preparation services should remain independent of execution
-selection? In particular, should writer conventions, photonuclear adapter
-construction and diagnostics be configured through separate interfaces?</p></li>
-<li><p>Should model and writer access come from explicit typed references or
-process-sequence lookup? The current implementation uses both; sequence
-extraction must keep supported types and missing/ambiguous-process behavior
-explicit. See <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceModels.inl">SequenceModels.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceOutputs.inl">SequenceOutputs.inl</a>.</p></li>
-<li><p>Which context and value types should be framework-owned, and which should
-remain implementation-specific? Specify borrowed lifetimes and optional
-dependencies before choosing the containing namespace or directory.</p></li>
-<li><p>What is the supported model-export contract? Decide who maintains export
-adapters and numerical queries when a native shape or material model is
-added, and what happens when only the native path supports it.</p></li>
-<li><p>Which shared numerical function is suitable for the first bounded trial?
-Agree its reference tests, supported backends and acceptance criteria before
-replacing separate implementations.</p></li>
+<li><p><strong>Inventory the application calls.</strong> Use <a class="reference internal" href="../application/setup.html"><span class="doc">Execution selection and setup</span></a> to
+separate option parsing, scene/model preparation, output setup and
+execution construction. Record the native objects each call needs and who
+owns them.</p></li>
+<li><p><strong>Define a narrow execution input.</strong> Supply the scene, stack, process
+sequence and required prepared resources through explicit typed
+references. Keep units and borrowed lifetimes visible. Decide with C8
+maintainers whether this belongs in a cascade factory or a framework
+execution policy.</p></li>
+<li><p><strong>Preserve native and accelerated alternatives.</strong> Keep the native cascade
+available through the agreed construction interface. Reuse the hybrid
+driver for accelerated execution rather than move its queues or CPU
+completion rules into the application.</p></li>
+<li><p><strong>Separate optional services.</strong> Expose diagnostics, writer setup and
+model-specific adapters through the components that own them. A new
+execution context should not accumulate unrelated application services.</p></li>
+<li><p><strong>Verify the boundary.</strong> Compare application defaults, process order,
+outputs and completion on native, direct accelerated and coordinated
+paths. Include multiple events to exercise resource reuse.</p></li>
 </ol>
+<p>The official extension point and public types remain subjects for agreement
+with C8 maintainers. Sequence lookup also needs an explicit policy for
+supported, missing or ambiguous process types; the current extraction is in
+<a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceModels.inl">SequenceModels.inl</a> and <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/kokkos/application/cascade/SequenceOutputs.inl">SequenceOutputs.inl</a>. These choices can be reviewed
+independently of device data layout or future algorithm-sharing work.</p>
 </section>
 <section id="implementation-references">
 <h2>Implementation references<a class="headerlink" href="#implementation-references" title="Link to this heading"></a></h2>
@@ -385,8 +395,8 @@ options rather than additional functions hidden elsewhere in the repository.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../decisions.html" class="btn btn-neutral float-left" title="Design decisions and open questions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="execution-models.html" class="btn btn-neutral float-right" title="Execution granularity and algorithm ownership" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../development/formats.html" class="btn btn-neutral float-left" title="Data formats and compatibility reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="execution-models.html" class="btn btn-neutral float-right" title="Maintaining execution and reproducibility" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

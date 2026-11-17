@@ -30,11 +30,11 @@ Guide objectives
        <p>Understand the software architecture, component responsibilities and integration with the CORSIKA 8 framework.</p>
        <span class="card-link">Start with the overview <span aria-hidden="true">&#8594;</span></span>
      </a>
-     <a class="guide-card" href="development.html">
+     <a class="guide-card" href="developer-guide.html">
        <span class="card-kicker">02 / DEVELOP &amp; MAINTAIN</span>
        <h3>Develop and maintain</h3>
-       <p>Support continued development and long-term maintenance through documented interfaces, design decisions and review practices.</p>
-       <span class="card-link">Open development and maintenance <span aria-hidden="true">&#8594;</span></span>
+       <p>Locate and extend the implementation, test changes across backends, and maintain compatibility with CORSIKA 8 and its dependencies.</p>
+       <span class="card-link">Open the developer guide <span aria-hidden="true">&#8594;</span></span>
      </a>
      <a class="guide-card" href="validation.html">
        <span class="card-kicker">03 / VALIDATE</span>
@@ -58,15 +58,14 @@ extension requirements. The :doc:`physics-data` chapter documents native model
 preparation, table storage and query contracts. The :doc:`transport` chapter
 follows candidate sampling, particle propagation and interaction final states.
 The :doc:`radio` chapter covers track collection, projection, waveform
-accumulation and propagation-specific interfaces. The :doc:`backends` chapter
-explains build selection, runtime ownership and device-code contracts. The
-:doc:`validation` chapter documents executable tests, numerical and statistical
-comparisons, and performance measurement. The :doc:`development` chapter
-explains code modification, feature extension, algorithm sharing with native
-C8 and maintenance across C8 and dependency updates. The :doc:`decisions`
-chapter separates implemented design choices from
-integration options and their evaluation requirements. The :doc:`api` provides
-generated declarations with links to the relevant behavioral contracts.
+accumulation and propagation-specific interfaces.
+
+The :doc:`developer-guide` introduces the complete development and maintenance
+workflow. Its chapters cover :doc:`code development <development>`,
+:doc:`CPU and GPU backends <backends>`, :doc:`testing and benchmarking
+<validation>`, and :doc:`C8 integration and compatibility <decisions>`.
+The separate :doc:`api` provides generated declarations with links to the
+component documentation.
 
 .. toctree::
    :maxdepth: 1
@@ -96,10 +95,16 @@ generated declarations with links to the relevant behavioral contracts.
    :maxdepth: 1
    :caption: Development and maintenance
 
+   developer-guide
+   development
    backends
    validation
-   development
    decisions
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
    api
    about
 

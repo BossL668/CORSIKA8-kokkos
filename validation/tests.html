@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Test coverage and execution &mdash; CORSIKA 8 Kokkos — Documentation</title>
+  <title>Running and extending the tests &mdash; CORSIKA 8 Kokkos — Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
@@ -23,8 +23,8 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Numerical and statistical validation" href="numerics.html" />
-    <link rel="prev" title="Validation and performance" href="../validation.html" /> 
+    <link rel="next" title="Comparing numerical and shower results" href="numerics.html" />
+    <link rel="prev" title="Testing and benchmarking" href="../validation.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1 current"><a class="reference internal" href="../validation.html">Validation and performance</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Code development and extension</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../development/shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../development/compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,8 +162,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../validation.html">Validation and performance</a></li>
-      <li class="breadcrumb-item active">Test coverage and execution</li>
+          <li class="breadcrumb-item"><a href="../validation.html">Testing and benchmarking</a></li>
+      <li class="breadcrumb-item active">Running and extending the tests</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/validation/tests.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -169,8 +173,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="test-coverage-and-execution">
-<h1>Test coverage and execution<a class="headerlink" href="#test-coverage-and-execution" title="Link to this heading"></a></h1>
+  <section id="running-and-extending-the-tests">
+<span id="test-coverage-and-execution"></span><h1>Running and extending the tests<a class="headerlink" href="#running-and-extending-the-tests" title="Link to this heading"></a></h1>
 <p>The test suite checks data contracts, numerical operations, transport stages,
 runtime ownership and application integration at different levels. A CTest
 entry identifies an executable or a selected scenario, not necessarily one
@@ -178,8 +182,79 @@ assertion or one Catch2 test case. The configured build determines which
 entries exist and which execution space they exercise.</p>
 <p>This page describes registrations and assertions in the pinned source baseline.
 It is a guide to selecting and interpreting checks, not a record of passing
-runs. Numerical comparison rules are covered in <a class="reference internal" href="numerics.html"><span class="doc">Numerical and statistical validation</span></a>; timing and
-benchmark evidence are covered in <a class="reference internal" href="performance.html"><span class="doc">Performance measurement</span></a>.</p>
+runs. Numerical comparison rules are covered in <a class="reference internal" href="numerics.html"><span class="doc">Comparing numerical and shower results</span></a>; timing and
+benchmark evidence are covered in <a class="reference internal" href="performance.html"><span class="doc">Measuring performance</span></a>.</p>
+<section id="run-the-configured-build">
+<h2>Run the configured build<a class="headerlink" href="#run-the-configured-build" title="Link to this heading"></a></h2>
+<p>Use the compiler environment, dependencies and backend from
+<a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>. The helper builds and installs but does not run
+CTest. From the source directory, an OpenMP build and inspection can be made
+explicit as follows; retain any physics options used for the installation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">c8_source</span><span class="o">=</span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">"</span>
+<span class="nv">c8_workspace</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">C8_WORKSPACE</span><span class="k">:-$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_source</span><span class="s2">"</span><span class="k">)</span><span class="si">}</span><span class="s2">"</span>
+<span class="nv">C8_WORKSPACE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">"</span><span class="w"> </span><span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>openmp
+<span class="nv">c8_build</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/build/openmp"</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>--print-labels
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N<span class="w"> </span>-L<span class="w"> </span>kokkos
+</pre></div>
+</div>
+<p>For CUDA or HIP, use that backend’s installation command and corresponding
+build directory; the GPU must be accessible during execution. Changing a
+CTest selector does not change the physics options or compiler configuration.</p>
+<p>Run focused groups during development, then run the complete configured suite
+for a release check. The execution commands below use CTest 3.26 or newer:
+<code class="docutils literal notranslate"><span class="pre">--no-tests=error</span></code> makes an empty selection fail instead of appearing
+successful. This flag requires a newer CTest than the build helper’s 3.24
+minimum; see the <a class="reference external" href="https://cmake.org/cmake/help/latest/manual/ctest.1.html">CTest command reference</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^testKokkosRuntime_'</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span>-L<span class="w"> </span>kokkos
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^(production_|application_|native_)'</span>
+ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-junit<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.xml"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-log<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.log"</span>
+</pre></div>
+</div>
+<p>The unfiltered command also runs ordinary native tests and any enabled physical
+worker tests. It may take substantially longer than a focused selection.
+Inspect the listed entries when a gate is disabled: an absent test is not a
+passing result. Registered environment settings supply thread counts and
+dedicated native/auxiliary/Moliere cache directories where needed. Preserve
+those caches when diagnosing a warm-cache failure, and use a fresh dedicated
+build/cache location when explicitly measuring cold behavior.</p>
+<p>Many Catch2 registrations write their own JUnit reports under
+<code class="docutils literal notranslate"><span class="pre">&lt;build&gt;/test_outputs/junit-&lt;test&gt;.xml</span></code>. The CTest-level report above also
+records standalone C++ and Python tests. Keep the configure cache, selected
+test list, logs, revision, compiler, Kokkos devices, hardware and physics
+options with the result. A timing field checked for nonnegativity is not a
+performance regression criterion; see <a class="reference internal" href="performance.html"><span class="doc">Measuring performance</span></a>.</p>
+</section>
+<section id="adding-a-regression-test">
+<h2>Adding a regression test<a class="headerlink" href="#adding-a-regression-test" title="Link to this heading"></a></h2>
+<p>Place the test with the component it exercises, using the directory map
+below. Start from a nearby fixture that has the same dependency and execution
+requirements rather than linking the complete application by default.</p>
+<p>For a numerical change, supply inputs that exercise the changed behavior and
+check the result against an appropriate reference. For a routing or storage
+change, also check status, identity and complete record accounting. Keep an
+independent numerical reference when the candidate and existing test would
+otherwise call the same new helper.</p>
+<p>Register device-bearing source files with
+<code class="docutils literal notranslate"><span class="pre">corsika_kokkos_device_test(target</span> <span class="pre">source...)</span></code> in the component’s CMake
+configuration. This helper assigns the selected CUDA/HIP compiler and language
+settings. Native model fixtures can retain ordinary C++ compilation. Runtime
+lifecycle scenarios that finalize Kokkos need separate process registrations;
+copy the existing scenario pattern rather than executing all such cases in
+one process.</p>
+<p>After configuration, use <code class="docutils literal notranslate"><span class="pre">ctest</span> <span class="pre">-N</span></code> with the intended selector to confirm
+that the new test exists. Run it in each backend configuration affected by
+the patch. Then run the connected integration checks identified in
+<a class="reference internal" href="../validation.html"><span class="doc">Testing and benchmarking</span></a>; a passing header-compilation test alone does not test a
+new numerical implementation.</p>
+</section>
 <section id="where-the-tests-live">
 <h2>Where the tests live<a class="headerlink" href="#where-the-tests-live" title="Link to this heading"></a></h2>
 <p>The <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/tests/CMakeLists.txt">test root</a> adds the ordinary framework, media, stack, module and output
@@ -422,55 +497,7 @@ and verifies nonempty transport traces. Requires the EGS4 target.</p></td>
 <p>Exact equality in one row does not set a tolerance for another. The numerical
 fixtures distinguish state/identity equality, same-device comparison,
 host/device tolerance and sampling or physical observables. Follow
-<a class="reference internal" href="numerics.html"><span class="doc">Numerical and statistical validation</span></a> before changing a comparison to accommodate a new backend.</p>
-</section>
-<section id="run-the-configured-build">
-<h2>Run the configured build<a class="headerlink" href="#run-the-configured-build" title="Link to this heading"></a></h2>
-<p>Use the compiler environment, dependencies and backend from
-<a class="reference internal" href="../usage/installation.html"><span class="doc">Installation</span></a>. The helper builds and installs but does not run
-CTest. From the source directory, an OpenMP build and inspection can be made
-explicit as follows; retain any physics options used for the installation:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">c8_source</span><span class="o">=</span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">"</span>
-<span class="nv">c8_workspace</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">C8_WORKSPACE</span><span class="k">:-$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_source</span><span class="s2">"</span><span class="k">)</span><span class="si">}</span><span class="s2">"</span>
-<span class="nv">C8_WORKSPACE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">"</span><span class="w"> </span><span class="nv">C8_BUILD_JOBS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>bash<span class="w"> </span>tools/build_kokkos.sh<span class="w"> </span>openmp
-<span class="nv">c8_build</span><span class="o">=</span><span class="s2">"</span><span class="nv">$c8_workspace</span><span class="s2">/build/openmp"</span>
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>--print-labels
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-N<span class="w"> </span>-L<span class="w"> </span>kokkos
-</pre></div>
-</div>
-<p>For CUDA or HIP, use that backend’s installation command and corresponding
-build directory; the GPU must be accessible during execution. Changing a
-CTest selector does not change the physics options or compiler configuration.</p>
-<p>Run focused groups during development, then run the complete configured suite
-for a release check. The execution commands below use CTest 3.26 or newer:
-<code class="docutils literal notranslate"><span class="pre">--no-tests=error</span></code> makes an empty selection fail instead of appearing
-successful. This flag requires a newer CTest than the build helper’s 3.24
-minimum; see the <a class="reference external" href="https://cmake.org/cmake/help/latest/manual/ctest.1.html">CTest command reference</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^testKokkosRuntime_'</span>
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span>-L<span class="w"> </span>kokkos
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-R<span class="w"> </span><span class="s1">'^(production_|application_|native_)'</span>
-ctest<span class="w"> </span>--test-dir<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">"</span><span class="w"> </span>-j<span class="w"> </span><span class="m">1</span><span class="w"> </span>--output-on-failure<span class="w"> </span>--no-tests<span class="o">=</span>error<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--output-junit<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.xml"</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--output-log<span class="w"> </span><span class="s2">"</span><span class="nv">$c8_build</span><span class="s2">/ctest-all.log"</span>
-</pre></div>
-</div>
-<p>The unfiltered command also runs ordinary native tests and any enabled physical
-worker tests. It may take substantially longer than a focused selection.
-Inspect the listed entries when a gate is disabled: an absent test is not a
-passing result. Registered environment settings supply thread counts and
-dedicated native/auxiliary/Moliere cache directories where needed. Preserve
-those caches when diagnosing a warm-cache failure, and use a fresh dedicated
-build/cache location when explicitly measuring cold behavior.</p>
-<p>Many Catch2 registrations write their own JUnit reports under
-<code class="docutils literal notranslate"><span class="pre">&lt;build&gt;/test_outputs/junit-&lt;test&gt;.xml</span></code>. The CTest-level report above also
-records standalone C++ and Python tests. Keep the configure cache, selected
-test list, logs, revision, compiler, Kokkos devices, hardware and physics
-options with the result. A timing field checked for nonnegativity is not a
-performance regression criterion; see <a class="reference internal" href="performance.html"><span class="doc">Performance measurement</span></a>.</p>
+<a class="reference internal" href="numerics.html"><span class="doc">Comparing numerical and shower results</span></a> before changing a comparison to accommodate a new backend.</p>
 </section>
 <section id="check-an-installed-consumer">
 <h2>Check an installed consumer<a class="headerlink" href="#check-an-installed-consumer" title="Link to this heading"></a></h2>
@@ -538,8 +565,8 @@ cross-backend pass matrix or statistical agreement for full showers.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../validation.html" class="btn btn-neutral float-left" title="Validation and performance" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="numerics.html" class="btn btn-neutral float-right" title="Numerical and statistical validation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../validation.html" class="btn btn-neutral float-left" title="Testing and benchmarking" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="numerics.html" class="btn btn-neutral float-right" title="Comparing numerical and shower results" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -23,7 +23,7 @@
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Maintaining compatibility with C8 and dependencies" href="compatibility.html" />
+    <link rel="next" title="CPU and GPU backend development" href="../backends.html" />
     <link rel="prev" title="Extending environments and physics capabilities" href="extensions.html" /> 
 </head>
 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Development and maintenance</a><ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Code development and extension</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="workflow.html">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,7 +162,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../development.html">Development and maintenance</a></li>
+          <li class="breadcrumb-item"><a href="../development.html">Code development and extension</a></li>
       <li class="breadcrumb-item active">Sharing numerical algorithms with native C8</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/development/shared-algorithms.rst.txt" rel="nofollow"> View page source</a>
@@ -273,7 +277,7 @@ a numerical change from a different random sequence.</p>
 it does not copy the objects the function reads or make a host-only library
 callable on the GPU. Every operation in the call chain must be supported, and
 the referenced data must be accessible in that execution space. See the
-<a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/macros-special/host_device_macros.html">Kokkos function-annotation documentation</a> and <a class="reference internal" href="../backends/device-code.html"><span class="doc">Device-code contracts and portability</span></a>.</p>
+<a class="reference external" href="https://kokkos.org/kokkos-core-wiki/API/core/macros-special/host_device_macros.html">Kokkos function-annotation documentation</a> and <a class="reference internal" href="../backends/device-code.html"><span class="doc">Writing and tuning portable kernels</span></a>.</p>
 <p>Classes, templates and unit-aware value types are not inherently forbidden on
 a GPU. Their implementation and accessed storage determine whether they can
 be used. A small value type may be reusable; an object that reaches a host
@@ -308,7 +312,7 @@ example, rather than requiring all common code to be placed under <code class="d
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="extensions.html" class="btn btn-neutral float-left" title="Extending environments and physics capabilities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="compatibility.html" class="btn btn-neutral float-right" title="Maintaining compatibility with C8 and dependencies" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../backends.html" class="btn btn-neutral float-right" title="CPU and GPU backend development" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

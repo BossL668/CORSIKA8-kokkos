@@ -24,7 +24,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Extending environments and physics capabilities" href="extensions.html" />
-    <link rel="prev" title="Development and maintenance" href="../development.html" /> 
+    <link rel="prev" title="Code development and extension" href="../development.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -108,30 +108,34 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development and maintenance</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../backends.html">Build and backend portability</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Build configuration and toolchains</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime selection and ownership</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Device-code contracts and portability</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../validation.html">Validation and performance</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Test coverage and execution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Numerical and statistical validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Performance measurement</a></li>
-</ul>
-</li>
-<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Development and maintenance</a><ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../developer-guide.html">Developer guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../development.html">Code development and extension</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Code organization and modification guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extensions.html">Extending environments and physics capabilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="shared-algorithms.html">Sharing numerical algorithms with native C8</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../backends.html">CPU and GPU backend development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../backends/build.html">Configuring development builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/runtime.html">Runtime and session lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backends/device-code.html">Writing and tuning portable kernels</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Testing and benchmarking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../validation/tests.html">Running and extending the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/numerics.html">Comparing numerical and shower results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/performance.html">Measuring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../decisions.html">C8 integration and long-term maintenance</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="compatibility.html">Maintaining compatibility with C8 and dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Evolving application and data interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Maintaining execution and reproducibility</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../decisions.html">Design decisions and open questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/interfaces.html">Application and data interface boundaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../decisions/execution-models.html">Execution granularity and algorithm ownership</a></li>
 </ul>
-</li>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/application.html">Application interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api/execution.html">Runtime and execution interfaces</a></li>
@@ -158,7 +162,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="../development.html">Development and maintenance</a></li>
+          <li class="breadcrumb-item"><a href="../development.html">Code development and extension</a></li>
       <li class="breadcrumb-item active">Code organization and modification guide</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/development/workflow.rst.txt" rel="nofollow"> View page source</a>
@@ -287,7 +291,7 @@ relative to local <code class="docutils literal notranslate"><span class="pre">m
 <p>The guide’s source baseline uses <strong>C++17</strong>, while the linked upstream convention
 page specifies C++23. Follow the actual target branch’s build requirements;
 a language-standard upgrade requires its own compiler/dependency review.
-See <a class="reference internal" href="../backends/build.html"><span class="doc">Build configuration and toolchains</span></a> for the supported configuration at this baseline.</p>
+See <a class="reference internal" href="../backends/build.html"><span class="doc">Configuring development builds</span></a> for the supported configuration at this baseline.</p>
 <p>When adding files, update the responsible target in <a class="reference external" href="https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/src/kokkos/CMakeLists.txt">src/kokkos/CMakeLists.txt</a>
 or its included CMake modules. Keep Kokkos optional for native-only consumers.
 Public headers that include <code class="docutils literal notranslate"><span class="pre">.inl</span></code> implementations require both paths in the
@@ -299,7 +303,7 @@ installed-consumer check as well as a successful application build.</p>
 <p>A useful change description states the triggering input or requested feature,
 the resulting behavior, and the execution paths tested. Link the nearest
 component tests and record the configuration used. Numerical or scheduling
-changes need the corresponding checks in <a class="reference internal" href="../validation.html"><span class="doc">Validation and performance</span></a>; purely
+changes need the corresponding checks in <a class="reference internal" href="../validation.html"><span class="doc">Testing and benchmarking</span></a>; purely
 structural changes should preserve the existing results.</p>
 <p>Keep independent reference fixtures unchanged unless the reference itself is
 being corrected, with evidence for that correction. Update the public header
@@ -311,7 +315,7 @@ patch: reviewers need to identify which change affects the results.</p>
 <h2>Library and installation checks<a class="headerlink" href="#library-and-installation-checks" title="Link to this heading"></a></h2>
 <p>The following diagram shows the native-table component as an example of the
 path from source to an installed consumer. The checks available in a build
-depend on its enabled targets; <a class="reference internal" href="../validation/tests.html"><span class="doc">Test coverage and execution</span></a> lists their
+depend on its enabled targets; <a class="reference internal" href="../validation/tests.html"><span class="doc">Running and extending the tests</span></a> lists their
 registration conditions.</p>
 <figure class="align-default" id="id1">
 <a class="reference external image-reference" href="../_static/maintenance-interface-flow.svg"><img alt="Headers and implementations form library targets, which are exported to installed consumers and checked by corresponding source and installation tests." src="../_images/maintenance-interface-flow.svg" style="width: 100%;" />
@@ -328,7 +332,7 @@ registration conditions.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../development.html" class="btn btn-neutral float-left" title="Development and maintenance" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../development.html" class="btn btn-neutral float-left" title="Code development and extension" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="extensions.html" class="btn btn-neutral float-right" title="Extending environments and physics capabilities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

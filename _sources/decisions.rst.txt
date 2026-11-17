@@ -1,166 +1,125 @@
-Design decisions and open questions
-===================================
+.. _design-decisions-and-open-questions:
 
-The integration combines native C8 scene and model construction with numerical
-data and execution services suitable for Kokkos. The important design
-boundaries are where objects are borrowed, data are converted, calculations
-are dispatched and results return to C8. Those boundaries determine both
-portability and the amount of code that must be maintained together.
+C8 integration and long-term maintenance
+========================================
 
-This chapter separates the design visible in the implementation from options
-for future integration. It records consequences and review questions rather
-than attributing undocumented intentions to earlier changes.
+Maintaining this implementation means keeping native C8 behavior, preparation
+adapters, numerical calculations and execution code consistent as each
+changes. This chapter covers routine updates first, then the interface
+changes that could reduce duplicated work during further integration with
+the official framework.
 
-.. note::
+The implementation descriptions refer to the guide's ``d5297c43`` baseline.
+Recommendations for future interfaces are identified as such; they are not
+an interface agreement already adopted by the CORSIKA project.
 
-   Implementation baseline: `d5297c43
-   <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397>`_.
-   **Current implementation** means the behavior found at this revision.
-   **Integration option** means a candidate for discussion, not an implemented
-   or approved upstream interface. Performance and validation requirements
-   below are proposed evaluation criteria, not new benchmark results.
-
-.. toctree::
-   :maxdepth: 1
-
-   decisions/interfaces
-   decisions/execution-models
-
-Decision map
-------------
-
-The component chapters document the actual calls, parameters and ownership.
-The pages in this chapter explain the design choices those interfaces expose.
-The identifiers below organize this guide; they are not upstream issue numbers.
+Maintenance tasks
+------------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 14 39 47
+   :widths: 29 44 27
 
-   * - Topic
-     - Current implementation
-     - Question for further integration
-   * - D1: application integration
-     - ``CascadeExtension`` configures resources and binds native objects;
-       ``CascadeModule`` and ``CascadeEvent`` provide run/event lifetimes.
-     - Which services belong in a common C8 execution interface, and which
-       remain Kokkos-specific? See :ref:`decision-application-interface`.
-   * - D2: numerical data
-     - Native particle and environment objects are converted into explicitly
-       owned numerical storage and borrowed views.
-     - Should native and accelerated algorithms share a common data-access
-       contract, and how is its supported domain maintained?
-       See :ref:`decision-data-representation`.
-   * - D3: physics implementation
-     - Native tables and CPU model calls coexist with device-callable
-       numerical routines. Some framework algorithms already share a body.
-     - Which calculations can share source across paths, and which need
-       an external-library adapter? See :ref:`decision-shared-calculations`.
-   * - D4: execution scheduling
-     - Resident particle batches use shared stage interfaces. Host routing
-       and process coordination manage completion and event resources.
-     - Where should execution policy vary without duplicating physics?
-       See :ref:`decision-execution-policy`.
-   * - D5: reproducibility
-     - Device random keys include particle history; persistent CPU workers
-       continue their streams. Scheduling and process lifetime matter.
-     - Which changes require exact replay, numerical agreement or statistical
-       agreement? See :ref:`decision-reproducibility-policy`.
-   * - D6: public contracts
-     - Headers, exported targets, caches, worker formats and outputs have
-       distinct compatibility rules.
-     - Which contracts should receive an explicit stability commitment, and
-       which remain internal? See :ref:`decision-interface-stability`.
+   * - Change
+     - Maintenance work
+     - Detailed guide
+   * - Update C8 or an external dependency
+     - Inspect changed native behavior, adjust the affected adapters and
+       verify native and accelerated execution together.
+     - :doc:`development/compatibility`
+   * - Change a prepared-data or worker format
+     - Review readers, writers, cache identities and reused-session behavior;
+       document migration or regeneration requirements.
+     - :doc:`development/formats`
+   * - Refine the application interface
+     - Separate configuration and preparation from execution construction;
+       keep native objects and process-sequence semantics intact.
+     - :doc:`decisions/interfaces`
+   * - Reduce duplicate calculations
+     - Extract a common numerical function where the input domain and
+       conventions agree; retain adapters for storage and native model calls.
+     - :doc:`development/shared-algorithms`
+   * - Change scheduling or worker reuse
+     - Preserve complete particle state, supported reactions, output
+       accounting and a documented random-stream policy.
+     - :doc:`decisions/execution-models`
 
-The integration does not currently reduce to one backend switch. In addition
-to cascade creation, ``CascadeExtension`` participates in CLI registration,
-model/writer construction, output registration and resource preparation.
-Making the application smaller should therefore start by assigning those
-responsibilities, rather than hiding the same parameter list behind a new
-name. The actual class declaration is in `CascadeExtensionOptions.hpp`_; its
-application use is documented in :doc:`application`.
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   development/compatibility
+   decisions/interfaces
+   decisions/execution-models
+
+Incremental integration with C8
+-------------------------------
+
+An incremental integration can use the existing component boundaries rather
+than replace the native framework. The following is a recommended order for
+reviewing changes, not a scheduled upstream roadmap.
+
+1. **Define the application boundary.** Agree which native scene, models,
+   stack and outputs are supplied to execution construction. Keep preparation
+   services separate from particle scheduling. Preserve a usable native path
+   and its defaults while reviewing the accelerated alternative.
+2. **Define data access and ownership.** Keep one C8 scene construction and
+   explicit conversion into supported numerical data. Specify units,
+   coordinates, complete particle state and the lifetime of borrowed objects.
+   Shared value types or accessors can be introduced independently of the
+   storage layout.
+3. **Share calculations where practical.** Use the common boundary-selection
+   body as an existing example. Extract another calculation only after its
+   inputs, result, domain and reference are defined. External model adapters
+   remain necessary where the dependency does not provide a portable core.
+4. **Keep execution replaceable.** Maintain the distinction between a physical
+   operation and the queues, policies or workers that schedule it. Evaluate
+   scheduling changes through both correctness tests and representative
+   event measurements.
+
+:doc:`decisions/interfaces` explains the current application and data boundary
+and the alternatives. :doc:`decisions/execution-models` explains which
+execution responsibilities must survive such a refactor. Both link to the
+current implementation; proposed interfaces are not presented as existing
+functions.
 
 .. _decision-interface-stability:
 
 Interface stability and maintenance ownership
 ---------------------------------------------
 
-The current ``corsika/kokkos`` headers and their included implementations are
-installed for consumers. This does not give every exported symbol or record
-an independent stability guarantee. Similarly, a cache version, CMake package
-version and worker protocol version cover different contracts. The existing
-checks are documented in :doc:`development/compatibility`.
+For each public interface, identify its callers and the component responsible
+for maintaining it. Application bindings affect scene/model setup and event
+lifecycle. Numerical interfaces affect domains, units, results and failure
+status. Execution interfaces affect storage, completion and synchronization.
+Persisted formats also affect readers outside the simulation process.
 
-For upstream integration, agree on the intended consumers of each interface:
+Review a change through those callers. Installed headers, CMake targets,
+prepared-data caches, worker records and analysis outputs do not share one
+compatibility rule. A cache may require regeneration while an application API
+can remain unchanged. Conversely, compiling an application does not verify
+that an existing output reader still interprets a changed field correctly.
+See :doc:`development/compatibility` and :doc:`development/formats` for the
+concrete checks.
 
-* **Applications:** scene/model construction, execution selection and event
-  lifecycle. Changes need native-only and accelerated application checks.
-* **Model implementations:** numerical inputs, results, domains and units.
-  Changes need model references and physical validation as appropriate.
-* **Execution implementations:** memory ownership, queue capacities,
-  completion and error propagation. Changes need backend and lifetime tests.
-* **Analysis and operational tools:** output schemas, timing definitions,
-  metadata and completion records. Changes need reader/merger compatibility.
+The current ``corsika/kokkos`` headers are installed for consumers, but their
+installation alone is not a stability commitment for every helper or record.
+The intended public surface, deprecation policy and reviewer responsibilities
+need agreement during upstream integration. This guide does not assign those
+responsibilities to individual maintainers.
 
-A narrow public surface can reduce compatibility obligations, but it must
-still expose the capabilities required by its consumers. For example, a host
-execution interface may accept borrowed spans only if copying or completion
-rules make their lifetime unambiguous. A device view can remain a small value
-type while its owner handles allocation and synchronization. These are
-different responsibilities even when their names refer to the same data.
+Reviewing and releasing a maintained version
+--------------------------------------------
 
-The recommended maintenance agreement is to name the responsible component
-and reviewer role for each contract. No individuals or review groups are
-assigned by this guide. Discuss deprecation and migration before replacing a
-public entry point; record whether old applications, caches and output
-readers remain supported. A successful local application build cannot settle
-all of those compatibility questions.
+A review should explain the changed behavior, affected native and accelerated
+paths, and the evidence supporting the change. Keep the source revision,
+build configuration and comparison inputs with the results. Document an
+intentional numerical or random-stream change separately from an interface
+refactor so reviewers can assess each claim.
 
-Review sequence for an integration proposal
--------------------------------------------
-
-The following sequence keeps interface discussion connected to executable
-evidence. It is a proposed workflow, not an additional repository approval
-policy.
-
-1. **Describe the boundary.** Identify the existing caller, producer, consumer,
-   ownership and result contract. Link a pinned declaration and implementation.
-   State the concrete limitation the change addresses.
-2. **Compare implementable alternatives.** Include retaining the current path
-   when it remains viable. Describe affected files, dependencies, application
-   changes and failure behavior. Distinguish a scheduling change from a
-   numerical or physical change.
-3. **Prototype one complete use path.** Connect configuration, preparation,
-   execution and outputs. A short application snippet is insufficient if
-   native fallback, final batches or event cleanup remain unconnected.
-4. **Evaluate the claimed scope.** Check affected interfaces and installed
-   consumers, numerical/reference results and complete events where needed.
-   Compare performance on matched workloads and identify cold/warm lifecycle
-   costs. Use :doc:`validation` rather than a single generic tolerance.
-5. **Record the reviewed decision.** Link the implementation, evidence and
-   review outcome. State limitations, remaining work and migration. Mark a
-   superseded record explicitly rather than rewriting its historical result.
-
-For example, sharing one boundary-selection body requires checking both the
-native and numerical access adapters. It does not imply that all shape
-intersection solvers have become identical. The current
-`NextEnvironmentBoundaryBody.inl`_ illustrates this distinction;
-:doc:`environment/queries` specifies the shared and separate parts.
-
-Decision record template
-------------------------
-
-Use the :download:`design-decision template
-<_templates/design-decision.rst.txt>` to capture a concrete proposal. Its
-fields distinguish implementation status, reasoning, alternatives and
-evidence. An accepted status should cite the relevant review; a source
-inspection alone establishes observed behavior, not consensus.
-
-Keep the full numerical and performance evidence with the test report, then
-link the relevant result from the decision. Record the source revision,
-dependencies, device and execution mode. This allows later maintainers to
-revisit a decision when the constraints change without treating an old
-timing result as a permanent property of the algorithm or architecture.
-
-.. _CascadeExtensionOptions.hpp: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/kokkos/application/cascade/CascadeExtensionOptions.hpp
-.. _NextEnvironmentBoundaryBody.inl: https://github.com/BossL668/CORSIKA8-kokkos/blob/d5297c43c041a22b43c65c322d9b51bc7ec8e397/corsika/detail/framework/geometry/NextEnvironmentBoundaryBody.inl
+Before publishing a maintained version, check the native configuration, the
+affected CPU/GPU configurations and an installed consumer. Include event
+reuse and coordination when those paths change. Update the relevant API,
+component explanation and runnable example together. The detailed update
+procedure is in :doc:`development/compatibility`; the test and measurement
+methods are in :doc:`validation`.

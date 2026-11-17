@@ -1,97 +1,43 @@
-Validation and performance
-==========================
+.. _validation-and-performance:
 
-Validation establishes that a change preserves the required interfaces,
-numerical behavior and physical observables. Performance measurement then
-determines its cost under a specified workload and resource configuration.
-The required evidence depends on the change: a queue refactor, a numerical
-solver and a new physical model need different comparisons.
+Testing and benchmarking
+========================
 
-This chapter connects the repository's executable tests to numerical checks,
-complete-shower comparisons and timing reports. It describes how to prepare
-and interpret evidence; it does not report a new simulation campaign.
+Testing should follow the behavior changed by a contribution. A numerical
+function needs controlled-input comparisons; a storage or scheduler change
+also needs state-transfer and completion checks. Complete-shower comparisons
+are needed when the claim concerns physical distributions or event behavior.
+Performance measurements then establish the cost of the validated change.
 
-.. note::
+This chapter explains how to select and run those checks, interpret their
+scope and preserve a reproducible result. The test assertions and timing
+fields refer to the ``d5297c43`` source baseline. The guide documents available
+checks and recommended comparison procedures, not a new validation campaign.
 
-   Source baseline: `d5297c43
-   <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397>`_.
-   Test registration documents available checks. A passing result also needs
-   the tested revision, build, inputs and actual execution record. The
-   pinned repository does not supply a universal acceptance threshold for
-   every observable or a complete-shower certification for every backend.
+Verification workflow
+----------------------
 
-Validation levels
------------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 22 39 39
-
-   * - Level
-     - Evidence
-     - Established scope
-   * - Interface and lifecycle
-     - Header compilation, argument validation, ownership, queue accounting
-       and output-completion tests.
-     - The exercised contracts and failure paths. This does not establish
-       numerical accuracy or physical distributions.
-   * - Numerical component
-     - Controlled inputs, specified random draws, reference values and
-       documented tolerances.
-     - The tested calculation and input range, including identified boundary
-       cases. Record whether the reference is independent of the candidate.
-   * - Integrated backend
-     - Resident transport, material transitions, CPU completion, radio
-       accumulation and session-reuse tests.
-     - Correct composition and state transfer for the fixtures exercised.
-       Synthetic tables may deliberately isolate a contract from cross-section
-       accuracy.
-   * - Complete shower
-     - Matched physical settings, completed events and an ensemble comparison
-       of profiles, energy accounting and radio observables.
-     - Agreement within the declared statistical and physical scope. Equal
-       seeds alone do not establish equal particle histories.
-   * - Performance
-     - Repeated timings with explicit measurement boundaries, hardware,
-       workload, initialization and resource accounting.
-     - Cost for that workload and configuration, after the relevant correctness
-       checks. A module speedup is not an end-to-end speedup.
+1. Identify the affected function, callers and supported inputs. Select the
+   relevant component tests using the table below.
+2. Build and run the registered tests for the affected execution backend.
+   Use :doc:`validation/tests` for CTest commands and registration rules.
+3. Compare numerical results and connected particle-state behavior. If random
+   histories change, define the required statistical comparison rather than
+   assuming equal top-level seeds imply equal histories. Follow
+   :doc:`validation/numerics` for physical alignment and acceptance criteria.
+4. Measure performance only for completed, validated workloads. Separate
+   complete-event timing from device-region timing and resource accounting,
+   following :doc:`validation/performance`.
+5. Store the commands, inputs, raw results and analysis with the contribution.
+   State which backends and input ranges were actually exercised.
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    validation/tests
    validation/numerics
    validation/performance
-
-Reference selection
--------------------
-
-Several test fixtures retain an earlier production implementation to detect
-changes during reorganization. They are valuable regression references, but
-they can share an approximation or defect with the current implementation.
-Other fixtures use native C8 objects, real PROPOSAL calculators, analytic
-results or deliberately simplified numerical data. State which comparison a
-result actually makes.
-
-For example, `testLeptonTransport.cpp`_ compares controlled transport results
-with the retained transport reference, whereas `testCpuFallbackPhysics.cpp`_
-exercises real CPU reaction calculators. `testMaterialBoundaryStatistics.cpp`_
-uses a linear range fixture to isolate actual firn-interface transport and
-record accounting; its success is not a validation of physical stopping
-power. These tests answer different questions and complement one another.
-
-Use a reference appropriate to the intended claim:
-
-* **Preserving an implementation:** compare fixed inputs and state transitions,
-  including failure status and random-state progression where required.
-* **Checking a numerical method:** compare residuals and errors with an
-  independent result over the supported domain, including relevant tails.
-* **Checking physical agreement:** compare matched ensembles and observable
-  definitions, with uncertainties and a predefined acceptance criterion.
-
-See :doc:`validation/numerics` for reference tolerances, random-stream policy
-and whole-event comparisons.
 
 Change-to-test mapping
 ----------------------
@@ -132,6 +78,35 @@ contain more detailed test maps.
        random-stream policy and output merging.
      - Correctness before timing; include representative batch populations
        and complete events. See :doc:`validation/performance`.
+
+Reference selection
+-------------------
+
+Several test fixtures retain an earlier production implementation to detect
+changes during reorganization. They are valuable regression references, but
+they can share an approximation or defect with the current implementation.
+Other fixtures use native C8 objects, real PROPOSAL calculators, analytic
+results or deliberately simplified numerical data. State which comparison a
+result actually makes.
+
+For example, `testLeptonTransport.cpp`_ compares controlled transport results
+with the retained transport reference, whereas `testCpuFallbackPhysics.cpp`_
+exercises real CPU reaction calculators. `testMaterialBoundaryStatistics.cpp`_
+uses a linear range fixture to isolate actual firn-interface transport and
+record accounting; its success is not a validation of physical stopping
+power. These tests answer different questions and complement one another.
+
+Use a reference appropriate to the intended claim:
+
+* **Preserving an implementation:** compare fixed inputs and state transitions,
+  including failure status and random-state progression where required.
+* **Checking a numerical method:** compare residuals and errors with an
+  independent result over the supported domain, including relevant tails.
+* **Checking physical agreement:** compare matched ensembles and observable
+  definitions, with uncertainties and a predefined acceptance criterion.
+
+See :doc:`validation/numerics` for reference tolerances, random-stream policy
+and whole-event comparisons.
 
 Source organization
 -------------------

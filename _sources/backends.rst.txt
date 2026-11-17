@@ -1,143 +1,84 @@
-Build and backend portability
-=============================
+.. _build-and-backend-portability:
 
-The Kokkos integration separates physical models, execution-space
-implementations and process coordination. A build supplies particular
-execution-space implementations; runtime options select compatible resources
-and application routes. Portability requires both device-callable numerical
-code and a valid memory, runtime and toolchain configuration.
+CPU and GPU backend development
+===============================
 
-Use :doc:`usage/installation` for installation commands and
-:doc:`usage/parallel-execution` for running a configured application. This
-chapter explains the source-level contracts behind those commands.
+Backend development concerns how shared calculations are compiled, how their
+data are stored and how work is submitted to CPU threads or GPU devices.
+The numerical model should remain in the common implementation whenever its
+inputs and outputs are unchanged. Backend-specific work belongs in the
+runtime, data-transfer or execution-policy code that requires it.
 
-.. note::
+Use :doc:`usage/installation` to prepare a working installation. This chapter
+explains how to develop and maintain the code behind that installation.
+Examples refer to the guide's ``d5297c43`` source baseline; supported build
+configurations and actual validation on particular hardware are identified
+separately.
 
-   Source baseline: `d5297c43
-   <https://github.com/BossL668/CORSIKA8-kokkos/tree/d5297c43c041a22b43c65c322d9b51bc7ec8e397>`_.
-   Build support, executable test coverage and validation on particular
-   hardware are separate claims. The tables below describe implementation
-   paths in this revision; they are not a certification matrix for devices
-   or compiler versions.
-
-Configuration layers
---------------------
+Backend development tasks
+-------------------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 24 36 40
+   :widths: 29 44 27
 
-   * - Layer
-     - Configuration
-     - Effect
-   * - Physics and application route
-     - ``--em-backend`` and ``--radio-backend``
-     - Select native or accelerated implementations of the requested
-       calculations. Availability depends on compiled targets and application
-       support.
-   * - Compiled execution support
-     - Kokkos dependency options, architecture profile and
-       ``CORSIKA_KOKKOS_BACKEND``
-     - Determine which numerical implementations the library contains and
-       which compiler generates them.
-   * - Runtime resources
-     - ``--kokkos-execution``, ``--device`` and
-       ``--kokkos-num-threads``
-     - Select a compatible execution implementation, visible device or host
-       thread configuration. They cannot add a missing compiled backend.
-   * - Process coordination
-     - Device list and ``--prefix-workers``
-     - Select direct execution or worker processes. Coordination distributes
-       work across application processes; it is not a Kokkos execution space.
-   * - Kernel and queue configuration
-     - ``TuningParameters``, memory budget and dispatch thresholds
-     - Control launch geometry, storage and work submission within the
-       selected implementation.
-
-Changing the EM backend is not equivalent to selecting CUDA or HIP: the same
-``kokkos-proposal`` numerical path can run with different compiled execution
-spaces. Conversely, changing the execution space does not port a CPU-only
-external physics library. CPU completion routes remain part of the hybrid
-cascade. See :doc:`application` and :doc:`transport/interactions`.
+   * - Task
+     - Implementation work
+     - Detailed guide
+   * - Prepare or update a build
+     - Match the Kokkos execution spaces, compiler, architecture and CORSIKA
+       targets; verify both the build tree and installed package.
+     - :doc:`backends/build`
+   * - Change resource selection or session reuse
+     - Preserve device visibility, initialization ownership and the lifetime
+       of views and execution-space instances across events.
+     - :doc:`backends/runtime`
+   * - Add a calculation to device execution
+     - Audit its complete call chain, accessible data and output ownership;
+       register tests with the device compiler.
+     - :doc:`backends/device-code`
+   * - Tune launches, scans or synchronization
+     - Change the execution policy or a narrow backend adapter; measure the
+       affected stages and complete showers with matched inputs.
+     - :doc:`backends/device-code`, :doc:`validation/performance`
+   * - Establish support for another platform
+     - Verify compilation, runtime lifecycle, numerical tests and application
+       execution on that platform; record the tested toolchain and device.
+     - :doc:`validation/tests`, :doc:`validation/numerics`
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    backends/build
    backends/runtime
    backends/device-code
 
-Compiled implementation paths
------------------------------
+Shared implementation and backend-specific code
+-----------------------------------------------
 
-The top-level build defaults to ``CORSIKA_ENABLE_KOKKOS=OFF``. Enabling it adds
-the generic runtime and numerical/data targets. The production
-``BackendRuntime`` and EM implementation are then selected from the dependency's
-``Kokkos_DEVICES``. Explicit requests incompatible with that dependency are
-configuration errors. ``AUTO`` and ``NONE`` have different roles from turning
-Kokkos off; :doc:`backends/build` documents the exact rules.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 24 36 40
-
-   * - Build selection
-     - EM implementation
-     - Scope
-   * - ``OPENMP``
-     - ``BackendInstanceImplementation<Kokkos::OpenMP>``
-     - Kokkos kernels execute on CPU threads.
-   * - ``CUDA``
-     - ``BackendInstanceImplementation<Kokkos::Cuda>``
-     - Kokkos kernels execute on a selected NVIDIA device.
-   * - ``HIP``
-     - ``BackendInstanceImplementation<Kokkos::HIP>``
-     - Kokkos kernels execute on a selected HIP device with a matching
-       architecture and ROCm/DTK toolchain.
-   * - ``SYCL``
-     - ``BackendInstanceImplementation<Kokkos::SYCL>``
-     - A source implementation is present. Its existence does not establish
-       validation on a particular SYCL device or compiler.
-   * - ``CUDA_OPENMP``
-     - CUDA and OpenMP implementations plus a cooperative adapter
-     - Optional experimental combined build. Selection, shared runtime
-       ownership and cooperation have additional contracts.
-
-These are instantiations of a shared implementation, rather than separate
-copies of all physics functions. For example, the HIP factory is:
+The OpenMP, CUDA and HIP factories instantiate
+``BackendInstanceImplementation<TExecutionSpace>``. The HIP factory, for
+example, selects the execution space without reimplementing transport:
 
 .. literalinclude:: ../../src/kokkos/em/HipBackendInstance.cpp
    :language: cpp
    :lines: 11-14
    :lineno-match:
 
-``EmBackend`` resolves the requested execution mode and calls the corresponding
-factory. ``BackendInstanceImplementation`` owns the execution instance,
-resident tables, environment data, queues and accumulators. Its implementation
-contains execution-space-specific branches for operations such as resource
-queries, scans, waits and launch policies. A common template therefore does
-not imply identical low-level instructions or synchronization on all devices.
-See `EmBackend.cpp`_, `BackendApplicationTargets.cmake`_ and
-`BackendInstanceImplementation.inl`_.
+``EmBackend`` selects the factory. The resulting implementation owns the
+execution instance, tables, environment arrays, queues and accumulators.
+It also contains specific handling for resource queries, scans, waits and
+launch policies. When adding backend support, inspect these operations in
+addition to compiling the common physics functions. See `EmBackend.cpp`_
+and `BackendInstanceImplementation.inl`_.
 
-Runtime identity and reproducibility
-------------------------------------
-
-``RuntimeInfo`` records the selected backend, device, architecture, compiler,
-Kokkos and driver/runtime versions, concurrency and memory information.
-``TuningCache`` associates launch parameters with runtime and build metadata.
-These records help distinguish a change in the algorithm from a change in
-its execution configuration. They do not replace the physical run conditions,
-model/table identities, random-stream policy or event seed.
-
-The public runtime classes have different ownership contracts. Generic
-``Runtime`` can manage or borrow the process Kokkos lifetime. Production
-``BackendRuntime`` owns initialization or uses an explicit cooperative lease.
-Neither class can safely be recreated after its owned Kokkos runtime has
-been finalized. Keep the appropriate owner alive across event reuse and
-release device work and allocations before releasing that owner. The exact
-rules, including external initialization and thread ownership, are in
-:doc:`backends/runtime`.
+Build selection and runtime selection serve different purposes. The build
+provides the compiled implementations; application options select a compatible
+implementation and resources. A process coordinator distributes work between
+application processes. It does not create another Kokkos execution space.
+The exact build combinations, including the experimental CUDA/OpenMP build
+and the available SYCL factory, are documented in :doc:`backends/build`.
 
 Source organization
 -------------------
@@ -149,22 +90,22 @@ is separate from runtime lifetime and from the EM implementation factories.
 
 .. include:: backends/_file-map.txt
 
-Validation coverage
--------------------
 
-Backend validation has several levels: command/configuration checks, process
-lifecycle, device primitives, numerical kernels and complete events. A host-only
-parser test cannot establish GPU visibility or device execution. Likewise,
-passing primitive tests does not establish complete-shower physics agreement.
+Development verification
+-------------------------
 
-.. include:: backends/_checks.txt
+Start with runtime and storage tests on the selected backend, followed by
+the affected numerical stages and application path. Include multiple events
+when changing session reuse, and explicit worker execution when changing
+coordination. :doc:`validation/tests` identifies the registrations and
+selectors. Host-only tests do not exercise device kernels or device-specific
+synchronization.
 
-The existing CMake test registrations select the compiled backend and, where
-needed, compile test translation units with the device compiler. The pinned
-GitLab pipeline does not configure a Kokkos backend matrix. Test registration
-is therefore not evidence that every backend runs automatically in CI. See
-:doc:`backends/device-code` for the current boundary and requirements for
-extending coverage.
+Retain the resolved ``RuntimeInfo``, build configuration and tuning settings
+with test results. These identify the execution implementation but do not
+replace the physical conditions, table identities or random-stream policy.
+For performance changes, report both the affected operation and the event
+measurement as described in :doc:`validation/performance`.
 
 Build-to-execution flow
 -----------------------

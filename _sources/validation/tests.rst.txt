@@ -1,5 +1,7 @@
-Test coverage and execution
-===========================
+.. _test-coverage-and-execution:
+
+Running and extending the tests
+===============================
 
 The test suite checks data contracts, numerical operations, transport stages,
 runtime ownership and application integration at different levels. A CTest
@@ -11,6 +13,88 @@ This page describes registrations and assertions in the pinned source baseline.
 It is a guide to selecting and interpreting checks, not a record of passing
 runs. Numerical comparison rules are covered in :doc:`numerics`; timing and
 benchmark evidence are covered in :doc:`performance`.
+
+Run the configured build
+------------------------
+
+Use the compiler environment, dependencies and backend from
+:doc:`../usage/installation`. The helper builds and installs but does not run
+CTest. From the source directory, an OpenMP build and inspection can be made
+explicit as follows; retain any physics options used for the installation:
+
+.. code-block:: bash
+
+   c8_source="$PWD"
+   c8_workspace="${C8_WORKSPACE:-$(dirname "$c8_source")}"
+   C8_WORKSPACE="$c8_workspace" C8_BUILD_JOBS=1 \
+     bash tools/build_kokkos.sh openmp
+   c8_build="$c8_workspace/build/openmp"
+   ctest --test-dir "$c8_build" -N
+   ctest --test-dir "$c8_build" --print-labels
+   ctest --test-dir "$c8_build" -N -L kokkos
+
+For CUDA or HIP, use that backend's installation command and corresponding
+build directory; the GPU must be accessible during execution. Changing a
+CTest selector does not change the physics options or compiler configuration.
+
+Run focused groups during development, then run the complete configured suite
+for a release check. The execution commands below use CTest 3.26 or newer:
+``--no-tests=error`` makes an empty selection fail instead of appearing
+successful. This flag requires a newer CTest than the build helper's 3.24
+minimum; see the `CTest command reference`_.
+
+.. code-block:: bash
+
+   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
+     -R '^testKokkosRuntime_'
+   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error -L kokkos
+   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
+     -R '^(production_|application_|native_)'
+   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
+     --output-junit "$c8_build/ctest-all.xml" \
+     --output-log "$c8_build/ctest-all.log"
+
+The unfiltered command also runs ordinary native tests and any enabled physical
+worker tests. It may take substantially longer than a focused selection.
+Inspect the listed entries when a gate is disabled: an absent test is not a
+passing result. Registered environment settings supply thread counts and
+dedicated native/auxiliary/Moliere cache directories where needed. Preserve
+those caches when diagnosing a warm-cache failure, and use a fresh dedicated
+build/cache location when explicitly measuring cold behavior.
+
+Many Catch2 registrations write their own JUnit reports under
+``<build>/test_outputs/junit-<test>.xml``. The CTest-level report above also
+records standalone C++ and Python tests. Keep the configure cache, selected
+test list, logs, revision, compiler, Kokkos devices, hardware and physics
+options with the result. A timing field checked for nonnegativity is not a
+performance regression criterion; see :doc:`performance`.
+
+Adding a regression test
+-------------------------
+
+Place the test with the component it exercises, using the directory map
+below. Start from a nearby fixture that has the same dependency and execution
+requirements rather than linking the complete application by default.
+
+For a numerical change, supply inputs that exercise the changed behavior and
+check the result against an appropriate reference. For a routing or storage
+change, also check status, identity and complete record accounting. Keep an
+independent numerical reference when the candidate and existing test would
+otherwise call the same new helper.
+
+Register device-bearing source files with
+``corsika_kokkos_device_test(target source...)`` in the component's CMake
+configuration. This helper assigns the selected CUDA/HIP compiler and language
+settings. Native model fixtures can retain ordinary C++ compilation. Runtime
+lifecycle scenarios that finalize Kokkos need separate process registrations;
+copy the existing scenario pattern rather than executing all such cases in
+one process.
+
+After configuration, use ``ctest -N`` with the intended selector to confirm
+that the new test exists. Run it in each backend configuration affected by
+the patch. Then run the connected integration checks identified in
+:doc:`../validation`; a passing header-compilation test alone does not test a
+new numerical implementation.
 
 Where the tests live
 --------------------
@@ -223,61 +307,6 @@ Exact equality in one row does not set a tolerance for another. The numerical
 fixtures distinguish state/identity equality, same-device comparison,
 host/device tolerance and sampling or physical observables. Follow
 :doc:`numerics` before changing a comparison to accommodate a new backend.
-
-Run the configured build
-------------------------
-
-Use the compiler environment, dependencies and backend from
-:doc:`../usage/installation`. The helper builds and installs but does not run
-CTest. From the source directory, an OpenMP build and inspection can be made
-explicit as follows; retain any physics options used for the installation:
-
-.. code-block:: bash
-
-   c8_source="$PWD"
-   c8_workspace="${C8_WORKSPACE:-$(dirname "$c8_source")}"
-   C8_WORKSPACE="$c8_workspace" C8_BUILD_JOBS=1 \
-     bash tools/build_kokkos.sh openmp
-   c8_build="$c8_workspace/build/openmp"
-   ctest --test-dir "$c8_build" -N
-   ctest --test-dir "$c8_build" --print-labels
-   ctest --test-dir "$c8_build" -N -L kokkos
-
-For CUDA or HIP, use that backend's installation command and corresponding
-build directory; the GPU must be accessible during execution. Changing a
-CTest selector does not change the physics options or compiler configuration.
-
-Run focused groups during development, then run the complete configured suite
-for a release check. The execution commands below use CTest 3.26 or newer:
-``--no-tests=error`` makes an empty selection fail instead of appearing
-successful. This flag requires a newer CTest than the build helper's 3.24
-minimum; see the `CTest command reference`_.
-
-.. code-block:: bash
-
-   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
-     -R '^testKokkosRuntime_'
-   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error -L kokkos
-   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
-     -R '^(production_|application_|native_)'
-   ctest --test-dir "$c8_build" -j 1 --output-on-failure --no-tests=error \
-     --output-junit "$c8_build/ctest-all.xml" \
-     --output-log "$c8_build/ctest-all.log"
-
-The unfiltered command also runs ordinary native tests and any enabled physical
-worker tests. It may take substantially longer than a focused selection.
-Inspect the listed entries when a gate is disabled: an absent test is not a
-passing result. Registered environment settings supply thread counts and
-dedicated native/auxiliary/Moliere cache directories where needed. Preserve
-those caches when diagnosing a warm-cache failure, and use a fresh dedicated
-build/cache location when explicitly measuring cold behavior.
-
-Many Catch2 registrations write their own JUnit reports under
-``<build>/test_outputs/junit-<test>.xml``. The CTest-level report above also
-records standalone C++ and Python tests. Keep the configure cache, selected
-test list, logs, revision, compiler, Kokkos devices, hardware and physics
-options with the result. A timing field checked for nonnegativity is not a
-performance regression criterion; see :doc:`performance`.
 
 Check an installed consumer
 ---------------------------

@@ -1,5 +1,7 @@
-Build configuration and toolchains
-==================================
+.. _build-configuration-and-toolchains:
+
+Configuring development builds
+==============================
 
 The build selects a Kokkos package, verifies its enabled execution spaces,
 and compiles the corresponding CORSIKA implementation. A backend name in
@@ -9,6 +11,106 @@ library. The package, compiler, architecture and CORSIKA selection must agree.
 This page describes the build interfaces at the chapter's pinned source
 baseline. For prerequisites and installation commands, see
 :doc:`../usage/installation`.
+
+Development build procedure
+---------------------------
+
+1. Select the execution backend and a matching dependency profile from
+   :doc:`../usage/installation`. Use a separate build and installation prefix
+   for each backend so one toolchain cannot overwrite another's artifacts.
+2. Configure the optional model support needed by the change. Keep a native
+   build available when changing application integration or dependency
+   boundaries; the target table below identifies which libraries are added.
+3. Build the affected library, application and tests. Choose an explicit
+   build-job limit appropriate to available memory, particularly for device
+   translation units.
+4. Inspect the resolved backend and architecture in the CMake configuration,
+   then run the affected tests on the intended device. Installation success
+   alone does not exercise that execution path.
+5. For changes to public headers, targets or dependency propagation, also
+   build an installed consumer as described in :doc:`../validation/tests`.
+
+The helper and profile section below gives the configuration sources. The
+remaining sections document target selection, architecture handling and
+installed-package behavior for diagnosing or extending the build.
+
+Conan, profiles and the build helper
+------------------------------------
+
+The configuration passes through three layers:
+
+1. A host profile selects ``&:with_kokkos``, ``&:kokkos_backend`` and
+   ``&:kokkos_architecture``. Bundled profiles inherit ``default`` and may
+   override compiler settings. For example, the `OpenMP profile`_ selects
+   ``openmp`` with architecture ``NONE``; the `combined CUDA/OpenMP profile`_
+   selects ``cuda_openmp`` with ``AMPERE80``.
+2. The root `Conan recipe`_ forwards backend and architecture to the Kokkos
+   dependency in ``Pkg.configure()``. ``Pkg.generate()`` writes the CORSIKA
+   options and device architecture variables into ``conan_toolchain.cmake``;
+   ``CMakeDeps`` supplies dependency descriptors. When ``with_kokkos`` is
+   true, the generated backend name is uppercased for CMake.
+3. The `Kokkos Conan recipe`_ translates the dependency options into
+   ``Kokkos_ENABLE_*`` and ``Kokkos_ARCH_*`` cache entries, builds a static
+   Kokkos library and exposes its own CMake package. Its
+   ``cmake_find_mode=none`` setting preserves Kokkos' exported targets and
+   ``Kokkos_DEVICES`` metadata instead of reconstructing them through
+   ``CMakeDeps``.
+
+The Kokkos recipe enables OpenMP for ``openmp`` and ``cuda_openmp``, CUDA
+for ``cuda`` and ``cuda_openmp``, and HIP or SYCL for their respective
+choices. Serial is enabled for every choice except ``openmp``. CUDA and HIP
+use ``Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE``. CUDA UVM and Kokkos' async
+CUDA allocation implementation are disabled. HIP enables
+``Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS`` to retain explicit
+launch bounds with older HIP compilers.
+
+`conan-install.sh`_ exports the repository's three local recipes and invokes
+``conan install --build=missing`` with distinct host and build profiles,
+host C++17 and the requested build type. Exporting a recipe alone does not
+select it: the root recipe's options determine the dependency graph.
+
+`build_kokkos.sh`_ orchestrates this dependency step, data preparation,
+CMake configuration, compilation and installation. It uses Release for
+dependencies and CORSIKA, enables Kokkos and the PROPOSAL export bridge,
+and passes the generated toolchain to CMake. Its inputs and outputs are:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 62
+
+   * - Input
+     - Effect
+   * - Backend argument
+     - ``openmp``, ``cuda``, ``cuda-openmp``, ``hip`` or ``sycl``; a
+       comma-separated list builds each requested installation in sequence.
+   * - ``C8_WORKSPACE``
+     - Defaults to the source directory's parent. Each backend uses
+       ``build/<backend>``, ``build/<backend>/deps`` and ``install/<backend>``
+       beneath it.
+   * - ``C8_KOKKOS_OPENMP_PROFILE`` / ``C8_KOKKOS_PROFILE``
+     - Select the CPU profile / GPU profile by file path or bundled name.
+       HIP and SYCL require an explicit GPU profile.
+   * - ``C8_BUILD_PROFILE``
+     - Selects Conan's build profile, defaulting to ``default``. Existing
+       profiles are not overwritten. A missing default is created with
+       ``conan profile detect`` only during a normal build; ``--check`` reports
+       its absence.
+   * - ``C8_BUILD_JOBS`` / ``C8_PYTHON``
+     - Positive compile-job count, defaulting to one / build Python,
+       defaulting to ``python3`` from the active environment.
+   * - ``--check``
+     - Checks prerequisites and reports the plan, then exits before data
+       preparation, dependency fetching, configuration or compilation.
+   * - Additional CMake arguments
+     - Appended to the configuration command. They do not rewrite the Conan
+       profile or rebuild Kokkos with a different backend.
+
+``openmp,cuda`` produces two separate dependency/build/install trees.
+``cuda-openmp`` produces one combined installation. The compatibility entry
+`build_kokkos_dual.sh`_ delegates to the latter and maps
+``C8_KOKKOS_DUAL_PROFILE`` to ``C8_KOKKOS_PROFILE`` when provided. These are
+different build products, so the comma-separated and combined forms are
+not interchangeable.
 
 Optional targets and dependencies
 ---------------------------------
@@ -130,84 +232,6 @@ resolved value to add ``OpenMPBackendInstance.cpp``,
 ``SyclBackendInstance.cpp``. ``CUDA_OPENMP`` adds both OpenMP and CUDA
 implementations and ``CooperativeBackend.cpp``. Runtime selection and
 ownership are described in :doc:`runtime`.
-
-Conan, profiles and the build helper
-------------------------------------
-
-The configuration passes through three layers:
-
-1. A host profile selects ``&:with_kokkos``, ``&:kokkos_backend`` and
-   ``&:kokkos_architecture``. Bundled profiles inherit ``default`` and may
-   override compiler settings. For example, the `OpenMP profile`_ selects
-   ``openmp`` with architecture ``NONE``; the `combined CUDA/OpenMP profile`_
-   selects ``cuda_openmp`` with ``AMPERE80``.
-2. The root `Conan recipe`_ forwards backend and architecture to the Kokkos
-   dependency in ``Pkg.configure()``. ``Pkg.generate()`` writes the CORSIKA
-   options and device architecture variables into ``conan_toolchain.cmake``;
-   ``CMakeDeps`` supplies dependency descriptors. When ``with_kokkos`` is
-   true, the generated backend name is uppercased for CMake.
-3. The `Kokkos Conan recipe`_ translates the dependency options into
-   ``Kokkos_ENABLE_*`` and ``Kokkos_ARCH_*`` cache entries, builds a static
-   Kokkos library and exposes its own CMake package. Its
-   ``cmake_find_mode=none`` setting preserves Kokkos' exported targets and
-   ``Kokkos_DEVICES`` metadata instead of reconstructing them through
-   ``CMakeDeps``.
-
-The Kokkos recipe enables OpenMP for ``openmp`` and ``cuda_openmp``, CUDA
-for ``cuda`` and ``cuda_openmp``, and HIP or SYCL for their respective
-choices. Serial is enabled for every choice except ``openmp``. CUDA and HIP
-use ``Kokkos_ENABLE_COMPILE_AS_CMAKE_LANGUAGE``. CUDA UVM and Kokkos' async
-CUDA allocation implementation are disabled. HIP enables
-``Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS`` to retain explicit
-launch bounds with older HIP compilers.
-
-`conan-install.sh`_ exports the repository's three local recipes and invokes
-``conan install --build=missing`` with distinct host and build profiles,
-host C++17 and the requested build type. Exporting a recipe alone does not
-select it: the root recipe's options determine the dependency graph.
-
-`build_kokkos.sh`_ orchestrates this dependency step, data preparation,
-CMake configuration, compilation and installation. It uses Release for
-dependencies and CORSIKA, enables Kokkos and the PROPOSAL export bridge,
-and passes the generated toolchain to CMake. Its inputs and outputs are:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 38 62
-
-   * - Input
-     - Effect
-   * - Backend argument
-     - ``openmp``, ``cuda``, ``cuda-openmp``, ``hip`` or ``sycl``; a
-       comma-separated list builds each requested installation in sequence.
-   * - ``C8_WORKSPACE``
-     - Defaults to the source directory's parent. Each backend uses
-       ``build/<backend>``, ``build/<backend>/deps`` and ``install/<backend>``
-       beneath it.
-   * - ``C8_KOKKOS_OPENMP_PROFILE`` / ``C8_KOKKOS_PROFILE``
-     - Select the CPU profile / GPU profile by file path or bundled name.
-       HIP and SYCL require an explicit GPU profile.
-   * - ``C8_BUILD_PROFILE``
-     - Selects Conan's build profile, defaulting to ``default``. Existing
-       profiles are not overwritten. A missing default is created with
-       ``conan profile detect`` only during a normal build; ``--check`` reports
-       its absence.
-   * - ``C8_BUILD_JOBS`` / ``C8_PYTHON``
-     - Positive compile-job count, defaulting to one / build Python,
-       defaulting to ``python3`` from the active environment.
-   * - ``--check``
-     - Checks prerequisites and reports the plan, then exits before data
-       preparation, dependency fetching, configuration or compilation.
-   * - Additional CMake arguments
-     - Appended to the configuration command. They do not rewrite the Conan
-       profile or rebuild Kokkos with a different backend.
-
-``openmp,cuda`` produces two separate dependency/build/install trees.
-``cuda-openmp`` produces one combined installation. The compatibility entry
-`build_kokkos_dual.sh`_ delegates to the latter and maps
-``C8_KOKKOS_DUAL_PROFILE`` to ``C8_KOKKOS_PROFILE`` when provided. These are
-different build products, so the comma-separated and combined forms are
-not interchangeable.
 
 Architecture and compiler contracts
 -----------------------------------

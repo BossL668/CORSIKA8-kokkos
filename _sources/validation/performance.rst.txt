@@ -1,11 +1,112 @@
-Performance measurement
-=======================
+.. _performance-measurement:
+
+Measuring performance
+=====================
 
 Performance results need a workload, a timing boundary and an accounting unit.
 A complete-shower wall time, an accumulated host-call duration and a device
 kernel duration answer different questions. This page defines the measurements
 available at revision ``d5297c43c041a22b43c65c322d9b51bc7ec8e397`` and a procedure
 for comparing execution configurations. It contains no measured speedups.
+
+Selecting the measurement
+--------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 37 31
+
+   * - Development question
+     - Measurement
+     - Required context
+   * - Does the change improve event throughput?
+     - Repeated complete-shower timings, with startup and event reuse
+       identified separately.
+     - Matched physics, outputs, hardware and process configuration.
+   * - Is the changed calculation faster?
+     - The same frozen inputs through the old and new stage, with a defined
+       device or host timing boundary.
+     - Batch population, completed work, transfers and synchronization.
+   * - Where is an event spending time?
+     - An instrumented event or device timeline, correlated with active
+       phase timers and counters.
+     - Instrumentation coverage, overlap and collection overhead.
+   * - Does the change reduce resource cost?
+     - Actual CPU usage and allocated GPU time for the same completed work.
+     - Process-tree scope, device count and allocation interval.
+
+Begin with the comparison procedure below. The later sections define the
+available fields and their timing scopes so that the result can be interpreted
+consistently. Keep an event-throughput run separate from an instrumented
+attribution run when the instrumentation changes execution costs.
+
+Complete-shower comparisons
+---------------------------
+
+Use a real-shower run when the question concerns event throughput, startup
+cost, output cost or resources needed for a physics campaign. Follow
+:doc:`../usage/first-shower` for the runnable application and
+:doc:`../usage/configuration` for the physical settings. A comparison record
+should preserve the following inputs and outputs:
+
+1. Fix the source revision, binary/build configuration, model-data revision,
+   hardware, selected devices, CPU affinity and thread settings. Record
+   competing workloads and relevant clock/power settings.
+2. Match the primary and energy convention, angles, atmosphere, field,
+   interaction models, cuts, thinning, observation level, profile policy,
+   radio observers and output configuration. Use a declared seed ensemble.
+   A shared seed alone does not require identical histories across schedulers.
+3. Save the command, ``config.yaml``, log, exit status, physics outputs,
+   ``simulation_timing`` and backend summaries. For coordination, also save
+   ``CONFIG.json``, ``TIMING.json``, the worker records and completion markers.
+4. State whether table and auxiliary caches were warm, whether the process
+   was new, and whether ``-N`` reused initialized state. Preserve
+   ``backend_lifecycle`` and the ``proposal_native`` cache-hit metadata where
+   available. Do not infer all startup cost by subtracting shower time from
+   process time: the remainder also contains output and shutdown work.
+5. Repeat runs and report the number of samples, central value and spread.
+   Keep process wall time, per-shower time and allocation cost in separate
+   columns. Compare matched timing scopes and identify failed or incomplete
+   runs instead of averaging their partial times into completed samples.
+6. Run the relevant observable and completion checks before accepting a
+   speedup. Record changes in step counts, fallback counts, batch sizes and
+   output volume so reduced or altered work is visible. See :doc:`numerics`
+   for energy-accounting scopes and ensemble comparisons.
+
+Detailed timing, full-step records, replay capture and an external profiler
+can change output volume, memory traffic, synchronization or scheduling.
+Keep an instrumented attribution run separate from the production throughput
+sample and compare their observables. Quantify instrumentation overhead with
+matched configurations when it matters to the conclusion.
+
+Frozen-input module comparisons
+-------------------------------
+
+A frozen-input experiment isolates an algorithm or execution stage from
+shower evolution. For example, charged-lepton transport consumes
+``InteractionRecord`` values plus fixed physics-table, environment and
+geometry views, and produces ``LeptonTransportRecord`` values and fallback
+results. Radio accumulation consumes fixed track records and observer/
+propagation configuration and produces waveforms and counters. These are
+different workloads from a full shower with changing populations and CPU
+feedback. See :doc:`../transport/lepton-step` and :doc:`../radio/accumulation`.
+
+Preserve the input arrays or their reproducible generator, hashes, sizes,
+PID/energy/material distributions, random keys, tables and configuration.
+Use the same inputs for each candidate. Validate output statuses, records,
+fallback provenance and input immutability before interpreting elapsed time.
+`testLeptonTransport.cpp`_ and `BackendStages.cpp`_ provide examples of fixed
+record comparisons and real-table stage calls; they are correctness tests,
+not a supplied throughput benchmark or a set of performance results.
+
+In a dedicated timing harness, declare whether allocation, initialization,
+upload, execution, synchronization and download are inside the measured
+boundary. Reuse buffers for a resident-compute experiment; include transfers
+when measuring the complete stage API. Reset mutable inputs and outputs as
+required between repetitions so later repetitions do the same work. Warm-up
+and compilation costs belong in a separately identified interval. Retain
+the batch-size distribution and completed-record count, and sweep relevant
+sizes rather than extrapolating a large uniform batch to a whole shower.
 
 Timing boundaries and output files
 ----------------------------------
@@ -279,74 +380,6 @@ external host RSS and device-memory measurements separately, recording the
 sampling interval and whether a peak is sampled or continuously accounted.
 Transfer-byte counters describe their instrumented data paths; they do not
 measure memory bandwidth without a matching elapsed interval.
-
-Complete-shower comparisons
----------------------------
-
-Use a real-shower run when the question concerns event throughput, startup
-cost, output cost or resources needed for a physics campaign. Follow
-:doc:`../usage/first-shower` for the runnable application and
-:doc:`../usage/configuration` for the physical settings. A comparison record
-should preserve the following inputs and outputs:
-
-1. Fix the source revision, binary/build configuration, model-data revision,
-   hardware, selected devices, CPU affinity and thread settings. Record
-   competing workloads and relevant clock/power settings.
-2. Match the primary and energy convention, angles, atmosphere, field,
-   interaction models, cuts, thinning, observation level, profile policy,
-   radio observers and output configuration. Use a declared seed ensemble.
-   A shared seed alone does not require identical histories across schedulers.
-3. Save the command, ``config.yaml``, log, exit status, physics outputs,
-   ``simulation_timing`` and backend summaries. For coordination, also save
-   ``CONFIG.json``, ``TIMING.json``, the worker records and completion markers.
-4. State whether table and auxiliary caches were warm, whether the process
-   was new, and whether ``-N`` reused initialized state. Preserve
-   ``backend_lifecycle`` and the ``proposal_native`` cache-hit metadata where
-   available. Do not infer all startup cost by subtracting shower time from
-   process time: the remainder also contains output and shutdown work.
-5. Repeat runs and report the number of samples, central value and spread.
-   Keep process wall time, per-shower time and allocation cost in separate
-   columns. Compare matched timing scopes and identify failed or incomplete
-   runs instead of averaging their partial times into completed samples.
-6. Run the relevant observable and completion checks before accepting a
-   speedup. Record changes in step counts, fallback counts, batch sizes and
-   output volume so reduced or altered work is visible. See :doc:`numerics`
-   for energy-accounting scopes and ensemble comparisons.
-
-Detailed timing, full-step records, replay capture and an external profiler
-can change output volume, memory traffic, synchronization or scheduling.
-Keep an instrumented attribution run separate from the production throughput
-sample and compare their observables. Quantify instrumentation overhead with
-matched configurations when it matters to the conclusion.
-
-Frozen-input module comparisons
--------------------------------
-
-A frozen-input experiment isolates an algorithm or execution stage from
-shower evolution. For example, charged-lepton transport consumes
-``InteractionRecord`` values plus fixed physics-table, environment and
-geometry views, and produces ``LeptonTransportRecord`` values and fallback
-results. Radio accumulation consumes fixed track records and observer/
-propagation configuration and produces waveforms and counters. These are
-different workloads from a full shower with changing populations and CPU
-feedback. See :doc:`../transport/lepton-step` and :doc:`../radio/accumulation`.
-
-Preserve the input arrays or their reproducible generator, hashes, sizes,
-PID/energy/material distributions, random keys, tables and configuration.
-Use the same inputs for each candidate. Validate output statuses, records,
-fallback provenance and input immutability before interpreting elapsed time.
-`testLeptonTransport.cpp`_ and `BackendStages.cpp`_ provide examples of fixed
-record comparisons and real-table stage calls; they are correctness tests,
-not a supplied throughput benchmark or a set of performance results.
-
-In a dedicated timing harness, declare whether allocation, initialization,
-upload, execution, synchronization and download are inside the measured
-boundary. Reuse buffers for a resident-compute experiment; include transfers
-when measuring the complete stage API. Reset mutable inputs and outputs as
-required between repetitions so later repetitions do the same work. Warm-up
-and compilation costs belong in a separately identified interval. Retain
-the batch-size distribution and completed-record count, and sweep relevant
-sizes rather than extrapolating a large uniform batch to a whole shower.
 
 Source map
 ----------
