@@ -797,14 +797,18 @@ namespace corsika::kokkos::radio {
       auto const label = Coreas && Zhs
                              ? "c8_kokkos_coreas_zhs_tiled"
                              : Coreas ? "c8_kokkos_coreas_tiled" : "c8_kokkos_zhs_tiled";
-      // Sparse observer tiles and CoREAS-only work keep the original kernel:
-      // their counters do not repay the extra team-reduction overhead.
-      // Small track batches use the separate direct projection path.
+#if defined(KOKKOS_ENABLE_HIP)
+      constexpr bool reduce_coreas_counters =
+          std::is_same_v<TExecutionSpace, Kokkos::HIP>;
+#else
+      constexpr bool reduce_coreas_counters = false;
+#endif
+      // Full observer tiles can combine diagnostic counts before updating global memory.
       auto const launch_projection = [&](auto const& selected_policy) {
-        if (Zhs && observer_count >= observer_tile_size) {
+        if ((Zhs || reduce_coreas_counters) && observer_count >= observer_tile_size) {
           Kokkos::parallel_for(
               label, selected_policy,
-              RadioTileProjection<Coreas, Zhs, Zhs>{
+              RadioTileProjection<Coreas, Zhs, true>{
                   tracks, coreas_observers, zhs_observers, propagation, coreas_waveforms,
                   zhs_waveforms, counters, track_count, observer_count, observer_tiles,
                   track_tile_size, observer_tile_size, tile_lanes});

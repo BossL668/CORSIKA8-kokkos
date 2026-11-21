@@ -137,4 +137,5 @@ TEST_CASE("Production direct and tiled projection counters",
     test(execution, observers, true, true);
   }
   test(execution, 33, true, true, true);
+  test(execution, 240, true, false);
 }
